@@ -49,6 +49,7 @@ export default function ZeniPayLanding() {
               {item}
             </a>
           ))}
+          <a href="/login" style={{ marginRight:8, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"#fff", textDecoration:"none", padding:"8px 20px", borderRadius:24, fontSize:14, fontWeight:700 }}>Sign In</a>
           <a href="#get-started" style={{
             background: ZP_GRAD, color: "#fff", textDecoration: "none",
             padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700,
