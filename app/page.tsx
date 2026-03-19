@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -13,14 +12,6 @@ const DARK2 = "#111827";
 const GLASS = "rgba(255,255,255,0.05)";
 
 export default function ZeniPayLanding() {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
-  };
-
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", overflowX: "hidden" }}>
       {/* Nav */}
@@ -96,34 +87,12 @@ export default function ZeniPayLanding() {
           </p>
 
           <div id="get-started" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-            {!submitted ? (
-              <form onSubmit={handleSubmit} style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-                <input
-                  type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="Enter your business email"
-                  required
-                  style={{
-                    background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)",
-                    color: "#fff", borderRadius: 12, padding: "14px 20px", fontSize: 15,
-                    width: 280, outline: "none",
-                  }}
-                />
-                <button type="submit" style={{
-                  background: ZP_GRAD, color: "#fff", border: "none",
-                  borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 700,
-                  cursor: "pointer",
-                }}>
-                  Get Started →
-                </button>
-              </form>
-            ) : (
-              <div style={{
-                background: GLASS, border: "1px solid rgba(45,190,96,0.3)",
-                borderRadius: 12, padding: "16px 32px", color: ZP_GREEN, fontWeight: 600,
-              }}>
-                ✓ Thank you! We&apos;ll be in touch shortly.
-              </div>
-            )}
+            <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 700 }}>
+              Get Started →
+            </Link>
+            <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>
+              Talk to Sales
+            </a>
           </div>
 
           <p style={{ marginTop: 32, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
