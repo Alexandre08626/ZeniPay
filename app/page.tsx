@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 
 const ZP_GREEN = "#2DBE60";
 const ZP_CYAN = "#15B8C9";
@@ -9,7 +11,6 @@ const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PU
 const DARK = "#0A0F1E";
 const DARK2 = "#111827";
 const GLASS = "rgba(255,255,255,0.05)";
-const GLASS_B = "rgba(255,255,255,0.1)";
 
 export default function ZeniPayLanding() {
   const [email, setEmail] = useState("");
@@ -30,30 +31,26 @@ export default function ZeniPayLanding() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 5%", height: 64,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: ZP_GRAD,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: 900, fontSize: 18, color: "#fff",
-          }}>Z</div>
-          <span style={{ fontWeight: 800, fontSize: 20, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            ZeniPay
-          </span>
-        </div>
+        {/* Logo */}
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+          <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={140} height={40} style={{ objectFit: "contain" }} priority />
+        </Link>
+
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          {["Payments", "Payouts", "Tools", "Docs"].map(item => (
-            <a key={item} href="#" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: 14, fontWeight: 500, transition: "color 0.2s" }}
+          {[
+            { label: "Payments", href: "/payments" },
+            { label: "Payouts", href: "/payouts" },
+            { label: "Tools", href: "/tools" },
+            { label: "Docs", href: "/docs" },
+          ].map(item => (
+            <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}
                onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}>
-              {item}
-            </a>
+              {item.label}
+            </Link>
           ))}
-          <a href="/login" style={{ marginRight:8, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"#fff", textDecoration:"none", padding:"8px 20px", borderRadius:24, fontSize:14, fontWeight:700 }}>Sign In</a>
-          <a href="#get-started" style={{
-            background: ZP_GRAD, color: "#fff", textDecoration: "none",
-            padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700,
-          }}>Get Started</a>
+          <Link href="/login" style={{ marginRight: 8, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Sign In</Link>
+          <Link href="/login" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Get Started</Link>
         </div>
       </nav>
 
@@ -64,7 +61,11 @@ export default function ZeniPayLanding() {
         background: `radial-gradient(ellipse 80% 60% at 50% -10%, rgba(45,190,96,0.12) 0%, transparent 70%), ${DARK}`,
       }}>
         <div style={{ maxWidth: 820 }}>
-          {/* Badge */}
+          {/* Logo big */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 40 }}>
+            <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={260} height={72} style={{ objectFit: "contain" }} priority />
+          </div>
+
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             background: GLASS, border: "1px solid rgba(45,190,96,0.3)",
@@ -94,7 +95,6 @@ export default function ZeniPayLanding() {
             issue instant payouts, and manage money — all through a single API.
           </p>
 
-          {/* CTA */}
           <div id="get-started" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
             {!submitted ? (
               <form onSubmit={handleSubmit} style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
@@ -126,7 +126,6 @@ export default function ZeniPayLanding() {
             )}
           </div>
 
-          {/* Social proof */}
           <p style={{ marginTop: 32, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
             Trusted by travel, e-commerce and SaaS businesses
           </p>
@@ -165,48 +164,26 @@ export default function ZeniPayLanding() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
           {[
-            {
-              icon: "💳", title: "Payments",
-              desc: "Accept Visa, Mastercard, Amex and more. Server-side tokenization, 3DS support, and intelligent retry logic built-in.",
-              color: ZP_GREEN,
-            },
-            {
-              icon: "💸", title: "Payouts",
-              desc: "Send money to anyone, instantly. ACH transfers, wire payments, and real-time payouts to bank accounts worldwide.",
-              color: ZP_CYAN,
-            },
-            {
-              icon: "📊", title: "Financial Tools",
-              desc: "Dashboard analytics, multi-wallet architecture, commission splits, invoicing, and QuickBooks-compatible accounting exports.",
-              color: ZP_PURPLE,
-            },
-            {
-              icon: "🔐", title: "Security & Compliance",
-              desc: "PCI DSS Level 1, HMAC-SHA256 webhook verification, idempotency keys, and append-only audit ledger.",
-              color: ZP_BLUE,
-            },
-            {
-              icon: "⚡", title: "Instant Reconciliation",
-              desc: "Real-time balance tracking, double-entry bookkeeping, and automated reconciliation across all payment channels.",
-              color: "#F5A623",
-            },
-            {
-              icon: "🧩", title: "Simple API",
-              desc: "RESTful API with client libraries. Get from integration to live in minutes, not weeks. Full sandbox environment included.",
-              color: "#E5247B",
-            },
+            { icon: "💳", title: "Payments", desc: "Accept Visa, Mastercard, Amex and more. Server-side tokenization, 3DS support, and intelligent retry logic built-in.", color: ZP_GREEN, href: "/payments" },
+            { icon: "💸", title: "Payouts", desc: "Send money to anyone, instantly. ACH transfers, wire payments, and real-time payouts to bank accounts worldwide.", color: ZP_CYAN, href: "/payouts" },
+            { icon: "📊", title: "Financial Tools", desc: "Dashboard analytics, multi-wallet architecture, commission splits, invoicing, and QuickBooks-compatible accounting exports.", color: ZP_PURPLE, href: "/tools" },
+            { icon: "🔐", title: "Security & Compliance", desc: "PCI DSS Level 1, HMAC-SHA256 webhook verification, idempotency keys, and append-only audit ledger.", color: ZP_BLUE, href: "/payments" },
+            { icon: "⚡", title: "Instant Reconciliation", desc: "Real-time balance tracking, double-entry bookkeeping, and automated reconciliation across all payment channels.", color: "#F5A623", href: "/tools" },
+            { icon: "🧩", title: "Simple API", desc: "RESTful API with client libraries. Get from integration to live in minutes, not weeks. Full sandbox environment included.", color: "#E5247B", href: "/docs" },
           ].map(f => (
-            <div key={f.title} style={{
-              background: GLASS, border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 20, padding: 32,
-              transition: "border-color 0.2s, transform 0.2s",
-            }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = f.color + "44"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}>
-              <div style={{ fontSize: 32, marginBottom: 16 }}>{f.icon}</div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 12px", color: f.color }}>{f.title}</h3>
-              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
-            </div>
+            <Link key={f.title} href={f.href} style={{ textDecoration: "none" }}>
+              <div style={{
+                background: GLASS, border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 20, padding: 32, cursor: "pointer",
+                transition: "border-color 0.2s, transform 0.2s",
+              }}
+                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = f.color + "44"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}>
+                <div style={{ fontSize: 32, marginBottom: 16 }}>{f.icon}</div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 12px", color: f.color }}>{f.title}</h3>
+                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
+              </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -252,17 +229,10 @@ export default function ZeniPayLanding() {
           Join businesses that trust ZeniPay for their payment infrastructure.
         </p>
         <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-          <a href="mailto:info@zenipay.ca" style={{
-            background: ZP_GRAD, color: "#fff", textDecoration: "none",
-            padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700,
-          }}>
+          <Link href="/login" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700 }}>
             Get Started Free
-          </a>
-          <a href="mailto:info@zenipay.ca" style={{
-            background: GLASS, color: "#fff", textDecoration: "none",
-            padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700,
-            border: "1px solid rgba(255,255,255,0.15)",
-          }}>
+          </Link>
+          <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700, border: "1px solid rgba(255,255,255,0.15)" }}>
             Talk to Sales
           </a>
         </div>
@@ -274,20 +244,17 @@ export default function ZeniPayLanding() {
         padding: "48px 5%", display: "flex", justifyContent: "space-between",
         alignItems: "center", flexWrap: "wrap", gap: 24,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: ZP_GRAD,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: 900, fontSize: 16, color: "#fff",
-          }}>Z</div>
-          <span style={{ fontWeight: 800, fontSize: 16, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            ZeniPay
-          </span>
-        </div>
+        <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
+          <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={110} height={32} style={{ objectFit: "contain" }} />
+        </Link>
         <div style={{ display: "flex", gap: 24 }}>
-          {["Privacy", "Terms", "Security", "API Docs"].map(item => (
-            <a key={item} href="#" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item}</a>
+          {[
+            { label: "Payments", href: "/payments" },
+            { label: "Payouts", href: "/payouts" },
+            { label: "Tools", href: "/tools" },
+            { label: "Docs", href: "/docs" },
+          ].map(item => (
+            <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>
           ))}
         </div>
         <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>
