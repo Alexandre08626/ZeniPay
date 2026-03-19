@@ -166,7 +166,7 @@ export default function PaymentsPage() {
           {[
             { title: "Standard", price: "2.9% + $0.30", per: "per successful charge", color: ZP_GREEN, features: ["Visa, Mastercard, Discover", "3DS2 included", "Real-time webhooks", "Basic reporting", "Email receipts"] },
             { title: "Business", price: "2.5% + $0.25", per: "per successful charge", color: ZP_CYAN, badge: "Most popular", features: ["Everything in Standard", "Amex & international cards", "Priority routing", "Advanced analytics", "Phone support", "Custom webhook retry"] },
-            { title: "Complete", price: "2% + $0.20", per: "per successful charge", color: ZP_PURPLE, badge: "All-in-one", features: ["Instant funds — 0-day hold", "Visa & Mastercard card included", "Full accounting suite", "Pay suppliers & employees", "Dedicated business bank account", "Everything in Business"] },
+            { title: "Complete", price: "2% + $0.20", per: "per successful charge", color: ZP_PURPLE, badge: "All-in-one", features: ["Instant funds — 0-day hold", "Business chequing account included", "Visa card (pending verification)", "Mastercard (pending verification)", "Full accounting suite", "Pay suppliers & employees", "Everything in Business"] },
           ].map(p => (
             <div key={p.title} style={{ background: GLASS, border: `1px solid ${p.color}33`, borderRadius: 22, padding: "32px 28px", position: "relative" }}>
               {p.badge && <div style={{ position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)", background: ZP_GRAD, color: "#fff", fontSize: 10, fontWeight: 800, padding: "4px 14px", borderRadius: 20, whiteSpace: "nowrap" }}>{p.badge}</div>}

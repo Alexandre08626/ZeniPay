@@ -134,7 +134,7 @@ export default function ZeniPayLanding() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
           {[
             { icon: "🏦", title: "A real business bank account", desc: "Not a payment processor — a full business bank account. Routing number, account number, monthly statements. Yours from day one.", color: ZP_GREEN, href: "/tools" },
-            { icon: "💳", title: "Visa & Mastercard included", desc: "Every ZeniPay account comes with physical and virtual Visa & Mastercard cards. Set spend controls and limits per card.", color: ZP_CYAN, href: "/payments" },
+            { icon: "💳", title: "Visa & Mastercard cards", desc: "Complete plan includes a business chequing account + Visa & Mastercard cards (subject to verification). Set spend limits and controls per card.", color: ZP_CYAN, href: "/payments" },
             { icon: "⚡", title: "Funds available instantly", desc: "Zero-day holds. Your money is in your account the moment a payment clears — not 2 business days later like the old way.", color: ZP_PURPLE, href: "/payouts" },
             { icon: "📒", title: "Real accounting tools", desc: "Invoicing, reconciliation, double-entry bookkeeping, QuickBooks & Xero export. Close your books in minutes, not days.", color: ZP_BLUE, href: "/tools" },
             { icon: "👥", title: "Pay suppliers & employees", desc: "ACH, RTP, SWIFT — pay your vendors and team directly from your ZeniPay dashboard. Batch thousands at once.", color: "#F5A623", href: "/payouts" },
