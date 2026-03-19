@@ -16,7 +16,7 @@ const statusBg = (s: string) => ({
   failed: "rgba(220,38,38,0.08)", live: "rgba(22,163,74,0.08)", sandbox: "rgba(217,119,6,0.08)",
 }[s] ?? "rgba(148,163,184,0.08)");
 
-const CLIENTS = [
+const CLIENTS_DEFAULT = [
   {
     id: "cl-001", name: "Zeniva Travel LLC", domain: "zenivatravel.com",
     status: "active", volume: 0, txCount: 0, balance: 0,
@@ -58,14 +58,32 @@ export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [copiedKey, setCopiedKey] = useState("");
   const [clientView, setClientView] = useState<string | null>(null);
+  const [signups, setSignups] = useState<any[]>([]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (!sessionStorage.getItem("zp_admin")) {
         router.replace("/admin/login");
       }
+      // Load new signups from localStorage
+      try {
+        const stored = JSON.parse(localStorage.getItem("zp_accounts") || "[]");
+        setSignups(stored);
+      } catch {}
     }
   }, [router]);
+
+  const CLIENTS = [
+    ...CLIENTS_DEFAULT,
+    ...signups.map((s: any) => ({
+      id: s.id, name: s.businessName, domain: s.website || "—",
+      status: "sandbox", volume: 0, txCount: 0, balance: 0,
+      apiKey: "—", sandboxKey: s.sandboxKey,
+      plan: "Sandbox", since: s.createdAt?.slice(0, 10) || "—",
+      contact: s.email, gateway: "Sandbox", bankAccount: "—",
+      description: s.businessType || "New signup",
+    })),
+  ];
 
   const logout = () => {
     sessionStorage.removeItem("zp_admin");

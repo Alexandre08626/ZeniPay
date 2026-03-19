@@ -2,94 +2,153 @@
 import Image from "next/image";
 import Link from "next/link";
 
-const ZP_GREEN = "#2DBE60";
-const ZP_CYAN = "#15B8C9";
-const ZP_BLUE = "#2A8FE0";
-const ZP_PURPLE = "#7B4FBF";
+const ZP_GREEN = "#2DBE60"; const ZP_CYAN = "#15B8C9"; const ZP_BLUE = "#2A8FE0"; const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
-const DARK = "#0A0F1E";
-const DARK2 = "#111827";
-const GLASS = "rgba(255,255,255,0.05)";
+const DARK = "#0A0F1E"; const DARK2 = "#111827"; const GLASS = "rgba(255,255,255,0.05)";
+const NAV_LINKS = [{ label: "Payments", href: "/payments" }, { label: "Payouts", href: "/payouts" }, { label: "Tools", href: "/tools" }, { label: "Docs", href: "/docs" }];
+
+function Nav({ active }: { active: string }) {
+  return (
+    <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "rgba(10,15,30,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 5%", height: 64 }}>
+      <Link href="/" style={{ textDecoration: "none" }}><Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={140} height={40} style={{ objectFit: "contain" }} /></Link>
+      <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+        {NAV_LINKS.map(item => <Link key={item.label} href={item.href} style={{ color: item.label === active ? "#fff" : "rgba(255,255,255,0.55)", textDecoration: "none", fontSize: 14, fontWeight: item.label === active ? 700 : 500, borderBottom: item.label === active ? `2px solid ${ZP_CYAN}` : "2px solid transparent", paddingBottom: 2 }}>{item.label}</Link>)}
+        <Link href="/login" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Sign In</Link>
+        <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Get Started</Link>
+      </div>
+    </nav>
+  );
+}
 
 export default function PayoutsPage() {
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      {/* Nav */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "rgba(10,15,30,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 5%", height: 64 }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
-          <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={140} height={40} style={{ objectFit: "contain" }} />
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          {[{ label: "Payments", href: "/payments" }, { label: "Payouts", href: "/payouts" }, { label: "Tools", href: "/tools" }, { label: "Docs", href: "/docs" }].map(item => (
-            <Link key={item.label} href={item.href} style={{ color: item.label === "Payouts" ? "#fff" : "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: 14, fontWeight: item.label === "Payouts" ? 700 : 500 }}>{item.label}</Link>
-          ))}
-          <Link href="/login" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Sign In</Link>
-          <Link href="/login" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Get Started</Link>
-        </div>
-      </nav>
+      <Nav active="Payouts" />
 
       {/* Hero */}
-      <section style={{ paddingTop: 120, paddingBottom: 80, paddingLeft: "5%", paddingRight: "5%", background: `radial-gradient(ellipse 70% 50% at 50% 0%, rgba(21,184,201,0.1) 0%, transparent 70%)` }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: GLASS, border: "1px solid rgba(21,184,201,0.3)", borderRadius: 24, padding: "6px 16px", marginBottom: 24 }}>
-            <span style={{ fontSize: 11, color: ZP_CYAN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>Payouts</span>
+      <section style={{ paddingTop: 120, paddingBottom: 80, paddingLeft: "5%", paddingRight: "5%", background: `radial-gradient(ellipse 80% 60% at 50% -10%, rgba(21,184,201,0.12) 0%, transparent 70%)`, textAlign: "center" }}>
+        <div style={{ maxWidth: 820, margin: "0 auto" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(21,184,201,0.1)", border: "1px solid rgba(21,184,201,0.3)", borderRadius: 24, padding: "6px 16px", marginBottom: 24 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: ZP_CYAN, display: "inline-block" }} />
+            <span style={{ fontSize: 12, color: ZP_CYAN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>Instant Payouts</span>
           </div>
-          <h1 style={{ fontSize: "clamp(36px, 5vw, 64px)", fontWeight: 900, lineHeight: 1.1, margin: "0 0 24px", letterSpacing: "-2px" }}>
-            Pay anyone,<br /><span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>instantly</span>
+          <h1 style={{ fontSize: "clamp(40px, 5.5vw, 68px)", fontWeight: 900, lineHeight: 1.08, margin: "0 0 24px", letterSpacing: "-2px" }}>
+            Pay anyone.<br /><span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>In seconds. At scale.</span>
           </h1>
-          <p style={{ fontSize: 18, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, margin: "0 auto 40px", maxWidth: 560 }}>
-            ACH transfers, wire payments, real-time payouts. Send money to employees, contractors, and partners — with full audit trail and automated reconciliation.
+          <p style={{ fontSize: 19, color: "rgba(255,255,255,0.65)", lineHeight: 1.65, margin: "0 auto 44px", maxWidth: 580 }}>
+            ACH, real-time (RTP/FedNow), wire — send money to employees, contractors, and partners via a single API call. Batch thousands at once.
           </p>
-          <div style={{ display: "flex", gap: 16, justifyContent: "center" }}>
-            <Link href="/login" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "14px 32px", borderRadius: 12, fontSize: 15, fontWeight: 700 }}>Start sending payouts</Link>
-            <Link href="/docs" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "14px 32px", borderRadius: 12, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>View API docs</Link>
+          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(21,184,201,0.3)" }}>Start sending payouts →</Link>
+            <Link href="/docs" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>API reference</Link>
           </div>
         </div>
       </section>
 
-      {/* Payout types */}
+      {/* Payout methods */}
       <section style={{ padding: "80px 5%", maxWidth: 1100, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 36, fontWeight: 900, textAlign: "center", marginBottom: 48 }}>All payout methods, one API</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
+        <h2 style={{ fontSize: "clamp(26px, 3vw, 42px)", fontWeight: 900, textAlign: "center", marginBottom: 12, letterSpacing: "-1px" }}>Every payout method. One API.</h2>
+        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 48 }}>Choose the right rail for each use case — or let ZeniPay auto-select the fastest available.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
-            { icon: "🏦", title: "ACH Transfers", desc: "Standard and same-day ACH. Batch payouts to hundreds of recipients in a single API call.", color: ZP_GREEN, time: "1–2 business days" },
-            { icon: "⚡", title: "Real-time Payouts", desc: "Instant payouts via RTP and FedNow networks. Money moves in seconds, 24/7/365.", color: ZP_CYAN, time: "< 30 seconds" },
-            { icon: "🌐", title: "Wire Transfers", desc: "Domestic and international wire transfers. SWIFT support for cross-border payouts.", color: ZP_BLUE, time: "Same day / 1–3 days" },
-            { icon: "💼", title: "Mass Payouts", desc: "Pay thousands of recipients at once. Upload a CSV or use the bulk API endpoint.", color: ZP_PURPLE, time: "Batch processing" },
-            { icon: "🔁", title: "Recurring Payouts", desc: "Schedule weekly, bi-weekly, or monthly payouts automatically. No manual work.", color: "#F5A623", time: "Scheduled" },
-            { icon: "📊", title: "Payout Analytics", desc: "Real-time dashboard showing payout status, failure rates, and reconciliation reports.", color: "#E5247B", time: "Real-time" },
+            { icon: "⚡", color: ZP_CYAN, title: "Real-time (RTP / FedNow)", time: "< 30 seconds", availability: "24/7/365", desc: "Instant payouts via RTP and FedNow rails. Recipients see funds in seconds, not days. Ideal for on-demand platforms." },
+            { icon: "🏦", color: ZP_GREEN, title: "Same-day ACH", time: "Same business day", availability: "Weekdays by 1PM ET", desc: "Guaranteed same-day settlement via NACHA same-day ACH. Perfect for payroll and contractor payments." },
+            { icon: "🔄", color: ZP_BLUE, title: "Standard ACH", time: "1–2 business days", availability: "Weekdays", desc: "Low-cost ACH credit and debit. Best for recurring payouts where speed is less critical." },
+            { icon: "🌐", color: ZP_PURPLE, title: "Domestic Wire", time: "Same day", availability: "Weekdays by 5PM ET", desc: "High-value domestic wire transfers via Fedwire. Full IMAD/OMAD tracking. No cap on transfer amount." },
+            { icon: "✈️", color: "#F5A623", title: "International Wire (SWIFT)", time: "1–3 business days", availability: "Global", desc: "Cross-border SWIFT transfers to 180+ countries. Multi-currency settlement. Correspondent bank network." },
+            { icon: "📦", color: "#E5247B", title: "Mass / Batch Payouts", time: "All of the above", availability: "Upload CSV or API", desc: "Pay thousands of recipients in one call. Upload a CSV or POST a batch. Full status tracking per recipient." },
           ].map(f => (
-            <div key={f.title} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: 28 }}>
-              <div style={{ fontSize: 28, marginBottom: 14 }}>{f.icon}</div>
-              <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 8px", color: f.color }}>{f.title}</h3>
-              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1.6, margin: "0 0 12px" }}>{f.desc}</p>
-              <div style={{ display: "inline-block", background: "rgba(255,255,255,0.06)", borderRadius: 8, padding: "4px 10px", fontSize: 12, color: f.color, fontWeight: 600 }}>⏱ {f.time}</div>
+            <div key={f.title} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "28px 26px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: f.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{f.icon}</div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: f.color }}>{f.title}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>⏱ {f.time} · {f.availability}</div>
+                </div>
+              </div>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Use cases */}
-      <section style={{ padding: "60px 5%", background: `radial-gradient(ellipse 60% 40% at 50% 50%, rgba(21,184,201,0.05) 0%, transparent 70%)` }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
-          <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 48 }}>Built for every industry</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
-            {["Travel agencies", "Gig platforms", "Marketplaces", "SaaS companies", "E-commerce", "Fintech startups"].map(uc => (
-              <div key={uc} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "20px 16px", fontSize: 15, fontWeight: 600 }}>{uc}</div>
+      {/* Recipients management */}
+      <section style={{ padding: "0 5% 80px", maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: "clamp(26px, 3vw, 40px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>Manage recipients at scale</h2>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, lineHeight: 1.7, marginBottom: 28 }}>
+              Save bank accounts as verified recipients. Reuse them for recurring payouts. Full KYC/KYB validation. ACH micro-deposit verification. Instant bank verification via Plaid.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {["Instant bank account verification (Plaid)", "ACH micro-deposit verification fallback", "Saved recipients with encrypted bank data", "Per-recipient payout limits and rules", "Full audit trail per recipient"].map(f => (
+                <div key={f} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 14 }}>
+                  <span style={{ color: ZP_CYAN, fontSize: 16 }}>✓</span>
+                  <span style={{ color: "rgba(255,255,255,0.75)" }}>{f}</span>
+                </div>
+              ))}
+            </div>
+            <Link href="/signup" style={{ display: "inline-block", marginTop: 28, background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "13px 28px", borderRadius: 12, fontSize: 14, fontWeight: 800 }}>Try it in sandbox →</Link>
+          </div>
+          <div style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "24px 28px" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.08em" }}>Recipients</div>
+            {[
+              { name: "Sarah Johnson", bank: "Chase ••••4821", status: "verified", color: ZP_GREEN },
+              { name: "Acme Contractors LLC", bank: "BofA ••••7392", status: "verified", color: ZP_GREEN },
+              { name: "Miguel Torres", bank: "Wells Fargo ••••1047", status: "pending", color: "#D97706" },
+              { name: "Nova Studios Inc.", bank: "Citi ••••9283", status: "verified", color: ZP_GREEN },
+            ].map(r => (
+              <div key={r.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{r.bank}</div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: r.color, background: r.color + "18", padding: "3px 10px", borderRadius: 20 }}>{r.status}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 16 }}>
+              <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: ZP_CYAN }}>$0</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Pending payouts</div>
+                </div>
+                <Link href="/signup" style={{ flex: 1, background: ZP_GRAD, borderRadius: 10, padding: "12px", textAlign: "center", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff" }}>
+                  + Add recipient
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Industries */}
+      <section style={{ padding: "0 5% 80px", background: `radial-gradient(ellipse 60% 40% at 50% 50%, rgba(21,184,201,0.05) 0%, transparent 70%)` }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto", textAlign: "center" }}>
+          <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 12 }}>Built for every business that pays people</h2>
+          <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 44 }}>From startups to enterprises — if you move money, ZeniPay handles it.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+            {[
+              { icon: "✈️", name: "Travel Agencies", desc: "Commissions to agents & guides" },
+              { icon: "🚗", name: "Gig Platforms", desc: "Driver & contractor earnings" },
+              { icon: "🛒", name: "Marketplaces", desc: "Seller & vendor payouts" },
+              { icon: "💼", name: "HR & Payroll", desc: "Employee salary disbursement" },
+              { icon: "🎮", name: "Creator Platforms", desc: "Revenue share to creators" },
+              { icon: "🏥", name: "Healthcare", desc: "Provider reimbursements" },
+            ].map(ind => (
+              <div key={ind.name} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "22px 18px", textAlign: "left" }}>
+                <div style={{ fontSize: 26, marginBottom: 10 }}>{ind.icon}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{ind.name}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{ind.desc}</div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer style={{ background: DARK2, borderTop: "1px solid rgba(255,255,255,0.06)", padding: "40px 5%", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
+      <footer style={{ background: DARK2, borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 5%", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
         <Link href="/" style={{ textDecoration: "none" }}><Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={110} height={32} style={{ objectFit: "contain" }} /></Link>
-        <div style={{ display: "flex", gap: 24 }}>
-          {[{ label: "Payments", href: "/payments" }, { label: "Payouts", href: "/payouts" }, { label: "Tools", href: "/tools" }, { label: "Docs", href: "/docs" }].map(item => (
-            <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>
-          ))}
-        </div>
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>© 2026 ZeniPay.</p>
+        <div style={{ display: "flex", gap: 24 }}>{NAV_LINKS.map(item => <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}</div>
+        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>© 2026 ZeniPay Inc.</p>
       </footer>
     </div>
   );
