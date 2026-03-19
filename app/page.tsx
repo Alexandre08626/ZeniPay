@@ -99,7 +99,7 @@ export default function ZeniPayLanding() {
 
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 36px", fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(45,190,96,0.25)" }}>
-              Open your ZeniCard free →
+              Get started with ZeniPay →
             </Link>
             <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>
               Talk to Sales
@@ -186,7 +186,7 @@ export default function ZeniPayLanding() {
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 32 }}>
             {[
-              { step: "01", icon: "🏦", title: "Open your ZeniCard", desc: "Sign up, verify your business, and get your ZeniCard business account + API keys instantly." },
+              { step: "01", icon: "🏦", title: "Open your ZeniPay account", desc: "Sign up, verify your business, and receive your ZeniCard business account + API keys instantly." },
               { step: "02", icon: "🔌", title: "Integrate payments", desc: "Drop in our SDK or use the REST API. Start accepting Visa, Mastercard and more the same day." },
               { step: "03", icon: "⚡", title: "Funds hit your ZeniCard", desc: "Every payment clears directly into your ZeniCard. Spend, transfer, or pay people — immediately." },
             ].map(s => (
@@ -211,11 +211,11 @@ export default function ZeniPayLanding() {
           Your payments. Your bank. One dashboard.
         </h2>
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, margin: "0 auto 40px", maxWidth: 480 }}>
-          Open your ZeniCard today — accept card payments and bank your money in the same place. Free to start.
+          Open your ZeniPay account today — accept card payments, receive your ZeniCard, and bank your money all in one place. Free to start.
         </p>
         <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
           <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700 }}>
-            Open your ZeniCard free →
+            Get started with ZeniPay free →
           </Link>
           <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700, border: "1px solid rgba(255,255,255,0.15)" }}>
             Talk to Sales
