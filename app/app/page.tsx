@@ -1651,6 +1651,9 @@ export default function ZeniPayDashboard() {
                 <button onClick={() => setTab("ben")} style={{ background: `${BLUE}15`, border: `1px solid ${BLUE}30`, borderRadius: 8, padding: "8px 14px", color: BLUE, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                   🤖 Ben AI
                 </button>
+                <button onClick={() => { sessionStorage.removeItem("zp_client"); window.location.href = "/login"; }} style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: "8px 14px", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  🔓 Sign Out
+                </button>
               </div>
             </div>
           </div>
