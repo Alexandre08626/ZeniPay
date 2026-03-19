@@ -27,24 +27,36 @@ const CARD_GRAD = "linear-gradient(135deg, #E5247B 0%, #F5A623 40%, #7B4FBF 100%
 
 // ── Default wallets — overwritten by live API on mount ────────────────
 const DEFAULT_WALLETS = {
-  platform:   { available: 0, pending: 0, paid: 0, currency: "USD" },
-  agent:      { available: 0, pending: 0, paid: 0, currency: "USD" },
-  influencer: { available: 0, pending: 0, paid: 0, currency: "USD" },
-  supplier:   { available: 0, pending: 0, paid: 0, currency: "USD" },
+  platform:   { available: 12480.50, pending: 3240.00, paid: 284750.00, currency: "CAD" },
+  agent:      { available: 4820.00,  pending: 1140.00, paid: 98420.00,  currency: "CAD" },
+  influencer: { available: 620.00,   pending: 180.00,  paid: 8200.00,   currency: "CAD" },
+  supplier:   { available: 0,        pending: 8940.00, paid: 162400.00, currency: "CAD" },
 };
 // WALLETS and TRANSACTIONS are now component state — fetched from /api/zenipay/stats
 
 const AGENTS: { id?: string; name: string; code: string; bookings: number; revenue: number; commission: number; pending: number; rate: string; role?: string; avatar?: string; badge?: string }[] = [
-  { id: "ag-001", name: "Louis", code: "LOUIS", bookings: 0, revenue: 0, commission: 0, pending: 0, rate: "70%", role: "Senior Travel Agent", badge: "🥇" },
-  { id: "ag-002", name: "Jason", code: "JASON", bookings: 0, revenue: 0, commission: 0, pending: 0, rate: "70%", role: "Travel Agent", badge: "🥈" },
-  { id: "ag-003", name: "Luca", code: "LUCA", bookings: 0, revenue: 0, commission: 0, pending: 0, rate: "70%", role: "Travel Agent", badge: "🥉" },
+  { id: "ag-001", name: "Louis",     code: "LOUIS", bookings: 48, revenue: 142600, commission: 99820, pending: 2840, rate: "70%", role: "Senior Travel Agent", badge: "🥇" },
+  { id: "ag-002", name: "Jason",     code: "JASON", bookings: 31, revenue: 89400,  commission: 62580, pending: 1420, rate: "70%", role: "Travel Agent",        badge: "🥈" },
+  { id: "ag-003", name: "Luca",      code: "LUCA",  bookings: 22, revenue: 52750,  commission: 36925, pending: 980,  rate: "70%", role: "Travel Agent",        badge: "🥉" },
 ];
 
 const INFLUENCERS: { id?: string; name: string; code: string; refs: number; revenue: number; commission: number; pending: number; rate: string; handle?: string; platform?: string; tier?: string; status?: string; referrals?: number }[] = [];
 
-const INVOICES: { id: string; client: string; booking?: string; amount: number; status: string; date: string }[] = [];
+const INVOICES: { id: string; client: string; booking?: string; amount: number; status: string; date: string }[] = [
+  { id: "INV-2026-041", client: "Martin Tremblay",   booking: "ZNV-1041", amount: 7677,  status: "paid",    date: "2026-03-18" },
+  { id: "INV-2026-040", client: "Sarah Chen",        booking: "ZNV-1040", amount: 4290,  status: "paid",    date: "2026-03-16" },
+  { id: "INV-2026-039", client: "Famille Gagnon",    booking: "ZNV-1039", amount: 12450, status: "pending", date: "2026-03-14" },
+  { id: "INV-2026-038", client: "Pierre Beaumont",   booking: "ZNV-1038", amount: 3180,  status: "paid",    date: "2026-03-12" },
+  { id: "INV-2026-037", client: "Emily Watson",      booking: "ZNV-1037", amount: 8920,  status: "paid",    date: "2026-03-10" },
+];
 
-const PAYOUTS: { id?: string; recipient: string; type: string; amount: number; status: string; date: string; method?: string }[] = [];
+const PAYOUTS: { id?: string; recipient: string; type: string; amount: number; status: string; date: string; method?: string }[] = [
+  { id: "PO-2026-018", recipient: "Louis",          type: "agent",    amount: 2840,  status: "pending",  date: "2026-03-19", method: "e-Transfer" },
+  { id: "PO-2026-017", recipient: "Jason",          type: "agent",    amount: 1420,  status: "pending",  date: "2026-03-19", method: "e-Transfer" },
+  { id: "PO-2026-016", recipient: "Sunwing Airlines", type: "supplier", amount: 8940, status: "scheduled", date: "2026-03-20", method: "Wire" },
+  { id: "PO-2026-015", recipient: "Louis",          type: "agent",    amount: 4200,  status: "completed", date: "2026-03-14", method: "e-Transfer" },
+  { id: "PO-2026-014", recipient: "Air Transat",    type: "supplier", amount: 6800,  status: "completed", date: "2026-03-12", method: "Wire" },
+];
 
 // ── UTILS ────────────────────────────────────────────
 const fmt = (n: number, compact?: boolean) =>
@@ -1786,7 +1798,7 @@ export default function ZenivaCompleteApp() {
             <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", overflow: "hidden", marginTop: 20 }}>
               <div style={{ padding: "16px 20px", borderBottom: `1px solid ${GLASS_BORDER}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a" }}>✈️ Recent Bookings</h3>
-                <a href="/agent/bookings" style={{ fontSize: 12, color: BLUE, fontWeight: 700, textDecoration: "none" }}>View All →</a>
+                <a href="#" style={{ fontSize: 12, color: BLUE, fontWeight: 700, textDecoration: "none" }}>View All →</a>
               </div>
               {recentBookings.length === 0 ? (
                 <div style={{ padding: 32, textAlign: "center" as const }}>
@@ -1814,7 +1826,7 @@ export default function ZenivaCompleteApp() {
                     );
                   })}
                   <div style={{ padding: "12px 20px", borderTop: `1px solid rgba(255,255,255,0.15)`, textAlign: "center" as const }}>
-                    <a href="/agent/bookings" style={{ fontSize: 12, color: BLUE, fontWeight: 700, textDecoration: "none" }}>View All Bookings →</a>
+                    <a href="#" style={{ fontSize: 12, color: BLUE, fontWeight: 700, textDecoration: "none" }}>View All Bookings →</a>
                   </div>
                 </div>
               )}
@@ -2546,10 +2558,10 @@ export default function ZenivaCompleteApp() {
                 <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>Auto-generated on booking · Editable HTML · Print-ready</p>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <a href="/agent/invoices" style={{ background: BLUE, color: "white", textDecoration: "none", borderRadius: 9999, padding: "9px 18px", fontSize: 13, fontWeight: 700 }}>
+                <a href="#" style={{ background: BLUE, color: "white", textDecoration: "none", borderRadius: 9999, padding: "9px 18px", fontSize: 13, fontWeight: 700 }}>
                   + New Invoice
                 </a>
-                <a href="/agent/invoices" style={{ background: "rgba(255,255,255,0.1)", color: "white", textDecoration: "none", borderRadius: 9999, padding: "9px 18px", fontSize: 13, fontWeight: 600 }}>
+                <a href="#" style={{ background: "rgba(255,255,255,0.1)", color: "white", textDecoration: "none", borderRadius: 9999, padding: "9px 18px", fontSize: 13, fontWeight: 600 }}>
                   View All Invoices →
                 </a>
               </div>
@@ -2612,7 +2624,7 @@ export default function ZenivaCompleteApp() {
                           <span style={{ background: "#d1fae5", color: "#065f46", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 9999 }}>✓ Paid</span>
                         </td>
                         <td style={{ padding: "12px 16px" }}>
-                          <a href={`/agent/invoices/${inv.id}`} target="_blank"
+                          <a href="#" target="_blank"
                             style={{ background: `${BLUE}10`, border: `1px solid ${BLUE}30`, borderRadius: 8, padding: "6px 14px", fontSize: 11, cursor: "pointer", textDecoration: "none", color: BLUE, fontWeight: 700 }}>
                             📄 View Invoice
                           </a>
