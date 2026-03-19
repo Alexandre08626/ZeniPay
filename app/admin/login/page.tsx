@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
         router.replace("/admin");
       } else {
         setLoading(false);
-        setError("Identifiants invalides. Contactez info@zenipay.ca");
+        setError("Invalid credentials. Contact info@zenipay.ca for access.");
       }
     }, 600);
   };
@@ -64,7 +64,7 @@ export default function AdminLoginPage() {
             ZeniPay
           </div>
           <div style={{ color: "#64748B", fontSize: 14, fontWeight: 500 }}>
-            Console d&apos;administration
+            Admin Console
           </div>
         </div>
 
@@ -95,7 +95,7 @@ export default function AdminLoginPage() {
 
             <div style={{ marginBottom: 24 }}>
               <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, display: "block", marginBottom: 7, letterSpacing: "0.06em" }}>
-                MOT DE PASSE
+                PASSWORD
               </label>
               <div style={{ position: "relative" }}>
                 <input
@@ -141,16 +141,16 @@ export default function AdminLoginPage() {
               {loading
                 ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                     <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #94A3B8", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                    Connexion…
+                    Signing in…
                   </span>
-                : "Accès Admin →"
+                : "Admin Access →"
               }
             </button>
           </form>
         </div>
 
         <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20 }}>
-          <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>← Retour</a>
+          <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>← Back</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
           <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>Support</a>
         </div>

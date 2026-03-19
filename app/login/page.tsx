@@ -24,7 +24,7 @@ export default function LoginPage() {
         router.replace("/app");
       } else {
         setLoading(false);
-        setError("Identifiants invalides. Contactez votre gestionnaire de compte ZeniPay.");
+        setError("Invalid credentials. Contact your ZeniPay account manager.");
       }
     }, 600);
   };
@@ -65,7 +65,7 @@ export default function LoginPage() {
             ZeniPay
           </div>
           <div style={{ color: "#64748B", fontSize: 14, fontWeight: 500 }}>
-            Portail Client
+            Client Portal
           </div>
         </div>
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
                 background: "rgba(217,119,6,0.06)", border: "1px solid rgba(217,119,6,0.18)",
                 fontSize: 12, color: "#B45309",
               }}>
-                Mode Sandbox — aucune transaction réelle
+                Sandbox mode — no real transactions
               </div>
             )}
           </div>
@@ -120,7 +120,7 @@ export default function LoginPage() {
               </label>
               <input
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
-                required placeholder="votre@email.com" autoComplete="email"
+                required placeholder="you@company.com" autoComplete="email"
                 style={{
                   width: "100%", padding: "12px 14px", borderRadius: 12,
                   background: "#F8FAFC", border: "1.5px solid #E2E8F0",
@@ -136,10 +136,10 @@ export default function LoginPage() {
             <div style={{ marginBottom: 24 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
                 <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, letterSpacing: "0.06em" }}>
-                  MOT DE PASSE
+                  PASSWORD
                 </label>
                 <a href="mailto:info@zenipay.ca" style={{ fontSize: 11, color: "#15B8C9", textDecoration: "none", fontWeight: 600 }}>
-                  Mot de passe oublié ?
+                  Forgot password?
                 </a>
               </div>
               <div style={{ position: "relative" }}>
@@ -187,9 +187,9 @@ export default function LoginPage() {
               {loading
                 ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                     <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #94A3B8", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                    Connexion…
+                    Signing in…
                   </span>
-                : `Connexion ${mode === "sandbox" ? "(Sandbox)" : ""} →`
+                : `Sign In ${mode === "sandbox" ? "(Sandbox)" : ""} →`
               }
             </button>
           </form>
@@ -197,7 +197,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20 }}>
-          <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>← Retour</a>
+          <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>← Back</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
           <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>Support</a>
         </div>
@@ -208,9 +208,9 @@ export default function LoginPage() {
           background: "rgba(45,190,96,0.04)", borderRadius: 12,
           border: "1px solid rgba(45,190,96,0.12)", fontSize: 13, color: "#64748B",
         }}>
-          Pas encore client ?{" "}
+          Not a client yet?{" "}
           <a href="mailto:info@zenipay.ca" style={{ color: "#16A34A", fontWeight: 700, textDecoration: "none" }}>
-            Contactez-nous →
+            Get in touch →
           </a>
         </div>
       </div>
