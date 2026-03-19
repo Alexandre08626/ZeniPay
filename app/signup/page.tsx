@@ -36,10 +36,13 @@ export default function SignupPage() {
 
   // Step 1
   const [businessName, setBusinessName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [country, setCountry] = useState("United States");
+  const [monthlyVolume, setMonthlyVolume] = useState("");
 
   // Step 2
   const [password, setPassword] = useState("");
@@ -71,17 +74,23 @@ export default function SignupPage() {
     const account = {
       id: `acc_${Date.now()}`,
       businessName,
+      ownerName,
       email,
+      phone,
       website,
       businessType,
       country,
+      monthlyVolume,
       status: "sandbox",
+      plan: "Sandbox",
       sandboxKey: sbKey,
       sandboxSecret: sbSecret,
       liveKey,
       createdAt: new Date().toISOString(),
       volume: 0,
       txCount: 0,
+      balance: 0,
+      notes: "",
     };
 
     // Save to localStorage for admin + login
@@ -161,16 +170,30 @@ export default function SignupPage() {
               <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#0D1B3A", letterSpacing: "-0.5px" }}>Create your account</h2>
               <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 24px" }}>Get instant access to the ZeniPay sandbox — no credit card required.</p>
 
-              <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>BUSINESS NAME</label>
-                <input value={businessName} onChange={e => setBusinessName(e.target.value)} required placeholder="Acme Corp" style={inputStyle}
-                  onFocus={e => e.currentTarget.style.borderColor = ZP_CYAN} onBlur={e => e.currentTarget.style.borderColor = "#E2E8F0"} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div>
+                  <label style={labelStyle}>BUSINESS NAME</label>
+                  <input value={businessName} onChange={e => setBusinessName(e.target.value)} required placeholder="Acme Corp" style={inputStyle}
+                    onFocus={e => e.currentTarget.style.borderColor = ZP_CYAN} onBlur={e => e.currentTarget.style.borderColor = "#E2E8F0"} />
+                </div>
+                <div>
+                  <label style={labelStyle}>OWNER / CONTACT NAME</label>
+                  <input value={ownerName} onChange={e => setOwnerName(e.target.value)} required placeholder="Jane Smith" style={inputStyle}
+                    onFocus={e => e.currentTarget.style.borderColor = ZP_CYAN} onBlur={e => e.currentTarget.style.borderColor = "#E2E8F0"} />
+                </div>
               </div>
 
-              <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>BUSINESS EMAIL</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@company.com" style={inputStyle}
-                  onFocus={e => e.currentTarget.style.borderColor = ZP_CYAN} onBlur={e => e.currentTarget.style.borderColor = "#E2E8F0"} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div>
+                  <label style={labelStyle}>BUSINESS EMAIL</label>
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@company.com" style={inputStyle}
+                    onFocus={e => e.currentTarget.style.borderColor = ZP_CYAN} onBlur={e => e.currentTarget.style.borderColor = "#E2E8F0"} />
+                </div>
+                <div>
+                  <label style={labelStyle}>PHONE (optional)</label>
+                  <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" style={inputStyle}
+                    onFocus={e => e.currentTarget.style.borderColor = ZP_CYAN} onBlur={e => e.currentTarget.style.borderColor = "#E2E8F0"} />
+                </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
@@ -187,12 +210,21 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <div style={{ marginBottom: 24 }}>
-                <label style={labelStyle}>BUSINESS TYPE</label>
-                <select value={businessType} onChange={e => setBusinessType(e.target.value)} required style={{ ...inputStyle, cursor: "pointer" }}>
-                  <option value="">Select your business type…</option>
-                  {BUSINESS_TYPES.map(t => <option key={t}>{t}</option>)}
-                </select>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+                <div>
+                  <label style={labelStyle}>BUSINESS TYPE</label>
+                  <select value={businessType} onChange={e => setBusinessType(e.target.value)} required style={{ ...inputStyle, cursor: "pointer" }}>
+                    <option value="">Select type…</option>
+                    {BUSINESS_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>EST. MONTHLY VOLUME</label>
+                  <select value={monthlyVolume} onChange={e => setMonthlyVolume(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+                    <option value="">Select range…</option>
+                    {["Under $5K", "$5K – $25K", "$25K – $100K", "$100K – $500K", "$500K+"].map(v => <option key={v}>{v}</option>)}
+                  </select>
+                </div>
               </div>
 
               <button type="submit" style={{ width: "100%", padding: 14, borderRadius: 12, background: ZP_GRAD, color: "#fff", border: "none", fontSize: 15, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 20px rgba(21,184,201,0.25)" }}>

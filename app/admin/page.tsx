@@ -75,10 +75,17 @@ export default function AdminPage() {
     ...signups.map((s: any) => ({
       id: s.id, name: s.businessName, domain: s.website || "—",
       status: "sandbox", volume: 0, txCount: 0, balance: 0,
-      apiKey: "—", sandboxKey: s.sandboxKey,
-      plan: "Sandbox", since: s.createdAt?.slice(0, 10) || "—",
+      apiKey: s.liveKey || "—", sandboxKey: s.sandboxKey,
+      plan: s.plan || "Sandbox", since: s.createdAt?.slice(0, 10) || "—",
       contact: s.email, gateway: "Sandbox", bankAccount: "—",
       description: s.businessType || "New signup",
+      // Full fiche fields
+      ownerName: s.ownerName || "—",
+      phone: s.phone || "—",
+      country: s.country || "—",
+      monthlyVolume: s.monthlyVolume || "—",
+      notes: s.notes || "",
+      createdAt: s.createdAt || "—",
     })),
   ];
 
@@ -389,47 +396,93 @@ export default function AdminPage() {
                   </div>
 
                   {clientView === c.id && (
-                    <div style={{ borderTop: `1px solid ${BORDER}`, padding: "20px 24px", background: LIGHT }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 10, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em" }}>API Keys</div>
+                    <div style={{ borderTop: `1px solid ${BORDER}`, padding: "24px 24px", background: LIGHT }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 16 }}>
+
+                        {/* Business info */}
+                        <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
+                          <div style={{ fontWeight: 700, fontSize: 11, color: ZP_GREEN, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Business Info</div>
+                          {[
+                            { k: "Business",  v: c.name },
+                            { k: "Owner",     v: (c as any).ownerName || "—" },
+                            { k: "Email",     v: c.contact },
+                            { k: "Phone",     v: (c as any).phone || "—" },
+                            { k: "Website",   v: c.domain },
+                            { k: "Country",   v: (c as any).country || "—" },
+                            { k: "Type",      v: c.description },
+                            { k: "Est. Volume", v: (c as any).monthlyVolume || "—" },
+                          ].map(s => (
+                            <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
+                              <span style={{ color: MUTED }}>{s.k}</span>
+                              <span style={{ fontWeight: 600, maxWidth: 140, textAlign: "right", wordBreak: "break-all" }}>{s.v}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* API Keys */}
+                        <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
+                          <div style={{ fontWeight: 700, fontSize: 11, color: ZP_CYAN, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>API Keys</div>
                           {[
                             { label: "Live Key",    value: c.apiKey,     color: ZP_GREEN  },
                             { label: "Sandbox Key", value: c.sandboxKey, color: "#D97706" },
                           ].map(k => (
-                            <div key={k.label} style={{ padding: "10px 14px", borderRadius: 10, background: SURFACE, border: `1px solid ${k.color}22`, marginBottom: 8 }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: k.color, letterSpacing: "0.05em", marginBottom: 4 }}>{k.label.toUpperCase()}</div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <code style={{ fontSize: 12, flex: 1, color: TEXT }}>{k.value}</code>
-                                <button onClick={() => copyKey(k.value)} style={{ padding: "3px 10px", borderRadius: 6, border: `1px solid ${BORDER}`, background: copiedKey === k.value ? "rgba(22,163,74,0.1)" : SURFACE, color: copiedKey === k.value ? "#16A34A" : MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                                  {copiedKey === k.value ? "✓ Copied" : "Copy"}
+                            <div key={k.label} style={{ padding: "10px 12px", borderRadius: 10, background: k.color + "08", border: `1px solid ${k.color}22`, marginBottom: 8 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: k.color, letterSpacing: "0.05em", marginBottom: 5 }}>{k.label.toUpperCase()}</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <code style={{ fontSize: 11, flex: 1, color: TEXT, wordBreak: "break-all" }}>{k.value}</code>
+                                <button onClick={() => copyKey(k.value)} style={{ padding: "3px 9px", borderRadius: 6, border: `1px solid ${BORDER}`, background: copiedKey === k.value ? "rgba(22,163,74,0.1)" : SURFACE, color: copiedKey === k.value ? "#16A34A" : MUTED, fontSize: 10, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                                  {copiedKey === k.value ? "✓" : "Copy"}
                                 </button>
                               </div>
                             </div>
                           ))}
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ fontWeight: 700, fontSize: 11, color: ZP_PURPLE, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Account</div>
+                            {[
+                              { k: "ID",         v: c.id },
+                              { k: "Plan",       v: c.plan },
+                              { k: "Since",      v: fmtDate(c.since) },
+                              { k: "Status",     v: c.status },
+                              { k: "Processor",  v: c.gateway },
+                            ].map(s => (
+                              <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
+                                <span style={{ color: MUTED }}>{s.k}</span>
+                                <span style={{ fontWeight: 600 }}>{s.v}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 10, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em" }}>ZeniCard Account</div>
+
+                        {/* ZeniCard */}
+                        <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
+                          <div style={{ fontWeight: 700, fontSize: 11, color: ZP_PURPLE, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>ZeniCard Account</div>
                           {[
-                            { k: "Provider",       v: "Unit.co" },
-                            { k: "Account",        v: c.bankAccount },
-                            { k: "Routing",        v: "812345678" },
-                            { k: "Processor",      v: c.gateway },
-                            { k: "Balance",        v: fmt(c.balance) },
+                            { k: "Provider",   v: "Unit.co",        color: ZP_CYAN   },
+                            { k: "Account",    v: c.bankAccount,    color: TEXT      },
+                            { k: "Routing",    v: "812345678",      color: TEXT      },
+                            { k: "Balance",    v: fmt(c.balance),   color: ZP_GREEN  },
+                            { k: "Volume",     v: fmt(c.volume),    color: ZP_PURPLE },
+                            { k: "Tx Count",   v: `${c.txCount}`,  color: TEXT      },
                           ].map(s => (
-                            <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 13 }}>
+                            <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
                               <span style={{ color: MUTED }}>{s.k}</span>
-                              <span style={{ fontWeight: 700 }}>{s.v}</span>
+                              <span style={{ fontWeight: 700, color: s.color }}>{s.v}</span>
                             </div>
                           ))}
+                          <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, background: ZP_GREEN + "08", border: `1px solid ${ZP_GREEN}22` }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: ZP_GREEN, marginBottom: 4 }}>ZeniPay commission (auto)</div>
+                            <div style={{ fontSize: 12, color: MUTED }}>Splits automatically on every transaction → Platform account ••••9201</div>
+                          </div>
                         </div>
                       </div>
+
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                         {[
-                          { label: "Manage Payouts", grad: true  },
+                          { label: "Manage Payouts", grad: true   },
                           { label: "View Transactions", grad: false },
-                          { label: "Regenerate Keys", grad: false },
-                          { label: "Suspend Client", danger: true },
+                          { label: "Regenerate Keys",   grad: false },
+                          { label: "Upgrade Plan",      grad: false },
+                          { label: "Suspend Client",    danger: true },
                         ].map((a) => (
                           <button key={a.label} style={{ padding: "8px 16px", borderRadius: 9, background: a.grad ? ZP_GRAD : SURFACE, border: (a as any).danger ? "1px solid rgba(220,38,38,0.3)" : `1px solid ${BORDER}`, color: a.grad ? "#fff" : (a as any).danger ? "#DC2626" : TEXT, fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: a.grad ? "0 4px 12px rgba(45,190,96,0.2)" : "none" }}>
                             {a.label}
