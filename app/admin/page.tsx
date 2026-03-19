@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import ZeniPayLogo from "@/components/ZeniPayLogo";
 
 const ZP_GRAD = "linear-gradient(90deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
 const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
@@ -60,7 +61,6 @@ type TabKey = typeof NAV[number]["key"];
 export default function AdminPage() {
   const router = useRouter();
   const [tab, setTab] = useState<TabKey>("overview");
-  const [envMode, setEnvMode] = useState<"live"|"sandbox">("sandbox");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [copiedKey, setCopiedKey] = useState("");
   const [clientView, setClientView] = useState<string|null>(null);
@@ -71,8 +71,6 @@ export default function AdminPage() {
         router.replace("/admin/login");
         return;
       }
-      const m = sessionStorage.getItem("zp_mode");
-      if (m === "live" || m === "sandbox") setEnvMode(m);
     }
   }, [router]);
 
@@ -126,20 +124,7 @@ export default function AdminPage() {
         {/* Logo */}
         <div style={{ padding: "20px 16px 0", marginBottom: 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 11, flexShrink: 0,
-              background: ZP_GRAD,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(45,190,96,0.3)",
-            }}>
-              <img
-                src="/zenipay-logo.png"
-                alt="ZP"
-                style={{ width: 24, height: 24, objectFit: "contain", filter: "brightness(10)" }}
-                onError={e => { e.currentTarget.style.display = "none"; (e.currentTarget.nextElementSibling as HTMLElement).style.display = "block"; }}
-              />
-              <span style={{ display: "none", color: "#fff", fontWeight: 900, fontSize: 14 }}>ZP</span>
-            </div>
+            <ZeniPayLogo size={38} showWordmark={false} style={{ flexShrink: 0 }} />
             {sidebarOpen && (
               <div>
                 <div style={{ fontWeight: 900, fontSize: 16, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "-0.3px" }}>ZeniPay</div>
@@ -149,19 +134,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Env badge in sidebar */}
-        {sidebarOpen && (
-          <div style={{ padding: "0 14px", marginBottom: 16 }}>
-            <div style={{
-              ...badge(envMode),
-              width: "100%", justifyContent: "center", fontSize: 11,
-              padding: "5px 10px", borderRadius: 10,
-            }}>
-              <span style={{ fontSize: 8 }}>●</span>
-              {envMode === "live" ? "Live Mode" : "Sandbox Mode"}
-            </div>
-          </div>
-        )}
 
         {/* Nav */}
         <nav style={{ flex: 1 }}>
@@ -237,27 +209,14 @@ export default function AdminPage() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* Mode Toggle */}
-            <div style={{ display: "flex", background: "#F1F5F9", borderRadius: 10, padding: 3, gap: 2 }}>
-              {(["live","sandbox"] as const).map(m => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setEnvMode(m);
-                    sessionStorage.setItem("zp_mode", m);
-                  }}
-                  style={{
-                    padding: "5px 12px", borderRadius: 7, border: "none", cursor: "pointer",
-                    fontSize: 11, fontWeight: 700, transition: "all 0.15s",
-                    background: envMode === m ? "#fff" : "transparent",
-                    color: envMode === m ? (m==="live" ? "#16A34A" : "#D97706") : "#94A3B8",
-                    boxShadow: envMode === m ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                  }}
-                >
-                  <span style={{ fontSize: 7, marginRight: 4 }}>{m==="live"?"●":"◎"}</span>
-                  {m === "live" ? "Live" : "Sandbox"}
-                </button>
-              ))}
+            {/* Tilled status indicator */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "5px 12px", borderRadius: 8,
+              background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.2)",
+              fontSize: 11, fontWeight: 700, color: "#D97706",
+            }}>
+              <span style={{ fontSize: 7 }}>◎</span> Sandbox — Tilled en attente
             </div>
 
             <div style={{ width: 1, height: 24, background: BORDER }} />
@@ -277,23 +236,22 @@ export default function AdminPage() {
           {/* ── OVERVIEW ── */}
           {tab === "overview" && (
             <div>
-              {envMode === "sandbox" && (
-                <div style={{
-                  marginBottom: 24, padding: "12px 18px", borderRadius: 14,
-                  background: "rgba(217,119,6,0.06)", border: "1px solid rgba(217,119,6,0.2)",
-                  display: "flex", alignItems: "center", gap: 12, fontSize: 13,
-                }}>
-                  <span style={{ fontSize: 20 }}>⚠</span>
-                  <div>
-                    <span style={{ fontWeight: 700, color: "#B45309" }}>Mode Sandbox actif</span>
-                    <span style={{ color: "#92400E", marginLeft: 8 }}>— Aucune transaction réelle. En attente d&apos;approbation Tilled live.</span>
-                  </div>
-                  <a href="https://app.tilled.com" target="_blank" rel="noreferrer"
-                    style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 8, background: "#D97706", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
-                    Voir Tilled →
-                  </a>
+              {/* Sandbox banner */}
+              <div style={{
+                marginBottom: 24, padding: "12px 18px", borderRadius: 14,
+                background: "rgba(217,119,6,0.06)", border: "1px solid rgba(217,119,6,0.2)",
+                display: "flex", alignItems: "center", gap: 12, fontSize: 13,
+              }}>
+                <span style={{ fontSize: 20 }}>⚠</span>
+                <div>
+                  <span style={{ fontWeight: 700, color: "#B45309" }}>Processeur en mode Sandbox</span>
+                  <span style={{ color: "#92400E", marginLeft: 8 }}>— En attente d&apos;approbation Tilled live pour accepter de vrais paiements.</span>
                 </div>
-              )}
+                <a href="https://app.tilled.com" target="_blank" rel="noreferrer"
+                  style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 8, background: "#D97706", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                  Compléter →
+                </a>
+              </div>
 
               {/* Stats */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: 24 }}>
@@ -623,63 +581,80 @@ export default function AdminPage() {
           {tab === "payouts" && (
             <div>
               {/* Quick stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 20 }}>
                 {[
-                  { label: "Total versé", value: fmt(0), accent: "#2DBE60" },
-                  { label: "En attente", value: fmt(0), accent: "#D97706" },
-                  { label: "Wallet Platform", value: fmt(0), accent: "#7B4FBF" },
-                  { label: "Wallet Agents", value: fmt(0), accent: "#15B8C9" },
+                  { label: "Total versé aux clients", value: fmt(0), accent: "#2DBE60" },
+                  { label: "En attente",               value: fmt(0), accent: "#D97706" },
+                  { label: "Volume plateforme",        value: fmt(0), accent: "#7B4FBF" },
+                  { label: "Versements ce mois",       value: "0",    accent: "#15B8C9" },
                 ].map(s => (
                   <div key={s.label} style={{ ...card({ padding: "18px" }) }}>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: s.accent }}>{s.value}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: s.accent }}>{s.value}</div>
                     <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-                {/* Wallets */}
-                <div style={{ ...card({ padding: "22px" }) }}>
-                  <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 16 }}>Wallets</div>
+              {/* How it works — ZeniPay model */}
+              <div style={{ ...card({ padding: "24px", marginBottom: 16 }) }}>
+                <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 16 }}>Comment fonctionne ZeniPay</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
                   {[
-                    { name: "Platform Wallet", type: "platform", balance: 0, color: "#7B4FBF", desc: "Reçoit tous les paiements entrants" },
-                    { name: "Agent Wallet", type: "agent", balance: 0, color: "#2DBE60", desc: "70% des commissions agents" },
-                    { name: "Influencer Wallet", type: "influencer", balance: 0, color: "#F5A623", desc: "Commissions influenceurs" },
-                    { name: "Supplier Wallet", type: "supplier", balance: 0, color: "#15B8C9", desc: "Allocations fournisseurs" },
-                  ].map(w => (
-                    <div key={w.type} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderTop: `1px solid ${BORDER}` }}>
-                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: w.color, flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>{w.name}</div>
-                        <div style={{ fontSize: 11, color: MUTED }}>{w.desc}</div>
+                    { step: "01", icon: "💳", title: "Paiement reçu", desc: "Le client de l'entreprise paie via ZeniPay (lien ou API). Le montant arrive dans le wallet de l'entreprise." },
+                    { step: "02", icon: "⬡", title: "Wallet entreprise", desc: "L'entreprise voit son solde en temps réel dans son dashboard. Son argent, son compte, ses transactions." },
+                    { step: "03", icon: "🏦", title: "Virement bancaire", desc: "ZeniPay vire directement vers le compte bancaire réel de l'entreprise (Unit.co). Bientôt automatique." },
+                    { step: "04", icon: "📊", title: "Comptabilité intégrée", desc: "Chaque transaction est enregistrée dans le grand livre. Export disponible à tout moment." },
+                  ].map(s => (
+                    <div key={s.step} style={{ padding: "16px", borderRadius: 12, background: LIGHT, border: `1px solid ${BORDER}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                        <span style={{ fontSize: 20 }}>{s.icon}</span>
+                        <span style={{ fontSize: 10, fontWeight: 900, color: MUTED, letterSpacing: "0.05em" }}>ÉTAPE {s.step}</span>
                       </div>
-                      <div style={{ fontWeight: 800, fontSize: 14 }}>{fmt(w.balance)}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Distribution logic */}
-                <div style={{ ...card({ padding: "22px" }) }}>
-                  <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 16 }}>Règles de distribution</div>
-                  <div style={{ fontSize: 13, color: MUTED, marginBottom: 16, lineHeight: 1.6 }}>
-                    Distribution automatique configurée mais non activée — en attente d&apos;approbation Tilled Live.
-                  </div>
-                  {[
-                    { scenario: "Réservation via agent", split: "Agent 70% · Zeniva 30%" },
-                    { scenario: "Lina seul (sans agent)", split: "Zeniva 70% · Agent 30%" },
-                    { scenario: "Distribution actuelle", split: "100% → Platform (manuel)" },
-                  ].map(r => (
-                    <div key={r.scenario} style={{ padding: "10px 14px", borderRadius: 10, background: LIGHT, border: `1px solid ${BORDER}`, marginBottom: 8 }}>
-                      <div style={{ fontSize: 11, color: MUTED, marginBottom: 3 }}>{r.scenario}</div>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>{r.split}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{s.title}</div>
+                      <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.55 }}>{s.desc}</div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div style={{ ...card({ padding: "60px 20px", textAlign: "center" }) }}>
+              {/* Client wallets — admin view */}
+              <div style={{ ...card({ padding: "24px", marginBottom: 16 }) }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>Wallets clients</div>
+                  <div style={{ fontSize: 12, color: MUTED }}>Tous les soldes en temps réel</div>
+                </div>
+                {CLIENTS.map(c => (
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderTop: `1px solid ${BORDER}` }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                      background: ZP_GRAD,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontWeight: 900, fontSize: 15, color: "#fff",
+                    }}>Z</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: MUTED }}>Compte bancaire: {c.bankAccount}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 18, fontWeight: 900 }}>{fmt(c.balance)}</div>
+                      <div style={{ fontSize: 11, color: MUTED }}>Solde wallet</div>
+                    </div>
+                    <button style={{
+                      padding: "7px 16px", borderRadius: 8, background: ZP_GRAD,
+                      border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    }}>
+                      Virer →
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ ...card({ padding: "52px 20px", textAlign: "center" }) }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>→</div>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Aucun versement effectué</div>
-                <div style={{ fontSize: 13, color: MUTED }}>Les versements seront disponibles une fois les paiements actifs.</div>
+                <div style={{ fontSize: 13, color: MUTED, maxWidth: 360, margin: "0 auto" }}>
+                  Les versements seront disponibles une fois Tilled Live approuvé et les premiers paiements reçus.
+                </div>
               </div>
             </div>
           )}

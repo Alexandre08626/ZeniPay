@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ZeniPayLogo from "@/components/ZeniPayLogo";
 
 const ZP_GRAD = "linear-gradient(90deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
 
@@ -10,6 +11,8 @@ export default function LoginPage() {
   const [pw, setPw] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [mode, setMode] = useState<"live" | "sandbox">("live");
 
   const login = (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,56 +20,202 @@ export default function LoginPage() {
     setTimeout(() => {
       if (email === "client@zenipay.ca" && pw === "client2026") {
         sessionStorage.setItem("zp_client", "zeniva");
+        sessionStorage.setItem("zp_client_mode", mode);
         router.replace("/app");
       } else {
         setLoading(false);
-        setError("Invalid credentials · client@zenipay.ca / client2026");
+        setError("Identifiants invalides. Contactez votre gestionnaire de compte ZeniPay.");
       }
-    }, 500);
+    }, 600);
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(170deg,#060B18 0%,#0A1530 55%,#0D1A40 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"'Inter',system-ui,sans-serif" }}>
-      <div style={{ width:"100%", maxWidth:420 }}>
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(150deg, #F0FDF4 0%, #EEF4FF 40%, #FFF7ED 100%)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 24, fontFamily: "'Inter', system-ui, sans-serif",
+    }}>
 
-        <div style={{ textAlign:"center", marginBottom:40 }}>
-          <img src="/zenipay-logo.png" alt="ZeniPay" style={{ width:72, height:72, objectFit:"contain", marginBottom:14, filter:"drop-shadow(0 4px 24px rgba(45,190,96,0.6))" }} />
-          <div style={{ fontWeight:900, fontSize:28, background:ZP_GRAD, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>ZeniPay</div>
-          <p style={{ color:"rgba(255,255,255,0.35)", fontSize:14, marginTop:6 }}>Client Portal — Live Mode</p>
-        </div>
+      {/* Grid texture */}
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none",
+        backgroundImage: "radial-gradient(circle, rgba(21,184,201,0.05) 1px, transparent 1px)",
+        backgroundSize: "36px 36px",
+      }} />
 
-        <div style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:22, padding:"32px 32px", backdropFilter:"blur(20px)" }}>
-          <form onSubmit={login}>
-            <div style={{ marginBottom:16 }}>
-              <label style={{ fontSize:11, color:"rgba(255,255,255,0.45)", fontWeight:700, display:"block", marginBottom:7, letterSpacing:"0.08em" }}>EMAIL</label>
-              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="client@zenipay.ca"
-                style={{ width:"100%", padding:"13px 15px", borderRadius:10, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:14, outline:"none", boxSizing:"border-box" }} />
-            </div>
-            <div style={{ marginBottom:20 }}>
-              <label style={{ fontSize:11, color:"rgba(255,255,255,0.45)", fontWeight:700, display:"block", marginBottom:7, letterSpacing:"0.08em" }}>PASSWORD</label>
-              <input type="password" value={pw} onChange={e=>setPw(e.target.value)} required placeholder="••••••••"
-                style={{ width:"100%", padding:"13px 15px", borderRadius:10, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:14, outline:"none", boxSizing:"border-box" }} />
-            </div>
-            {error && <div style={{ marginBottom:16, padding:"10px 14px", borderRadius:10, background:"rgba(245,166,35,0.1)", border:"1px solid rgba(245,166,35,0.3)", color:"#F5A623", fontSize:13 }}>{error}</div>}
-            <button type="submit" disabled={loading} style={{ width:"100%", padding:14, borderRadius:12, background:loading?"rgba(255,255,255,0.1)":ZP_GRAD, color:"#fff", border:"none", fontSize:15, fontWeight:800, cursor:loading?"not-allowed":"pointer" }}>
-              {loading ? "Connexion…" : "Sign In →"}
-            </button>
-          </form>
+      <div style={{ width: "100%", maxWidth: 440, position: "relative" }}>
 
-          <div style={{ marginTop:20, padding:"12px 14px", borderRadius:12, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", fontSize:12 }}>
-            <div style={{ color:"rgba(255,255,255,0.4)", marginBottom:4 }}>Demo access (Zeniva Travel)</div>
-            <div style={{ color:"rgba(255,255,255,0.7)", lineHeight:1.7 }}>
-              <code style={{color:"#15B8C9"}}>client@zenipay.ca</code> / <code style={{color:"#15B8C9"}}>client2026</code>
-            </div>
+        {/* Logo + title */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: 22, background: "#fff",
+            boxShadow: "0 8px 32px rgba(21,184,201,0.15), 0 2px 8px rgba(0,0,0,0.06)",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            marginBottom: 16, border: "1px solid rgba(45,190,96,0.12)",
+          }}>
+            <ZeniPayLogo size={46} />
+          </div>
+          <div style={{
+            fontWeight: 900, fontSize: 28,
+            background: ZP_GRAD,
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            letterSpacing: "-0.8px", marginBottom: 4,
+          }}>
+            ZeniPay
+          </div>
+          <div style={{ color: "#64748B", fontSize: 14, fontWeight: 500 }}>
+            Portail Client
           </div>
         </div>
 
-        <p style={{ textAlign:"center", marginTop:24, color:"rgba(255,255,255,0.2)", fontSize:12 }}>
-          <a href="/" style={{ color:"rgba(255,255,255,0.3)", textDecoration:"none" }}>← Home</a>
-          <span style={{ margin:"0 12px" }}>·</span>
-          <a href="/admin/login" style={{ color:"rgba(255,255,255,0.2)", textDecoration:"none" }}>Admin</a>
-        </p>
+        {/* Card */}
+        <div style={{
+          background: "#fff", borderRadius: 24, padding: "32px 32px 28px",
+          boxShadow: "0 4px 48px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+          border: "1px solid rgba(0,0,0,0.06)",
+        }}>
+
+          {/* Mode Toggle — Live / Sandbox */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 700, letterSpacing: "0.07em", marginBottom: 8 }}>
+              ENVIRONMENT
+            </div>
+            <div style={{ display: "flex", background: "#F1F5F9", borderRadius: 12, padding: 4, gap: 3 }}>
+              {(["live", "sandbox"] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  style={{
+                    flex: 1, padding: "9px 12px", borderRadius: 9,
+                    border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700,
+                    transition: "all 0.18s",
+                    background: mode === m ? "#fff" : "transparent",
+                    color: mode === m ? (m === "live" ? "#16A34A" : "#D97706") : "#94A3B8",
+                    boxShadow: mode === m ? "0 1px 4px rgba(0,0,0,0.10)" : "none",
+                    letterSpacing: "-0.2px",
+                  }}
+                >
+                  <span style={{ marginRight: 6, fontSize: 9 }}>{m === "live" ? "●" : "◎"}</span>
+                  {m === "live" ? "Live" : "Sandbox"}
+                </button>
+              ))}
+            </div>
+            {mode === "sandbox" && (
+              <div style={{
+                marginTop: 8, padding: "7px 12px", borderRadius: 8,
+                background: "rgba(217,119,6,0.06)", border: "1px solid rgba(217,119,6,0.18)",
+                fontSize: 12, color: "#B45309",
+              }}>
+                Mode Sandbox — aucune transaction réelle
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={login}>
+            {/* Email */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, display: "block", marginBottom: 7, letterSpacing: "0.06em" }}>
+                EMAIL
+              </label>
+              <input
+                type="email" value={email} onChange={e => setEmail(e.target.value)}
+                required placeholder="votre@email.com" autoComplete="email"
+                style={{
+                  width: "100%", padding: "12px 14px", borderRadius: 12,
+                  background: "#F8FAFC", border: "1.5px solid #E2E8F0",
+                  color: "#0D1B3A", fontSize: 14, outline: "none",
+                  boxSizing: "border-box", fontFamily: "inherit", transition: "border-color 0.15s",
+                }}
+                onFocus={e => e.currentTarget.style.borderColor = "#15B8C9"}
+                onBlur={e => e.currentTarget.style.borderColor = "#E2E8F0"}
+              />
+            </div>
+
+            {/* Password */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+                <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, letterSpacing: "0.06em" }}>
+                  MOT DE PASSE
+                </label>
+                <a href="mailto:info@zenipay.ca" style={{ fontSize: 11, color: "#15B8C9", textDecoration: "none", fontWeight: 600 }}>
+                  Mot de passe oublié ?
+                </a>
+              </div>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPw ? "text" : "password"} value={pw} onChange={e => setPw(e.target.value)}
+                  required placeholder="••••••••" autoComplete="current-password"
+                  style={{
+                    width: "100%", padding: "12px 44px 12px 14px", borderRadius: 12,
+                    background: "#F8FAFC", border: "1.5px solid #E2E8F0",
+                    color: "#0D1B3A", fontSize: 14, outline: "none",
+                    boxSizing: "border-box", fontFamily: "inherit", transition: "border-color 0.15s",
+                  }}
+                  onFocus={e => e.currentTarget.style.borderColor = "#15B8C9"}
+                  onBlur={e => e.currentTarget.style.borderColor = "#E2E8F0"}
+                />
+                <button type="button" onClick={() => setShowPw(v => !v)} style={{
+                  position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                  background: "none", border: "none", cursor: "pointer", color: "#94A3B8", fontSize: 16, padding: 4,
+                }}>
+                  {showPw ? "🙈" : "👁"}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div style={{
+                marginBottom: 16, padding: "10px 14px", borderRadius: 10,
+                background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)",
+                color: "#DC2626", fontSize: 13,
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button type="submit" disabled={loading} style={{
+              width: "100%", padding: 14, borderRadius: 12,
+              background: loading ? "#E2E8F0" : ZP_GRAD,
+              color: loading ? "#94A3B8" : "#fff",
+              border: "none", fontSize: 15, fontWeight: 800,
+              cursor: loading ? "not-allowed" : "pointer",
+              letterSpacing: "-0.2px",
+              boxShadow: loading ? "none" : "0 4px 20px rgba(21,184,201,0.25)",
+              transition: "all 0.2s",
+            }}>
+              {loading
+                ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #94A3B8", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                    Connexion…
+                  </span>
+                : `Connexion ${mode === "sandbox" ? "(Sandbox)" : ""} →`
+              }
+            </button>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20 }}>
+          <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>← Retour</a>
+          <span style={{ color: "#CBD5E1" }}>·</span>
+          <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>Support</a>
+        </div>
+
+        {/* Not a client yet */}
+        <div style={{
+          textAlign: "center", marginTop: 16, padding: "12px 16px",
+          background: "rgba(45,190,96,0.04)", borderRadius: 12,
+          border: "1px solid rgba(45,190,96,0.12)", fontSize: 13, color: "#64748B",
+        }}>
+          Pas encore client ?{" "}
+          <a href="mailto:info@zenipay.ca" style={{ color: "#16A34A", fontWeight: 700, textDecoration: "none" }}>
+            Contactez-nous →
+          </a>
+        </div>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
