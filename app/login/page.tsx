@@ -2,219 +2,90 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const ZP_GRAD = "linear-gradient(135deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
-const DARK = "#0A0F1E";
-const GLASS = "rgba(255,255,255,0.05)";
-const GLASS_B = "rgba(255,255,255,0.1)";
+const ZP_GRAD = "linear-gradient(90deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
+const DARK = "#0B1B4D";
 
-// Sandbox demo credentials
 const SANDBOX_CREDS = {
-  admin: { email: "admin@zenipay.ca", password: "admin2026", role: "admin" },
-  client: { email: "client@zenipay.ca", password: "client2026", role: "client" },
+  admin:  { email: "admin@zenipay.ca",  password: "admin2026"  },
+  client: { email: "client@zenipay.ca", password: "client2026" },
 };
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"sandbox" | "live">("sandbox");
-  const [role, setRole] = useState<"admin" | "client">("admin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [role, setRole]     = useState<"admin"|"client">("admin");
+  const [email, setEmail]   = useState("");
+  const [pw, setPw]         = useState("");
+  const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const login = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    // Sandbox mode: use demo credentials
-    if (mode === "sandbox") {
-      const cred = SANDBOX_CREDS[role];
-      if (email === cred.email && password === cred.password) {
-        setTimeout(() => {
-          router.push(`/dashboard?mode=sandbox&role=${role}`);
-        }, 800);
-      } else {
-        setLoading(false);
-        setError(
-          role === "admin"
-            ? `Sandbox admin: admin@zenipay.ca / admin2026`
-            : `Sandbox client: client@zenipay.ca / client2026`
-        );
-      }
-      return;
-    }
-
-    // Live mode: call API
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        router.push(`/dashboard?mode=live&role=${role}`);
-      } else {
-        setError(data.error || "Invalid credentials");
-      }
-    } catch {
-      setError("Connection error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fillSandbox = () => {
+    setLoading(true); setError("");
     const cred = SANDBOX_CREDS[role];
-    setEmail(cred.email);
-    setPassword(cred.password);
+    if (email === cred.email && pw === cred.password) {
+      setTimeout(() => router.push(`/app?role=${role}`), 600);
+    } else {
+      setLoading(false);
+      setError(`Credentials incorrect. Use: ${cred.email} / ${role === "admin" ? "admin2026" : "client2026"}`);
+    }
   };
 
   return (
-    <div style={{
-      minHeight: "100vh", background: DARK, display: "flex", alignItems: "center",
-      justifyContent: "center", padding: "24px",
-      backgroundImage: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(45,190,96,0.1) 0%, transparent 70%)",
-    }}>
-      <div style={{ width: "100%", maxWidth: 420 }}>
+    <div style={{ minHeight:"100vh", background:"linear-gradient(170deg,#080C1A 0%,#0B1740 45%,#0F1F5C 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"'Inter',system-ui,sans-serif" }}>
+      <div style={{ width:"100%", maxWidth:420 }}>
         {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: 16,
-            background: ZP_GRAD, display: "inline-flex", alignItems: "center",
-            justifyContent: "center", fontSize: 28, fontWeight: 900, color: "#fff", marginBottom: 16,
-          }}>Z</div>
-          <div style={{ fontSize: 26, fontWeight: 900, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            ZeniPay
-          </div>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, margin: "8px 0 0" }}>
-            Payment infrastructure dashboard
-          </p>
+        <div style={{ textAlign:"center", marginBottom:40 }}>
+          <img src="/zenipay-logo.png" alt="ZeniPay" style={{ width:72, height:72, objectFit:"contain", marginBottom:16, filter:"drop-shadow(0 4px 20px rgba(45,190,96,0.6))" }} />
+          <div style={{ fontSize:28, fontWeight:900, background:ZP_GRAD, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>ZeniPay</div>
+          <p style={{ color:"rgba(255,255,255,0.35)", fontSize:14, marginTop:6 }}>Payment Infrastructure Platform</p>
         </div>
 
-        {/* Card */}
-        <div style={{
-          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: 24, padding: "32px 32px",
-          backdropFilter: "blur(20px)",
-        }}>
-          {/* Live / Sandbox toggle */}
-          <div style={{
-            display: "flex", background: "rgba(255,255,255,0.06)",
-            borderRadius: 12, padding: 4, marginBottom: 28, gap: 4,
-          }}>
-            {(["sandbox", "live"] as const).map((m) => (
-              <button key={m} onClick={() => setMode(m)} style={{
-                flex: 1, padding: "8px 0", borderRadius: 8,
-                border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700,
-                background: mode === m
-                  ? m === "live" ? ZP_GRAD : "rgba(245,166,35,0.2)"
-                  : "transparent",
-                color: mode === m
-                  ? m === "live" ? "#fff" : "#F5A623"
-                  : "rgba(255,255,255,0.4)",
-                transition: "all 0.2s",
-                letterSpacing: "0.05em",
+        <div style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:24, padding:"32px 32px", backdropFilter:"blur(20px)" }}>
+          {/* Role toggle */}
+          <div style={{ display:"flex", background:"rgba(255,255,255,0.06)", borderRadius:12, padding:4, marginBottom:28, gap:4 }}>
+            {(["admin","client"] as const).map(r => (
+              <button key={r} onClick={()=>setRole(r)} style={{ flex:1, padding:"9px 0", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, fontWeight:700,
+                background: role===r ? ZP_GRAD : "transparent",
+                color: role===r ? "#fff" : "rgba(255,255,255,0.4)",
+                transition:"all 0.2s",
               }}>
-                {m === "sandbox" ? "🧪 Sandbox" : "🔴 Live"}
+                {r==="admin" ? "⚙️ Admin ZeniPay" : "👤 Client (Zeniva Travel)"}
               </button>
             ))}
           </div>
 
-          {/* Admin / Client toggle */}
-          <div style={{
-            display: "flex", background: "rgba(255,255,255,0.06)",
-            borderRadius: 12, padding: 4, marginBottom: 28, gap: 4,
-          }}>
-            {(["admin", "client"] as const).map((r) => (
-              <button key={r} onClick={() => setRole(r)} style={{
-                flex: 1, padding: "8px 0", borderRadius: 8,
-                border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700,
-                background: role === r ? ZP_GRAD : "transparent",
-                color: role === r ? "#fff" : "rgba(255,255,255,0.4)",
-                transition: "all 0.2s",
-              }}>
-                {r === "admin" ? "⚙️ Admin" : "👤 Client"}
-              </button>
+          <form onSubmit={login}>
+            {["email","password"].map(f => (
+              <div key={f} style={{ marginBottom:16 }}>
+                <label style={{ fontSize:11, color:"rgba(255,255,255,0.5)", fontWeight:700, display:"block", marginBottom:7, letterSpacing:"0.08em" }}>
+                  {f.toUpperCase()}
+                </label>
+                {f==="email"
+                  ? <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="you@zenipay.ca" style={{ width:"100%", padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                  : <input type="password" value={pw} onChange={e=>setPw(e.target.value)} required placeholder="••••••••" style={{ width:"100%", padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                }
+              </div>
             ))}
-          </div>
 
-          {/* Form */}
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600, display: "block", marginBottom: 8 }}>
-                EMAIL
-              </label>
-              <input
-                type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="you@company.com" required
-                style={{
-                  width: "100%", padding: "12px 16px", borderRadius: 12,
-                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#fff", fontSize: 15, outline: "none", boxSizing: "border-box",
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600, display: "block", marginBottom: 8 }}>
-                PASSWORD
-              </label>
-              <input
-                type="password" value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••" required
-                style={{
-                  width: "100%", padding: "12px 16px", borderRadius: 12,
-                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#fff", fontSize: 15, outline: "none", boxSizing: "border-box",
-                }}
-              />
-            </div>
+            {error && <div style={{ marginBottom:16, padding:"10px 14px", borderRadius:10, background:"rgba(245,166,35,0.1)", border:"1px solid rgba(245,166,35,0.3)", color:"#F5A623", fontSize:13 }}>{error}</div>}
 
-            {error && (
-              <div style={{
-                marginBottom: 16, padding: "10px 14px", borderRadius: 10,
-                background: "rgba(245,166,35,0.1)", border: "1px solid rgba(245,166,35,0.3)",
-                color: "#F5A623", fontSize: 13,
-              }}>{error}</div>
-            )}
-
-            <button type="submit" disabled={loading} style={{
-              width: "100%", padding: "14px", marginTop: 16, borderRadius: 12,
-              background: loading ? "rgba(255,255,255,0.1)" : ZP_GRAD,
-              color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
-              transition: "opacity 0.2s",
-            }}>
-              {loading ? "Logging in…" : `Sign in as ${role}`}
+            <button type="submit" disabled={loading} style={{ width:"100%", padding:14, marginTop:8, borderRadius:12, background:loading?"rgba(255,255,255,0.1)":ZP_GRAD, color:"#fff", border:"none", fontSize:15, fontWeight:800, cursor:loading?"not-allowed":"pointer" }}>
+              {loading ? "Connexion…" : role==="admin" ? "Admin Access →" : "Client Access →"}
             </button>
           </form>
 
-          {/* Sandbox helper */}
-          {mode === "sandbox" && (
-            <div style={{
-              marginTop: 20, padding: "12px 16px", borderRadius: 12,
-              background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.2)",
-              fontSize: 13,
-            }}>
-              <div style={{ color: "#F5A623", fontWeight: 700, marginBottom: 6 }}>🧪 Sandbox credentials</div>
-              <div style={{ color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>
-                Admin: <code style={{ color: "#fff" }}>admin@zenipay.ca</code> / <code style={{ color: "#fff" }}>admin2026</code><br />
-                Client: <code style={{ color: "#fff" }}>client@zenipay.ca</code> / <code style={{ color: "#fff" }}>client2026</code>
-              </div>
-              <button onClick={fillSandbox} style={{
-                marginTop: 8, padding: "6px 14px", borderRadius: 8, border: "none",
-                background: "rgba(245,166,35,0.2)", color: "#F5A623", fontSize: 12,
-                fontWeight: 700, cursor: "pointer",
-              }}>
-                Auto-fill
-              </button>
+          {/* Helper */}
+          <div style={{ marginTop:20, padding:"12px 14px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", fontSize:12 }}>
+            <div style={{ color:"rgba(255,255,255,0.5)", marginBottom:6 }}>Sandbox credentials</div>
+            <div style={{ color:"rgba(255,255,255,0.7)", lineHeight:1.7 }}>
+              Admin: <code style={{color:"#2DBE60"}}>admin@zenipay.ca</code> / <code style={{color:"#2DBE60"}}>admin2026</code><br/>
+              Client: <code style={{color:"#15B8C9"}}>client@zenipay.ca</code> / <code style={{color:"#15B8C9"}}>client2026</code>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Footer */}
-        <p style={{ textAlign: "center", marginTop: 24, color: "rgba(255,255,255,0.2)", fontSize: 12 }}>
-          © 2026 ZeniPay · <a href="/" style={{ color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>Back to home</a>
+        <p style={{ textAlign:"center", marginTop:24, color:"rgba(255,255,255,0.2)", fontSize:12 }}>
+          © 2026 ZeniPay · <a href="/" style={{ color:"rgba(255,255,255,0.3)", textDecoration:"none" }}>Home</a>
         </p>
       </div>
     </div>
