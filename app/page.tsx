@@ -63,7 +63,7 @@ export default function ZeniPayLanding() {
         <div style={{ maxWidth: 820 }}>
           {/* Logo big */}
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 40 }}>
-            <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={260} height={72} style={{ objectFit: "contain" }} priority />
+            <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={360} height={100} style={{ objectFit: "contain" }} priority />
           </div>
 
           <div style={{

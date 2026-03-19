@@ -126,7 +126,7 @@ export default function SignupPage() {
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <Link href="/" style={{ display: "inline-block" }}>
-            <Image src="/zenipay-logo.png" alt="ZeniPay" width={160} height={46} style={{ objectFit: "contain" }} />
+            <Image src="/zenipay-logo.png" alt="ZeniPay" width={240} height={68} style={{ objectFit: "contain" }} />
           </Link>
         </div>
 
