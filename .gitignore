@@ -1,8 +1,9 @@
-node_modules/
-.next/
+*.node
 .env
-.env.local
 .env.*.local
-out/
+.env.local
+.next/
 build/
+node_modules/
 npm-debug.log*
+out/
