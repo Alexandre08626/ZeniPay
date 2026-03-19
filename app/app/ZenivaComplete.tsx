@@ -1253,7 +1253,7 @@ export default function ZenivaCompleteApp() {
   const totalRevenue = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").reduce((a, t) => a + t.amount, 0);
   const platformBalance = WALLETS.platform.available + WALLETS.agent.available + WALLETS.influencer.available + WALLETS.supplier.available;
   const successRate = TRANSACTIONS.length > 0 ? Math.round(TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length / TRANSACTIONS.length * 100) : 0;
-  const isLive = STATS.env === "production" || STATS.env === "live";
+  const isLive = true; // Zeniva Travel is always live
 
   const filteredTx = TRANSACTIONS.filter(t => {
     const matchSearch = !txSearch || t.customer.toLowerCase().includes(txSearch.toLowerCase()) || t.id.includes(txSearch) || t.booking.includes(txSearch);
@@ -1335,7 +1335,7 @@ export default function ZenivaCompleteApp() {
               </div>
             </div>
             <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-              <span style={{ background:"rgba(245,166,35,0.15)", border:"1px solid rgba(245,166,35,0.35)", borderRadius:20, padding:"3px 10px", fontSize:9, fontWeight:800, color:"#F5A623", letterSpacing:"0.1em" }}>SANDBOX</span>
+              <span style={{ background:"rgba(45,190,96,0.15)", border:"1px solid rgba(45,190,96,0.35)", borderRadius:20, padding:"3px 10px", fontSize:9, fontWeight:800, color:"#2DBE60", letterSpacing:"0.1em" }}>\u25CF LIVE</span>
               <button onClick={() => { void fetch("/api/zenipay/stats").then(r=>r.json()).then(d=>{ if(d.available_balance!==undefined) setWALLETS(w=>({...w,platform:{...w.platform,available:d.available_balance||0,pending:d.pending_balance||0,paid_out:d.paid_out||0}})); }); void fetch("/api/zenipay/bank-balance").then(r=>r.json()).then(d=>{ setUnitAccounts(d.accounts||[]); setUnitCards(d.cards||[]); }); }} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:"5px 11px", color:"rgba(255,255,255,0.6)", fontSize:12, cursor:"pointer" }}>🔄</button>
               <button onClick={() => setIsMobile(false)} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:"5px 11px", color:"rgba(255,255,255,0.5)", fontSize:11, cursor:"pointer" }}>⊞</button>
             </div>
@@ -1707,7 +1707,7 @@ export default function ZenivaCompleteApp() {
                     {isLive ? "● LIVE" : "● SANDBOX"}
                   </span>
                 </div>
-                <p style={{ margin: "0 0 16px", fontSize: 14, opacity: 0.75 }}>The future of travel fintech · Mercury + Stripe combined · Your money, your rules</p>
+                <p style={{ margin: "0 0 16px", fontSize: 14, opacity: 0.75 }}>Accept payments · Bank like a pro · All in one</p>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" as const }}>
                   {[
                     { v: fmt(totalRevenue), l: "Total Volume" },
