@@ -24,7 +24,7 @@ export default function ZeniPayLanding() {
       }}>
         {/* Logo */}
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={140} height={40} style={{ objectFit: "contain" }} priority />
+          <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={280} height={80} style={{ objectFit: "contain" }} priority />
         </Link>
 
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
@@ -54,7 +54,7 @@ export default function ZeniPayLanding() {
         <div style={{ maxWidth: 820 }}>
           {/* Logo big */}
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 40 }}>
-            <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={780} height={216} style={{ objectFit: "contain", maxWidth: "100%" }} priority />
+            <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={920} height={255} style={{ objectFit: "contain", maxWidth: "100%" }} priority />
           </div>
 
           <div style={{
