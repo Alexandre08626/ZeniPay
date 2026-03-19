@@ -1,3 +1,4 @@
+"use client";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -9,11 +10,6 @@ const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PU
 const DARK = "#0A0F1E";
 const DARK2 = "#111827";
 const GLASS = "rgba(255,255,255,0.05)";
-
-export const metadata = {
-  title: "Payouts — ZeniPay",
-  description: "Send instant payouts to anyone, anywhere. ACH, wire, and real-time payments.",
-};
 
 export default function PayoutsPage() {
   return (
