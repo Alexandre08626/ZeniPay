@@ -160,13 +160,13 @@ export default function PaymentsPage() {
 
       {/* Pricing */}
       <section style={{ padding: "0 5% 90px", maxWidth: 900, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 36, fontWeight: 900, textAlign: "center", marginBottom: 12 }}>Tarification simple et transparente</h2>
-        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 44 }}>Aucun frais mensuel. Aucun frais de départ. Aucun coût caché.</p>
+        <h2 style={{ fontSize: 36, fontWeight: 900, textAlign: "center", marginBottom: 12 }}>Simple, transparent pricing</h2>
+        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 44 }}>No monthly fees. No setup fees. No hidden costs.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
           {[
-            { title: "Standard", price: "2.9% + $0.30", per: "par transaction réussie", color: ZP_GREEN, features: ["Visa, Mastercard, Discover", "3DS2 inclus", "Webhooks temps réel", "Rapports de base", "Reçus par email"] },
-            { title: "Business", price: "2.5% + $0.25", per: "par transaction réussie", color: ZP_CYAN, badge: "Le plus populaire", features: ["Tout du Standard", "Amex & cartes internationales", "Routage prioritaire", "Analytique avancée", "Support téléphonique", "Webhook retry personnalisé"] },
-            { title: "Complet", price: "2% + $0.20", per: "par transaction réussie", color: ZP_PURPLE, badge: "Tout inclus", features: ["Argent disponible instantanément (0 jour)", "Carte Visa & Mastercard incluse", "Outils de comptabilité complets", "Payer fournisseurs & employés", "Compte bancaire business dédié", "Tout du Business"] },
+            { title: "Standard", price: "2.9% + $0.30", per: "per successful charge", color: ZP_GREEN, features: ["Visa, Mastercard, Discover", "3DS2 included", "Real-time webhooks", "Basic reporting", "Email receipts"] },
+            { title: "Business", price: "2.5% + $0.25", per: "per successful charge", color: ZP_CYAN, badge: "Most popular", features: ["Everything in Standard", "Amex & international cards", "Priority routing", "Advanced analytics", "Phone support", "Custom webhook retry"] },
+            { title: "Complete", price: "2% + $0.20", per: "per successful charge", color: ZP_PURPLE, badge: "All-in-one", features: ["Instant funds — 0-day hold", "Visa & Mastercard card included", "Full accounting suite", "Pay suppliers & employees", "Dedicated business bank account", "Everything in Business"] },
           ].map(p => (
             <div key={p.title} style={{ background: GLASS, border: `1px solid ${p.color}33`, borderRadius: 22, padding: "32px 28px", position: "relative" }}>
               {p.badge && <div style={{ position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)", background: ZP_GRAD, color: "#fff", fontSize: 10, fontWeight: 800, padding: "4px 14px", borderRadius: 20, whiteSpace: "nowrap" }}>{p.badge}</div>}
@@ -177,7 +177,7 @@ export default function PaymentsPage() {
                 {p.features.map(f => <div key={f} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><span style={{ color: p.color }}>✓</span><span style={{ color: "rgba(255,255,255,0.75)" }}>{f}</span></div>)}
               </div>
               <Link href="/signup" style={{ display: "block", textAlign: "center", background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "12px", borderRadius: 12, fontSize: 14, fontWeight: 700 }}>
-                Commencer gratuitement
+                Get started free
               </Link>
             </div>
           ))}

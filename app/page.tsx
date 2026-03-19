@@ -64,7 +64,7 @@ export default function ZeniPayLanding() {
           }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: ZP_GREEN, display: "inline-block" }} />
             <span style={{ fontSize: 11, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Compte bancaire business — pas juste un processeur
+              Not just a payment processor — your full business bank
             </span>
           </div>
 
@@ -72,10 +72,10 @@ export default function ZeniPayLanding() {
             fontSize: "clamp(40px, 6vw, 76px)", fontWeight: 900, lineHeight: 1.1,
             margin: "0 0 24px", letterSpacing: "-2px",
           }}>
-            Votre banque business.<br />
-            Visa & Mastercard inclus.<br />
+            Your business bank.<br />
+            Visa & Mastercard included.<br />
             <span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              Tout en un seul endroit.
+              Everything in one place.
             </span>
           </h1>
 
@@ -83,7 +83,7 @@ export default function ZeniPayLanding() {
             fontSize: "clamp(16px, 2vw, 20px)", color: "rgba(255,255,255,0.6)",
             lineHeight: 1.6, margin: "0 auto 48px", maxWidth: 600,
           }}>
-            ZeniPay n'est pas Stripe. C'est un vrai <strong style={{ color: "#fff" }}>compte bancaire d'entreprise</strong> — avec carte Visa & Mastercard, comptabilité intégrée, paiement de fournisseurs et d'employés, et argent disponible instantanément. Zéro délai. Zéro intermédiaire.
+            Other processors just move money. ZeniPay <strong style={{ color: "#fff" }}>is</strong> the money — a real business bank account with Visa & Mastercard cards, built-in accounting, instant funds, and tools to pay your suppliers and team. Zero wait. Zero middlemen.
           </p>
 
           <div id="get-started" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
@@ -124,21 +124,21 @@ export default function ZeniPayLanding() {
       <section style={{ padding: "100px 5%", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 64 }}>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>
-            Plus qu'un processeur — une banque complète
+            Beyond payments — a complete financial OS
           </h2>
           <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 17, maxWidth: 560, margin: "0 auto" }}>
-            Stripe prend vos paiements. ZeniPay gère votre argent — compte bancaire, cartes, comptabilité, paie, tout inclus.
+            Others process your payments. ZeniPay owns the whole stack — bank account, cards, accounting, payroll, all in one dashboard.
           </p>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
           {[
-            { icon: "🏦", title: "Vrai compte bancaire business", desc: "Pas un processeur de paiement — un compte bancaire d'entreprise complet. IBAN, numéro de routage, relevés mensuels, tout y est.", color: ZP_GREEN, href: "/tools" },
-            { icon: "💳", title: "Carte Visa & Mastercard", desc: "Chaque compte ZeniPay inclut une carte Visa et Mastercard pour vos dépenses d'entreprise. Contrôles de dépenses et limites par carte.", color: ZP_CYAN, href: "/payments" },
-            { icon: "⚡", title: "Argent disponible instantanément", desc: "0 jour d'attente. Vos paiements sont disponibles immédiatement dans votre compte — pas T+2 comme les autres.", color: ZP_PURPLE, href: "/payouts" },
-            { icon: "📒", title: "Comptabilité intégrée", desc: "Facturation, rapprochement, double saisie, export QuickBooks/Xero. Fermez vos livres en minutes, pas en jours.", color: ZP_BLUE, href: "/tools" },
-            { icon: "👥", title: "Payer fournisseurs & employés", desc: "Virements ACH, RTP, SWIFT — payez vos fournisseurs et employés directement depuis votre tableau de bord ZeniPay.", color: "#F5A623", href: "/payouts" },
-            { icon: "🧩", title: "API simple & sandbox inclus", desc: "API RESTful avec SDKs. Passez de l'intégration au live en quelques heures. Sandbox complet disponible dès l'inscription.", color: "#E5247B", href: "/docs" },
+            { icon: "🏦", title: "A real business bank account", desc: "Not a payment processor — a full business bank account. Routing number, account number, monthly statements. Yours from day one.", color: ZP_GREEN, href: "/tools" },
+            { icon: "💳", title: "Visa & Mastercard included", desc: "Every ZeniPay account comes with physical and virtual Visa & Mastercard cards. Set spend controls and limits per card.", color: ZP_CYAN, href: "/payments" },
+            { icon: "⚡", title: "Funds available instantly", desc: "Zero-day holds. Your money is in your account the moment a payment clears — not 2 business days later like the old way.", color: ZP_PURPLE, href: "/payouts" },
+            { icon: "📒", title: "Real accounting tools", desc: "Invoicing, reconciliation, double-entry bookkeeping, QuickBooks & Xero export. Close your books in minutes, not days.", color: ZP_BLUE, href: "/tools" },
+            { icon: "👥", title: "Pay suppliers & employees", desc: "ACH, RTP, SWIFT — pay your vendors and team directly from your ZeniPay dashboard. Batch thousands at once.", color: "#F5A623", href: "/payouts" },
+            { icon: "🧩", title: "Simple API, sandbox included", desc: "RESTful API with SDKs. Go from zero to integrated in hours. Full sandbox available the moment you sign up.", color: "#E5247B", href: "/docs" },
           ].map(f => (
             <Link key={f.title} href={f.href} style={{ textDecoration: "none" }}>
               <div style={{
