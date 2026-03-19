@@ -86,6 +86,7 @@ export default function SignupPage() {
       sandboxKey: sbKey,
       sandboxSecret: sbSecret,
       liveKey,
+      password,
       createdAt: new Date().toISOString(),
       volume: 0,
       txCount: 0,
