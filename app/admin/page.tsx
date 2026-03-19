@@ -27,6 +27,23 @@ const CLIENTS_DEFAULT = [{
 const GATEWAY_STATUS = { accountId: "acct_XlRKvhpbdl1UxJ9zINmoL", webhook: "https://zenipay.ca/api/zenipay/webhooks/tilled", fees: "2.9% + $0.30" };
 const BANK_STATUS    = { routing: "812345678", account: "••••5847", balance: 0, customerId: "4647873" };
 
+// ZeniPay's own platform revenue account — commissions auto-deposited here
+const PLATFORM_ACCOUNT = {
+  name: "ZeniPay Inc. — Platform Revenue",
+  routing: "812345678",
+  account: "••••9201",
+  balance: 0,
+  customerId: "ZP-PLATFORM-001",
+  type: "Business Chequing (Unit.co)",
+};
+
+// Commission split rules per plan (ZeniPay margin after Tilled cost ~2.4%+$0.20)
+const COMMISSION_RULES = [
+  { plan: "Standard", charged: "2.9% + $0.30", tilled: "~2.4% + $0.20", zeniMargin: "~0.5% + $0.10", color: ZP_GREEN  },
+  { plan: "Business",  charged: "2.5% + $0.25", tilled: "~2.4% + $0.20", zeniMargin: "~0.1% + $0.05", color: ZP_CYAN   },
+  { plan: "Complete",  charged: "2.0% + $0.20", tilled: "~1.8% + $0.15", zeniMargin: "~0.2% + $0.05", color: ZP_PURPLE },
+];
+
 const NAV = [
   { key: "overview",     icon: "▦",  label: "Overview",     color: ZP_GREEN  },
   { key: "clients",      icon: "⊞",  label: "Clients",      color: ZP_CYAN   },
@@ -203,12 +220,12 @@ export default function AdminPage() {
               </div>
 
               {/* KPI row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 20 }}>
-                <MetricCard label="Total Volume"    value={fmt(0)}  sub="All time"           accent={ZP_GREEN}  icon="💰" />
-                <MetricCard label="Platform Fees"   value={fmt(0)}  sub="2.9% + $0.30"       accent={ZP_CYAN}   icon="📊" />
-                <MetricCard label="Active Clients"  value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
-                <MetricCard label="Pending Payouts" value={fmt(0)}  sub="0 queued"           accent="#D97706"   icon="⏳" />
-                <MetricCard label="Success Rate"    value="—"       sub="No data yet"        accent={ZP_BLUE}   icon="✓" />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 20 }}>
+                <MetricCard label="Client Volume"      value={fmt(0)}  sub="All-time processed"  accent={ZP_GREEN}  icon="💰" />
+                <MetricCard label="ZeniPay Earnings"   value={fmt(0)}  sub="Auto-deposited · ••••9201" accent={ZP_CYAN} icon="🏦" />
+                <MetricCard label="Active Clients"     value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
+                <MetricCard label="Pending Payouts"    value={fmt(0)}  sub="0 queued"            accent="#D97706"   icon="⏳" />
+                <MetricCard label="Platform Balance"   value={fmt(PLATFORM_ACCOUNT.balance)} sub="ZeniPay ••••9201" accent={ZP_BLUE} icon="⚡" />
               </div>
 
               {/* Revenue chart + recent signups */}
@@ -508,9 +525,24 @@ export default function AdminPage() {
               {/* Client wallet balances */}
               <div style={{ ...card({ padding: "22px", marginBottom: 16 }) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <div style={{ fontWeight: 800, fontSize: 15 }}>ZeniCard Balances</div>
+                  <div style={{ fontWeight: 800, fontSize: 15 }}>All ZeniCard Balances</div>
                   <div style={{ fontSize: 12, color: MUTED }}>Real-time</div>
                 </div>
+
+                {/* ZeniPay platform account row */}
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: `1px solid ${BORDER}`, background: ZP_CYAN + "06", borderRadius: 10, paddingLeft: 12, paddingRight: 12, marginBottom: 4 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, color: "#fff", flexShrink: 0 }}>Z</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14 }}>ZeniPay Platform <span style={{ fontSize: 10, fontWeight: 700, color: ZP_CYAN, background: ZP_CYAN + "15", border: `1px solid ${ZP_CYAN}33`, borderRadius: 6, padding: "1px 7px", marginLeft: 4 }}>PLATFORM</span></div>
+                    <div style={{ fontSize: 11, color: MUTED }}>Auto-commission account · Unit.co {PLATFORM_ACCOUNT.account}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: ZP_CYAN }}>{fmt(PLATFORM_ACCOUNT.balance)}</div>
+                    <div style={{ fontSize: 11, color: MUTED }}>Platform earnings</div>
+                  </div>
+                  <button style={{ padding: "7px 16px", borderRadius: 8, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Withdraw →</button>
+                </div>
+
                 {CLIENTS.map(c => (
                   <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderTop: `1px solid ${BORDER}` }}>
                     <Avatar name={c.name} size={40} grad />
@@ -589,6 +621,75 @@ export default function AdminPage() {
                     <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 13 }}>
                       <span style={{ color: MUTED }}>{s.k}</span>
                       <span style={{ fontWeight: 700, color: s.color }}>{s.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ZeniPay Platform Revenue Account */}
+              <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_CYAN}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>ZeniPay Platform Revenue Account</div>
+                    <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Commissions automatically deposited here on every transaction</div>
+                  </div>
+                  <div style={{ ...badge("active") }}><span style={{ fontSize: 7 }}>●</span> Active</div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+                  <div>
+                    {[
+                      { k: "Account Name",  v: PLATFORM_ACCOUNT.name,       color: TEXT      },
+                      { k: "Account Type",  v: PLATFORM_ACCOUNT.type,        color: ZP_PURPLE },
+                      { k: "Routing",       v: PLATFORM_ACCOUNT.routing,     color: TEXT      },
+                      { k: "Account No.",   v: PLATFORM_ACCOUNT.account,     color: TEXT      },
+                      { k: "Balance",       v: fmt(PLATFORM_ACCOUNT.balance), color: ZP_GREEN },
+                      { k: "Customer ID",   v: PLATFORM_ACCOUNT.customerId,  color: MUTED     },
+                    ].map(s => (
+                      <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 13 }}>
+                        <span style={{ color: MUTED }}>{s.k}</span>
+                        <span style={{ fontWeight: 700, color: s.color }}>{s.v}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Commission flow visual */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Auto Commission Flow</div>
+                    {[
+                      { label: "Client pays",        sub: "e.g. $100.00",       color: ZP_GREEN,  icon: "💳" },
+                      { label: "Tilled processing",  sub: "~2.4% + $0.20 cost", color: "#D97706", icon: "⚙️" },
+                      { label: "ZeniPay margin",     sub: "auto → ••••9201",    color: ZP_CYAN,   icon: "🏦" },
+                      { label: "Client net",         sub: "lands in ZeniCard",  color: ZP_PURPLE, icon: "⚡" },
+                    ].map((s, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < 3 ? `1px solid ${BORDER}` : "none" }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: s.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{s.icon}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: TEXT }}>{s.label}</div>
+                          <div style={{ fontSize: 11, color: MUTED }}>{s.sub}</div>
+                        </div>
+                        {i < 3 && <div style={{ fontSize: 14, color: MUTED }}>↓</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Commission rules per plan */}
+                <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Commission Rules by Plan</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                  {COMMISSION_RULES.map(r => (
+                    <div key={r.plan} style={{ padding: "12px 14px", borderRadius: 12, background: r.color + "08", border: `1px solid ${r.color}22` }}>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: r.color, marginBottom: 8 }}>{r.plan}</div>
+                      {[
+                        { k: "Charged to client", v: r.charged },
+                        { k: "Tilled cost",        v: r.tilled  },
+                        { k: "ZeniPay margin →••••9201", v: r.zeniMargin, bold: true },
+                      ].map(s => (
+                        <div key={s.k} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0", borderBottom: `1px solid ${r.color}18` }}>
+                          <span style={{ color: MUTED }}>{s.k}</span>
+                          <span style={{ fontWeight: (s as any).bold ? 800 : 600, color: (s as any).bold ? r.color : TEXT }}>{s.v}</span>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
