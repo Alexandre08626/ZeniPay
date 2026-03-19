@@ -93,7 +93,7 @@ export default function PaymentsPage() {
             { step: "04", icon: "📡", title: "Webhook fired", desc: "Your server gets HMAC-signed event in real time. Act on it instantly." },
             { step: "05", icon: "🏦", title: "Settled", desc: "Funds land in your ZeniPay balance T+1. Payout on your schedule." },
           ].map((s, i) => (
-            <div key={s.step} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 0, padding: "28px 20px", position: "relative", borderRight: i < 4 ? "none" : "1px solid rgba(255,255,255,0.08)", borderRadius: i === 0 ? "20px 0 0 20px" : i === 4 ? "0 20px 20px 0" : 0 }}>
+            <div key={s.step} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: i === 0 ? "20px 0 0 20px" : i === 4 ? "0 20px 20px 0" : 0, padding: "28px 20px", position: "relative", borderRight: i < 4 ? "none" : "1px solid rgba(255,255,255,0.08)" }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.15em", marginBottom: 12 }}>STEP {s.step}</div>
               <div style={{ fontSize: 28, marginBottom: 10 }}>{s.icon}</div>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{s.title}</div>
