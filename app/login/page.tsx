@@ -200,6 +200,8 @@ export default function LoginPage() {
           <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>← Back</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
           <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>Support</a>
+          <span style={{ color: "#CBD5E1" }}>·</span>
+          <a href="/admin/login" style={{ color: "#CBD5E1", fontSize: 13, textDecoration: "none" }}>Admin</a>
         </div>
 
         {/* Not a client yet */}
