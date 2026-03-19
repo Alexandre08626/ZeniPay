@@ -1,24 +1,12 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
+import Nav from "../components/Nav";
 
 const ZP_GREEN = "#2DBE60"; const ZP_CYAN = "#15B8C9"; const ZP_BLUE = "#2A8FE0"; const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
 const DARK = "#0A0F1E"; const DARK2 = "#111827"; const GLASS = "rgba(255,255,255,0.05)";
 const NAV_LINKS = [{ label: "Payments", href: "/payments" }, { label: "Payouts", href: "/payouts" }, { label: "Tools", href: "/tools" }, { label: "Docs", href: "/docs" }];
-
-function Nav({ active }: { active: string }) {
-  return (
-    <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "rgba(10,15,30,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 5%", height: 64 }}>
-      <Link href="/" style={{ textDecoration: "none" }}><Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={140} height={40} style={{ objectFit: "contain" }} /></Link>
-      <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-        {NAV_LINKS.map(item => <Link key={item.label} href={item.href} style={{ color: item.label === active ? "#fff" : "rgba(255,255,255,0.55)", textDecoration: "none", fontSize: 14, fontWeight: item.label === active ? 700 : 500, borderBottom: item.label === active ? `2px solid ${ZP_CYAN}` : "2px solid transparent", paddingBottom: 2 }}>{item.label}</Link>)}
-        <Link href="/login" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Sign In</Link>
-        <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Get Started</Link>
-      </div>
-    </nav>
-  );
-}
 
 export default function PayoutsPage() {
   return (

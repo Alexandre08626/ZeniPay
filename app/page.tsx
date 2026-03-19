@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
+import Nav from "./components/Nav";
 
 const ZP_GREEN = "#2DBE60";
 const ZP_CYAN = "#15B8C9";
@@ -14,34 +15,7 @@ const GLASS = "rgba(255,255,255,0.05)";
 export default function ZeniPayLanding() {
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", overflowX: "hidden" }}>
-      {/* Nav */}
-      <nav style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-        background: "rgba(10,15,30,0.85)", backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 5%", height: 64,
-      }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={280} height={80} style={{ objectFit: "contain" }} priority />
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          {[
-            { label: "Payments", href: "/payments" },
-            { label: "Payouts", href: "/payouts" },
-            { label: "Tools", href: "/tools" },
-            { label: "Docs", href: "/docs" },
-          ].map(item => (
-            <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}
-               onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
-               onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}>
-              {item.label}
-            </Link>
-          ))}
-          <Link href="/login" style={{ marginRight: 8, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Sign In</Link>
-          <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "8px 20px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Get Started</Link>
-        </div>
-      </nav>
+      <Nav />
 
       {/* Hero */}
       <section style={{
