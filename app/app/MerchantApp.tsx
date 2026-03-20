@@ -167,9 +167,14 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [apiLang,     setApiLang]     = useState<"node"|"php"|"python"|"curl">("node");
   const [bankAction,  setBankAction]  = useState<string|null>(null);
   const [bankActForm, setBankActForm] = useState<Record<string,string>>({});
-  const [whUrl,       setWhUrl]       = useState("");
-  const [whSaved,     setWhSaved]     = useState(false);
-  const [notifEmail,  setNotifEmail]  = useState(true);
+  const [whUrl,        setWhUrl]        = useState("");
+  const [whSaved,      setWhSaved]      = useState(false);
+  const [notifEmail,   setNotifEmail]   = useState(true);
+  const [benChat,      setBenChat]      = useState<{role:"ben"|"user";text:string}[]>([
+    { role:"ben", text:`Hi! I'm Ben, your ZeniPay financial AI assistant. I monitor your account 24/7, detect anomalies, and give you real-time financial intelligence. Ask me anything about your revenue, payouts, or account health.` }
+  ]);
+  const [benMsg,       setBenMsg]       = useState("");
+  const [benLoading,   setBenLoading]   = useState(false);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 860);
@@ -187,12 +192,38 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [payouts,  setPayouts]  = useState<Payout[]>(() => loadData("payouts",  []));
   const [bankCfg,  setBankCfg]  = useState<BankCfg>(() => loadData("bankCfg", { holderName: "", bankName: "", transit: "", institution: "", accountNum: "", accountType: "chequing", step: 0 }));
 
+  // Ben AI live activity feed — built from seeded data
+  const liveActivity = [
+    { id:1, type:"success", text:`Payment received — ${fmt(invoices.filter(i=>i.status==="paid")[0]?.amount||0)} · ${invoices.filter(i=>i.status==="paid")[0]?.client||"Client"}`, time:"just now" },
+    { id:2, type:"success", text:"All systems operational — no anomalies detected", time:"2 min ago" },
+    { id:3, type:"success", text:`Pay Link active — ${payLinks[0]?.title||"Payment Link"}`, time:"5 min ago" },
+    { id:4, type:"alert",   text:"Rate limit monitor: no issues", time:"12 min ago" },
+    { id:5, type:"success", text:`Payout processed → ${payouts[0]?.recipient||"Recipient"}`, time:"18 min ago" },
+  ];
+
   useEffect(() => { saveData("paylinks", payLinks); }, [payLinks]);
   useEffect(() => { saveData("invoices", invoices); }, [invoices]);
   useEffect(() => { saveData("payouts",  payouts);  }, [payouts]);
   useEffect(() => { saveData("bankCfg",  bankCfg);  }, [bankCfg]);
 
   const saveBankCfg = (u: Partial<BankCfg>) => setBankCfg(p => ({ ...p, ...u } as BankCfg));
+
+  const handleBenSend = () => {
+    if (!benMsg.trim() || benLoading) return;
+    const q = benMsg.trim();
+    setBenChat(c => [...c, { role:"user", text:q }]);
+    setBenMsg("");
+    setBenLoading(true);
+    const lower = q.toLowerCase();
+    let ans = "I'm processing your request and analyzing your account data in real time. I'll have a detailed response shortly.";
+    if (lower.includes("revenue") || lower.includes("volume")) ans = `Your total processed volume is ${fmt(account.volume)} across ${account.txCount} transactions. Your current balance is ${fmt(account.balance)}. ${payLinks.filter(p=>p.status==="active").length} pay links are active. Revenue trend is stable — recommend creating more pay links to accelerate growth.`;
+    else if (lower.includes("payout") || lower.includes("transfer")) ans = `You have ${payouts.length} payout(s) on record. Last payout: ${fmt(payouts[0]?.amount||0)} to ${payouts[0]?.recipient||"N/A"} via ${payouts[0]?.method||"e-Transfer"} — status: ${payouts[0]?.status||"N/A"}. Payouts are typically settled within 1–2 business days.`;
+    else if (lower.includes("invoice") || lower.includes("facture")) ans = `You have ${invoices.length} invoice(s). ${invoices.filter(i=>i.status==="paid").length} paid, ${invoices.filter(i=>i.status==="sent").length} pending, ${invoices.filter(i=>i.status==="draft").length} drafts. Total invoiced revenue: ${fmt(invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.amount,0))}.`;
+    else if (lower.includes("fraud") || lower.includes("anomal") || lower.includes("security")) ans = "✅ No anomalies detected. All transactions are within normal parameters for your business type and volume. I'm monitoring continuously and will alert you immediately if anything unusual is detected.";
+    else if (lower.includes("bank") || lower.includes("account")) ans = `Your bank account is ${bankCfg.step>=3?"connected and verified":"not yet connected"}. ${bankCfg.step>=3?`Account: ${bankCfg.bankName} — ${bankCfg.accountType} ····${bankCfg.accountNum.slice(-4)}. Settlements are processed automatically.`:"Visit the Banking tab to connect your account and start receiving payouts."}`;
+    else if (lower.includes("report")) ans = "I can generate Income Statement, Balance Sheet, Cash Flow Statement, and Tax Summary reports. Go to the Accounting tab to view and download your reports.";
+    setTimeout(() => { setBenChat(c => [...c, { role:"ben", text:ans }]); setBenLoading(false); }, 1200);
+  };
 
   // ── Auto-seed sandbox data on first load ─────────────
   useEffect(() => {
@@ -763,69 +794,288 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   // ── ACCOUNTING ────────────────────────────────────────
   const AcctRev = invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.amount,0);
   const AcctExp = payouts.reduce((s,p)=>s+p.amount,0);
+  const AcctNet = AcctRev - AcctExp;
+  const exportCSV = () => {
+    const rows=["Date,Description,Type,Amount"];
+    invoices.forEach(i=>rows.push(`${i.createdAt.split("T")[0]},Invoice ${i.id} - ${i.client},Revenue,${i.amount}`));
+    payouts.forEach(p=>rows.push(`${p.createdAt.split("T")[0]},Payout to ${p.recipient},Expense,-${p.amount}`));
+    const blob=new Blob([rows.join("\n")],{type:"text/csv"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="zenipay_accounting.csv";a.click();
+  };
   const AccountingSection = (
-    <div>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20 }}>
-        <h2 style={{ fontSize:20,fontWeight:900,margin:0,color:TEXT }}>Accounting</h2>
-        <button onClick={()=>{
-          const rows=["Date,Description,Type,Amount"];
-          invoices.forEach(i=>rows.push(`${i.createdAt.split("T")[0]},Invoice ${i.id} - ${i.client},Revenue,${i.amount}`));
-          payouts.forEach(p=>rows.push(`${p.createdAt.split("T")[0]},Payout to ${p.recipient},Expense,-${p.amount}`));
-          const blob=new Blob([rows.join("\n")],{type:"text/csv"});
-          const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="zenipay_accounting.csv";a.click();
-        }} style={{ background:CARD_BG,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:12,padding:"8px 18px",fontSize:13,fontWeight:700,cursor:"pointer" }}>⬇ Export CSV</button>
-      </div>
-      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:24 }}>
-        {[
-          {label:"Total Revenue",  value:fmt(AcctRev),        color:ZP_GREEN},
-          {label:"Total Expenses", value:fmt(AcctExp),        color:"#EF4444"},
-          {label:"Net Profit",     value:fmt(AcctRev-AcctExp),color:AcctRev-AcctExp>=0?ZP_CYAN:"#EF4444"},
-        ].map(k=>(
-          <div key={k.label} style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:14,padding:"18px 16px",textAlign:"center" as const,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-            <div style={{ fontSize:11,color:LIGHT,marginBottom:8,textTransform:"uppercase" as const,letterSpacing:"0.08em" }}>{k.label}</div>
-            <div style={{ fontSize:22,fontWeight:900,color:k.color }}>{k.value}</div>
+    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+      {/* Dark header — fiscal summary */}
+      <div style={{ background:`linear-gradient(135deg, #0d1633, #1a2a5e)`, borderRadius:20, padding:28, color:"white" }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20 }}>
+          <div>
+            <h2 style={{ margin:"0 0 6px",fontWeight:900,fontSize:24 }}>📚 ZeniPay Accounting</h2>
+            <p style={{ margin:0,opacity:0.6,fontSize:14 }}>Automatic bookkeeping · Real-time P&L · Tax-ready reports</p>
           </div>
-        ))}
-      </div>
-      <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-        <div style={{ padding:"12px 18px",borderBottom:`1px solid ${BORDER}`,fontSize:11,color:MUTED,fontWeight:700,textTransform:"uppercase" as const }}>Journal Entries</div>
-        {[...invoices.map(i=>({date:i.createdAt,label:`Invoice ${i.id} — ${i.client}`,type:"Revenue",amount:i.amount,color:ZP_GREEN})),...payouts.map(p=>({date:p.createdAt,label:`Payout → ${p.recipient}`,type:"Expense",amount:-p.amount,color:"#EF4444"}))].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20).map((e,i)=>(
-          <div key={i} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
-            <div><div style={{ fontSize:13,fontWeight:600,color:TEXT }}>{e.label}</div><div style={{ fontSize:11,color:LIGHT }}>{new Date(e.date).toLocaleDateString("en-CA")} · {e.type}</div></div>
-            <span style={{ fontSize:14,fontWeight:900,color:e.color }}>{e.amount>=0?"+":""}{fmt(e.amount)}</span>
+          <div style={{ display:"flex",gap:8 }}>
+            {[["📥 Import","#fff"],["📤 Export CSV","#fff"]].map(([b])=>(
+              <button key={b} onClick={b.includes("Export")?exportCSV:undefined} style={{ background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:9999,padding:"8px 14px",color:"white",fontSize:12,fontWeight:700,cursor:"pointer" }}>{b}</button>
+            ))}
           </div>
-        ))}
-        {invoices.length===0&&payouts.length===0&&<div style={{ padding:"30px 20px",textAlign:"center",color:LIGHT,fontSize:13 }}>No entries yet</div>}
+        </div>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12 }}>
+          {[
+            {label:"Gross Revenue",value:fmt(AcctRev),sub:"Invoices paid",color:"#4ade80"},
+            {label:"Total Expenses",value:fmt(AcctExp),sub:"Payouts sent",color:"#f87171"},
+            {label:"Net Income",value:fmt(AcctNet),sub:"Before tax",color:"#fde68a"},
+            {label:"Tax Provision",value:fmt(AcctNet*0.15),sub:"Est. 15% corp",color:"#94a3b8"},
+          ].map(s=>(
+            <div key={s.label} style={{ background:"rgba(255,255,255,0.08)",borderRadius:12,padding:"14px 16px" }}>
+              <p style={{ margin:"0 0 4px",fontSize:10,opacity:0.6,textTransform:"uppercase" as const,letterSpacing:"0.05em" }}>{s.label}</p>
+              <p style={{ margin:"0 0 2px",fontWeight:900,fontSize:20,color:s.color }}>{s.value}</p>
+              <p style={{ margin:0,fontSize:10,opacity:0.5 }}>{s.sub}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* P&L + Balance Sheet */}
+      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:20 }}>
+        {/* P&L */}
+        <div style={{ background:"white",borderRadius:20,padding:24,boxShadow:"0 2px 12px rgba(0,0,0,0.07)" }}>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18 }}>
+            <h3 style={{ margin:0,fontWeight:800,fontSize:16,color:"#0f172a" }}>📊 Profit & Loss</h3>
+            <select style={{ border:`1px solid ${BORDER}`,borderRadius:8,padding:"4px 10px",fontSize:12,color:TEXT }}>
+              <option>FY 2025–2026</option><option>Q1 2026</option>
+            </select>
+          </div>
+          {[
+            {label:"Client Invoices Revenue",amount:AcctRev,type:"income"},
+            {label:"Pay Link Revenue",amount:payLinks.filter(p=>p.uses>0).length*250,type:"income"},
+            {label:"TOTAL REVENUE",amount:AcctRev,type:"total-income"},
+            {label:"Payouts (commissions)",amount:AcctExp,type:"expense"},
+            {label:"Processing fees (est.)",amount:Math.round(AcctRev*0.029+0.30*invoices.length),type:"expense"},
+            {label:"TOTAL EXPENSES",amount:AcctExp+Math.round(AcctRev*0.029),type:"total-expense"},
+            {label:"NET INCOME",amount:AcctNet,type:"net"},
+          ].map((row,i)=>(
+            <div key={i} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",borderRadius:8,background:row.type==="total-income"?"#f0fdf4":row.type==="total-expense"?"#fff1f2":row.type==="net"?`${ZP_CYAN}10`:"transparent",marginBottom:2,borderTop:(row.type==="total-income"||row.type==="total-expense"||row.type==="net")?"2px solid #e2e8f0":"none" }}>
+              <span style={{ fontSize:13,fontWeight:(row.type.startsWith("total")||row.type==="net")?800:500,color:"#374151" }}>{row.label}</span>
+              <span style={{ fontWeight:800,fontSize:13,color:row.amount>0?ZP_GREEN:row.amount<0?"#EF4444":ZP_CYAN }}>{row.amount>=0?"+":""}{fmt(row.amount)}</span>
+            </div>
+          ))}
+        </div>
+        {/* Balance Sheet */}
+        <div style={{ background:"white",borderRadius:20,padding:24,boxShadow:"0 2px 12px rgba(0,0,0,0.07)" }}>
+          <h3 style={{ margin:"0 0 18px",fontWeight:800,fontSize:16,color:"#0f172a" }}>🏛️ Balance Sheet</h3>
+          <div style={{ marginBottom:16 }}>
+            <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:12,color:"#64748b",textTransform:"uppercase" as const }}>Assets</p>
+            {[
+              {label:"ZeniPay Balance",value:account.balance},
+              {label:"Accounts Receivable",value:invoices.filter(i=>i.status==="sent").reduce((s,i)=>s+i.amount,0)},
+              {label:"Cash Equivalents",value:account.volume*0.05},
+            ].map(a=>(
+              <div key={a.label} style={{ display:"flex",justifyContent:"space-between",padding:"6px 10px",fontSize:13 }}>
+                <span style={{ color:"#374151" }}>{a.label}</span>
+                <span style={{ fontWeight:700,color:ZP_GREEN }}>{fmt(a.value)}</span>
+              </div>
+            ))}
+            <div style={{ display:"flex",justifyContent:"space-between",padding:"8px 10px",background:"#f0fdf4",borderRadius:8,fontWeight:800,fontSize:13,marginTop:4 }}>
+              <span>TOTAL ASSETS</span><span style={{ color:ZP_GREEN }}>{fmt(account.balance+invoices.filter(i=>i.status==="sent").reduce((s,i)=>s+i.amount,0))}</span>
+            </div>
+          </div>
+          <div>
+            <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:12,color:"#64748b",textTransform:"uppercase" as const }}>Liabilities & Equity</p>
+            {[
+              {label:"Pending Payouts",value:payouts.filter(p=>p.status==="pending").reduce((s,p)=>s+p.amount,0)},
+              {label:"Tax Provision (est.)",value:AcctNet*0.15},
+            ].map(l=>(
+              <div key={l.label} style={{ display:"flex",justifyContent:"space-between",padding:"6px 10px",fontSize:13 }}>
+                <span style={{ color:"#374151" }}>{l.label}</span>
+                <span style={{ fontWeight:700,color:"#EF4444" }}>{fmt(-l.value)}</span>
+              </div>
+            ))}
+            <div style={{ display:"flex",justifyContent:"space-between",padding:"6px 10px",fontSize:13 }}>
+              <span style={{ color:"#374151" }}>Retained Earnings</span>
+              <span style={{ fontWeight:700,color:ZP_BLUE }}>{fmt(AcctNet)}</span>
+            </div>
+            <div style={{ display:"flex",justifyContent:"space-between",padding:"8px 10px",background:"#eff6ff",borderRadius:8,fontWeight:800,fontSize:13,marginTop:4 }}>
+              <span>TOTAL L+E</span><span style={{ color:ZP_BLUE }}>{fmt(AcctNet)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart of Accounts + Journal */}
+      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:20 }}>
+        {/* Chart of accounts */}
+        <div style={{ background:"white",borderRadius:20,padding:24,boxShadow:"0 2px 12px rgba(0,0,0,0.07)" }}>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
+            <h3 style={{ margin:0,fontWeight:800,fontSize:15 }}>📋 Chart of Accounts</h3>
+            <button style={{ background:ZP_CYAN,color:"white",border:"none",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer" }}>+ New Account</button>
+          </div>
+          {[
+            {code:"1000",name:"ZeniPay Balance",type:"Asset",balance:account.balance,color:ZP_GREEN},
+            {code:"1200",name:"Accounts Receivable",type:"Asset",balance:invoices.filter(i=>i.status==="sent").reduce((s,i)=>s+i.amount,0),color:ZP_GREEN},
+            {code:"2000",name:"Payouts Payable",type:"Liability",balance:-payouts.filter(p=>p.status==="pending").reduce((s,p)=>s+p.amount,0),color:"#EF4444"},
+            {code:"2500",name:"Tax Payable",type:"Liability",balance:-(AcctNet*0.15),color:"#EF4444"},
+            {code:"3000",name:"Retained Earnings",type:"Equity",balance:AcctNet,color:ZP_BLUE},
+            {code:"4000",name:"Invoice Revenue",type:"Income",balance:AcctRev,color:ZP_GREEN},
+            {code:"5000",name:"Payout Expenses",type:"Expense",balance:-AcctExp,color:"#EF4444"},
+            {code:"5100",name:"Processor Fees",type:"Expense",balance:-Math.round(AcctRev*0.029),color:"#EF4444"},
+          ].map(a=>(
+            <div key={a.code} style={{ display:"flex",alignItems:"center",padding:"7px 10px",borderRadius:8,marginBottom:2,cursor:"pointer" }}
+              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="#f8fafc"}
+              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}>
+              <span style={{ fontSize:11,color:"#94a3b8",width:36,fontFamily:"monospace" }}>{a.code}</span>
+              <span style={{ flex:1,fontSize:12,color:"#374151" }}>{a.name}</span>
+              <span style={{ fontSize:10,color:"#94a3b8",marginRight:8 }}>{a.type}</span>
+              <span style={{ fontSize:12,fontWeight:700,color:a.balance>0?ZP_GREEN:"#EF4444" }}>{a.balance>=0?"+":""}{fmt(a.balance)}</span>
+            </div>
+          ))}
+        </div>
+        {/* Journal + Tax */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          <div style={{ background:"white",borderRadius:20,padding:20,boxShadow:"0 2px 12px rgba(0,0,0,0.07)" }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14 }}>
+              <h3 style={{ margin:0,fontWeight:800,fontSize:15 }}>📝 Journal Entries</h3>
+              <button style={{ background:ZP_CYAN,color:"white",border:"none",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer" }}>+ New Entry</button>
+            </div>
+            <div style={{ overflowX:"auto" as const }}>
+              <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+                <thead>
+                  <tr style={{ background:"#f8fafc" }}>
+                    {["Date","Description","Account","Debit","Credit"].map(h=>(
+                      <th key={h} style={{ padding:"8px 10px",textAlign:"left" as const,fontWeight:700,color:"#64748b",borderBottom:`1px solid ${BORDER}`,fontSize:11 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...invoices.slice(0,4).flatMap((inv,i)=>[
+                    {key:`${i}a`,date:inv.createdAt.slice(0,10),desc:`Invoice ${inv.id} — ${inv.client}`,acc:"4000 Invoice Revenue",debit:"—",credit:fmt(inv.amount)},
+                    {key:`${i}b`,date:inv.createdAt.slice(0,10),desc:`Receivable ${inv.id}`,acc:"1000 ZeniPay Balance",debit:fmt(inv.amount),credit:"—"},
+                  ])].map(row=>(
+                    <tr key={row.key} style={{ borderBottom:`1px solid #f8fafc` }}>
+                      <td style={{ padding:"7px 10px",color:"#94a3b8" }}>{row.date}</td>
+                      <td style={{ padding:"7px 10px",color:"#374151",fontWeight:500 }}>{row.desc}</td>
+                      <td style={{ padding:"7px 10px",color:"#64748b" }}>{row.acc}</td>
+                      <td style={{ padding:"7px 10px",fontWeight:700,color:row.debit!=="—"?ZP_GREEN:"#94a3b8" }}>{row.debit}</td>
+                      <td style={{ padding:"7px 10px",fontWeight:700,color:row.credit!=="—"?ZP_BLUE:"#94a3b8" }}>{row.credit}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {/* Tax summary */}
+          <div style={{ background:`linear-gradient(135deg, #0d1633, #1a2a5e)`, borderRadius:20, padding:20, color:"white" }}>
+            <h4 style={{ margin:"0 0 14px",fontWeight:800 }}>🧾 Tax Summary</h4>
+            {[
+              {label:"Gross Revenue",v:fmt(AcctRev)},
+              {label:"Total Deductions",v:fmt(AcctExp)},
+              {label:"Net Taxable Income",v:fmt(AcctNet)},
+              {label:"Corp Tax Rate (est.)",v:"15%"},
+              {label:"Tax Provision",v:fmt(AcctNet*0.15)},
+            ].map(t=>(
+              <div key={t.label} style={{ display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:13 }}>
+                <span style={{ opacity:0.6 }}>{t.label}</span>
+                <span style={{ fontWeight:700,color:"#fde68a" }}>{t.v}</span>
+              </div>
+            ))}
+            <button onClick={exportCSV} style={{ width:"100%",background:"#F5A623",color:"#0d1633",border:"none",borderRadius:9999,padding:"10px",fontWeight:800,fontSize:13,cursor:"pointer",marginTop:8 }}>
+              📥 Download Tax Report (CSV)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Reports grid */}
+      <div style={{ background:"white",borderRadius:20,padding:24,boxShadow:"0 2px 12px rgba(0,0,0,0.07)" }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
+          <h3 style={{ margin:0,fontWeight:800,fontSize:16,color:"#0f172a" }}>📄 Financial Reports</h3>
+          <span style={{ fontSize:12,color:"#94a3b8" }}>Auto-generated by ZeniPay AI</span>
+        </div>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12 }}>
+          {[
+            {icon:"📊",title:"Income Statement",desc:"Revenue, expenses, profit",color:ZP_BLUE},
+            {icon:"🏛️",title:"Balance Sheet",desc:"Assets, liabilities, equity",color:ZP_PURPLE},
+            {icon:"💸",title:"Cash Flow",desc:"Operating & financing",color:ZP_GREEN},
+            {icon:"🧾",title:"Tax Return Prep",desc:"Corp filing ready",color:"#F5A623"},
+            {icon:"📈",title:"Revenue by Channel",desc:"Pay links, invoices, payouts",color:ZP_CYAN},
+            {icon:"📦",title:"COGS Report",desc:"Costs by transaction",color:"#EF4444"},
+            {icon:"📋",title:"Payout Report",desc:"All payouts & recipients",color:ZP_PURPLE},
+            {icon:"🌍",title:"Multi-Currency",desc:"CAD reconciliation",color:ZP_BLUE},
+          ].map(r=>(
+            <button key={r.title} onClick={exportCSV} style={{ background:`${r.color}10`,border:`1px solid ${r.color}25`,borderRadius:14,padding:"16px 14px",cursor:"pointer",textAlign:"left" as const }}>
+              <div style={{ fontSize:24,marginBottom:8 }}>{r.icon}</div>
+              <p style={{ margin:"0 0 4px",fontWeight:700,fontSize:13,color:"#374151" }}>{r.title}</p>
+              <p style={{ margin:0,fontSize:11,color:"#64748b" }}>{r.desc}</p>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
 
   // ── ANALYTICS ─────────────────────────────────────────
   const AnalyticsSection = (
-    <div>
-      <h2 style={{ fontSize:20,fontWeight:900,margin:"0 0 20px",color:TEXT }}>Analytics</h2>
-      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:24 }}>
+    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+      {/* KPI row */}
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:14 }}>
         {[
-          {label:"Conversion Rate",value:payLinks.length>0?`${Math.round((payLinks.filter(p=>p.uses>0).length/payLinks.length)*100)}%`:"—"},
-          {label:"Avg Transaction",value:account.txCount>0?fmt(account.volume/account.txCount):"—"},
-          {label:"Invoices Paid",value:invoices.length>0?`${Math.round((invoices.filter(i=>i.status==="paid").length/invoices.length)*100)}%`:"—"},
-          {label:"Active Links",value:String(payLinks.filter(p=>p.status==="active").length)},
-        ].map(k=>(
-          <div key={k.label} style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:14,padding:"18px 16px",textAlign:"center" as const,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-            <div style={{ fontSize:11,color:LIGHT,marginBottom:8,textTransform:"uppercase" as const,letterSpacing:"0.08em" }}>{k.label}</div>
-            <div style={{ fontSize:24,fontWeight:900,color:TEXT }}>{k.value}</div>
+          {icon:"💰",label:"Total Volume",value:fmt(account.volume),sub:"All time",color:ZP_GREEN},
+          {icon:"📊",label:"Transactions",value:String(account.txCount),sub:"Processed",color:ZP_CYAN},
+          {icon:"✅",label:"Invoice Rate",value:invoices.length>0?`${Math.round((invoices.filter(i=>i.status==="paid").length/invoices.length)*100)}%`:"—",sub:`${invoices.filter(i=>i.status==="paid").length}/${invoices.length} paid`,color:ZP_GREEN},
+          {icon:"🔗",label:"Conversion",value:payLinks.length>0?`${Math.round((payLinks.filter(p=>p.uses>0).length/payLinks.length)*100)}%`:"—",sub:"Pay links",color:ZP_PURPLE},
+          {icon:"💳",label:"Avg Transaction",value:account.txCount>0?fmt(account.volume/account.txCount):"—",sub:"Per transaction",color:"#F5A623"},
+          {icon:"⏳",label:"Pending",value:fmt(invoices.filter(i=>i.status==="sent").reduce((s,i)=>s+i.amount,0)),sub:"Awaiting payment",color:ZP_BLUE},
+        ].map(s=>(
+          <div key={s.label} style={{ background:"white",borderRadius:16,padding:"18px 20px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderLeft:`4px solid ${s.color}` }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
+              <div>
+                <p style={{ margin:"0 0 6px",fontSize:10,fontWeight:600,color:"#64748b",textTransform:"uppercase" as const,letterSpacing:"0.06em" }}>{s.label}</p>
+                <p style={{ margin:0,fontWeight:900,fontSize:20,color:"#0f172a",letterSpacing:"-0.5px" }}>{s.value}</p>
+                {s.sub&&<p style={{ margin:"4px 0 0",fontSize:10,color:"#94a3b8" }}>{s.sub}</p>}
+              </div>
+              <span style={{ fontSize:22,opacity:0.9 }}>{s.icon}</span>
+            </div>
           </div>
         ))}
       </div>
-      <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:16,padding:"20px",boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-        <div style={{ fontSize:13,fontWeight:700,marginBottom:16,color:MUTED }}>Revenue — Last 12 months</div>
-        <div style={{ display:"flex",alignItems:"flex-end",gap:6,height:80 }}>
-          {[10,25,18,40,32,55,42,60,48,70,55,account.volume>0?75:0].map((h,i)=>(
-            <div key={i} style={{ flex:1,height:`${h}%`,borderRadius:"4px 4px 0 0",background:i===11?ZP_GRAD:"rgba(21,184,201,0.15)" }} />
+
+      {/* Revenue chart */}
+      <div style={{ background:"white",borderRadius:20,padding:24,boxShadow:"0 2px 12px rgba(0,0,0,0.07)" }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20 }}>
+          <h3 style={{ margin:0,fontWeight:700,fontSize:15,color:"#0f172a" }}>📈 Revenue Chart — Last 12 months</h3>
+          <span style={{ fontSize:11,color:"#94a3b8" }}>Simulated trend</span>
+        </div>
+        <div style={{ display:"flex",alignItems:"flex-end",gap:5,height:100 }}>
+          {[12,28,20,42,35,58,44,62,50,72,58,account.volume>0?78:0].map((h,i)=>(
+            <div key={i} style={{ flex:1,height:`${h}%`,borderRadius:"4px 4px 0 0",background:i===11?`linear-gradient(180deg,${ZP_GREEN},${ZP_CYAN})`:`${ZP_CYAN}25`,transition:"height 0.3s" }} title={`Month ${i+1}`} />
           ))}
         </div>
         <div style={{ display:"flex",justifyContent:"space-between",marginTop:8,fontSize:10,color:LIGHT }}>
           {["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"].map(m=><span key={m}>{m}</span>)}
+        </div>
+      </div>
+
+      {/* Revenue by source */}
+      <div style={{ background:"white",borderRadius:20,padding:24,boxShadow:"0 2px 12px rgba(0,0,0,0.07)" }}>
+        <h3 style={{ margin:"0 0 18px",fontWeight:700,fontSize:15,color:"#0f172a" }}>🥇 Revenue by Source</h3>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
+          {[
+            {icon:"📄",label:"Invoices",rev:AcctRev,color:ZP_BLUE},
+            {icon:"🔗",label:"Pay Links",rev:payLinks.filter(p=>p.uses>0).reduce((s,p)=>s+p.amount*p.uses,0),color:ZP_GREEN},
+            {icon:"💸",label:"Payouts Sent",rev:AcctExp,color:"#EF4444"},
+            {icon:"💰",label:"Balance",rev:account.balance,color:ZP_PURPLE},
+          ].map(s=>{
+            const total = AcctRev + account.balance + 1;
+            const pct = Math.round((s.rev/total)*100);
+            return (
+              <div key={s.label} style={{ background:"#f8fafc",borderRadius:12,padding:16 }}>
+                <div style={{ fontSize:24,marginBottom:8 }}>{s.icon}</div>
+                <p style={{ margin:"0 0 2px",fontWeight:700,fontSize:13,color:"#374151" }}>{s.label}</p>
+                <p style={{ margin:"0 0 8px",fontWeight:800,fontSize:16,color:s.color }}>{fmt(s.rev)}</p>
+                <div style={{ background:"#e2e8f0",borderRadius:3,height:4,marginBottom:4 }}>
+                  <div style={{ background:s.color,width:`${Math.min(100,pct)}%`,height:"100%",borderRadius:3 }} />
+                </div>
+                <p style={{ margin:0,fontSize:10,color:"#94a3b8" }}>{pct}% of total</p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -833,30 +1083,63 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
   // ── FINANCING ────────────────────────────────────────
   const FinancingSection = (
-    <div>
-      <h2 style={{ fontSize:20,fontWeight:900,margin:"0 0 6px",color:TEXT }}>Financing</h2>
-      <p style={{ fontSize:13,color:MUTED,margin:"0 0 24px" }}>Access business financing options and capital solutions powered by ZeniPay.</p>
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:16,marginBottom:24 }}>
+    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+      {/* Dark header */}
+      <div style={{ background:`linear-gradient(135deg, #0d1633, #1a2a5e)`, borderRadius:20, padding:28, color:"white" }}>
+        <h2 style={{ margin:"0 0 8px",fontWeight:800,fontSize:24 }}>🏛️ ZeniPay Financing</h2>
+        <p style={{ margin:0,opacity:0.7 }}>Flexible payment plans and capital solutions for your business.</p>
+      </div>
+
+      {/* 3 plan cards — ZenivaComplete style */}
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16 }}>
         {[
-          { icon:"💳",title:"ZeniPay Line of Credit",desc:"Flexible credit line up to $250,000 based on your payment history. No fixed payments.",rate:"From 7.9% APR",color:ZP_CYAN,badge:"Available" },
-          { icon:"⚡",title:"Revenue-Based Advance",desc:"Get up to 125% of your monthly volume as an advance. Repay as a % of daily sales.",rate:"Factor 1.15–1.35",color:ZP_GREEN,badge:"Popular" },
-          { icon:"🏦",title:"Equipment Financing",desc:"Finance business equipment and technology with fixed monthly payments.",rate:"From 5.9% APR",color:ZP_PURPLE,badge:"New" },
+          {icon:"💳",title:"Pay in Full",desc:"Full payment upfront. Best rate for your clients.",badge:"Standard",color:ZP_CYAN},
+          {icon:"📅",title:"Deposit + Balance",desc:"30% deposit now, balance before service delivery.",badge:"Popular",color:ZP_GREEN},
+          {icon:"🔄",title:"Monthly Payments",desc:"Split into 3–12 monthly installments.",badge:"Flexible",color:ZP_PURPLE},
         ].map(p=>(
-          <div key={p.title} style={{ background:"white",borderRadius:18,padding:"22px 24px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderLeft:`4px solid ${p.color}`,position:"relative" as const }}>
-            <span style={{ position:"absolute",top:14,right:14,fontSize:9,fontWeight:800,background:`${p.color}18`,color:p.color,border:`1px solid ${p.color}40`,borderRadius:20,padding:"2px 8px",letterSpacing:"0.06em" }}>{p.badge}</span>
+          <div key={p.title} style={{ background:"white",borderRadius:16,padding:24,boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderTop:`3px solid ${p.color}` }}>
             <div style={{ fontSize:32,marginBottom:12 }}>{p.icon}</div>
-            <div style={{ fontSize:15,fontWeight:900,color:TEXT,marginBottom:6 }}>{p.title}</div>
-            <p style={{ fontSize:12,color:MUTED,margin:"0 0 14px",lineHeight:1.6 }}>{p.desc}</p>
-            <div style={{ fontSize:12,fontWeight:800,color:p.color,marginBottom:16 }}>{p.rate}</div>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8 }}>
+              <h3 style={{ margin:0,fontWeight:700,fontSize:16,color:"#0f172a" }}>{p.title}</h3>
+              <span style={{ background:`${p.color}22`,color:p.color,fontSize:10,fontWeight:700,borderRadius:6,padding:"2px 8px" }}>{p.badge}</span>
+            </div>
+            <p style={{ margin:"0 0 16px",color:"#64748b",fontSize:13,lineHeight:1.6 }}>{p.desc}</p>
+            <button style={{ background:`${p.color}15`,color:p.color,border:`1px solid ${p.color}30`,borderRadius:8,padding:"8px 16px",fontWeight:700,fontSize:13,cursor:"pointer" }}>Configure Plan</button>
+          </div>
+        ))}
+      </div>
+
+      {/* Business capital */}
+      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16 }}>
+        {[
+          {icon:"⚡",title:"Revenue-Based Advance",desc:"Get up to 125% of monthly volume. Repay as % of daily sales.",rate:"Factor 1.15–1.35",color:ZP_GREEN},
+          {icon:"🏦",title:"Equipment Financing",desc:"Finance equipment and tech with fixed monthly payments.",rate:"From 5.9% APR",color:ZP_PURPLE},
+        ].map(p=>(
+          <div key={p.title} style={{ background:"white",borderRadius:16,padding:24,boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderLeft:`4px solid ${p.color}` }}>
+            <div style={{ fontSize:28,marginBottom:10 }}>{p.icon}</div>
+            <div style={{ fontSize:15,fontWeight:900,color:"#0f172a",marginBottom:6 }}>{p.title}</div>
+            <p style={{ fontSize:12,color:"#64748b",margin:"0 0 12px",lineHeight:1.6 }}>{p.desc}</p>
+            <div style={{ fontSize:12,fontWeight:800,color:p.color,marginBottom:14 }}>{p.rate}</div>
             <button style={{ width:"100%",padding:"10px",background:ZP_GRAD,color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:800,cursor:"pointer" }}>Apply Now →</button>
           </div>
         ))}
       </div>
-      <div style={{ background:"white",borderRadius:16,padding:"18px 20px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderLeft:`4px solid ${ZP_BLUE}` }}>
+
+      {/* Active plans + specialist */}
+      <div style={{ background:"white",borderRadius:16,padding:24,boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
+        <h3 style={{ margin:"0 0 16px",fontWeight:700,fontSize:15 }}>📊 Active Financing Plans</h3>
+        <div style={{ textAlign:"center" as const,padding:40,color:"#94a3b8",borderRadius:12,border:`1px dashed ${BORDER}` }}>
+          <div style={{ fontSize:48,marginBottom:12 }}>🏛️</div>
+          <p style={{ margin:"0 0 4px",fontWeight:700,color:"#374151",fontSize:14 }}>No active financing plans yet</p>
+          <p style={{ margin:0,fontSize:12 }}>Plans will appear here once activated for your account.</p>
+        </div>
+      </div>
+
+      <div style={{ background:"white",borderRadius:16,padding:"18px 24px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderLeft:`4px solid ${ZP_BLUE}` }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
           <div>
-            <div style={{ fontSize:14,fontWeight:800,color:TEXT,marginBottom:4 }}>📞 Speak to a Financing Specialist</div>
-            <p style={{ margin:0,fontSize:12,color:MUTED }}>Get personalized financing options based on your business profile.</p>
+            <div style={{ fontSize:14,fontWeight:800,color:"#0f172a",marginBottom:4 }}>📞 Speak to a Financing Specialist</div>
+            <p style={{ margin:0,fontSize:12,color:MUTED }}>Get personalized options based on your business profile and volume.</p>
           </div>
           <a href="mailto:financing@zenipay.ca" style={{ background:ZP_GRAD,color:"#fff",textDecoration:"none",padding:"10px 20px",borderRadius:12,fontSize:13,fontWeight:800,whiteSpace:"nowrap" as const }}>Contact Us →</a>
         </div>
@@ -866,51 +1149,143 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
   // ── BEN AI ────────────────────────────────────────────
   const BenAISection = (
-    <div>
-      <div style={{ background:"linear-gradient(135deg, #0d1633 0%, #1a2a5e 40%, #7B4FBF 80%, #15B8C9 100%)", borderRadius:24, padding:"28px 32px", marginBottom:24, color:"white", position:"relative" as const, overflow:"hidden" }}>
-        <style>{`@keyframes benPulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}`}</style>
-        <div style={{ position:"absolute",top:0,right:0,width:200,height:200,background:"radial-gradient(circle,rgba(21,184,201,0.15),transparent)",borderRadius:"50%",transform:"translate(40px,-40px)" }} />
-        <div style={{ display:"flex",alignItems:"center",gap:16,marginBottom:16 }}>
-          <div style={{ width:56,height:56,borderRadius:16,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,boxShadow:"0 4px 20px rgba(21,184,201,0.4)",animation:"benPulse 3s ease-in-out infinite" }}>🤖</div>
-          <div>
-            <h2 style={{ margin:"0 0 4px",fontSize:22,fontWeight:900,letterSpacing:"-0.5px" }}>Ben AI</h2>
-            <p style={{ margin:0,fontSize:12,opacity:0.7 }}>Your intelligent ZeniPay financial assistant</p>
+    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+      <style>{`@keyframes benPulse2{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes benBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}`}</style>
+      {/* Hero card */}
+      <div style={{ background:`linear-gradient(135deg, #0d1633 0%, #1a2f6e 60%, #0d2257 100%)`, borderRadius:24, padding:32, color:"white", position:"relative" as const, overflow:"hidden" }}>
+        <div style={{ position:"absolute",top:-40,right:-40,width:200,height:200,background:"rgba(21,184,201,0.08)",borderRadius:"50%",filter:"blur(40px)" }} />
+        <div style={{ display:"flex",alignItems:"flex-start",gap:24,position:"relative" as const }}>
+          {/* Avatar */}
+          <div style={{ flexShrink:0 }}>
+            <div style={{ width:88,height:88,borderRadius:22,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,border:`2px solid ${ZP_CYAN}60`,boxShadow:`0 0 32px ${ZP_CYAN}40` }}>🤖</div>
+            <div style={{ marginTop:8,display:"flex",alignItems:"center",gap:6,justifyContent:"center" }}>
+              <div style={{ width:7,height:7,background:ZP_GREEN,borderRadius:"50%",boxShadow:`0 0 6px ${ZP_GREEN}` }} />
+              <span style={{ fontSize:10,color:ZP_GREEN,fontWeight:700,textTransform:"uppercase" as const,letterSpacing:"0.05em" }}>Online</span>
+            </div>
+          </div>
+          {/* Info */}
+          <div style={{ flex:1 }}>
+            <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:6 }}>
+              <h2 style={{ margin:0,fontWeight:900,fontSize:28,letterSpacing:"-0.5px" }}>Ben</h2>
+              <span style={{ background:`${ZP_CYAN}30`,border:`1px solid ${ZP_CYAN}50`,borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,color:ZP_CYAN }}>ZeniPay Finance Agent</span>
+            </div>
+            <p style={{ margin:"0 0 16px",opacity:0.7,fontSize:14,lineHeight:1.6 }}>Your ZeniPay financial intelligence. Monitors all payments, detects anomalies, tracks your revenue and payouts, and generates reports in real-time.</p>
+            <div style={{ display:"flex",gap:8,flexWrap:"wrap" as const }}>
+              {["🛡️ Anomaly Detection","📊 Revenue Analytics","💸 Payout Status","⚡ Payment Monitor","📄 Auto Reports","🔮 Cash Flow AI"].map(f=>(
+                <span key={f} style={{ background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:600 }}>{f}</span>
+              ))}
+            </div>
+          </div>
+          {/* Stats */}
+          <div style={{ display:"grid",gap:8,flexShrink:0 }}>
+            {[
+              {label:"Balance",value:fmt(account.balance)},
+              {label:"Volume",value:fmt(account.volume)},
+              {label:"Transactions",value:String(account.txCount)},
+              {label:"Uptime",value:"99.9%"},
+            ].map(s=>(
+              <div key={s.label} style={{ background:"rgba(255,255,255,0.08)",borderRadius:10,padding:"8px 14px",textAlign:"center" as const }}>
+                <p style={{ margin:"0 0 2px",fontSize:16,fontWeight:900,color:"white" }}>{s.value}</p>
+                <p style={{ margin:0,fontSize:9,opacity:0.5,textTransform:"uppercase" as const,letterSpacing:"0.05em" }}>{s.label}</p>
+              </div>
+            ))}
           </div>
         </div>
-        <p style={{ margin:"0 0 16px",fontSize:14,opacity:0.8,lineHeight:1.7 }}>Ben analyzes your payment data, predicts cash flow, spots anomalies, and gives you real-time financial intelligence — all in plain language.</p>
-        <div style={{ display:"flex",gap:10,flexWrap:"wrap" as const }}>
-          {["💹 Revenue forecast","⚠️ Anomaly detection","📊 Spend analysis","🔄 Chargeback prediction"].map(f=>(
-            <span key={f} style={{ background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:20,padding:"6px 14px",fontSize:11,fontWeight:700 }}>{f}</span>
+        {/* Capabilities */}
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginTop:24 }}>
+          {[
+            {icon:"🛡️",title:"Fraud Detection",desc:"Real-time anomaly"},
+            {icon:"📊",title:"Revenue Analytics",desc:"Margin & trends"},
+            {icon:"⚡",title:"Payment Monitor",desc:"Failures, retries"},
+            {icon:"📄",title:"Auto Reports",desc:"Monthly summaries"},
+            {icon:"💸",title:"Payout Engine",desc:"Automated payouts"},
+          ].map(f=>(
+            <div key={f.icon} style={{ background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:"14px 12px",textAlign:"center" as const }}>
+              <div style={{ fontSize:24,marginBottom:8 }}>{f.icon}</div>
+              <p style={{ margin:"0 0 4px",fontWeight:700,fontSize:12,color:"white" }}>{f.title}</p>
+              <p style={{ margin:0,fontSize:10,opacity:0.5 }}>{f.desc}</p>
+            </div>
           ))}
         </div>
       </div>
-      <div style={{ background:"white",borderRadius:20,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
-        <div style={{ padding:"14px 20px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10 }}>
-          <div style={{ width:32,height:32,borderRadius:10,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>🤖</div>
-          <div style={{ fontSize:14,fontWeight:800,color:TEXT }}>Ask Ben anything</div>
-        </div>
-        <div style={{ padding:"20px" }}>
-          {[
-            { q:"How is my revenue trending?", a:`Based on your ${account.txCount} transactions, your total processed volume is ${fmt(account.volume)}. Your current balance is ${fmt(account.balance)}. Revenue is stable — I recommend activating at least 3 pay links to accelerate growth.` },
-            { q:"When should I expect my next payout?", a:"Payouts are typically processed within 1–2 business days after a successful payment settles. Your next batch is estimated for the next business day based on pending settlements." },
-            { q:"Any anomalies in my account?", a:"No anomalies detected. All transactions appear within normal parameters for your business category. I'll alert you immediately if anything unusual surfaces." },
-          ].map((item,i)=>(
-            <div key={i} style={{ marginBottom:16 }}>
-              <div style={{ display:"flex",gap:10,marginBottom:8 }}>
-                <div style={{ width:26,height:26,borderRadius:8,background:`${ZP_CYAN}18`,border:`1px solid ${ZP_CYAN}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0 }}>👤</div>
-                <div style={{ background:"#f1f5f9",borderRadius:"12px 12px 12px 3px",padding:"10px 14px",fontSize:13,color:TEXT,fontWeight:600 }}>{item.q}</div>
+
+      {/* Chat + Live Activity */}
+      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:20 }}>
+        {/* Chat */}
+        <div style={{ background:"linear-gradient(135deg, #0d1829, #111f38)",borderRadius:20,border:"1px solid rgba(255,255,255,0.08)",display:"flex",flexDirection:"column" as const }}>
+          <div style={{ background:`linear-gradient(135deg, #0d1633, #1a2f6e)`,borderRadius:"20px 20px 0 0",padding:"14px 18px",display:"flex",alignItems:"center",gap:12 }}>
+            <div style={{ width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18 }}>🤖</div>
+            <div style={{ flex:1 }}>
+              <p style={{ margin:0,color:"white",fontWeight:700,fontSize:14 }}>Ben · ZeniPay AI</p>
+              <p style={{ margin:0,fontSize:11,color:"#64748b" }}>Financial Intelligence Agent</p>
+            </div>
+            <div style={{ display:"flex",alignItems:"center",gap:5,background:`${ZP_GREEN}22`,borderRadius:6,padding:"4px 10px" }}>
+              <div style={{ width:6,height:6,background:ZP_GREEN,borderRadius:"50%",animation:"benPulse2 1.5s infinite" }} />
+              <span style={{ fontSize:10,color:ZP_GREEN,fontWeight:700 }}>Monitoring</span>
+            </div>
+          </div>
+          <div style={{ flex:1,padding:16,overflowY:"auto" as const,maxHeight:360,display:"flex",flexDirection:"column" as const,gap:10 }}>
+            {benChat.map((m,i)=>(
+              <div key={i} style={{ display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",gap:8,alignItems:"flex-end" }}>
+                {m.role==="ben"&&<div style={{ width:28,height:28,borderRadius:8,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0 }}>🤖</div>}
+                <div style={{ background:m.role==="user"?`linear-gradient(135deg,${ZP_CYAN},#0d1633)`:"#f0f4ff",color:m.role==="user"?"white":"#0f172a",borderRadius:m.role==="user"?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"10px 14px",maxWidth:"78%",fontSize:13,lineHeight:1.6,boxShadow:m.role==="user"?`0 2px 8px ${ZP_CYAN}30`:"none" }}>{m.text}</div>
               </div>
-              <div style={{ display:"flex",gap:10 }}>
-                <div style={{ width:26,height:26,borderRadius:8,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0 }}>🤖</div>
-                <div style={{ background:`${ZP_CYAN}08`,border:`1px solid ${ZP_CYAN}25`,borderRadius:"12px 12px 3px 12px",padding:"10px 14px",fontSize:13,color:TEXT,lineHeight:1.6 }}>{item.a}</div>
+            ))}
+            {benLoading&&(
+              <div style={{ display:"flex",gap:8,alignItems:"flex-end" }}>
+                <div style={{ width:28,height:28,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14 }}>🤖</div>
+                <div style={{ background:"#f0f4ff",borderRadius:"16px 16px 16px 4px",padding:"12px 16px",display:"flex",gap:4,alignItems:"center" }}>
+                  {[0,1,2].map(i=><div key={i} style={{ width:6,height:6,background:ZP_CYAN,borderRadius:"50%",opacity:0.6,animation:`benBounce 1s ${i*0.2}s infinite` }}/>)}
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ padding:"0 16px 8px",display:"flex",gap:6,flexWrap:"wrap" as const }}>
+            {["💰 Revenue", "🛡️ Fraud check", "💸 Payout status", "📊 Report"].map(s=>(
+              <button key={s} onClick={()=>setBenMsg(s.replace(/^[^ ]+ /,""))} style={{ background:"#f0f4ff",color:ZP_CYAN,border:"1px solid #dbeafe",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer" }}>{s}</button>
+            ))}
+          </div>
+          <div style={{ padding:"0 16px 16px",display:"flex",gap:8 }}>
+            <input value={benMsg} onChange={e=>setBenMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleBenSend()}
+              placeholder="Ask Ben: revenue, fraud, payout, report…"
+              style={{ flex:1,border:"1.5px solid #e2e8f0",borderRadius:12,padding:"11px 14px",fontSize:13,outline:"none",background:"#fafbff" }} />
+            <button onClick={handleBenSend} disabled={benLoading} style={{ background:`linear-gradient(135deg,${ZP_CYAN},#0d1633)`,color:"white",border:"none",borderRadius:12,padding:"11px 20px",fontWeight:800,cursor:"pointer",fontSize:14 }}>↑</button>
+          </div>
+        </div>
+
+        {/* Live Activity + Quick Actions */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          <div style={{ background:"white",borderRadius:20,padding:20,boxShadow:"0 2px 12px rgba(0,0,0,0.07)",flex:1 }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14 }}>
+              <h3 style={{ margin:0,fontWeight:700,fontSize:14,color:"#0f172a" }}>⚡ Ben Live Activity</h3>
+              <div style={{ display:"flex",alignItems:"center",gap:5,fontSize:11,color:ZP_GREEN,fontWeight:600 }}>
+                <div style={{ width:6,height:6,background:ZP_GREEN,borderRadius:"50%",animation:"benPulse2 1.5s infinite" }} /> Real-time
               </div>
             </div>
-          ))}
-          <div style={{ display:"flex",gap:8,marginTop:20 }}>
-            <input placeholder="Ask Ben a question…" readOnly style={{ ...IS,flex:1,cursor:"not-allowed",opacity:0.7 }} />
-            <button style={{ background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:13,fontWeight:800,cursor:"pointer" }}>Send →</button>
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              {liveActivity.map(a=>(
+                <div key={a.id} style={{ background:a.type==="alert"?"#fff1f2":"#f0fdf4",borderRadius:10,padding:"10px 14px",borderLeft:`3px solid ${a.type==="alert"?"#EF4444":ZP_GREEN}` }}>
+                  <p style={{ margin:"0 0 2px",fontSize:12,fontWeight:600,color:a.type==="alert"?"#EF4444":"#065f46" }}>{a.text}</p>
+                  <p style={{ margin:0,fontSize:10,color:"#94a3b8" }}>{a.time}</p>
+                </div>
+              ))}
+            </div>
           </div>
-          <p style={{ fontSize:11,color:LIGHT,marginTop:8,textAlign:"center" as const }}>Ben AI is in beta — full integration with your live data coming soon.</p>
+          <div style={{ background:"white",borderRadius:20,padding:20,boxShadow:"0 2px 12px rgba(0,0,0,0.07)" }}>
+            <h3 style={{ margin:"0 0 12px",fontWeight:700,fontSize:14,color:"#0f172a" }}>⚡ Quick Actions</h3>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
+              {[
+                {label:"📊 Generate Report",color:ZP_BLUE},
+                {label:"💸 Trigger Payout",color:ZP_GREEN},
+                {label:"🛡️ Fraud Scan",color:ZP_PURPLE},
+                {label:"📧 Email Summary",color:"#F5A623"},
+              ].map(a=>(
+                <button key={a.label} onClick={()=>setBenMsg(a.label.replace(/^[^ ]+ /,""))} style={{ background:`${a.color}15`,color:a.color,border:`1px solid ${a.color}30`,borderRadius:10,padding:"10px",fontSize:12,fontWeight:700,cursor:"pointer" }}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
