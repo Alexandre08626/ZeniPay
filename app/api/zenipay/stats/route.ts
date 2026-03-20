@@ -89,6 +89,7 @@ export async function GET() {
         recent_invoices: allInvoices,
         mode: "live", gateway: "ZeniPay",
         env: process.env.TILLED_ENV || "sandbox",
+        _debug: { merchants_count: merchants?.length ?? "null", md_txns: mdTxns.length, md_err: mdErr?.message ?? null, table_pays: (tablePays || []).length },
       });
     }
 
