@@ -317,7 +317,18 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [plForm, setPlForm] = useState({ title: "", amount: "", email: "", desc: "" });
   const createPayLink = () => {
     if (!plForm.title || !plForm.amount) return;
-    const link: PayLink = { id: uid(), title: plForm.title, amount: Number(plForm.amount), url: `https://pay.zenipay.ca/l/${uid().toLowerCase()}`, uses: 0, createdAt: new Date().toISOString(), status: "active" };
+    const id = uid();
+    const params = new URLSearchParams({
+      t: plForm.title,
+      a: String(Math.round(Number(plForm.amount) * 100)), // dollars → cents
+      m: account.businessName || account.ownerName || "Merchant",
+      k: activeKey || account.sandboxKey || "",
+      c: "CAD",
+      ...(plForm.desc ? { d: plForm.desc } : {}),
+    });
+    const base = typeof window !== "undefined" ? window.location.origin : "https://zenipay.ca";
+    const url = `${base}/pay?id=${id}&${params.toString()}`;
+    const link: PayLink = { id, title: plForm.title, amount: Number(plForm.amount), url, uses: 0, createdAt: new Date().toISOString(), status: "active" };
     setPayLinks(p => [link, ...p]); setPlForm({ title: "", amount: "", email: "", desc: "" }); setModal(null);
   };
 
@@ -701,8 +712,9 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
                 </div>
                 <div style={{ fontSize:11,color:LIGHT }}>{l.url}</div>
               </div>
-              <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,flexWrap:"wrap" as const }}>
                 <span style={{ fontSize:17,fontWeight:900,color:TEXT }}>{fmt(l.amount)}</span>
+                <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ background:ZP_GRAD,color:"#fff",textDecoration:"none",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:700,boxShadow:"0 2px 8px rgba(21,184,201,0.25)" }}>Open →</a>
                 <CopyBtn text={l.url} small />
                 <button onClick={()=>setPayLinks(p=>p.map(x=>x.id===l.id?{...x,status:x.status==="active"?"paused":"active"}:x))} style={{ background:"#f8fafc",border:`1px solid ${BORDER}`,color:MUTED,padding:"5px 10px",borderRadius:8,fontSize:11,cursor:"pointer" }}>{l.status==="active"?"Pause":"Resume"}</button>
                 <button onClick={()=>setPayLinks(p=>p.filter(x=>x.id!==l.id))} style={{ background:"rgba(239,68,68,0.06)",border:"1px solid rgba(239,68,68,0.2)",color:"#EF4444",padding:"5px 10px",borderRadius:8,fontSize:11,cursor:"pointer" }}>Delete</button>
