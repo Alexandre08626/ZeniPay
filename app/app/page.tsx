@@ -30,10 +30,11 @@ function Loader() {
 
 export default function AppRouter() {
   const router = useRouter();
-  const [ready,   setReady]   = useState(false);
-  const [account, setAccount] = useState<Account | null>(null);
-  const [mode,    setMode]    = useState<"sandbox" | "live">("sandbox");
-  const [approved, setApproved] = useState(false);
+  const [ready,      setReady]      = useState(false);
+  const [account,    setAccount]    = useState<Account | null>(null);
+  const [mode,       setMode]       = useState<"sandbox" | "live">("sandbox");
+  const [approved,   setApproved]   = useState(false);
+  const [goingLive,  setGoingLive]  = useState(false);
 
   useEffect(() => {
     const email      = sessionStorage.getItem("zp_client_email");
@@ -124,8 +125,8 @@ export default function AppRouter() {
     return <ZenivaCompleteApp />;
   }
 
-  // Standard/Business — sandbox + not approved → show approval flow
-  if (isSandbox && !approved && account.status !== "live") {
+  // User clicked "Go Live" from dashboard → show approval flow
+  if (goingLive && !approved) {
     return (
       <SandboxApproval
         email={account.email}
@@ -137,12 +138,13 @@ export default function AppRouter() {
     );
   }
 
-  // Standard or Business → MerchantApp
+  // Standard or Business → MerchantApp (sandbox goes straight here now)
   return (
     <MerchantApp
       account={account}
-      mode={isSandbox ? "sandbox" : "live"}
+      mode={isSandbox && !approved ? "sandbox" : "live"}
       onSignOut={signOut}
+      onGoLive={() => setGoingLive(true)}
     />
   );
 }

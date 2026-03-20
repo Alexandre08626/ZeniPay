@@ -100,10 +100,11 @@ const IS: React.CSSProperties = {
 // ════════════════════════════════════════════════════════
 //  MAIN COMPONENT
 // ════════════════════════════════════════════════════════
-export default function MerchantApp({ account, mode, onSignOut }: {
+export default function MerchantApp({ account, mode, onSignOut, onGoLive }: {
   account: Account;
   mode: "sandbox" | "live";
   onSignOut: () => void;
+  onGoLive?: () => void;
 }) {
   const TABS = getTabs(account.plan);
   const [tab,         setTab]         = useState("overview");
@@ -556,7 +557,7 @@ export default function MerchantApp({ account, mode, onSignOut }: {
       <div style={{ background: "rgba(45,190,96,0.05)", border: "1px solid rgba(45,190,96,0.2)", borderRadius: 18, overflow: "hidden", marginBottom: 20 }}>
         <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(45,190,96,0.15)", fontSize: 11, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>● Live</div>
         <div style={{ padding: "20px 18px", textAlign: "center" }}>
-          {account.status === "live" ? (
+          {account.status === "live" || mode === "live" ? (
             <div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Live Key</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -566,10 +567,17 @@ export default function MerchantApp({ account, mode, onSignOut }: {
             </div>
           ) : (
             <div>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>🔒</div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Complete verification to unlock live keys</div>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "0 0 14px", lineHeight: 1.6 }}>Your account is in sandbox mode. Submit the live account application to process real payments.</p>
-              <a href="mailto:info@zenipay.ca?subject=Live Access Request" style={{ display: "inline-block", background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "10px 24px", borderRadius: 12, fontSize: 13, fontWeight: 800 }}>Request Live Access →</a>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🚀</div>
+              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>Prêt à passer en production ?</div>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "0 0 16px", lineHeight: 1.6 }}>
+                Votre compte sandbox est pleinement fonctionnel. Lorsque vous êtes prêt à accepter de vrais paiements, activez le mode Live en quelques étapes simples.
+              </p>
+              <button
+                onClick={() => onGoLive?.()}
+                style={{ display: "inline-block", background: ZP_GRAD, color: "#fff", border: "none", cursor: "pointer", padding: "11px 28px", borderRadius: 12, fontSize: 13, fontWeight: 800 }}
+              >
+                Activer le mode Live →
+              </button>
             </div>
           )}
         </div>
