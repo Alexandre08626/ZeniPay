@@ -17,18 +17,48 @@ function getSupabase(): any {
   return createClient(url, key);
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabase();
     if (!supabase) return NextResponse.json({ merchants: [] });
 
-    const { data, error } = await supabase
+    const email = req.nextUrl.searchParams.get("email");
+
+    let query = supabase
       .from("zenipay_merchants")
       .select("*")
       .order("created_at", { ascending: false });
 
+    if (email) query = query.eq("email", email).limit(1);
+
+    const { data, error } = await query;
+
     if (error) return NextResponse.json({ merchants: [], error: error.message });
-    return NextResponse.json({ merchants: data || [] });
+
+    // Map snake_case to camelCase for the client
+    const merchants = (data || []).map((m: Record<string, unknown>) => ({
+      id:            m.id,
+      businessName:  m.business_name,
+      ownerName:     m.owner_name,
+      email:         m.email,
+      phone:         m.phone,
+      website:       m.website,
+      businessType:  m.business_type,
+      country:       m.country,
+      monthlyVolume: m.monthly_volume,
+      status:        m.status,
+      plan:          m.plan,
+      sandboxKey:    m.sandbox_key,
+      sandboxSecret: m.sandbox_secret,
+      liveKey:       m.live_key,
+      createdAt:     m.created_at,
+      volume:        m.volume   ?? 0,
+      txCount:       m.tx_count ?? 0,
+      balance:       m.balance  ?? 0,
+      notes:         m.notes    ?? "",
+    }));
+
+    return NextResponse.json({ merchants });
   } catch (err) {
     console.error("[ZeniPay Merchants GET] Error:", err);
     return NextResponse.json({ merchants: [] });

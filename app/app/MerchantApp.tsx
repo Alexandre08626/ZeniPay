@@ -185,15 +185,49 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // ── LocalStorage helpers ─────────────────────────────
-  const storeKey = `zp_data_${account.id || account.email}`;
-  const loadData = <T,>(k: string, def: T): T => { try { return JSON.parse(localStorage.getItem(`${storeKey}_${k}`) || "null") ?? def; } catch { return def; } };
-  const saveData = (k: string, v: unknown) => { try { localStorage.setItem(`${storeKey}_${k}`, JSON.stringify(v)); } catch {} };
+  // ── Supabase merchant data helpers ───────────────────
+  const merchantId = account.id || account.email;
+  const [payLinks, setPayLinks] = useState<PayLink[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payouts,  setPayouts]  = useState<Payout[]>([]);
+  const [bankCfg,  setBankCfg]  = useState<BankCfg>({ holderName: "", bankName: "", transit: "", institution: "", accountNum: "", accountType: "chequing", step: 0 });
+  const [dataLoaded, setDataLoaded] = useState(false);
 
-  const [payLinks, setPayLinks] = useState<PayLink[]>(() => loadData("paylinks", []));
-  const [invoices, setInvoices] = useState<Invoice[]>(() => loadData("invoices", []));
-  const [payouts,  setPayouts]  = useState<Payout[]>(() => loadData("payouts",  []));
-  const [bankCfg,  setBankCfg]  = useState<BankCfg>(() => loadData("bankCfg", { holderName: "", bankName: "", transit: "", institution: "", accountNum: "", accountType: "chequing", step: 0 }));
+  // Load from Supabase on mount
+  useEffect(() => {
+    if (!merchantId) return;
+    fetch(`/api/zenipay/merchant-data?merchant_id=${encodeURIComponent(merchantId)}`)
+      .then(r => r.json())
+      .then(({ data }) => {
+        if (data) {
+          if (data.paylinks) setPayLinks(data.paylinks);
+          if (data.invoices) setInvoices(data.invoices);
+          if (data.payouts)  setPayouts(data.payouts);
+          if (data.bankCfg)  setBankCfg(data.bankCfg);
+        }
+        setDataLoaded(true);
+      })
+      .catch(() => setDataLoaded(true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [merchantId]);
+
+  // Save to Supabase whenever data changes (after initial load)
+  const saveToSupabase = React.useCallback((patch: Record<string, unknown>) => {
+    if (!merchantId) return;
+    fetch(`/api/zenipay/merchant-data?merchant_id=${encodeURIComponent(merchantId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }).catch(() => {});
+  }, [merchantId]);
+
+  const [_snap, setSnap] = useState({ payLinks, invoices, payouts, bankCfg });
+  useEffect(() => {
+    if (!dataLoaded) return;
+    setSnap({ payLinks, invoices, payouts, bankCfg });
+    saveToSupabase({ paylinks: payLinks, invoices, payouts, bankCfg });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payLinks, invoices, payouts, bankCfg, dataLoaded]);
 
   // Ben AI live activity feed — built from seeded data
   const liveActivity = [
@@ -204,10 +238,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
     { id:5, type:"success", text:`Payout processed → ${payouts[0]?.recipient||"Recipient"}`, time:"18 min ago" },
   ];
 
-  useEffect(() => { saveData("paylinks", payLinks); }, [payLinks]);
-  useEffect(() => { saveData("invoices", invoices); }, [invoices]);
-  useEffect(() => { saveData("payouts",  payouts);  }, [payouts]);
-  useEffect(() => { saveData("bankCfg",  bankCfg);  }, [bankCfg]);
+  // Data is now persisted via saveToSupabase in the combined effect above
 
   const saveBankCfg = (u: Partial<BankCfg>) => setBankCfg(p => ({ ...p, ...u } as BankCfg));
 

@@ -43,23 +43,19 @@ export default function AppRouter() {
 
     setMode(storedMode);
 
-    // Try to find account in localStorage (merchant signups)
+    // Try to find account in Supabase (works on all devices)
     if (email) {
-      try {
-        const all: Account[] = JSON.parse(localStorage.getItem("zp_accounts") || "[]");
-        const found = all.find(a => a.email === email);
-        if (found) {
-          setAccount(found);
-          // Check if approval was simulated
-          const approvalKey = `zp_approval_${email}`;
-          try {
-            const approval = JSON.parse(localStorage.getItem(approvalKey) || "{}");
-            if (approval.approved) setApproved(true);
-          } catch {}
-          setReady(true);
-          return;
-        }
-      } catch {}
+      fetch(`/api/zenipay/merchants?email=${encodeURIComponent(email)}`)
+        .then(r => r.json())
+        .then(({ merchants }) => {
+          const found = merchants?.[0];
+          if (found) {
+            setAccount(found);
+            setApproved(found.status === "live");
+            setReady(true);
+          }
+        })
+        .catch(() => {});
     }
 
     // Zeniva Travel demo client (clientId = "demo" or "zeniva") — no account in localStorage
