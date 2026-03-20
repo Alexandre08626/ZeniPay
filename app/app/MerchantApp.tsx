@@ -201,7 +201,7 @@ export default function MerchantApp({ account, mode, onSignOut, onGoLive }: {
     <div>
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 4px" }}>Welcome back, {account.ownerName || account.businessName}</h2>
-        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.4)" }}>{isSandbox ? "🧪 Sandbox — all payments are simulated" : "🔴 Live — real transactions"}</p>
+        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.4)" }}>{isSandbox ? "🧪 Sandbox — test your integration" : "🟢 Live — real transactions"}</p>
       </div>
       {/* KPI Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 }}>
@@ -256,12 +256,12 @@ export default function MerchantApp({ account, mode, onSignOut, onGoLive }: {
       )}
       {/* Sandbox test cards */}
       {isSandbox && (
-        <div style={{ marginTop: 20, background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.2)", borderRadius: 14, padding: "14px 18px" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#F5A623", marginBottom: 8 }}>🧪 Test Cards</div>
+        <div style={{ marginTop: 20, background: "rgba(21,184,201,0.06)", border: "1px solid rgba(21,184,201,0.2)", borderRadius: 14, padding: "14px 18px" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: ZP_CYAN, marginBottom: 8 }}>🧪 Test Cards</div>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
             {[{ brand: "Visa", num: "4111 1111 1111 1111" }, { brand: "MC", num: "5454 5454 5454 5454" }].map(c => (
               <span key={c.brand} style={{ fontSize: 12 }}>
-                <span style={{ color: "#F5A623", fontWeight: 700 }}>{c.brand}: </span>
+                <span style={{ color: ZP_CYAN, fontWeight: 700 }}>{c.brand}: </span>
                 <code style={{ color: "rgba(255,255,255,0.8)" }}>{c.num}</code>
               </span>
             ))}
@@ -541,8 +541,8 @@ export default function MerchantApp({ account, mode, onSignOut, onGoLive }: {
       <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 6px" }}>API Keys</h2>
       <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 24px" }}>Authenticate your API requests with these keys.</p>
       {/* Sandbox */}
-      <div style={{ background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)", borderRadius: 18, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(245,166,35,0.15)", fontSize: 11, fontWeight: 800, color: "#F5A623", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>● Sandbox</div>
+      <div style={{ background: "rgba(45,190,96,0.05)", border: "1px solid rgba(45,190,96,0.2)", borderRadius: 18, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(45,190,96,0.15)", fontSize: 11, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>● Sandbox</div>
         {[{ label: "Publishable Key", val: account.sandboxKey }, { label: "Secret Key", val: account.sandboxSecret }].map(k => (
           <div key={k.label} style={{ padding: "12px 18px", borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>{k.label}</div>
@@ -791,8 +791,8 @@ console.log(payment.id); // pay_xxxxxxxx`}
           {/* Business + mode */}
           <div style={{ padding: "12px 16px", borderBottom: `1px solid ${BORDER}` }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{account.businessName}</div>
-            <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 10, background: isSandbox ? "rgba(245,166,35,0.15)" : "rgba(45,190,96,0.15)", color: isSandbox ? "#F5A623" : ZP_GREEN, border: `1px solid ${isSandbox ? "rgba(245,166,35,0.3)" : "rgba(45,190,96,0.3)"}` }}>
-              {isSandbox ? "SANDBOX" : "● LIVE"}
+            <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 10, background: "rgba(45,190,96,0.15)", color: ZP_GREEN, border: "1px solid rgba(45,190,96,0.3)" }}>
+              {isSandbox ? "● SANDBOX" : "● LIVE"}
             </span>
           </div>
           {/* Nav */}
