@@ -27,10 +27,10 @@ const CARD_GRAD = "linear-gradient(135deg, #E5247B 0%, #F5A623 40%, #7B4FBF 100%
 
 // ── Default wallets — overwritten by live API on mount ────────────────
 const DEFAULT_WALLETS = {
-  platform:   { available: 12480.50, pending: 3240.00, paid: 284750.00, currency: "CAD" },
-  agent:      { available: 4820.00,  pending: 1140.00, paid: 98420.00,  currency: "CAD" },
-  influencer: { available: 620.00,   pending: 180.00,  paid: 8200.00,   currency: "CAD" },
-  supplier:   { available: 0,        pending: 8940.00, paid: 162400.00, currency: "CAD" },
+  platform:   { available: 0, pending: 0, paid: 0, currency: "USD" },
+  agent:      { available: 0, pending: 0, paid: 0, currency: "USD" },
+  influencer: { available: 0, pending: 0, paid: 0, currency: "USD" },
+  supplier:   { available: 0, pending: 0, paid: 0, currency: "USD" },
 };
 // WALLETS and TRANSACTIONS are now component state — fetched from /api/zenipay/stats
 
