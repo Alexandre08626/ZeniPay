@@ -121,7 +121,7 @@ function PayLinkContent() {
       <div style={{ width: "100%", maxWidth: 440 }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <ZeniPayLogo width={180} />
+          <ZeniPayLogo size={180} showWordmark />
         </div>
 
         {/* Amount card */}
