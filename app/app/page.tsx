@@ -115,7 +115,13 @@ export default function AppRouter() {
   if (!ready || !account) return <Loader />;
 
   const isZeniva  = account.plan === "Complete" || account.id === "zeniva-001";
-  const isSandbox = mode === "sandbox" || account.status === "sandbox";
+  // mode is driven solely by the user's selection — account.status does not block live mode
+  const isSandbox = mode === "sandbox";
+
+  const handleModeChange = (newMode: "sandbox" | "live") => {
+    sessionStorage.setItem("zp_client_mode", newMode);
+    setMode(newMode);
+  };
 
   // ── Routing logic ─────────────────────────────────────────
   // Zeniva Travel → Complete dashboard
@@ -127,9 +133,10 @@ export default function AppRouter() {
   return (
     <MerchantApp
       account={account}
-      mode={isSandbox && !approved ? "sandbox" : "live"}
+      mode={isSandbox ? "sandbox" : "live"}
       onSignOut={signOut}
       onApproved={handleApproved}
+      onModeChange={handleModeChange}
     />
   );
 }

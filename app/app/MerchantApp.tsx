@@ -90,8 +90,8 @@ function getTabs(plan: string) {
 }
 
 // ════════════════════════════════════════════════════════
-export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
-  account: Account; mode: "sandbox"|"live"; onSignOut: () => void; onApproved?: () => void;
+export default function MerchantApp({ account, mode, onSignOut, onApproved, onModeChange }: {
+  account: Account; mode: "sandbox"|"live"; onSignOut: () => void; onApproved?: () => void; onModeChange?: (m: "sandbox"|"live") => void;
 }) {
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -1149,13 +1149,25 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
             <span style={{ fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.4)" }}>|</span>
             <span style={{ fontSize:12,color:"rgba(255,255,255,0.55)",fontWeight:600 }}>{account.businessName}</span>
           </div>
-          <div style={{ display:"flex",alignItems:"center",gap:12 }}>
-            {/* Mode badge */}
-            {isSandbox
-              ? <span style={{ fontSize:11,fontWeight:800,padding:"3px 10px",borderRadius:20,background:"rgba(217,119,6,0.25)",color:"#F59E0B",border:"1px solid rgba(217,119,6,0.5)",letterSpacing:"0.06em" }}>◎ SANDBOX</span>
-              : <span style={{ fontSize:11,fontWeight:800,padding:"3px 10px",borderRadius:20,background:"rgba(45,190,96,0.2)",color:ZP_GREEN,border:"1px solid rgba(45,190,96,0.4)",letterSpacing:"0.06em" }}>● LIVE</span>
-            }
-            <span style={{ fontSize:12,color:"rgba(255,255,255,0.4)" }}>{account.plan==="Sandbox"?"Standard":account.plan} plan</span>
+          <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+            {/* Mode toggle */}
+            <div style={{ display:"flex",background:"rgba(0,0,0,0.25)",borderRadius:20,padding:3,gap:2,border:"1px solid rgba(255,255,255,0.12)" }}>
+              <button
+                onClick={() => onModeChange?.("sandbox")}
+                style={{ padding:"4px 14px",borderRadius:16,border:"none",fontSize:11,fontWeight:800,cursor:"pointer",letterSpacing:"0.05em",transition:"all 0.2s",
+                  background: isSandbox ? "rgba(217,119,6,0.35)" : "transparent",
+                  color:      isSandbox ? "#F59E0B" : "rgba(255,255,255,0.35)",
+                  boxShadow:  isSandbox ? "0 1px 6px rgba(217,119,6,0.3)" : "none",
+                }}>◎ SANDBOX</button>
+              <button
+                onClick={() => onModeChange?.("live")}
+                style={{ padding:"4px 14px",borderRadius:16,border:"none",fontSize:11,fontWeight:800,cursor:"pointer",letterSpacing:"0.05em",transition:"all 0.2s",
+                  background: !isSandbox ? "rgba(45,190,96,0.35)" : "transparent",
+                  color:      !isSandbox ? "#4ADE80"              : "rgba(255,255,255,0.35)",
+                  boxShadow:  !isSandbox ? "0 1px 6px rgba(45,190,96,0.3)" : "none",
+                }}>● LIVE</button>
+            </div>
+            <span style={{ fontSize:11,color:"rgba(255,255,255,0.35)" }}>{account.plan==="Sandbox"?"Standard":account.plan}</span>
             <button onClick={onSignOut} style={{ background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.35)",color:"#FCA5A5",borderRadius:8,padding:"5px 14px",fontSize:12,fontWeight:700,cursor:"pointer" }}>Sign Out</button>
           </div>
         </div>
@@ -1185,8 +1197,8 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
             <div style={{ padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
               <div style={{ fontSize:13,fontWeight:700,color:"#fff",marginBottom:6,whiteSpace:"nowrap" as const,overflow:"hidden",textOverflow:"ellipsis" }}>{account.businessName}</div>
               {isSandbox
-                ? <span style={{ fontSize:10,fontWeight:800,padding:"2px 9px",borderRadius:10,background:"rgba(217,119,6,0.3)",color:"#F59E0B",border:"1px solid rgba(217,119,6,0.5)" }}>◎ SANDBOX</span>
-                : <span style={{ fontSize:10,fontWeight:800,padding:"2px 9px",borderRadius:10,background:"rgba(45,190,96,0.2)",color:ZP_GREEN,border:"1px solid rgba(45,190,96,0.4)" }}>● LIVE</span>
+                ? <span style={{ fontSize:10,fontWeight:800,padding:"2px 9px",borderRadius:10,background:"rgba(217,119,6,0.25)",color:"#F59E0B",border:"1px solid rgba(217,119,6,0.4)" }}>◎ SANDBOX</span>
+                : <span style={{ fontSize:10,fontWeight:800,padding:"2px 9px",borderRadius:10,background:"rgba(74,222,128,0.2)",color:"#4ADE80",border:"1px solid rgba(74,222,128,0.4)" }}>● LIVE</span>
               }
             </div>
             {/* Nav */}
