@@ -49,7 +49,7 @@ export default function AppRouter() {
         id: "cl-001",
         businessName: "Zeniva Travel LLC",
         ownerName: "Alexandre",
-        email: "info@zenivatravel.com",
+        email: "info@zeniva.ca",
         phone: "", website: "https://zenivatravel.com",
         businessType: "Travel Agency", country: "CA",
         monthlyVolume: "200000+",
@@ -66,7 +66,7 @@ export default function AppRouter() {
     }
 
     // Load from Supabase by email — works on all devices
-    const lookupEmail = email || "info@zenivatravel.com";
+    const lookupEmail = email || "info@zeniva.ca";
     fetch(`/api/zenipay/merchants?email=${encodeURIComponent(lookupEmail)}`)
       .then(r => r.json())
       .then(({ merchants }) => {
