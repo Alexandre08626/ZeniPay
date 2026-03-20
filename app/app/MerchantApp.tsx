@@ -129,6 +129,7 @@ function getTabs(mode: "sandbox" | "live") {
       { id: "analytics",    icon: "📈", label: "Analytics"    },
       { id: "ben",          icon: "🤖", label: "Ben AI"       },
       { id: "accounting",   icon: "📚", label: "Accounting"   },
+      { id: "keys",         icon: "🔑", label: "API"          },
       { id: "settings",     icon: "⚙️", label: "Settings"     },
     ];
   }
@@ -1302,39 +1303,84 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
   const KeysSection = (
     <div>
-      <h2 style={{ fontSize:20,fontWeight:900,margin:"0 0 6px",color:TEXT }}>API Keys & Integration</h2>
-      <p style={{ fontSize:13,color:MUTED,margin:"0 0 24px" }}>Authenticate your requests and integrate ZeniPay in minutes.</p>
+      {/* Hero banner */}
+      <div style={{ borderRadius:18,overflow:"hidden",marginBottom:20,background:isSandbox?"linear-gradient(135deg,#78350f 0%,#92400e 100%)":"linear-gradient(135deg,#0d1633 0%,#1a2a5e 40%,#15B8C9 100%)",padding:"24px 28px",color:"#fff",position:"relative" as const }}>
+        <div style={{ fontSize:22,fontWeight:900,marginBottom:4 }}>{isSandbox?"🧪 Sandbox API Keys":"🔑 Live API Keys & Endpoints"}</div>
+        <div style={{ fontSize:13,opacity:0.75 }}>{isSandbox?"Test your integration safely — no real transactions":"Your production credentials — keep these secret"}</div>
+        <div style={{ position:"absolute" as const,right:24,top:"50%",transform:"translateY(-50%)",fontSize:48,opacity:0.08 }}>🔑</div>
+      </div>
 
-      {/* Keys */}
+      {/* Keys card */}
       <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:18,overflow:"hidden",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
         <div style={{ padding:"12px 18px",borderBottom:`1px solid ${BORDER}`,fontSize:11,fontWeight:800,color:isSandbox?"#D97706":ZP_GREEN,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>
-          {isSandbox?"🧪 Sandbox Keys":"● Live Keys"}
+          {isSandbox?"🧪 Sandbox Credentials":"● Live Credentials"}
         </div>
-        {[{label:"Publishable Key",val:account.sandboxKey},{label:"Secret Key",val:account.sandboxSecret}].map(k=>(
-          <div key={k.label} style={{ padding:"12px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
-            <div style={{ fontSize:11,color:MUTED,marginBottom:6 }}>{k.label}</div>
-            <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-              <code style={{ flex:1,fontSize:11,background:"#f8fafc",padding:"8px 12px",borderRadius:8,color:TEXT,wordBreak:"break-all" as const,border:`1px solid ${BORDER}` }}>{k.val||"—"}</code>
-              <CopyBtn text={k.val} small />
+        {isSandbox ? (
+          <>
+            {[{label:"Publishable Key",val:account.sandboxKey},{label:"Secret Key",val:account.sandboxSecret}].map(k=>(
+              <div key={k.label} style={{ padding:"14px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
+                <div style={{ fontSize:11,color:MUTED,marginBottom:6,fontWeight:700 }}>{k.label}</div>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <code style={{ flex:1,fontSize:12,background:"#f8fafc",padding:"10px 12px",borderRadius:8,color:TEXT,wordBreak:"break-all" as const,border:`1px solid ${BORDER}` }}>{k.val||"—"}</code>
+                  <CopyBtn text={k.val} small />
+                </div>
+              </div>
+            ))}
+            <div style={{ padding:"16px 18px",textAlign:"center" as const }}>
+              <div style={{ fontSize:12,color:MUTED,marginBottom:8 }}>🚀 Ready to accept real payments?</div>
+              <button onClick={()=>setTab("go-live")} style={{ background:ZP_GRAD,color:"#fff",border:"none",cursor:"pointer",padding:"9px 22px",borderRadius:10,fontSize:13,fontWeight:800 }}>Activate Live Account →</button>
             </div>
-          </div>
-        ))}
-        {!isSandbox && account.liveKey && (
-          <div style={{ padding:"12px 18px" }}>
-            <div style={{ fontSize:11,color:MUTED,marginBottom:6 }}>Live Key</div>
-            <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-              <code style={{ flex:1,fontSize:11,background:"#f8fafc",padding:"8px 12px",borderRadius:8,color:TEXT,wordBreak:"break-all" as const,border:`1px solid ${BORDER}` }}>{account.liveKey}</code>
-              <CopyBtn text={account.liveKey} small />
-            </div>
-          </div>
-        )}
-        {isSandbox && !account.liveKey && (
-          <div style={{ padding:"16px 18px",textAlign:"center" as const }}>
-            <div style={{ fontSize:12,color:MUTED,marginBottom:8 }}>🚀 Ready to accept real payments?</div>
-            <button onClick={()=>setTab("go-live")} style={{ background:ZP_GRAD,color:"#fff",border:"none",cursor:"pointer",padding:"9px 22px",borderRadius:10,fontSize:13,fontWeight:800 }}>Activate Live Account →</button>
-          </div>
+          </>
+        ) : (
+          <>
+            {[{label:"Live Publishable Key",val:account.liveKey||activeKey||"zpk_live_"+account.id},{label:"Live Secret Key",val:"zps_live_"+account.id,note:"Never expose this in client-side code"},{label:"Sandbox Publishable Key",val:account.sandboxKey},{label:"Sandbox Secret Key",val:account.sandboxSecret}].map(k=>(
+              <div key={k.label} style={{ padding:"14px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
+                <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6 }}>
+                  <span style={{ fontSize:11,color:MUTED,fontWeight:700 }}>{k.label}</span>
+                  {k.note && <span style={{ fontSize:10,background:"rgba(239,68,68,0.08)",color:"#DC2626",padding:"2px 8px",borderRadius:20,fontWeight:600 }}>{k.note}</span>}
+                </div>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <code style={{ flex:1,fontSize:12,background:"#f8fafc",padding:"10px 12px",borderRadius:8,color:TEXT,wordBreak:"break-all" as const,border:`1px solid ${BORDER}` }}>{k.val||"—"}</code>
+                  <CopyBtn text={k.val||""} small />
+                </div>
+              </div>
+            ))}
+          </>
         )}
       </div>
+
+      {/* API Endpoints — live mode only */}
+      {!isSandbox && (
+        <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:18,overflow:"hidden",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div style={{ padding:"12px 18px",borderBottom:`1px solid ${BORDER}`,fontSize:11,fontWeight:800,color:ZP_CYAN,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>🌐 API Endpoints</div>
+          <div style={{ padding:"6px 0" }}>
+            {[
+              {method:"POST",endpoint:"/v1/payments",desc:"Create a payment"},
+              {method:"GET", endpoint:"/v1/payments/:id",desc:"Retrieve a payment"},
+              {method:"POST",endpoint:"/v1/invoices",desc:"Create an invoice"},
+              {method:"GET", endpoint:"/v1/invoices",desc:"List all invoices"},
+              {method:"POST",endpoint:"/v1/payouts",desc:"Send a payout"},
+              {method:"GET", endpoint:"/v1/payouts",desc:"List payouts"},
+              {method:"POST",endpoint:"/v1/paylinks",desc:"Create a pay link"},
+              {method:"GET", endpoint:"/v1/balance",desc:"Get account balance"},
+              {method:"POST",endpoint:"/v1/refunds",desc:"Issue a refund"},
+              {method:"GET", endpoint:"/v1/transactions",desc:"List transactions"},
+            ].map(e=>(
+              <div key={e.endpoint} style={{ display:"flex",alignItems:"center",gap:12,padding:"10px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
+                <span style={{ fontSize:10,fontWeight:800,padding:"3px 8px",borderRadius:6,background:e.method==="POST"?"rgba(45,190,96,0.1)":"rgba(21,184,201,0.1)",color:e.method==="POST"?ZP_GREEN:ZP_CYAN,minWidth:42,textAlign:"center" as const }}>{e.method}</span>
+                <code style={{ fontSize:12,color:TEXT,flex:1 }}>https://api.zenipay.ca{e.endpoint}</code>
+                <span style={{ fontSize:11,color:MUTED }}>{e.desc}</span>
+                <CopyBtn text={`https://api.zenipay.ca${e.endpoint}`} small />
+              </div>
+            ))}
+          </div>
+          <div style={{ padding:"12px 18px",background:"rgba(21,184,201,0.04)",borderTop:`1px solid ${BORDER}` }}>
+            <span style={{ fontSize:11,color:MUTED }}>Base URL: </span>
+            <code style={{ fontSize:12,color:ZP_CYAN,fontWeight:700 }}>https://api.zenipay.ca/v1</code>
+            <CopyBtn text="https://api.zenipay.ca/v1" small />
+          </div>
+        </div>
+      )}
 
       {/* Code examples */}
       <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:18,overflow:"hidden",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
