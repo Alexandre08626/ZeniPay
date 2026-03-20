@@ -30,16 +30,20 @@ export async function GET() {
         };
 
       // ── Read from merchant_data.transactions (ZeniPay /pay/[id] payments) ─
-      const { data: merchants } = await supabase
+      const { data: merchants, error: mdErr } = await supabase
         .from("zenipay_merchants")
         .select("merchant_data");
 
-      const mdTxns: Array<{ id: string; amount: number; status: string; createdAt: string; customer_name: string; currency: string; description: string }> = [];
+      console.log("[stats] merchants count:", merchants?.length, "mdErr:", mdErr?.message);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mdTxns: any[] = [];
       for (const m of (merchants || [])) {
-        for (const t of (m.merchant_data?.transactions || [])) {
-          mdTxns.push(t);
-        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const txns: any[] = Array.isArray(m.merchant_data?.transactions) ? m.merchant_data.transactions : (typeof m.merchant_data === "string" ? JSON.parse(m.merchant_data)?.transactions || [] : []);
+        console.log("[stats] merchant txns:", txns.length);
+        for (const t of txns) mdTxns.push(t);
       }
+      console.log("[stats] total mdTxns:", mdTxns.length);
 
       // ── Merge both sources, deduplicate by id ─────────────────────────
       const existingIds = new Set((tablePays || []).map(p => p.id));
