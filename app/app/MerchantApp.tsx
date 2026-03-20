@@ -170,9 +170,8 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [bankActForm, setBankActForm] = useState<Record<string,string>>({});
   const [whUrl,        setWhUrl]        = useState("");
   const [whSaved,      setWhSaved]      = useState(false);
-  const [editingKeys,  setEditingKeys]  = useState(false);
-  const [keyDraft,     setKeyDraft]     = useState({ liveKey:"", liveSecret:"", sandboxKey:"", sandboxSecret:"" });
-  const [keysSaved,    setKeysSaved]    = useState(false);
+  const [rolledLive,   setRolledLive]   = useState<{newVal:string;oldVal:string;rolledAt:string}|null>(null);
+  const [rolledSb,     setRolledSb]     = useState<{newVal:string;oldVal:string;rolledAt:string}|null>(null);
   const [notifEmail,   setNotifEmail]   = useState(true);
   const [benChat,      setBenChat]      = useState<{role:"ben"|"user";text:string}[]>([
     { role:"ben", text:`Hi! I'm Ben, your ZeniPay financial AI assistant. I monitor your account 24/7, detect anomalies, and give you real-time financial intelligence. Ask me anything about your revenue, payouts, or account health.` }
@@ -1296,6 +1295,21 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   );
 
   // ── API KEYS ──────────────────────────────────────────
+  const genKey = (prefix: string) => {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let s = prefix;
+    for (let i = 0; i < 32; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  };
+  const saveAccountKeys = (patch: Partial<Account>) => {
+    try {
+      const all: Account[] = JSON.parse(localStorage.getItem("zp_accounts")||"[]");
+      const idx = all.findIndex(a=>a.email===account.email);
+      const updated = { ...account, ...patch };
+      if (idx >= 0) all[idx] = updated; else all.push(updated);
+      localStorage.setItem("zp_accounts", JSON.stringify(all));
+    } catch {}
+  };
   const CODE: Record<string, string> = {
     node: `// Install\nnpm install @zenipay/node\n\n// Initialize\nimport ZeniPay from '@zenipay/node';\nconst zp = new ZeniPay('${activeKey||"YOUR_API_KEY"}');\n\n// Create payment\nconst payment = await zp.payments.create({\n  amount: 1000,          // in cents (CAD)\n  currency: 'cad',\n  description: 'Order #1042',\n  source: { token: 'tok_from_checkout' }\n});\nconsole.log(payment.id); // pay_xxxxxxxx`,
     php:  `// Install\ncomposer require zenipay/zenipay-php\n\n// Initialize\n$zp = new \\ZeniPay\\Client('${activeKey||"YOUR_API_KEY"}');\n\n// Create payment\n$payment = $zp->payments->create([\n  'amount'   => 1000,\n  'currency' => 'cad',\n  'description' => 'Order #1042',\n  'source'   => ['token' => 'tok_from_checkout'],\n]);\necho $payment->id;`,
@@ -1314,83 +1328,77 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
       </div>
 
       {/* Keys card */}
-      <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:18,overflow:"hidden",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-        <div style={{ padding:"12px 18px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-          <span style={{ fontSize:11,fontWeight:800,color:isSandbox?"#D97706":ZP_GREEN,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>
-            {isSandbox?"🧪 Sandbox Credentials":"● Live Credentials"}
-          </span>
-          {!isSandbox && (
-            <button onClick={()=>{ if(!editingKeys){ setKeyDraft({ liveKey:account.liveKey||"", liveSecret:"zps_live_"+account.id, sandboxKey:account.sandboxKey||"", sandboxSecret:account.sandboxSecret||"" }); setKeysSaved(false); } setEditingKeys(v=>!v); }} style={{ background:editingKeys?"rgba(239,68,68,0.08)":ZP_GRAD,color:editingKeys?"#DC2626":"#fff",border:editingKeys?"1px solid rgba(239,68,68,0.2)":"none",cursor:"pointer",padding:"6px 16px",borderRadius:8,fontSize:12,fontWeight:700 }}>
-              {editingKeys?"✕ Cancel":"✏️ Edit Keys"}
-            </button>
-          )}
-        </div>
-        {isSandbox ? (
-          <>
-            {[{label:"Publishable Key",val:account.sandboxKey},{label:"Secret Key",val:account.sandboxSecret}].map(k=>(
-              <div key={k.label} style={{ padding:"14px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
-                <div style={{ fontSize:11,color:MUTED,marginBottom:6,fontWeight:700 }}>{k.label}</div>
-                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                  <code style={{ flex:1,fontSize:12,background:"#f8fafc",padding:"10px 12px",borderRadius:8,color:TEXT,wordBreak:"break-all" as const,border:`1px solid ${BORDER}` }}>{k.val||"—"}</code>
-                  <CopyBtn text={k.val} small />
-                </div>
-              </div>
-            ))}
-            <div style={{ padding:"16px 18px",textAlign:"center" as const }}>
-              <div style={{ fontSize:12,color:MUTED,marginBottom:8 }}>🚀 Ready to accept real payments?</div>
-              <button onClick={()=>setTab("go-live")} style={{ background:ZP_GRAD,color:"#fff",border:"none",cursor:"pointer",padding:"9px 22px",borderRadius:10,fontSize:13,fontWeight:800 }}>Activate Live Account →</button>
+      {(()=>{
+        const noop = () => {};
+        const keyRows = isSandbox
+          ? [
+              {label:"Publishable Key",val:account.sandboxKey,prefix:"zpk_sb_",rolled:rolledSb,setRolled:setRolledSb,secret:false,note:""},
+              {label:"Secret Key",val:account.sandboxSecret,prefix:"zps_sb_",rolled:null as null,setRolled:noop,secret:true,note:""},
+            ]
+          : [
+              {label:"Live Publishable Key",val:account.liveKey||"zpk_live_"+account.id,prefix:"zpk_live_",rolled:rolledLive,setRolled:setRolledLive,secret:false,note:""},
+              {label:"Live Secret Key",val:"zps_live_"+account.id,prefix:"zps_live_",rolled:null as null,setRolled:noop,secret:true,note:"Never expose in client-side code"},
+              {label:"Sandbox Publishable Key",val:account.sandboxKey,prefix:"zpk_sb_",rolled:rolledSb,setRolled:setRolledSb,secret:false,note:""},
+              {label:"Sandbox Secret Key",val:account.sandboxSecret,prefix:"zps_sb_",rolled:null as null,setRolled:noop,secret:true,note:""},
+            ];
+        return (
+          <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:18,overflow:"hidden",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+            <div style={{ padding:"12px 18px",borderBottom:`1px solid ${BORDER}`,fontSize:11,fontWeight:800,color:isSandbox?"#D97706":ZP_GREEN,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>
+              {isSandbox?"🧪 Sandbox Credentials":"● Live Credentials"}
             </div>
-          </>
-        ) : editingKeys ? (
-          /* ── Edit mode ── */
-          <div style={{ padding:"18px 18px" }}>
-            <div style={{ fontSize:12,color:MUTED,marginBottom:16 }}>Update your API keys below — changes are saved to this device.</div>
-            {([
-              {label:"Live Publishable Key",field:"liveKey" as const,note:""},
-              {label:"Live Secret Key",field:"liveSecret" as const,note:"Never expose in client-side code"},
-              {label:"Sandbox Publishable Key",field:"sandboxKey" as const,note:""},
-              {label:"Sandbox Secret Key",field:"sandboxSecret" as const,note:""},
-            ]).map(k=>(
-              <div key={k.field} style={{ marginBottom:14 }}>
-                <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:6 }}>
-                  <span style={{ fontSize:11,color:MUTED,fontWeight:700 }}>{k.label}</span>
-                  {k.note && <span style={{ fontSize:10,background:"rgba(239,68,68,0.08)",color:"#DC2626",padding:"2px 8px",borderRadius:20,fontWeight:600 }}>{k.note}</span>}
+            {keyRows.map(k=>(
+              <div key={k.label} style={{ borderBottom:`1px solid ${ROW_SEP}` }}>
+                <div style={{ padding:"14px 18px" }}>
+                  <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8 }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                      <span style={{ fontSize:11,color:MUTED,fontWeight:700 }}>{k.label}</span>
+                      {k.note && <span style={{ fontSize:10,background:"rgba(239,68,68,0.08)",color:"#DC2626",padding:"2px 8px",borderRadius:20,fontWeight:600 }}>{k.note}</span>}
+                      {k.rolled && <span style={{ fontSize:10,background:"rgba(45,190,96,0.1)",color:ZP_GREEN,padding:"2px 8px",borderRadius:20,fontWeight:600 }}>● New</span>}
+                    </div>
+                    {!k.secret && (
+                      <button onClick={()=>{
+                        const newVal = genKey(k.prefix);
+                        const oldVal = k.rolled ? k.rolled.newVal : (k.val||"");
+                        k.setRolled({ newVal, oldVal, rolledAt: new Date().toISOString() });
+                        saveAccountKeys(k.prefix.startsWith("zpk_live") ? {liveKey:newVal} : {sandboxKey:newVal});
+                      }} style={{ background:"rgba(21,184,201,0.08)",color:ZP_CYAN,border:`1px solid rgba(21,184,201,0.2)`,cursor:"pointer",padding:"5px 14px",borderRadius:8,fontSize:11,fontWeight:700,whiteSpace:"nowrap" as const }}>
+                        🔄 Regenerate
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                    <code style={{ flex:1,fontSize:12,background:"#f8fafc",padding:"10px 12px",borderRadius:8,color:TEXT,wordBreak:"break-all" as const,border:`1px solid ${BORDER}` }}>
+                      {k.rolled ? k.rolled.newVal : (k.val||"—")}
+                    </code>
+                    <CopyBtn text={k.rolled ? k.rolled.newVal : (k.val||"")} small />
+                  </div>
+                  {k.rolled && (
+                    <div style={{ marginTop:6,fontSize:11,color:"#D97706" }}>⚠️ Copy your new key — update your integration before deleting the old one.</div>
+                  )}
                 </div>
-                <input value={keyDraft[k.field]} onChange={e=>setKeyDraft(d=>({...d,[k.field]:e.target.value}))} placeholder={`Enter ${k.label.toLowerCase()}`} style={{ ...IS,width:"100%",boxSizing:"border-box" as const,fontFamily:"monospace",fontSize:12 }} />
+                {k.rolled && k.rolled.oldVal && (
+                  <div style={{ padding:"12px 18px",background:"rgba(239,68,68,0.03)",borderTop:`1px solid rgba(239,68,68,0.1)` }}>
+                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6 }}>
+                      <span style={{ fontSize:11,color:"#DC2626",fontWeight:700 }}>🗑 Old Key — still active</span>
+                      <button onClick={()=>k.setRolled(null)} style={{ background:"rgba(239,68,68,0.1)",color:"#DC2626",border:`1px solid rgba(239,68,68,0.25)`,cursor:"pointer",padding:"5px 14px",borderRadius:8,fontSize:11,fontWeight:700 }}>
+                        Delete Old Key
+                      </button>
+                    </div>
+                    <code style={{ fontSize:11,color:"#94A3B8",wordBreak:"break-all" as const,textDecoration:"line-through" }}>{k.rolled.oldVal}</code>
+                    <div style={{ marginTop:4,fontSize:10,color:MUTED }}>Rolled {new Date(k.rolled.rolledAt).toLocaleString("en-CA",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+                  </div>
+                )}
               </div>
             ))}
-            <button onClick={()=>{
-              try {
-                const all: Account[] = JSON.parse(localStorage.getItem("zp_accounts")||"[]");
-                const idx = all.findIndex(a=>a.email===account.email);
-                const updated = { ...account, liveKey:keyDraft.liveKey, sandboxKey:keyDraft.sandboxKey, sandboxSecret:keyDraft.sandboxSecret };
-                if(idx>=0){ all[idx]=updated; } else { all.push(updated); }
-                localStorage.setItem("zp_accounts",JSON.stringify(all));
-              } catch {}
-              setKeysSaved(true);
-              setTimeout(()=>setEditingKeys(false),900);
-            }} style={{ background:ZP_GRAD,color:"#fff",border:"none",cursor:"pointer",padding:"11px 28px",borderRadius:10,fontSize:13,fontWeight:800,width:"100%" }}>
-              {keysSaved?"✓ Saved!":"Save Keys"}
-            </button>
+            {isSandbox && (
+              <div style={{ padding:"16px 18px",textAlign:"center" as const }}>
+                <div style={{ fontSize:12,color:MUTED,marginBottom:8 }}>🚀 Ready to accept real payments?</div>
+                <button onClick={()=>setTab("go-live")} style={{ background:ZP_GRAD,color:"#fff",border:"none",cursor:"pointer",padding:"9px 22px",borderRadius:10,fontSize:13,fontWeight:800 }}>Activate Live Account →</button>
+              </div>
+            )}
           </div>
-        ) : (
-          /* ── Display mode ── */
-          <>
-            {[{label:"Live Publishable Key",val:account.liveKey||activeKey||"zpk_live_"+account.id},{label:"Live Secret Key",val:"zps_live_"+account.id,note:"Never expose this in client-side code"},{label:"Sandbox Publishable Key",val:account.sandboxKey},{label:"Sandbox Secret Key",val:account.sandboxSecret}].map(k=>(
-              <div key={k.label} style={{ padding:"14px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
-                <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6 }}>
-                  <span style={{ fontSize:11,color:MUTED,fontWeight:700 }}>{k.label}</span>
-                  {k.note && <span style={{ fontSize:10,background:"rgba(239,68,68,0.08)",color:"#DC2626",padding:"2px 8px",borderRadius:20,fontWeight:600 }}>{k.note}</span>}
-                </div>
-                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                  <code style={{ flex:1,fontSize:12,background:"#f8fafc",padding:"10px 12px",borderRadius:8,color:TEXT,wordBreak:"break-all" as const,border:`1px solid ${BORDER}` }}>{k.val||"—"}</code>
-                  <CopyBtn text={k.val||""} small />
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-      </div>
+        );
+      })()}
 
       {/* API Endpoints — live mode only */}
       {!isSandbox && (
