@@ -4,9 +4,8 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
 // Dynamic imports to keep bundle size sane
-const MerchantApp      = dynamic(() => import("./MerchantApp"),      { ssr: false });
-const ZenivaCompleteApp = dynamic(() => import("./ZenivaComplete"),   { ssr: false });
-const SandboxApproval   = dynamic(() => import("./SandboxApproval"), { ssr: false });
+const MerchantApp       = dynamic(() => import("./MerchantApp"),    { ssr: false });
+const ZenivaCompleteApp = dynamic(() => import("./ZenivaComplete"), { ssr: false });
 
 interface Account {
   id: string; businessName: string; ownerName: string; email: string;
@@ -30,11 +29,10 @@ function Loader() {
 
 export default function AppRouter() {
   const router = useRouter();
-  const [ready,      setReady]      = useState(false);
-  const [account,    setAccount]    = useState<Account | null>(null);
-  const [mode,       setMode]       = useState<"sandbox" | "live">("sandbox");
-  const [approved,   setApproved]   = useState(false);
-  const [goingLive,  setGoingLive]  = useState(false);
+  const [ready,    setReady]    = useState(false);
+  const [account,  setAccount]  = useState<Account | null>(null);
+  const [mode,     setMode]     = useState<"sandbox" | "live">("sandbox");
+  const [approved, setApproved] = useState(false);
 
   useEffect(() => {
     const email      = sessionStorage.getItem("zp_client_email");
@@ -125,26 +123,13 @@ export default function AppRouter() {
     return <ZenivaCompleteApp />;
   }
 
-  // User clicked "Go Live" from dashboard → show approval flow
-  if (goingLive && !approved) {
-    return (
-      <SandboxApproval
-        email={account.email}
-        businessName={account.businessName}
-        sandboxKey={account.sandboxKey}
-        sandboxSecret={account.sandboxSecret}
-        onApproved={handleApproved}
-      />
-    );
-  }
-
-  // Standard or Business → MerchantApp (sandbox goes straight here now)
+  // Standard or Business → MerchantApp (sandbox et live même dashboard)
   return (
     <MerchantApp
       account={account}
       mode={isSandbox && !approved ? "sandbox" : "live"}
       onSignOut={signOut}
-      onGoLive={() => setGoingLive(true)}
+      onApproved={handleApproved}
     />
   );
 }

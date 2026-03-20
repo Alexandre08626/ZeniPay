@@ -100,18 +100,21 @@ const IS: React.CSSProperties = {
 // ════════════════════════════════════════════════════════
 //  MAIN COMPONENT
 // ════════════════════════════════════════════════════════
-export default function MerchantApp({ account, mode, onSignOut, onGoLive }: {
+export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   account: Account;
   mode: "sandbox" | "live";
   onSignOut: () => void;
-  onGoLive?: () => void;
+  onApproved?: () => void;
 }) {
-  const TABS = getTabs(account.plan);
+  const isSandbox = mode === "sandbox";
+  const baseTabs = getTabs(account.plan);
+  const TABS = isSandbox
+    ? [...baseTabs, { id: "go-live", icon: "🚀", label: "Go Live" }]
+    : baseTabs;
   const [tab,         setTab]         = useState("overview");
   const [sideOpen,    setSideOpen]    = useState(true);
   const [isMobile,    setIsMobile]    = useState(false);
   const [modal,       setModal]       = useState<string|null>(null);
-  const isSandbox = mode === "sandbox";
 
   // ── Data state ─────────────────────────────────────────
   const storeKey = `zp_data_${account.id || account.email}`;
@@ -164,6 +167,17 @@ export default function MerchantApp({ account, mode, onSignOut, onGoLive }: {
     setInvItems([]);
     setModal(null);
   };
+
+  // ── Go Live form ──────────────────────────────────────────
+  const glKey = `zp_golive_${account.email}`;
+  const loadGL = () => { try { return JSON.parse(localStorage.getItem(glKey) || "{}"); } catch { return {}; } };
+  const saveGL = (u: Record<string, unknown>) => { try { localStorage.setItem(glKey, JSON.stringify({ ...loadGL(), ...u })); } catch {} };
+  const [glStep,      setGlStep]      = useState<number>(() => loadGL().step ?? 0);
+  const [glForm,      setGlForm]      = useState<Record<string,string>>(() => loadGL().form ?? {});
+  const [glChecked,   setGlChecked]   = useState<Record<string,boolean>>(() => loadGL().checked ?? {});
+  const [glCopied,    setGlCopied]    = useState<string|null>(null);
+  const setGlField = (k: string, v: string) => { const f = { ...glForm, [k]: v }; setGlForm(f); saveGL({ form: f }); };
+  const toggleGL = (k: string) => { const c = { ...glChecked, [k]: !glChecked[k] }; setGlChecked(c); saveGL({ checked: c }); };
 
   // ── Payout form ──────────────────────────────────────────
   const [poForm, setPoForm] = useState({ recipient: "", amount: "", method: "e-Transfer", note: "" });
@@ -573,7 +587,7 @@ export default function MerchantApp({ account, mode, onSignOut, onGoLive }: {
                 Votre compte sandbox est pleinement fonctionnel. Lorsque vous êtes prêt à accepter de vrais paiements, activez le mode Live en quelques étapes simples.
               </p>
               <button
-                onClick={() => onGoLive?.()}
+                onClick={() => setTab("go-live")}
                 style={{ display: "inline-block", background: ZP_GRAD, color: "#fff", border: "none", cursor: "pointer", padding: "11px 28px", borderRadius: 12, fontSize: 13, fontWeight: 800 }}
               >
                 Activer le mode Live →
@@ -649,6 +663,162 @@ console.log(payment.id); // pay_xxxxxxxx`}
     </div>
   );
 
+  // ── GO LIVE SECTION ────────────────────────────────────────
+  const GL_STEPS = [
+    { id: "business",    icon: "🏢", title: "Business Verification",  desc: "Confirm your legal business information" },
+    { id: "integration", icon: "⚙️", title: "Integration Setup",       desc: "Install the SDK and run a test payment" },
+    { id: "compliance",  icon: "📋", title: "Volume & Compliance",     desc: "Required for payment network compliance" },
+    { id: "review",      icon: "🔍", title: "Under Review",            desc: "We're reviewing your application" },
+  ];
+  const SDK_STEPS = [
+    { key: "sdk",     label: "Install SDK",         code: "npm install @zenipay/node" },
+    { key: "init",    label: "Initialize client",   code: `import ZeniPay from '@zenipay/node';\nconst zp = new ZeniPay('${account.sandboxKey || "zpk_sb_xxx"}');` },
+    { key: "test",    label: "Create test payment", code: `const payment = await zp.payments.create({\n  amount: 1000, currency: 'cad',\n  source: { number: '4111111111111111', exp_month: 12, exp_year: 2028, cvc: '999' }\n});\nconsole.log(payment.id);` },
+    { key: "webhook", label: "Setup webhook",       code: `app.post('/webhook', zp.webhooks.express({\n  secret: '${account.sandboxSecret || "zps_sb_xxx"}',\n  on: { 'payment.succeeded': (e) => console.log(e) }\n}));` },
+  ];
+  const GoLiveSection = (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 6px" }}>Activate Live Account</h2>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: 0 }}>Complete all steps to unlock real payments and receive your live API keys.</p>
+      </div>
+      {/* Progress bar */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        {GL_STEPS.map((s, i) => (
+          <div key={s.id} onClick={() => i < glStep && setGlStep(i)} style={{ flex: 1, cursor: i < glStep ? "pointer" : "default" }}>
+            <div style={{ height: 4, borderRadius: 4, background: i < glStep ? ZP_GREEN : i === glStep ? ZP_CYAN : "rgba(255,255,255,0.1)", marginBottom: 6, transition: "background 0.3s" }} />
+            <div style={{ fontSize: 11, color: i === glStep ? "#fff" : "rgba(255,255,255,0.35)", fontWeight: i === glStep ? 700 : 400, textAlign: "center" as const }}>{i < glStep ? "✓ " : ""}{s.title.split(" ")[0]}</div>
+          </div>
+        ))}
+      </div>
+      {/* Sandbox keys always visible */}
+      <div style={{ background: "rgba(45,190,96,0.05)", border: "1px solid rgba(45,190,96,0.2)", borderRadius: 14, padding: "14px 18px", marginBottom: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: ZP_GREEN, marginBottom: 10 }}>🧪 Your Sandbox Keys (active now)</div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {[{ label: "Publishable Key", value: account.sandboxKey }, { label: "Secret Key", value: account.sandboxSecret }].map(k => (
+            <div key={k.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", width: 110, flexShrink: 0 }}>{k.label}</span>
+              <code style={{ flex: 1, fontSize: 11, background: "rgba(0,0,0,0.25)", padding: "6px 10px", borderRadius: 8, color: "rgba(255,255,255,0.85)", wordBreak: "break-all" as const }}>{k.value || "—"}</code>
+              <CopyBtn text={k.value} small />
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Step card */}
+      <div style={{ background: DARK2, border: `1px solid ${BORDER}`, borderRadius: 18, overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 12, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{GL_STEPS[glStep].icon}</div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 900 }}>Step {glStep + 1} — {GL_STEPS[glStep].title}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{GL_STEPS[glStep].desc}</div>
+          </div>
+        </div>
+        <div style={{ padding: "20px" }}>
+          {/* Step 0 – Business */}
+          {glStep === 0 && (
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {[
+                  { key: "legalName",    label: "Legal Business Name",  type: "text",   placeholder: "ZeniPay Inc.",                    full: false },
+                  { key: "businessNum",  label: "Business Number (BN)", type: "text",   placeholder: "123456789",                       full: false },
+                  { key: "address",      label: "Business Address",     type: "text",   placeholder: "123 Main St, Toronto, ON",        full: true  },
+                  { key: "industry",     label: "Industry Category",    type: "select", options: ["E-commerce","SaaS","Travel","Marketplace","Restaurant","Retail","Healthcare","Other"], full: false },
+                  { key: "website2",     label: "Business Website",     type: "text",   placeholder: "https://yourbusiness.com",        full: false },
+                ].map(f => (
+                  <div key={f.key} style={{ gridColumn: f.full ? "1/-1" : "auto" }}>
+                    <label style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
+                    {f.type === "select"
+                      ? <select value={glForm[f.key]||""} onChange={e => setGlField(f.key, e.target.value)} style={IS}><option value="">Choose…</option>{(f.options||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>
+                      : <input type="text" placeholder={f.placeholder} value={glForm[f.key]||""} onChange={e => setGlField(f.key, e.target.value)} style={IS} />
+                    }
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => { setGlStep(1); saveGL({ step: 1 }); }} disabled={!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry} style={{ marginTop: 18, width: "100%", padding: 13, background: (!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry) ? "rgba(255,255,255,0.1)" : ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Save & Continue →</button>
+            </div>
+          )}
+          {/* Step 1 – Integration */}
+          {glStep === 1 && (
+            <div>
+              <div style={{ marginBottom: 14, padding: "10px 14px", background: "rgba(45,190,96,0.07)", border: "1px solid rgba(45,190,96,0.2)", borderRadius: 10, fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>Follow these steps in your terminal / codebase. Check each one when done.</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {SDK_STEPS.map((s, i) => (
+                  <div key={s.key} style={{ background: GLASS, border: `1px solid ${glChecked[s.key] ? "rgba(45,190,96,0.4)" : BORDER}`, borderRadius: 12, overflow: "hidden" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: `1px solid ${BORDER}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: glChecked[s.key] ? ZP_GREEN : "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>{glChecked[s.key] ? "✓" : i+1}</div>
+                        <span style={{ fontSize: 13, fontWeight: 700 }}>{s.label}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <CopyBtn text={s.code} small />
+                        <button onClick={() => toggleGL(s.key)} style={{ background: glChecked[s.key] ? "rgba(45,190,96,0.2)" : "rgba(255,255,255,0.08)", border: `1px solid ${glChecked[s.key] ? "rgba(45,190,96,0.4)" : BORDER}`, color: glChecked[s.key] ? ZP_GREEN : "rgba(255,255,255,0.7)", padding: "4px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>{glChecked[s.key] ? "Done ✓" : "Mark done"}</button>
+                      </div>
+                    </div>
+                    <pre style={{ margin: 0, padding: "10px 14px", fontSize: 11, lineHeight: 1.7, color: "#e6edf3", overflowX: "auto" as const, background: "#0d1117" }}>{s.code}</pre>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 12, background: "rgba(21,184,201,0.06)", border: "1px solid rgba(21,184,201,0.2)", borderRadius: 10, padding: "10px 14px", fontSize: 12 }}>
+                <span style={{ fontWeight: 700, color: ZP_CYAN }}>Test cards: </span>
+                <span>Visa: <code>4111 1111 1111 1111</code> · MC: <code>5454 5454 5454 5454</code> · Any future exp · CVC 999</span>
+              </div>
+              <button onClick={() => { setGlStep(2); saveGL({ step: 2 }); }} disabled={Object.values(glChecked).filter(Boolean).length < 2} style={{ marginTop: 18, width: "100%", padding: 13, background: Object.values(glChecked).filter(Boolean).length < 2 ? "rgba(255,255,255,0.1)" : ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Integration looks good → Continue</button>
+            </div>
+          )}
+          {/* Step 2 – Compliance */}
+          {glStep === 2 && (
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {[
+                  { key: "monthlyVolume2", label: "Expected Monthly Volume (CAD)", type: "select", options: ["Under $1,000","$1,000 – $10,000","$10,000 – $50,000","$50,000 – $200,000","$200,000+"], full: false },
+                  { key: "avgTicket",      label: "Average Transaction Size",     type: "select", options: ["Under $25","$25 – $100","$100 – $500","$500 – $2,000","$2,000+"],               full: false },
+                  { key: "intlCards",      label: "Accept international cards?",  type: "select", options: ["Yes — mostly domestic","Yes — global customer base","No — domestic only"],       full: false },
+                  { key: "refundPolicy",   label: "Refund Policy URL",            type: "text",   placeholder: "https://yourbusiness.com/refunds",                                            full: true  },
+                  { key: "termsUrl",       label: "Terms of Service URL",         type: "text",   placeholder: "https://yourbusiness.com/terms",                                              full: true  },
+                ].map(f => (
+                  <div key={f.key} style={{ gridColumn: f.full ? "1/-1" : "auto" }}>
+                    <label style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
+                    {f.type === "select"
+                      ? <select value={glForm[f.key]||""} onChange={e => setGlField(f.key, e.target.value)} style={IS}><option value="">Choose…</option>{(f.options||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>
+                      : <input type="text" placeholder={f.placeholder} value={glForm[f.key]||""} onChange={e => setGlField(f.key, e.target.value)} style={IS} />
+                    }
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 14, padding: "10px 14px", background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.7 }}>By submitting this application you agree to the ZeniPay Merchant Agreement and confirm all provided information is accurate and complete.</div>
+              <button onClick={() => { setGlStep(3); saveGL({ step: 3, submitted: true }); }} disabled={!glForm.monthlyVolume2||!glForm.avgTicket} style={{ marginTop: 14, width: "100%", padding: 13, background: (!glForm.monthlyVolume2||!glForm.avgTicket) ? "rgba(255,255,255,0.1)" : ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Submit for Live Review →</button>
+            </div>
+          )}
+          {/* Step 3 – Under Review */}
+          {glStep === 3 && (
+            <div style={{ textAlign: "center" as const, padding: "16px 0 8px" }}>
+              <div style={{ fontSize: 48, marginBottom: 14 }}>⏳</div>
+              <h3 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 10px" }}>Application submitted!</h3>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: "0 0 20px", lineHeight: 1.7 }}>Our team will review your application within <strong style={{ color: "#fff" }}>1–2 business days</strong>.<br />We will email <strong style={{ color: ZP_CYAN }}>{account.email}</strong> when approved.</p>
+              <div style={{ display: "grid", gap: 8, maxWidth: 360, margin: "0 auto 20px" }}>
+                {[
+                  { icon: "✅", label: "Business Verification", done: true  },
+                  { icon: "✅", label: "Integration Setup",     done: true  },
+                  { icon: "✅", label: "Compliance Review",     done: true  },
+                  { icon: "🔄", label: "ZeniPay Review",        done: false },
+                ].map(item => (
+                  <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, background: GLASS, border: `1px solid ${item.done ? "rgba(45,190,96,0.3)" : BORDER}`, borderRadius: 10, padding: "10px 14px" }}>
+                    <span style={{ fontSize: 18 }}>{item.icon}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: item.done ? ZP_GREEN : "rgba(255,255,255,0.6)" }}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              <a href="mailto:info@zenipay.ca" style={{ display: "inline-block", background: GLASS, border: `1px solid ${BORDER}`, color: "#fff", textDecoration: "none", padding: "10px 22px", borderRadius: 12, fontSize: 13, fontWeight: 700 }}>Contact Support</a>
+              <div style={{ marginTop: 16, padding: "8px 14px", background: "rgba(123,79,191,0.1)", border: "1px solid rgba(123,79,191,0.3)", borderRadius: 10, fontSize: 11, color: ZP_PURPLE }}>
+                Demo: <button onClick={() => onApproved?.()} style={{ background: "none", border: "none", color: ZP_PURPLE, cursor: "pointer", fontWeight: 700, fontSize: 11, padding: "0 4px" }}>Simulate approval →</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   const SECTION_MAP: Record<string, React.ReactNode> = {
     overview: OverviewSection,
     transactions: TransactionsSection,
@@ -660,6 +830,7 @@ console.log(payment.id); // pay_xxxxxxxx`}
     analytics: AnalyticsSection,
     keys: KeysSection,
     settings: SettingsSection,
+    "go-live": GoLiveSection,
   };
 
   // ── MODALS ────────────────────────────────────────────────
