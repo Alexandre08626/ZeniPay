@@ -16,7 +16,7 @@ const STATUS_COLOR: Record<string, string> = { active: "#16A34A", pending: "#D97
 const STATUS_BG:    Record<string, string> = { active: "rgba(22,163,74,0.08)", pending: "rgba(217,119,6,0.08)", inactive: "rgba(148,163,184,0.08)", failed: "rgba(220,38,38,0.08)", live: "rgba(22,163,74,0.08)", sandbox: "rgba(217,119,6,0.08)" };
 
 // All clients now come from Supabase — no hardcoded defaults
-const CLIENTS_DEFAULT: typeof [] = [];
+const CLIENTS_DEFAULT: never[] = [];
 
 const GATEWAY_STATUS = { accountId: "acct_XlRKvhpbdl1UxJ9zINmoL", webhook: "https://zenipay.ca/api/zenipay/webhooks/tilled", fees: "2.9% + $0.30" };
 const BANK_STATUS    = { routing: "812345678", account: "••••5847", balance: 0, customerId: "4647873" };
