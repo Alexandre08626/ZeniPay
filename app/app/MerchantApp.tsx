@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // ─── Brand ─────────────────────────────────────────────
@@ -64,6 +64,57 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 const IS: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, background: "#f8fafc", border: `1px solid ${BORDER}`, color: TEXT, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
 
+// ── BankCard — animated credit card (ZenivaComplete style) ──────────
+function BankCard({ holderName, bankName, accountNum, balance }: { holderName: string; bankName: string; accountNum: string; balance?: number }) {
+  const [revealed, setRevealed] = React.useState(false);
+  const last4 = accountNum.slice(-4).padStart(4, "•");
+  return (
+    <div style={{ width: "100%", maxWidth: 360, borderRadius: 20, position: "relative", overflow: "hidden", aspectRatio: "1.586", background: "linear-gradient(135deg, #2DBE60 0%, #15B8C9 45%, #2A8FE0 100%)", boxShadow: "0 24px 60px rgba(45,190,96,0.45), 0 8px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.18)", transition: "transform 0.3s cubic-bezier(0.34,1.56,0.64,1)", cursor: "default", color: "white", fontFamily: "system-ui, sans-serif", userSelect: "none" as const }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-10px) scale(1.02)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0) scale(1)"; }}>
+      <style>{`@keyframes shimmerZC{0%{transform:translateX(-120%) skewX(-20deg)}100%{transform:translateX(350%) skewX(-20deg)}} @keyframes logoPulseZC{0%,100%{opacity:0.12}50%{opacity:0.2}}`}</style>
+      <div style={{ position:"absolute", inset:0, background:"linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.05) 60%, rgba(0,0,0,0.2) 100%)", pointerEvents:"none" }} />
+      <div style={{ position:"absolute", inset:0, background:"linear-gradient(105deg,transparent 35%,rgba(255,255,255,0.18) 50%,transparent 65%)", animation:"shimmerZC 4s ease-in-out infinite", pointerEvents:"none" }} />
+      <div style={{ position:"relative", height:"100%", padding:"6% 7%", display:"flex", flexDirection:"column" as const, justifyContent:"space-between" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+          <div>
+            <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:3 }}>
+              <img src="/zenipay-logo.png" alt="ZeniPay" style={{ width:28, height:28, objectFit:"contain", filter:"drop-shadow(0 2px 8px rgba(255,255,255,0.4))" }} onError={e=>{(e.target as HTMLImageElement).style.display="none";}} />
+              <span style={{ fontWeight:800, fontSize:14, letterSpacing:"-0.3px", textShadow:"0 1px 6px rgba(0,0,0,0.4)" }}>ZeniPay</span>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <p style={{ margin:0, fontSize:8, opacity:0.55, letterSpacing:"0.14em", textTransform:"uppercase" as const }}>{bankName || "Business Account"}</p>
+              <span style={{ background:"rgba(255,255,255,0.2)", borderRadius:4, padding:"1px 6px", fontSize:7, fontWeight:800, letterSpacing:"0.1em" }}>DEBIT</span>
+            </div>
+          </div>
+          <div style={{ width:38, height:28, borderRadius:5, background:"linear-gradient(145deg,#c9a84c 0%,#f2d76a 30%,#e5c035 65%,#b8900a 100%)", boxShadow:"inset 0 1px 2px rgba(255,255,255,0.55),0 2px 6px rgba(0,0,0,0.4)", position:"relative" }}>
+            <div style={{ position:"absolute", inset:3, border:"1px solid rgba(0,0,0,0.18)", borderRadius:2 }} />
+            <div style={{ position:"absolute", left:"50%", top:0, bottom:0, width:1, background:"rgba(0,0,0,0.12)", transform:"translateX(-50%)" }} />
+            <div style={{ position:"absolute", top:"50%", left:0, right:0, height:1, background:"rgba(0,0,0,0.12)", transform:"translateY(-50%)" }} />
+          </div>
+        </div>
+        <div>
+          <p style={{ margin:"0 0 2px", fontSize:9, opacity:0.5, letterSpacing:"0.14em", textTransform:"uppercase" as const }}>Available Balance</p>
+          <p style={{ margin:0, fontWeight:900, fontSize:22, letterSpacing:"-0.8px", textShadow:"0 2px 10px rgba(0,0,0,0.4)" }}>{balance !== undefined ? new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format(balance) : "$0.00"}</p>
+        </div>
+        <div>
+          <p onClick={() => setRevealed(r => !r)} style={{ margin:"0 0 8px", fontSize:12, fontWeight:500, letterSpacing:"0.24em", fontFamily:"monospace", opacity:0.9, textShadow:"0 1px 4px rgba(0,0,0,0.3)", cursor:"pointer" }}>
+            {revealed ? `5678  9120  00••  ${last4}` : `••••  ••••  ••••  ${last4}`}
+            <span style={{ fontSize:7, fontFamily:"system-ui", letterSpacing:"0.05em", opacity:0.5, marginLeft:6, fontStyle:"italic" }}>{revealed ? "tap to hide" : "tap to reveal"}</span>
+          </p>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+            <div>
+              <p style={{ margin:"0 0 1px", fontSize:7, opacity:0.4, letterSpacing:"0.15em" }}>CARDHOLDER</p>
+              <p style={{ margin:0, fontSize:10, fontWeight:700, letterSpacing:"0.06em", textShadow:"0 1px 3px rgba(0,0,0,0.3)" }}>{(holderName||"CARDHOLDER").toUpperCase()}</p>
+            </div>
+            <span style={{ fontWeight:900, fontStyle:"italic", fontSize:16, letterSpacing:"-0.5px", textShadow:"0 1px 4px rgba(0,0,0,0.4)", opacity:0.95 }}>VISA</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tabs by plan ───────────────────────────────────────
 function getTabs(plan: string) {
   // Banking (payout account) is available to ALL plans
@@ -104,9 +155,10 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const tab        = validTabs.includes(tabFromUrl) ? tabFromUrl : "overview";
   const setTab     = (id: string) => router.push(`/app?tab=${id}`);
 
-  const [modal,       setModal]       = useState<string|null>(null);
-  const [menuOpen,    setMenuOpen]    = useState(false);
-  const [isMobile,    setIsMobile]    = useState(false);
+  const [modal,        setModal]        = useState<string|null>(null);
+  const [menuOpen,     setMenuOpen]     = useState(false);
+  const [isMobile,     setIsMobile]     = useState(false);
+  const [sidebarOpen,  setSidebarOpen]  = useState(true);
   const [apiLang,     setApiLang]     = useState<"node"|"php"|"python"|"curl">("node");
   const [bankAction,  setBankAction]  = useState<string|null>(null);
   const [bankActForm, setBankActForm] = useState<Record<string,string>>({});
@@ -272,21 +324,46 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   // ── OVERVIEW ─────────────────────────────────────────
   const OverviewSection = (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 4px", color: TEXT }}>Welcome, {account.ownerName || account.businessName}</h2>
-        <p style={{ margin: 0, fontSize: 14, color: MUTED }}>{isSandbox ? "Sandbox — test your integration safely" : "Live — real transactions active"}</p>
+      {/* Hero Banner */}
+      <div style={{ background:"linear-gradient(135deg, #0d1633 0%, #1a2a5e 40%, #7B4FBF 80%, #E5247B 100%)", borderRadius:24, padding:"28px 32px", marginBottom:24, color:"white", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", gap:24 }}>
+        <style>{`@keyframes logoBounce{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-6px) rotate(3deg)}}`}</style>
+        <div style={{ flexShrink:0, width:120, height:120, animation:"logoBounce 5s ease-in-out infinite" }}>
+          <img src="/zenipay-logo.png" alt="ZeniPay" style={{ width:"100%",height:"100%",objectFit:"contain",filter:"drop-shadow(0 8px 32px rgba(123,79,191,0.6)) drop-shadow(0 0 20px rgba(21,184,201,0.4))" }} onError={e=>{(e.target as HTMLImageElement).style.display="none";}} />
+        </div>
+        <div style={{ flex:1 }}>
+          <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:6 }}>
+            <h1 style={{ margin:0,fontWeight:900,fontSize:26,letterSpacing:"-1px",background:"linear-gradient(90deg,#ffffff,#c4b5fd)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent" }}>Welcome, {account.ownerName||account.businessName}</h1>
+            <span style={{ background:isSandbox?"rgba(245,166,35,0.3)":"rgba(45,190,96,0.3)",border:`1px solid ${isSandbox?"#F5A623":"#2DBE60"}60`,color:isSandbox?"#fde68a":"#86efac",fontSize:10,fontWeight:800,borderRadius:6,padding:"3px 10px",letterSpacing:"0.1em" }}>{isSandbox?"● SANDBOX":"● LIVE"}</span>
+          </div>
+          <p style={{ margin:"0 0 14px",fontSize:13,opacity:0.7 }}>{isSandbox?"Sandbox — test your integration safely":"Live mode — real transactions active"}</p>
+          <div style={{ display:"flex",gap:10,flexWrap:"wrap" as const }}>
+            {[{v:fmt(account.balance),l:"Balance"},{v:fmt(account.volume),l:"Total Volume"},{v:String(account.txCount),l:"Transactions"},{v:String(payLinks.filter(p=>p.status==="active").length),l:"Active Links"}].map(s=>(
+              <div key={s.l} style={{ background:"rgba(255,255,255,0.1)",borderRadius:12,padding:"8px 14px",backdropFilter:"blur(4px)" }}>
+                <p style={{ margin:"0 0 2px",fontWeight:900,fontSize:16,background:"linear-gradient(90deg,#F5A623,#ffffff)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent" }}>{s.v}</p>
+                <p style={{ margin:0,fontSize:9,opacity:0.55,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>{s.l}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ position:"absolute",top:12,right:20,fontSize:24,opacity:0.45 }}>✨</div>
+        <div style={{ position:"absolute",bottom:12,right:60,fontSize:18,opacity:0.35 }}>💫</div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 24 }}>
         {[
-          { label: "ZeniCard Balance", value: fmt(account.balance),  color: ZP_GREEN  },
-          { label: "Total Volume",     value: fmt(account.volume),   color: ZP_CYAN   },
-          { label: "Transactions",     value: String(account.txCount), color: ZP_PURPLE },
-          { label: "Active Pay Links", value: String(payLinks.filter(p=>p.status==="active").length), color: ZP_BLUE },
-          { label: "Open Invoices",    value: String(invoices.filter(i=>i.status==="sent").length),   color: "#F5A623" },
+          { icon:"💰", label: "ZeniCard Balance", value: fmt(account.balance),  color: ZP_GREEN  },
+          { icon:"📈", label: "Total Volume",     value: fmt(account.volume),   color: ZP_CYAN   },
+          { icon:"💳", label: "Transactions",     value: String(account.txCount), color: ZP_PURPLE },
+          { icon:"🔗", label: "Active Pay Links", value: String(payLinks.filter(p=>p.status==="active").length), color: ZP_BLUE },
+          { icon:"📄", label: "Open Invoices",    value: String(invoices.filter(i=>i.status==="sent").length),   color: "#F5A623" },
         ].map(k => (
-          <div key={k.label} style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "18px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <div style={{ fontSize: 10, color: LIGHT, marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{k.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: k.color }}>{k.value}</div>
+          <div key={k.label} style={{ background:"white", borderRadius:16, padding:"18px 20px", boxShadow:"0 1px 6px rgba(0,0,0,0.06)", borderLeft:`4px solid ${k.color}` }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
+              <div>
+                <p style={{ margin:"0 0 6px",fontSize:10,fontWeight:600,color:"#64748b",textTransform:"uppercase" as const,letterSpacing:"0.06em" }}>{k.label}</p>
+                <p style={{ margin:0,fontWeight:900,fontSize:22,color:"#0f172a",letterSpacing:"-0.5px" }}>{k.value}</p>
+              </div>
+              <span style={{ fontSize:22,opacity:0.9 }}>{k.icon}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -350,6 +427,28 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const BankingSection = (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px", color: TEXT }}>ZeniCard — Business Banking</h2>
+
+      {/* Configured — show card + details */}
+      {bankConfigured && (
+        <div style={{ display:"grid",gridTemplateColumns:"auto 1fr",gap:28,alignItems:"flex-start",marginBottom:24 }}>
+          <BankCard holderName={bankCfg.holderName} bankName={bankCfg.bankName} accountNum={bankCfg.accountNum} balance={account.balance} />
+          <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
+            <div style={{ background:"white",borderRadius:16,padding:"18px 20px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderLeft:`4px solid ${ZP_GREEN}` }}>
+              <p style={{ margin:"0 0 4px",fontSize:11,fontWeight:700,color:MUTED,textTransform:"uppercase" as const,letterSpacing:"0.06em" }}>Bank Account Connected</p>
+              <p style={{ margin:"0 0 2px",fontSize:16,fontWeight:900,color:TEXT }}>{bankCfg.bankName}</p>
+              <p style={{ margin:0,fontSize:13,color:MUTED }}>{bankCfg.accountType} ····{bankCfg.accountNum.slice(-4)}</p>
+            </div>
+            <div style={{ background:"white",borderRadius:16,padding:"14px 20px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
+                {[["Transit",bankCfg.transit],["Institution",bankCfg.institution],["Holder",bankCfg.holderName],["Type",bankCfg.accountType]].map(([l,v])=>(
+                  <div key={l}><p style={{ margin:"0 0 2px",fontSize:10,color:LIGHT,fontWeight:700,textTransform:"uppercase" as const }}>{l}</p><p style={{ margin:0,fontSize:13,fontWeight:700,color:TEXT }}>{v||"—"}</p></div>
+                ))}
+              </div>
+            </div>
+            <button onClick={()=>saveBankCfg({step:1})} style={{ padding:"10px 18px",background:"#f8fafc",border:`1px solid ${BORDER}`,color:MUTED,borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",alignSelf:"flex-start" }}>✏️ Change Account</button>
+          </div>
+        </div>
+      )}
 
       {/* Not configured */}
       {bankCfg.step === 0 && (
@@ -1126,107 +1225,139 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   );
 
   // ────────────────────────────────────────────────────────
-  //  RENDER
+  //  RENDER — ZenivaComplete layout
   // ────────────────────────────────────────────────────────
+  const SIDEBAR_W = sidebarOpen ? 240 : 64;
+
   return (
-    <div style={{ display:"flex",flexDirection:"column",minHeight:"100vh",background:PAGE_BG,color:TEXT,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" }}>
+    <div style={{ minHeight:"100vh", background:"#f0f4f8", fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", display:"flex" }}>
       <style>{`
         *{box-sizing:border-box;}
         select option{background:#fff;color:#0f172a;}
         pre{font-family:'SF Mono','Fira Code',monospace;}
         button:active{opacity:0.85;}
-        ::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
+        .zp-tab-btn:hover{background:rgba(21,184,201,0.12) !important;}
+        .zp-nav-btn:hover{background:rgba(255,255,255,0.08) !important;}
+        ::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px;}
       `}</style>
 
-      {/* ── TOP NAV BAR ─────────────────────────────────── */}
-      <nav style={{ background:TOPNAV,borderBottom:"1px solid rgba(255,255,255,0.12)",position:"sticky",top:0,zIndex:200,boxShadow:"0 2px 20px rgba(0,0,0,0.25)" }}>
-        {/* Logo row + mode */}
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",height:52,borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ display:"flex",alignItems:"center",gap:12 }}>
-            <img src="/zenipay-logo.png" alt="ZeniPay" style={{ width:30,height:30,objectFit:"contain",filter:"drop-shadow(0 2px 8px rgba(21,184,201,0.5))" }}
-              onError={e=>{(e.target as HTMLImageElement).style.display="none";}} />
-            <span style={{ fontWeight:900,fontSize:17,background:ZP_GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent" }}>ZeniPay</span>
-            <span style={{ fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.4)" }}>|</span>
-            <span style={{ fontSize:12,color:"rgba(255,255,255,0.55)",fontWeight:600 }}>{account.businessName}</span>
-          </div>
-          <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-            {/* Mode toggle */}
-            <div style={{ display:"flex",background:"rgba(0,0,0,0.25)",borderRadius:20,padding:3,gap:2,border:"1px solid rgba(255,255,255,0.12)" }}>
-              <button
-                onClick={() => onModeChange?.("sandbox")}
-                style={{ padding:"4px 14px",borderRadius:16,border:"none",fontSize:11,fontWeight:800,cursor:"pointer",letterSpacing:"0.05em",transition:"all 0.2s",
-                  background: isSandbox ? "rgba(217,119,6,0.35)" : "transparent",
-                  color:      isSandbox ? "#F59E0B" : "rgba(255,255,255,0.35)",
-                  boxShadow:  isSandbox ? "0 1px 6px rgba(217,119,6,0.3)" : "none",
-                }}>◎ SANDBOX</button>
-              <button
-                onClick={() => onModeChange?.("live")}
-                style={{ padding:"4px 14px",borderRadius:16,border:"none",fontSize:11,fontWeight:800,cursor:"pointer",letterSpacing:"0.05em",transition:"all 0.2s",
-                  background: !isSandbox ? "rgba(45,190,96,0.35)" : "transparent",
-                  color:      !isSandbox ? "#4ADE80"              : "rgba(255,255,255,0.35)",
-                  boxShadow:  !isSandbox ? "0 1px 6px rgba(45,190,96,0.3)" : "none",
-                }}>● LIVE</button>
-            </div>
-            <span style={{ fontSize:11,color:"rgba(255,255,255,0.35)" }}>{account.plan==="Sandbox"?"Standard":account.plan}</span>
-            <button onClick={onSignOut} style={{ background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.35)",color:"#FCA5A5",borderRadius:8,padding:"5px 14px",fontSize:12,fontWeight:700,cursor:"pointer" }}>Sign Out</button>
-          </div>
-        </div>
-        {/* Current section label + mobile menu toggle */}
-        <div style={{ display:"flex",alignItems:"center",padding:"0 20px",height:44,gap:12,borderTop:"1px solid rgba(255,255,255,0.08)" }}>
-          {isMobile && (
-            <button onClick={()=>setMenuOpen(v=>!v)} style={{ background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",borderRadius:8,padding:"5px 12px",fontSize:13,fontWeight:700,cursor:"pointer" }}>☰</button>
-          )}
-          <span style={{ fontSize:13,color:"rgba(255,255,255,0.6)" }}>{TABS.find(t=>t.id===tab)?.icon} {TABS.find(t=>t.id===tab)?.label}</span>
-        </div>
-      </nav>
-
-      {/* ── BODY: sidebar + content ─────────────────────── */}
-      <div style={{ display:"flex",flex:1,minHeight:0 }}>
-
-        {/* Sidebar — desktop always visible, mobile slide-in */}
-        {(!isMobile || menuOpen) && (
-          <aside style={{ width:220,background:TOPNAV,borderRight:"1px solid rgba(255,255,255,0.12)",display:"flex",flexDirection:"column",flexShrink:0,position:isMobile?"fixed":"sticky",top:isMobile?0:96,height:isMobile?"100vh":"calc(100vh - 96px)",zIndex:150,overflowY:"auto" }}>
-            {/* Mobile header in sidebar */}
-            {isMobile && (
-              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.12)" }}>
-                <span style={{ fontWeight:800,fontSize:15,background:ZP_GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent" }}>ZeniPay</span>
-                <button onClick={()=>setMenuOpen(false)} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:22,lineHeight:1 }}>×</button>
+      {/* ══ LEFT SIDEBAR ══ */}
+      <div style={{ width:SIDEBAR_W, minHeight:"100vh", background:`linear-gradient(180deg, #0d1633 0%, #1a2a5e 30%, #2A8FE0 70%, #7B4FBF 100%)`, borderRight:"1px solid rgba(255,255,255,0.15)", transition:"width 0.25s cubic-bezier(0.4,0,0.2,1)", overflow:"hidden", display:"flex", flexDirection:"column" as const, flexShrink:0, position:"sticky" as const, top:0, alignSelf:"flex-start" as const, zIndex:100, maxHeight:"100vh" }}>
+        {/* Logo + toggle */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:sidebarOpen?"space-between":"center", padding:"18px 14px", borderBottom:"1px solid rgba(255,255,255,0.15)", minHeight:70 }}>
+          {sidebarOpen && (
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <img src="/zenipay-logo.png" alt="ZeniPay" style={{ width:36, height:36, objectFit:"contain", filter:"drop-shadow(0 4px 14px rgba(21,184,201,0.6))", flexShrink:0 }} onError={e=>{(e.target as HTMLImageElement).style.display="none";}} />
+              <div>
+                <p style={{ margin:0, fontWeight:900, fontSize:15, color:"white", letterSpacing:"-0.5px" }}>ZeniPay</p>
+                <p style={{ margin:0, fontSize:8, color:"rgba(255,255,255,0.6)", fontWeight:600, textTransform:"uppercase" as const, letterSpacing:"0.1em" }}>{account.businessName}</p>
               </div>
-            )}
-            {/* Business + mode */}
-            <div style={{ padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
-              <div style={{ fontSize:13,fontWeight:700,color:"#fff",marginBottom:6,whiteSpace:"nowrap" as const,overflow:"hidden",textOverflow:"ellipsis" }}>{account.businessName}</div>
-              {isSandbox
-                ? <span style={{ fontSize:10,fontWeight:800,padding:"2px 9px",borderRadius:10,background:"rgba(217,119,6,0.25)",color:"#F59E0B",border:"1px solid rgba(217,119,6,0.4)" }}>◎ SANDBOX</span>
-                : <span style={{ fontSize:10,fontWeight:800,padding:"2px 9px",borderRadius:10,background:"rgba(74,222,128,0.2)",color:"#4ADE80",border:"1px solid rgba(74,222,128,0.4)" }}>● LIVE</span>
-              }
             </div>
-            {/* Nav */}
-            <nav style={{ flex:1,padding:"8px 6px" }}>
-              {TABS.map(t=>(
-                <button key={t.id} onClick={()=>{setTab(t.id);if(isMobile)setMenuOpen(false);}} style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:tab===t.id?`linear-gradient(135deg,${ZP_CYAN}25,${ZP_CYAN}10)`:"transparent",border:tab===t.id?`1px solid ${ZP_CYAN}40`:"1px solid transparent",borderRadius:10,color:tab===t.id?"#fff":"rgba(255,255,255,0.55)",fontSize:13,fontWeight:tab===t.id?700:500,cursor:"pointer",textAlign:"left" as const,marginBottom:1,transition:"all 0.15s" }}>
-                  <span style={{ fontSize:16,width:22 }}>{t.icon}</span>{t.label}
+          )}
+          {!sidebarOpen && (
+            <img src="/zenipay-logo.png" alt="ZeniPay" style={{ width:32, height:32, objectFit:"contain", filter:"drop-shadow(0 2px 8px rgba(21,184,201,0.5))" }} onError={e=>{(e.target as HTMLImageElement).style.display="none";}} />
+          )}
+          <button onClick={()=>setSidebarOpen(o=>!o)} style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.25)", borderRadius:8, width:26, height:26, cursor:"pointer", color:"white", fontSize:11, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginLeft:sidebarOpen?0:"auto" }}>
+            {sidebarOpen?"‹":"›"}
+          </button>
+        </div>
+
+        {/* Nav items */}
+        <div style={{ flex:1, overflowY:"auto" as const, padding:"8px 6px", scrollbarWidth:"none" as const }}>
+          {TABS.map(t => {
+            const isActive = tab === t.id;
+            return (
+              <button key={t.id} className="zp-nav-btn" onClick={()=>setTab(t.id)} style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:sidebarOpen?"9px 12px":"9px 0", justifyContent:sidebarOpen?"flex-start" as const:"center" as const, border:isActive?`1px solid ${ZP_CYAN}40`:"1px solid transparent", borderRadius:10, background:isActive?`linear-gradient(135deg,${ZP_CYAN}25,${ZP_CYAN}10)`:"transparent", cursor:"pointer", marginBottom:1, transition:"all 0.15s", color:"white", boxShadow:isActive?`0 0 16px ${ZP_CYAN}20`:"none" }}>
+                <span style={{ fontSize:15, flexShrink:0, opacity:isActive?1:0.7 }}>{t.icon}</span>
+                {sidebarOpen && <span style={{ fontSize:12, fontWeight:isActive?700:400, color:isActive?"white":"rgba(255,255,255,0.45)", whiteSpace:"nowrap" as const }}>{t.label}</span>}
+                {sidebarOpen && isActive && <div style={{ marginLeft:"auto", width:4, height:16, background:ZP_CYAN, borderRadius:9999, boxShadow:`0 0 8px ${ZP_CYAN}` }} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Bottom status */}
+        {sidebarOpen && (
+          <div style={{ padding:"14px", borderTop:"1px solid rgba(255,255,255,0.15)" }}>
+            <div style={{ background:isSandbox?`rgba(245,166,35,0.15)`:`rgba(45,190,96,0.15)`, border:`1px solid ${isSandbox?"rgba(245,166,35,0.3)":"rgba(45,190,96,0.3)"}`, borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <div style={{ width:6, height:6, background:isSandbox?"#F5A623":"#2DBE60", borderRadius:"50%", boxShadow:`0 0 6px ${isSandbox?"#F5A623":"#2DBE60"}` }} />
+                <span style={{ fontSize:10, color:isSandbox?"#F5A623":"#2DBE60", fontWeight:700, letterSpacing:"0.05em" }}>{isSandbox?"SANDBOX MODE":"LIVE MODE"}</span>
+              </div>
+              <p style={{ margin:"4px 0 0", fontSize:9, color:"rgba(255,255,255,0.55)" }}>ZeniPay · {isSandbox?"Testing":"Production"}</p>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ width:30, height:30, borderRadius:8, background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:"white", fontWeight:900 }}>{(account.ownerName||account.businessName||"?")[0].toUpperCase()}</div>
+              <div>
+                <p style={{ margin:0, fontSize:11, fontWeight:700, color:"white" }}>{account.ownerName||"Account"}</p>
+                <p style={{ margin:0, fontSize:9, color:"rgba(255,255,255,0.65)" }}>{account.plan==="Sandbox"?"Standard":account.plan} Plan</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile overlay */}
+      {isMobile && menuOpen && (
+        <div onClick={()=>setMenuOpen(false)} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:140 }} />
+      )}
+
+      {/* ══ MAIN CONTENT ══ */}
+      <div style={{ flex:1, minHeight:"100vh", overflow:"auto", background:"#f0f4f8" }}>
+
+        {/* ── HEADER ── */}
+        <div style={{ background:`linear-gradient(135deg, #0d1633 0%, #1a2a5e 25%, #2DBE60 55%, #15B8C9 75%, #7B4FBF 100%)`, padding:"0 24px", borderBottom:"1px solid rgba(255,255,255,0.15)" }}>
+          <div style={{ maxWidth:1400, margin:"0 auto" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:16, padding:"14px 0", borderBottom:"1px solid rgba(255,255,255,0.15)" }}>
+              {/* Brand */}
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontWeight:900, fontSize:16, color:"white", letterSpacing:"-0.5px" }}>ZeniPay</span>
+                  <span style={{ background:isSandbox?"rgba(245,166,35,0.25)":"rgba(45,190,96,0.25)", border:`1px solid ${isSandbox?"rgba(245,166,35,0.5)":"rgba(45,190,96,0.5)"}`, color:isSandbox?"#F5A623":"#2DBE60", fontSize:8, fontWeight:800, borderRadius:4, padding:"2px 6px", letterSpacing:"0.1em" }}>
+                    {isSandbox?"● SANDBOX":"● LIVE"}
+                  </span>
+                </div>
+                <p style={{ margin:0, fontSize:9, color:"#94a3b8", letterSpacing:"0.06em" }}>{account.businessName}</p>
+              </div>
+              {/* Balance + quick actions */}
+              <div style={{ marginLeft:"auto", display:"flex", gap:20, alignItems:"center" }}>
+                <div>
+                  <p style={{ margin:0, fontSize:10, color:"rgba(255,255,255,0.65)", textTransform:"uppercase" as const, letterSpacing:"0.08em" }}>Balance</p>
+                  <p style={{ margin:0, fontWeight:900, fontSize:20, color:"white", letterSpacing:"-0.5px" }}>{fmt(account.balance)}</p>
+                </div>
+                <div style={{ width:1, height:36, background:"rgba(255,255,255,0.25)" }} />
+                <div>
+                  <p style={{ margin:0, fontSize:10, color:"rgba(255,255,255,0.65)" }}>Volume</p>
+                  <p style={{ margin:0, fontWeight:800, fontSize:16, color:"white" }}>{fmt(account.volume)}</p>
+                </div>
+                <div style={{ width:1, height:36, background:"rgba(255,255,255,0.25)" }} />
+                <div style={{ display:"flex", gap:8 }}>
+                  {/* Mode toggle */}
+                  <div style={{ display:"flex",background:"rgba(0,0,0,0.3)",borderRadius:20,padding:3,gap:2,border:"1px solid rgba(255,255,255,0.12)" }}>
+                    <button onClick={()=>onModeChange?.("sandbox")} style={{ padding:"4px 12px",borderRadius:16,border:"none",fontSize:10,fontWeight:800,cursor:"pointer",transition:"all 0.2s", background:isSandbox?"rgba(217,119,6,0.4)":"transparent", color:isSandbox?"#F59E0B":"rgba(255,255,255,0.35)", boxShadow:isSandbox?"0 1px 6px rgba(217,119,6,0.3)":"none" }}>◎ SANDBOX</button>
+                    <button onClick={()=>onModeChange?.("live")} style={{ padding:"4px 12px",borderRadius:16,border:"none",fontSize:10,fontWeight:800,cursor:"pointer",transition:"all 0.2s", background:!isSandbox?"rgba(45,190,96,0.4)":"transparent", color:!isSandbox?"#4ADE80":"rgba(255,255,255,0.35)", boxShadow:!isSandbox?"0 1px 6px rgba(45,190,96,0.3)":"none" }}>● LIVE</button>
+                  </div>
+                  <button onClick={()=>{setTab("paylinks");setModal("paylink");}} style={{ background:"linear-gradient(90deg,#F5A623,#E5247B)", border:"none", borderRadius:8, padding:"8px 14px", color:"white", fontSize:11, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 12px rgba(245,166,35,0.5)" }}>+ New Payment</button>
+                  <button onClick={onSignOut} style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.25)", borderRadius:8, padding:"8px 14px", color:"#EF4444", fontSize:11, fontWeight:700, cursor:"pointer" }}>🔓 Sign Out</button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── TAB BAR ── */}
+            <div style={{ display:"flex", gap:0, overflowX:"auto", scrollbarWidth:"none" as const }}>
+              {TABS.map(t => (
+                <button key={t.id} onClick={()=>setTab(t.id)} className="zp-tab-btn" style={{ background:tab===t.id?`${ZP_CYAN}15`:"transparent", border:"none", borderBottom:tab===t.id?`2px solid ${ZP_CYAN}`:"2px solid transparent", color:tab===t.id?ZP_CYAN:"rgba(255,255,255,0.35)", padding:"11px 14px", fontSize:11, fontWeight:tab===t.id?700:400, cursor:"pointer", whiteSpace:"nowrap" as const, transition:"all 0.15s", display:"flex", gap:5, alignItems:"center", flexShrink:0 }}>
+                  <span style={{ fontSize:13 }}>{t.icon}</span> {t.label}
                 </button>
               ))}
-            </nav>
-            {/* Sign out */}
-            <div style={{ padding:"10px 14px",borderTop:"1px solid rgba(255,255,255,0.1)" }}>
-              <button onClick={onSignOut} style={{ width:"100%",background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.3)",color:"#FCA5A5",borderRadius:10,padding:"8px",fontSize:12,fontWeight:700,cursor:"pointer" }}>Sign Out</button>
             </div>
-          </aside>
-        )}
-
-        {/* Mobile overlay backdrop */}
-        {isMobile && menuOpen && (
-          <div onClick={()=>setMenuOpen(false)} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:140 }} />
-        )}
-
-        {/* Main content */}
-        <main style={{ flex:1,overflowY:"auto",padding:"28px 24px",minWidth:0 }}>
-          <div style={{ maxWidth:900,margin:"0 auto" }}>
-            {SECTION_MAP[tab] || OverviewSection}
           </div>
-        </main>
+        </div>
+
+        {/* ── CONTENT ── */}
+        <div style={{ maxWidth:1400, margin:"0 auto", padding:"28px 28px" }}>
+          {SECTION_MAP[tab] || OverviewSection}
+        </div>
       </div>
 
       {payLinkModal}
