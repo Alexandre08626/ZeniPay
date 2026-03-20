@@ -1,14 +1,7 @@
 export const dynamic = "force-dynamic";
 
-/**
- * ZeniPay — Record Payment
- * Called when a client completes payment on /pay/[id]
- * Does everything: transaction, wallet, invoice, accounting, analytics
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { recordPaymentReceived } from "../../../../modules/zenipay/services/ledger";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getSupabase(): any {
@@ -24,92 +17,45 @@ export async function POST(req: NextRequest) {
     if (!pay_link_id) return NextResponse.json({ error: "Missing pay_link_id" }, { status: 400 });
 
     const supabase = getSupabase();
-    if (!supabase) return NextResponse.json({ ok: true, note: "No DB" });
+    if (!supabase) return NextResponse.json({ ok: false, error: "No DB connection" });
 
     const now = new Date().toISOString();
     const txnId = `ZNV-${Date.now().toString(36).toUpperCase()}`;
     const amt = parseFloat(String(amount));
     const cur = currency || "USD";
 
-    // ── 1. Insert into zenipay_payments (Transactions tab) ────────────────
-    await supabase.from("zenipay_payments").insert({
+    // ── 1. Insert into zenipay_payments — only safe known columns ─────────
+    const { error: payErr } = await supabase.from("zenipay_payments").insert({
       id: txnId,
-      pay_link_id,
       amount: amt,
       currency: cur,
       description: description || "",
       customer_name: customer_name || "",
-      card_last4: card_last4 || "",
       status: "succeeded",
-      gateway: "ZeniPay",
       created_at: now,
-      updated_at: now,
     });
+    if (payErr) console.error("[record-payment] zenipay_payments insert:", payErr.message);
 
-    // ── 2. Ledger + wallets + accounting (Banking tab) ────────────────────
-    try {
-      await recordPaymentReceived({ paymentId: txnId, amount: amt, currency: cur });
-    } catch (e) {
-      console.warn("[record-payment] ledger error (non-fatal):", e);
-    }
-
-    // ── 3. Find merchant via pay link ─────────────────────────────────────
+    // ── 2. Find merchant ───────────────────────────────────────────────────
     let merchantId: string | null = null;
     const { data: link } = await supabase
-      .from("zenipay_pay_links")
-      .select("merchant_id, uses")
-      .eq("id", pay_link_id)
-      .single();
+      .from("zenipay_pay_links").select("merchant_id, uses").eq("id", pay_link_id).single();
     merchantId = link?.merchant_id || null;
 
-    // Fallback: scan merchant_data.payLinks
     if (!merchantId) {
-      const { data: allMerchants } = await supabase
-        .from("zenipay_merchants")
-        .select("id, merchant_data");
-      for (const m of (allMerchants || [])) {
-        const links: { id: string }[] = m.merchant_data?.payLinks || [];
-        if (links.some((l) => l.id === pay_link_id)) { merchantId = m.id; break; }
+      const { data: all } = await supabase.from("zenipay_merchants").select("id, merchant_data");
+      for (const m of (all || [])) {
+        if ((m.merchant_data?.payLinks || []).some((l: { id: string }) => l.id === pay_link_id)) {
+          merchantId = m.id; break;
+        }
       }
     }
 
     if (merchantId) {
-      const { data: merchantRow } = await supabase
-        .from("zenipay_merchants")
-        .select("merchant_data, volume, tx_count, balance")
-        .eq("id", merchantId)
-        .single();
+      const { data: merchant } = await supabase
+        .from("zenipay_merchants").select("merchant_data, volume, tx_count, balance").eq("id", merchantId).single();
 
-      const existing = merchantRow?.merchant_data || {};
-
-      // ── 4. Auto-generate invoice ──────────────────────────────────────
-      const invoiceId = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
-      const invoice = {
-        id: invoiceId,
-        client: customer_name || "Client",
-        booking: description || pay_link_id,
-        amount: amt,
-        currency: cur,
-        status: "paid",
-        date: now.split("T")[0],
-        pay_link_id: pay_link_id,
-        txn_id: txnId,
-      };
-
-      // Also insert into zenipay_invoices table
-      await supabase.from("zenipay_invoices").insert({
-        id: invoiceId,
-        merchant_id: merchantId,
-        client_name: customer_name || "Client",
-        description: description || pay_link_id,
-        amount: amt,
-        currency: cur,
-        status: "paid",
-        pay_link_id,
-        payment_id: txnId,
-        created_at: now,
-        updated_at: now,
-      }).then(() => {}).catch(() => {}); // non-fatal if column missing
+      const md = merchant?.merchant_data || {};
 
       const txn = {
         id: txnId, pay_link_id, amount: amt, currency: cur,
@@ -117,33 +63,50 @@ export async function POST(req: NextRequest) {
         card_last4: card_last4 || "", status: "succeeded", createdAt: now,
       };
 
-      // ── 5. Update merchant_data (transactions + invoices) ─────────────
-      await supabase
-        .from("zenipay_merchants")
-        .update({
-          merchant_data: {
-            ...existing,
-            transactions: [txn, ...(existing.transactions || [])],
-            invoices: [invoice, ...(existing.invoices || [])],
-          },
-          // ── 6. Update merchant balance + volume (Analytics/Accounting) ──
-          balance: (merchantRow?.balance || 0) + amt,
-          volume: (merchantRow?.volume || 0) + amt,
-          tx_count: (merchantRow?.tx_count || 0) + 1,
-          updated_at: now,
-        })
-        .eq("id", merchantId);
+      const invoice = {
+        id: `INV-${Date.now()}`,
+        client: customer_name || "Client",
+        booking: description || pay_link_id,
+        amount: amt, currency: cur,
+        status: "paid", date: now.split("T")[0],
+      };
 
-      // Mark pay link uses++
-      await supabase
-        .from("zenipay_pay_links")
-        .update({ uses: (link?.uses || 0) + 1, updated_at: now })
-        .eq("id", pay_link_id);
+      // ── 3. Update merchant: transactions + invoice + balance + volume ───
+      const { error: updErr } = await supabase.from("zenipay_merchants").update({
+        merchant_data: {
+          ...md,
+          transactions: [txn, ...(md.transactions || [])],
+          invoices: [invoice, ...(md.invoices || [])],
+        },
+        balance:   (merchant?.balance   || 0) + amt,
+        volume:    (merchant?.volume    || 0) + amt,
+        tx_count:  (merchant?.tx_count  || 0) + 1,
+        updated_at: now,
+      }).eq("id", merchantId);
+      if (updErr) console.error("[record-payment] merchant update:", updErr.message);
+
+      // ── 4. Update ledger (wallets/banking) ────────────────────────────
+      await supabase.from("zenipay_ledger").insert({
+        id: `led_${Date.now()}`,
+        payment_id: txnId,
+        event_type: "customer_payment",
+        wallet_type: "platform",
+        direction: "credit",
+        amount: amt,
+        currency: cur,
+        reference: txnId,
+        note: `Payment: ${description || pay_link_id}`,
+        created_at: now,
+      }).then(() => {}).catch(() => {});
+
+      // ── 5. Mark pay link used ─────────────────────────────────────────
+      await supabase.from("zenipay_pay_links")
+        .update({ uses: (link?.uses || 0) + 1, updated_at: now }).eq("id", pay_link_id);
     }
 
     return NextResponse.json({ ok: true, id: txnId });
   } catch (err) {
-    console.error("[record-payment] Error:", err);
+    console.error("[record-payment] Fatal:", err);
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
