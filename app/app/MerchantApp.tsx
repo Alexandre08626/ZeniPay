@@ -1017,40 +1017,63 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
             <button onClick={onSignOut} style={{ background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.35)",color:"#FCA5A5",borderRadius:8,padding:"5px 14px",fontSize:12,fontWeight:700,cursor:"pointer" }}>Sign Out</button>
           </div>
         </div>
-        {/* Tab bar — desktop */}
-        {!isMobile && (
-          <div style={{ display:"flex",alignItems:"center",padding:"0 16px",overflowX:"auto",height:44,gap:2 }}>
-            {TABS.map(t=>(
-              <button key={t.id} onClick={()=>setTab(t.id)} style={{ display:"flex",alignItems:"center",gap:7,padding:"0 14px",height:"100%",background:"transparent",border:"none",borderBottom:`2px solid ${tab===t.id?ZP_CYAN:"transparent"}`,color:tab===t.id?"#fff":"rgba(255,255,255,0.5)",fontSize:13,fontWeight:tab===t.id?700:500,cursor:"pointer",whiteSpace:"nowrap" as const,transition:"all 0.15s" }}>
-                <span style={{ fontSize:15 }}>{t.icon}</span>{t.label}
-              </button>
-            ))}
-          </div>
-        )}
-        {/* Mobile: hamburger */}
-        {isMobile && (
-          <div style={{ display:"flex",alignItems:"center",padding:"0 16px",height:44,justifyContent:"space-between" }}>
-            <span style={{ fontSize:14,fontWeight:700,color:"#fff" }}>{TABS.find(t=>t.id===tab)?.icon} {TABS.find(t=>t.id===tab)?.label}</span>
-            <button onClick={()=>setMenuOpen(v=>!v)} style={{ background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",borderRadius:8,padding:"6px 14px",fontSize:13,fontWeight:700,cursor:"pointer" }}>☰ Menu</button>
-          </div>
-        )}
+        {/* Current section label + mobile menu toggle */}
+        <div style={{ display:"flex",alignItems:"center",padding:"0 20px",height:44,gap:12,borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+          {isMobile && (
+            <button onClick={()=>setMenuOpen(v=>!v)} style={{ background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",borderRadius:8,padding:"5px 12px",fontSize:13,fontWeight:700,cursor:"pointer" }}>☰</button>
+          )}
+          <span style={{ fontSize:13,color:"rgba(255,255,255,0.6)" }}>{TABS.find(t=>t.id===tab)?.icon} {TABS.find(t=>t.id===tab)?.label}</span>
+        </div>
       </nav>
 
-      {/* Mobile dropdown menu */}
-      {isMobile && menuOpen && (
-        <div style={{ background:TOPNAV,borderBottom:"1px solid rgba(255,255,255,0.1)",zIndex:190,position:"sticky",top:96 }}>
-          {TABS.map(t=>(
-            <button key={t.id} onClick={()=>{setTab(t.id);setMenuOpen(false);}} style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"12px 20px",background:tab===t.id?"rgba(255,255,255,0.08)":"transparent",border:"none",borderLeft:`3px solid ${tab===t.id?ZP_CYAN:"transparent"}`,color:tab===t.id?"#fff":"rgba(255,255,255,0.6)",fontSize:14,fontWeight:tab===t.id?700:400,cursor:"pointer",textAlign:"left" as const }}>
-              <span style={{ fontSize:18 }}>{t.icon}</span>{t.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* ── BODY: sidebar + content ─────────────────────── */}
+      <div style={{ display:"flex",flex:1,minHeight:0 }}>
 
-      {/* ── MAIN CONTENT ─────────────────────────────────── */}
-      <main style={{ flex:1,overflowY:"auto",padding:"28px 24px",maxWidth:960,width:"100%",margin:"0 auto" }}>
-        {SECTION_MAP[tab] || OverviewSection}
-      </main>
+        {/* Sidebar — desktop always visible, mobile slide-in */}
+        {(!isMobile || menuOpen) && (
+          <aside style={{ width:220,background:TOPNAV,borderRight:"1px solid rgba(255,255,255,0.12)",display:"flex",flexDirection:"column",flexShrink:0,position:isMobile?"fixed":"sticky",top:isMobile?0:96,height:isMobile?"100vh":"calc(100vh - 96px)",zIndex:150,overflowY:"auto" }}>
+            {/* Mobile header in sidebar */}
+            {isMobile && (
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.12)" }}>
+                <span style={{ fontWeight:800,fontSize:15,background:ZP_GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent" }}>ZeniPay</span>
+                <button onClick={()=>setMenuOpen(false)} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:22,lineHeight:1 }}>×</button>
+              </div>
+            )}
+            {/* Business + mode */}
+            <div style={{ padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
+              <div style={{ fontSize:13,fontWeight:700,color:"#fff",marginBottom:6,whiteSpace:"nowrap" as const,overflow:"hidden",textOverflow:"ellipsis" }}>{account.businessName}</div>
+              {isSandbox
+                ? <span style={{ fontSize:10,fontWeight:800,padding:"2px 9px",borderRadius:10,background:"rgba(217,119,6,0.3)",color:"#F59E0B",border:"1px solid rgba(217,119,6,0.5)" }}>◎ SANDBOX</span>
+                : <span style={{ fontSize:10,fontWeight:800,padding:"2px 9px",borderRadius:10,background:"rgba(45,190,96,0.2)",color:ZP_GREEN,border:"1px solid rgba(45,190,96,0.4)" }}>● LIVE</span>
+              }
+            </div>
+            {/* Nav */}
+            <nav style={{ flex:1,padding:"8px 6px" }}>
+              {TABS.map(t=>(
+                <button key={t.id} onClick={()=>{setTab(t.id);if(isMobile)setMenuOpen(false);}} style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:tab===t.id?`linear-gradient(135deg,${ZP_CYAN}25,${ZP_CYAN}10)`:"transparent",border:tab===t.id?`1px solid ${ZP_CYAN}40`:"1px solid transparent",borderRadius:10,color:tab===t.id?"#fff":"rgba(255,255,255,0.55)",fontSize:13,fontWeight:tab===t.id?700:500,cursor:"pointer",textAlign:"left" as const,marginBottom:1,transition:"all 0.15s" }}>
+                  <span style={{ fontSize:16,width:22 }}>{t.icon}</span>{t.label}
+                </button>
+              ))}
+            </nav>
+            {/* Sign out */}
+            <div style={{ padding:"10px 14px",borderTop:"1px solid rgba(255,255,255,0.1)" }}>
+              <button onClick={onSignOut} style={{ width:"100%",background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.3)",color:"#FCA5A5",borderRadius:10,padding:"8px",fontSize:12,fontWeight:700,cursor:"pointer" }}>Sign Out</button>
+            </div>
+          </aside>
+        )}
+
+        {/* Mobile overlay backdrop */}
+        {isMobile && menuOpen && (
+          <div onClick={()=>setMenuOpen(false)} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:140 }} />
+        )}
+
+        {/* Main content */}
+        <main style={{ flex:1,overflowY:"auto",padding:"28px 24px",minWidth:0 }}>
+          <div style={{ maxWidth:900,margin:"0 auto" }}>
+            {SECTION_MAP[tab] || OverviewSection}
+          </div>
+        </main>
+      </div>
 
       {payLinkModal}
       {invoiceModal}
