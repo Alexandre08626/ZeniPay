@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // ─── Brand ─────────────────────────────────────────────
 const ZP_GREEN  = "#2DBE60";
@@ -106,12 +107,19 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   onSignOut: () => void;
   onApproved?: () => void;
 }) {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
   const isSandbox = mode === "sandbox";
   const baseTabs = getTabs(account.plan);
   const TABS = isSandbox
     ? [...baseTabs, { id: "go-live", icon: "🚀", label: "Go Live" }]
     : baseTabs;
-  const [tab,         setTab]         = useState("overview");
+
+  const validTabs = TABS.map(t => t.id);
+  const tabFromUrl = searchParams.get("tab") || "overview";
+  const tab = validTabs.includes(tabFromUrl) ? tabFromUrl : "overview";
+  const setTab = (id: string) => router.push(`/app?tab=${id}`);
+
   const [sideOpen,    setSideOpen]    = useState(true);
   const [isMobile,    setIsMobile]    = useState(false);
   const [modal,       setModal]       = useState<string|null>(null);
