@@ -137,6 +137,91 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
 
   const saveBankCfg = (u: Partial<BankCfg>) => setBankCfg(p => ({ ...p, ...u } as BankCfg));
 
+  // ── Auto-seed sandbox data on first load ─────────────
+  useEffect(() => {
+    // Build realistic Canadian business data from the account
+    const site = account.website || `https://${(account.businessName || "monentreprise").toLowerCase().replace(/\s+/g, "")}.ca`;
+    const industry = account.businessType || "E-commerce";
+    const volume   = (account.monthlyVolume || "").includes("200") ? "$200,000+" : "$10,000–$50,000";
+
+    // Pre-fill Go Live form if it's empty
+    const currentGL = (() => { try { return JSON.parse(localStorage.getItem(glKey) || "{}"); } catch { return {}; } })();
+    if (!currentGL.form?.legalName) {
+      const f: Record<string,string> = {
+        legalName:      account.businessName || account.ownerName,
+        businessNum:    "789456123",
+        address:        "456 Rue Saint-Denis, Montréal, QC  H2J 2L1",
+        industry,
+        website2:       site,
+        monthlyVolume2: volume,
+        avgTicket:      "$100–$500",
+        intlCards:      "Yes — mostly domestic",
+        refundPolicy:   `${site}/remboursements`,
+        termsUrl:       `${site}/conditions`,
+      };
+      setGlForm(f);
+      try { localStorage.setItem(glKey, JSON.stringify({ ...currentGL, form: f })); } catch {}
+    }
+
+    // Pre-configure bank account if not set
+    const currentBank: BankCfg = loadData("bankCfg", { holderName:"",bankName:"",transit:"",institution:"",accountNum:"",accountType:"chequing",step:0 });
+    if (currentBank.step === 0) {
+      const seeded: BankCfg = {
+        holderName:  account.ownerName || account.businessName,
+        bankName:    "TD Canada Trust",
+        transit:     "00152",
+        institution: "004",
+        accountNum:  "5678912",
+        accountType: "business chequing",
+        step:        3,
+      };
+      setBankCfg(seeded);
+      saveData("bankCfg", seeded);
+    }
+
+    // Seed sample pay links if none exist
+    const currentLinks: PayLink[] = loadData("paylinks", []);
+    if (currentLinks.length === 0) {
+      const links: PayLink[] = [
+        { id: uid(), title: "Consultation 1h",    amount: 150,  url: `https://pay.zenipay.ca/l/${uid().toLowerCase()}`, uses: 3,  createdAt: new Date(Date.now()-7*864e5).toISOString(),  status: "active" },
+        { id: uid(), title: "Forfait Mensuel",    amount: 499,  url: `https://pay.zenipay.ca/l/${uid().toLowerCase()}`, uses: 12, createdAt: new Date(Date.now()-14*864e5).toISOString(), status: "active" },
+        { id: uid(), title: "Dépôt Réservation",  amount: 250,  url: `https://pay.zenipay.ca/l/${uid().toLowerCase()}`, uses: 1,  createdAt: new Date(Date.now()-3*864e5).toISOString(),  status: "active" },
+      ];
+      setPayLinks(links);
+    }
+
+    // Seed sample invoices if none
+    const currentInv: Invoice[] = loadData("invoices", []);
+    if (currentInv.length === 0) {
+      const invoiceSeed: Invoice[] = [
+        { id: "INV001", client: "Jean Tremblay",     email: "jean@tremblay.ca",   amount: 1800, status: "paid",  dueDate: new Date(Date.now()-5*864e5).toISOString().split("T")[0],  createdAt: new Date(Date.now()-20*864e5).toISOString(), items: [{desc:"Développement web",qty:1,price:1800}] },
+        { id: "INV002", client: "Marie Côté",        email: "marie@coteinc.ca",   amount: 650,  status: "sent",  dueDate: new Date(Date.now()+10*864e5).toISOString().split("T")[0], createdAt: new Date(Date.now()-7*864e5).toISOString(),  items: [{desc:"Design graphique",qty:1,price:650}] },
+        { id: "INV003", client: "Boutique Léa",      email: "lea@boutiqulea.ca",  amount: 2400, status: "paid",  dueDate: new Date(Date.now()-15*864e5).toISOString().split("T")[0], createdAt: new Date(Date.now()-30*864e5).toISOString(), items: [{desc:"Refonte boutique",qty:1,price:2000},{desc:"Formation",qty:2,price:200}] },
+        { id: "INV004", client: "Solutions Pro Inc", email: "admin@solpro.ca",    amount: 900,  status: "draft", dueDate: new Date(Date.now()+20*864e5).toISOString().split("T")[0], createdAt: new Date().toISOString(),                    items: [{desc:"Consultation",qty:3,price:300}] },
+        { id: "INV005", client: "Groupe Marchand",   email: "info@gmarchand.ca",  amount: 3200, status: "paid",  dueDate: new Date(Date.now()-25*864e5).toISOString().split("T")[0], createdAt: new Date(Date.now()-40*864e5).toISOString(), items: [{desc:"Projet e-commerce",qty:1,price:2800},{desc:"SEO setup",qty:1,price:400}] },
+      ];
+      setInvoices(invoiceSeed);
+    }
+
+    // Seed sample payouts if none
+    const currentPo: Payout[] = loadData("payouts", []);
+    if (currentPo.length === 0) {
+      const payoutSeed: Payout[] = [
+        { id: uid(), recipient: account.ownerName || account.businessName, amount: 2500, method: "e-Transfer",  status: "sent",    createdAt: new Date(Date.now()-10*864e5).toISOString() },
+        { id: uid(), recipient: "Fournisseur ABC",                         amount: 850,  method: "ACH / EFT",   status: "sent",    createdAt: new Date(Date.now()-22*864e5).toISOString() },
+        { id: uid(), recipient: account.ownerName || account.businessName, amount: 1800, method: "e-Transfer",  status: "pending", createdAt: new Date().toISOString() },
+      ];
+      setPayouts(payoutSeed);
+    }
+
+    // Mark Go Live as submitted (step 4 = Under Review) if not already advanced
+    if (!currentGL.step || currentGL.step < 4) {
+      try { localStorage.setItem(glKey, JSON.stringify({ ...currentGL, step: 4, submitted: true })); } catch {}
+      setGlStep(4);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account.email]);
+
   // ── Pay Link form ────────────────────────────────────
   const [plForm, setPlForm] = useState({ title: "", amount: "", email: "", desc: "" });
   const createPayLink = () => {
