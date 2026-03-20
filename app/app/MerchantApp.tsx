@@ -170,6 +170,9 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [bankActForm, setBankActForm] = useState<Record<string,string>>({});
   const [whUrl,        setWhUrl]        = useState("");
   const [whSaved,      setWhSaved]      = useState(false);
+  const [editingKeys,  setEditingKeys]  = useState(false);
+  const [keyDraft,     setKeyDraft]     = useState({ liveKey:"", liveSecret:"", sandboxKey:"", sandboxSecret:"" });
+  const [keysSaved,    setKeysSaved]    = useState(false);
   const [notifEmail,   setNotifEmail]   = useState(true);
   const [benChat,      setBenChat]      = useState<{role:"ben"|"user";text:string}[]>([
     { role:"ben", text:`Hi! I'm Ben, your ZeniPay financial AI assistant. I monitor your account 24/7, detect anomalies, and give you real-time financial intelligence. Ask me anything about your revenue, payouts, or account health.` }
@@ -1312,8 +1315,15 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
       {/* Keys card */}
       <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:18,overflow:"hidden",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-        <div style={{ padding:"12px 18px",borderBottom:`1px solid ${BORDER}`,fontSize:11,fontWeight:800,color:isSandbox?"#D97706":ZP_GREEN,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>
-          {isSandbox?"🧪 Sandbox Credentials":"● Live Credentials"}
+        <div style={{ padding:"12px 18px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+          <span style={{ fontSize:11,fontWeight:800,color:isSandbox?"#D97706":ZP_GREEN,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>
+            {isSandbox?"🧪 Sandbox Credentials":"● Live Credentials"}
+          </span>
+          {!isSandbox && (
+            <button onClick={()=>{ if(!editingKeys){ setKeyDraft({ liveKey:account.liveKey||"", liveSecret:"zps_live_"+account.id, sandboxKey:account.sandboxKey||"", sandboxSecret:account.sandboxSecret||"" }); setKeysSaved(false); } setEditingKeys(v=>!v); }} style={{ background:editingKeys?"rgba(239,68,68,0.08)":ZP_GRAD,color:editingKeys?"#DC2626":"#fff",border:editingKeys?"1px solid rgba(239,68,68,0.2)":"none",cursor:"pointer",padding:"6px 16px",borderRadius:8,fontSize:12,fontWeight:700 }}>
+              {editingKeys?"✕ Cancel":"✏️ Edit Keys"}
+            </button>
+          )}
         </div>
         {isSandbox ? (
           <>
@@ -1331,7 +1341,40 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
               <button onClick={()=>setTab("go-live")} style={{ background:ZP_GRAD,color:"#fff",border:"none",cursor:"pointer",padding:"9px 22px",borderRadius:10,fontSize:13,fontWeight:800 }}>Activate Live Account →</button>
             </div>
           </>
+        ) : editingKeys ? (
+          /* ── Edit mode ── */
+          <div style={{ padding:"18px 18px" }}>
+            <div style={{ fontSize:12,color:MUTED,marginBottom:16 }}>Update your API keys below — changes are saved to this device.</div>
+            {([
+              {label:"Live Publishable Key",field:"liveKey" as const,note:""},
+              {label:"Live Secret Key",field:"liveSecret" as const,note:"Never expose in client-side code"},
+              {label:"Sandbox Publishable Key",field:"sandboxKey" as const,note:""},
+              {label:"Sandbox Secret Key",field:"sandboxSecret" as const,note:""},
+            ]).map(k=>(
+              <div key={k.field} style={{ marginBottom:14 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:6 }}>
+                  <span style={{ fontSize:11,color:MUTED,fontWeight:700 }}>{k.label}</span>
+                  {k.note && <span style={{ fontSize:10,background:"rgba(239,68,68,0.08)",color:"#DC2626",padding:"2px 8px",borderRadius:20,fontWeight:600 }}>{k.note}</span>}
+                </div>
+                <input value={keyDraft[k.field]} onChange={e=>setKeyDraft(d=>({...d,[k.field]:e.target.value}))} placeholder={`Enter ${k.label.toLowerCase()}`} style={{ ...IS,width:"100%",boxSizing:"border-box" as const,fontFamily:"monospace",fontSize:12 }} />
+              </div>
+            ))}
+            <button onClick={()=>{
+              try {
+                const all: Account[] = JSON.parse(localStorage.getItem("zp_accounts")||"[]");
+                const idx = all.findIndex(a=>a.email===account.email);
+                const updated = { ...account, liveKey:keyDraft.liveKey, sandboxKey:keyDraft.sandboxKey, sandboxSecret:keyDraft.sandboxSecret };
+                if(idx>=0){ all[idx]=updated; } else { all.push(updated); }
+                localStorage.setItem("zp_accounts",JSON.stringify(all));
+              } catch {}
+              setKeysSaved(true);
+              setTimeout(()=>setEditingKeys(false),900);
+            }} style={{ background:ZP_GRAD,color:"#fff",border:"none",cursor:"pointer",padding:"11px 28px",borderRadius:10,fontSize:13,fontWeight:800,width:"100%" }}>
+              {keysSaved?"✓ Saved!":"Save Keys"}
+            </button>
+          </div>
         ) : (
+          /* ── Display mode ── */
           <>
             {[{label:"Live Publishable Key",val:account.liveKey||activeKey||"zpk_live_"+account.id},{label:"Live Secret Key",val:"zps_live_"+account.id,note:"Never expose this in client-side code"},{label:"Sandbox Publishable Key",val:account.sandboxKey},{label:"Sandbox Secret Key",val:account.sandboxSecret}].map(k=>(
               <div key={k.label} style={{ padding:"14px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
