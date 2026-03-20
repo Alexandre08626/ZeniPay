@@ -82,7 +82,7 @@ function PayLinkContent() {
     }
     setError(""); setLoading(true);
     try {
-      await fetch("/api/zenipay/provision", {
+      await fetch("/api/zenipay/record-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
