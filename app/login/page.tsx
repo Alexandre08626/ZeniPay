@@ -18,11 +18,10 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError("");
 
-    // Zeniva Travel — direct access with either email
+    // Zeniva Travel — direct access, NO email stored so page.tsx loads hardcoded account
     const isZeniva = (email === "info@zeniva.ca" || email === "info@zenivatravel.com");
     if (isZeniva && (pw === "Ballon22" || pw === "client2026")) {
-      sessionStorage.setItem("zp_client", "cl-001");
-      sessionStorage.setItem("zp_client_email", "info@zeniva.ca");
+      sessionStorage.setItem("zp_client", "zeniva");
       sessionStorage.setItem("zp_client_mode", mode);
       sessionStorage.setItem("zp_client_sandbox_key", "zpk_sandbox_zeniva_7x2");
       router.replace("/app");
