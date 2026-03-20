@@ -66,9 +66,11 @@ const IS: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRad
 
 // ─── Tabs by plan ───────────────────────────────────────
 function getTabs(plan: string) {
+  // Banking (payout account) is available to ALL plans
   const base = [
     { id: "overview",     icon: "📊", label: "Overview"     },
     { id: "transactions", icon: "💳", label: "Transactions" },
+    { id: "banking",      icon: "🏦", label: "Bank Account" },
     { id: "paylinks",     icon: "🔗", label: "Pay Links"    },
     { id: "invoices",     icon: "📄", label: "Invoices"     },
     { id: "payouts",      icon: "💸", label: "Payouts"      },
@@ -76,12 +78,13 @@ function getTabs(plan: string) {
     { id: "settings",     icon: "⚙️", label: "Settings"     },
   ];
   const extra = [
-    { id: "banking",      icon: "🏦", label: "ZeniCard"     },
     { id: "accounting",   icon: "📚", label: "Accounting"   },
     { id: "analytics",    icon: "📈", label: "Analytics"    },
   ];
   if (plan === "Business" || plan === "Complete") {
-    return [base[0], base[1], extra[0], ...base.slice(2, 5), extra[1], extra[2], ...base.slice(5)];
+    // Insert accounting + analytics before keys
+    const idx = base.findIndex(t => t.id === "keys");
+    return [...base.slice(0, idx), ...extra, ...base.slice(idx)];
   }
   return base;
 }
@@ -774,6 +777,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   // ── GO LIVE ───────────────────────────────────────────
   const GL_STEPS = [
     { id:"business",    icon:"🏢", title:"Business Verification", desc:"Confirm your legal business information" },
+    { id:"banking",     icon:"🏦", title:"Bank Account",          desc:"Where should we send your payouts?" },
     { id:"integration", icon:"⚙️", title:"Integration Setup",      desc:"Install the SDK and run a test payment" },
     { id:"compliance",  icon:"📋", title:"Volume & Compliance",    desc:"Required for payment network compliance" },
     { id:"review",      icon:"🔍", title:"Under Review",           desc:"We're reviewing your application" },
@@ -841,7 +845,58 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
               <button onClick={()=>{setGlStep(1);saveGL({step:1});}} disabled={!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry} style={{ marginTop:18,width:"100%",padding:13,background:(!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry)?BORDER:ZP_GRAD,color:(!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry)?MUTED:"#fff",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer" }}>Save & Continue →</button>
             </div>
           )}
+          {/* Step 1 – Bank Account */}
           {glStep===1&&(
+            <div>
+              <div style={{ marginBottom:14,padding:"10px 14px",background:"rgba(21,184,201,0.06)",border:"1px solid rgba(21,184,201,0.2)",borderRadius:10,fontSize:13,color:MUTED,lineHeight:1.6 }}>
+                Enter your Canadian bank account details to receive payouts. This is where ZeniPay will deposit your settlements.
+              </div>
+              {bankCfg.step >= 3 ? (
+                <div>
+                  <div style={{ padding:"14px 18px",background:"rgba(45,190,96,0.06)",border:"1px solid rgba(45,190,96,0.3)",borderRadius:12,marginBottom:14 }}>
+                    <div style={{ fontSize:14,fontWeight:800,color:ZP_GREEN,marginBottom:4 }}>✓ Bank account connected</div>
+                    <div style={{ fontSize:13,color:MUTED }}>{bankCfg.bankName} — {bankCfg.accountType} ••••{bankCfg.accountNum.slice(-3)}</div>
+                  </div>
+                  <div style={{ display:"flex",gap:10 }}>
+                    <button onClick={()=>saveBankCfg({step:1})} style={{ flex:1,padding:10,background:"#f8fafc",border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer" }}>Change account</button>
+                    <button onClick={()=>{setGlStep(2);saveGL({step:2});}} style={{ flex:3,padding:12,background:ZP_GRAD,color:"#fff",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer" }}>Continue →</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+                    {[
+                      {label:"Account Holder Name", key:"holderName",   ph:account.businessName||"Business Name", full:true,  sel:undefined},
+                      {label:"Bank / Institution",  key:"bankName",     ph:"",    full:false, sel:["TD Canada Trust","RBC Royal Bank","BMO Bank of Montreal","Scotiabank","CIBC","National Bank","Desjardins","ATB Financial","Other"]},
+                      {label:"Transit Number",      key:"transit",      ph:"00001", full:false, sel:undefined},
+                      {label:"Institution Number",  key:"institution",  ph:"004",   full:false, sel:undefined},
+                      {label:"Account Number",      key:"accountNum",   ph:"1234567",full:false,sel:undefined},
+                      {label:"Account Type",        key:"accountType",  ph:"",    full:false, sel:["chequing","savings","business chequing"]},
+                    ].map(f=>(
+                      <div key={f.key} style={{ gridColumn:f.full?"1/-1":"auto" }}>
+                        <label style={{ fontSize:11,color:MUTED,fontWeight:700,display:"block",marginBottom:5,textTransform:"uppercase" as const,letterSpacing:"0.06em" }}>{f.label}</label>
+                        {f.sel
+                          ?<select value={bankCfg[f.key] as string||""} onChange={e=>saveBankCfg({[f.key]:e.target.value} as Partial<BankCfg>)} style={IS}><option value="">Choose…</option>{f.sel.map(o=><option key={o}>{o}</option>)}</select>
+                          :<input type="text" placeholder={f.ph} value={bankCfg[f.key] as string||""} onChange={e=>saveBankCfg({[f.key]:e.target.value} as Partial<BankCfg>)} style={IS}/>
+                        }
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding:"8px 14px",background:"rgba(21,184,201,0.06)",border:"1px solid rgba(21,184,201,0.2)",borderRadius:10,fontSize:12,color:MUTED,marginBottom:14 }}>
+                    🔒 Your banking details are encrypted and stored securely. A void cheque or bank letter may be requested.
+                  </div>
+                  <button
+                    onClick={()=>{ saveBankCfg({step:3}); setGlStep(2); saveGL({step:2}); }}
+                    disabled={!bankCfg.holderName||!bankCfg.bankName||!bankCfg.transit||!bankCfg.accountNum}
+                    style={{ width:"100%",padding:13,background:(!bankCfg.holderName||!bankCfg.bankName||!bankCfg.transit||!bankCfg.accountNum)?BORDER:ZP_GRAD,color:(!bankCfg.holderName||!bankCfg.bankName||!bankCfg.transit||!bankCfg.accountNum)?MUTED:"#fff",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer" }}>
+                    Save Bank Account & Continue →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {/* Step 2 – Integration */}
+          {glStep===2&&(
             <div>
               <div style={{ marginBottom:14,padding:"10px 14px",background:"rgba(45,190,96,0.06)",border:"1px solid rgba(45,190,96,0.2)",borderRadius:10,fontSize:13,color:MUTED,lineHeight:1.6 }}>Follow these steps in your terminal / codebase. Check each when done.</div>
               <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
@@ -861,10 +916,11 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
                   </div>
                 ))}
               </div>
-              <button onClick={()=>{setGlStep(2);saveGL({step:2});}} disabled={Object.values(glChecked).filter(Boolean).length<2} style={{ marginTop:18,width:"100%",padding:13,background:Object.values(glChecked).filter(Boolean).length<2?BORDER:ZP_GRAD,color:Object.values(glChecked).filter(Boolean).length<2?MUTED:"#fff",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer" }}>Integration looks good → Continue</button>
+              <button onClick={()=>{setGlStep(3);saveGL({step:3});}} disabled={Object.values(glChecked).filter(Boolean).length<2} style={{ marginTop:18,width:"100%",padding:13,background:Object.values(glChecked).filter(Boolean).length<2?BORDER:ZP_GRAD,color:Object.values(glChecked).filter(Boolean).length<2?MUTED:"#fff",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer" }}>Integration looks good → Continue</button>
             </div>
           )}
-          {glStep===2&&(
+          {/* Step 3 – Compliance */}
+          {glStep===3&&(
             <div>
               <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
                 {[
@@ -884,10 +940,11 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
                 ))}
               </div>
               <div style={{ marginTop:14,padding:"10px 14px",background:"#f8fafc",border:`1px solid ${BORDER}`,borderRadius:10,fontSize:12,color:MUTED,lineHeight:1.7 }}>By submitting you agree to the ZeniPay Merchant Agreement and confirm all information is accurate.</div>
-              <button onClick={()=>{setGlStep(3);saveGL({step:3,submitted:true});}} disabled={!glForm.monthlyVolume2||!glForm.avgTicket} style={{ marginTop:14,width:"100%",padding:13,background:(!glForm.monthlyVolume2||!glForm.avgTicket)?BORDER:ZP_GRAD,color:(!glForm.monthlyVolume2||!glForm.avgTicket)?MUTED:"#fff",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer" }}>Submit for Live Review →</button>
+              <button onClick={()=>{setGlStep(4);saveGL({step:4,submitted:true});}} disabled={!glForm.monthlyVolume2||!glForm.avgTicket} style={{ marginTop:14,width:"100%",padding:13,background:(!glForm.monthlyVolume2||!glForm.avgTicket)?BORDER:ZP_GRAD,color:(!glForm.monthlyVolume2||!glForm.avgTicket)?MUTED:"#fff",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer" }}>Submit for Live Review →</button>
             </div>
           )}
-          {glStep===3&&(
+          {/* Step 4 – Under Review */}
+          {glStep===4&&(
             <div style={{ textAlign:"center" as const,padding:"16px 0 8px" }}>
               <div style={{ fontSize:48,marginBottom:14 }}>⏳</div>
               <h3 style={{ fontSize:20,fontWeight:900,margin:"0 0 10px",color:TEXT }}>Application submitted!</h3>
