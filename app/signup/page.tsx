@@ -59,7 +59,7 @@ export default function SignupPage() {
     setStep(2);
   };
 
-  const handleStep2 = (e: React.FormEvent) => {
+  const handleStep2 = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwError("");
     if (password.length < 8) return setPwError("Password must be at least 8 characters.");
@@ -86,21 +86,22 @@ export default function SignupPage() {
       sandboxKey: sbKey,
       sandboxSecret: sbSecret,
       liveKey,
-      password,
-      createdAt: new Date().toISOString(),
-      volume: 0,
-      txCount: 0,
-      balance: 0,
-      notes: "",
     };
 
-    // Save to localStorage for admin + login
+    // Save to Supabase via API (visible from all devices)
     try {
-      const existing = JSON.parse(localStorage.getItem("zp_accounts") || "[]");
-      existing.push(account);
-      localStorage.setItem("zp_accounts", JSON.stringify(existing));
-      // Auto-login to sandbox
-      sessionStorage.setItem("zp_client", account.businessName);
+      await fetch("/api/zenipay/merchants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(account),
+      });
+    } catch (err) {
+      console.error("[Signup] Failed to save merchant:", err);
+    }
+
+    // Auto-login to sandbox for current session
+    try {
+      sessionStorage.setItem("zp_client", businessName);
       sessionStorage.setItem("zp_client_mode", "sandbox");
       sessionStorage.setItem("zp_client_email", email);
       sessionStorage.setItem("zp_client_sandbox_key", sbKey);
@@ -109,10 +110,8 @@ export default function SignupPage() {
     setSandboxKey(sbKey);
     setSandboxSecret(sbSecret);
 
-    setTimeout(() => {
-      setLoading(false);
-      setStep(3);
-    }, 1200);
+    setLoading(false);
+    setStep(3);
   };
 
   const goToDashboard = () => router.push("/app");

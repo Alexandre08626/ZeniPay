@@ -66,8 +66,37 @@ export default function AdminPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (!sessionStorage.getItem("zp_admin")) { router.replace("/admin/login"); return; }
-      try { setSignups(JSON.parse(localStorage.getItem("zp_accounts") || "[]")); } catch {}
     }
+    // Load merchants from Supabase (shared across all devices)
+    fetch("/api/zenipay/merchants")
+      .then(r => r.json())
+      .then(data => {
+        if (data.merchants) {
+          // Convert snake_case from DB to camelCase for display
+          setSignups(data.merchants.map((m: any) => ({
+            id: m.id,
+            businessName:  m.business_name,
+            ownerName:     m.owner_name,
+            email:         m.email,
+            phone:         m.phone,
+            website:       m.website,
+            businessType:  m.business_type,
+            country:       m.country,
+            monthlyVolume: m.monthly_volume,
+            status:        m.status,
+            plan:          m.plan,
+            sandboxKey:    m.sandbox_key,
+            sandboxSecret: m.sandbox_secret,
+            liveKey:       m.live_key,
+            createdAt:     m.created_at,
+            volume:        m.volume,
+            txCount:       m.tx_count,
+            balance:       m.balance,
+            notes:         m.notes,
+          })));
+        }
+      })
+      .catch(err => console.error("[Admin] Failed to load merchants:", err));
   }, [router]);
 
   const CLIENTS = [
