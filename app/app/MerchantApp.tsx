@@ -187,11 +187,13 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
   // ── Supabase merchant data helpers ───────────────────
   const merchantId = account.id || account.email;
-  const [payLinks, setPayLinks] = useState<PayLink[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [payouts,  setPayouts]  = useState<Payout[]>([]);
-  const [bankCfg,  setBankCfg]  = useState<BankCfg>({ holderName: "", bankName: "", transit: "", institution: "", accountNum: "", accountType: "chequing", step: 0 });
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [payLinks,      setPayLinks]      = useState<PayLink[]>([]);
+  const [invoices,      setInvoices]      = useState<Invoice[]>([]);
+  const [payouts,       setPayouts]       = useState<Payout[]>([]);
+  const [bankCfg,       setBankCfg]       = useState<BankCfg>({ holderName: "", bankName: "", transit: "", institution: "", accountNum: "", accountType: "chequing", step: 0 });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [transactions,  setTransactions]  = useState<any[]>([]);
+  const [dataLoaded,    setDataLoaded]    = useState(false);
 
   // Load from Supabase on mount
   useEffect(() => {
@@ -200,10 +202,12 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
       .then(r => r.json())
       .then(({ data }) => {
         if (data) {
-          if (data.paylinks) setPayLinks(data.paylinks);
-          if (data.invoices) setInvoices(data.invoices);
-          if (data.payouts)  setPayouts(data.payouts);
-          if (data.bankCfg)  setBankCfg(data.bankCfg);
+          // Support both "payLinks" (stored by create-link) and "paylinks" (stored by old saves)
+          if (data.payLinks || data.paylinks) setPayLinks(data.payLinks || data.paylinks);
+          if (data.invoices)    setInvoices(data.invoices);
+          if (data.payouts)     setPayouts(data.payouts);
+          if (data.bankCfg)     setBankCfg(data.bankCfg);
+          if (data.transactions) setTransactions(data.transactions);
         }
         setDataLoaded(true);
       })
@@ -223,7 +227,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
   useEffect(() => {
     if (!dataLoaded) return;
-    saveToSupabase({ paylinks: payLinks, invoices, payouts, bankCfg });
+    saveToSupabase({ payLinks, invoices, payouts, bankCfg });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payLinks, invoices, payouts, bankCfg, dataLoaded, saveToSupabase]);
 
@@ -484,14 +488,56 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   );
 
   // ── TRANSACTIONS ──────────────────────────────────────
+  const fmtUSD = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
   const TransactionsSection = (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px", color: TEXT }}>Transactions</h2>
-      <div style={{ textAlign: "center", padding: "60px 20px", background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>💳</div>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: TEXT }}>No transactions yet</div>
-        <p style={{ fontSize: 13, color: MUTED, margin: 0, lineHeight: 1.7 }}>{isSandbox ? "Create a pay link and test with a sandbox card to see transactions here." : "Live transactions will appear here in real time."}</p>
+      {/* Summary row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
+        {[
+          { label: "Total Revenue",  value: fmtUSD(transactions.filter(t=>t.status==="succeeded").reduce((s,t)=>s+Number(t.amount),0)), color: ZP_GREEN },
+          { label: "Transactions",   value: String(transactions.length), color: ZP_CYAN },
+          { label: "Succeeded",      value: String(transactions.filter(t=>t.status==="succeeded").length), color: ZP_PURPLE },
+          { label: "Pending",        value: String(transactions.filter(t=>t.status==="pending").length), color: "#D97706" },
+        ].map(k => (
+          <div key={k.label} style={{ background: CARD_BG, borderRadius: 14, padding: "14px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", borderLeft: `4px solid ${k.color}` }}>
+            <p style={{ margin: "0 0 4px", fontSize: 10, color: MUTED, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>{k.label}</p>
+            <p style={{ margin: 0, fontWeight: 900, fontSize: 20, color: k.color }}>{k.value}</p>
+          </div>
+        ))}
       </div>
+      {transactions.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 20px", background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>💳</div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: TEXT }}>No transactions yet</div>
+          <p style={{ fontSize: 13, color: MUTED, margin: 0, lineHeight: 1.7 }}>{isSandbox ? "Create a pay link and test with a sandbox card to see transactions here." : "Live transactions will appear here in real time."}</p>
+        </div>
+      ) : (
+        <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 12, padding: "10px 18px", borderBottom: `1px solid ${BORDER}` }}>
+            {["Customer / Description", "Amount", "Status", "Date"].map(h => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>{h}</div>
+            ))}
+          </div>
+          {transactions.map((t, i) => (
+            <div key={t.id || i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 12, padding: "12px 18px", borderTop: i > 0 ? `1px solid ${ROW_SEP}` : "none", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: TEXT }}>{t.customer_name || t.customer || "—"}</div>
+                <div style={{ fontSize: 11, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{t.description || t.id}</div>
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: t.status === "succeeded" ? ZP_GREEN : t.status === "failed" ? "#DC2626" : "#D97706" }}>
+                {fmtUSD(Number(t.amount))}
+              </div>
+              <div>
+                <Badge label={t.status || "unknown"} color={t.status === "succeeded" ? ZP_GREEN : t.status === "failed" ? "#DC2626" : "#D97706"} />
+              </div>
+              <div style={{ fontSize: 12, color: MUTED }}>
+                {t.createdAt || t.created_at ? new Date(t.createdAt || t.created_at).toLocaleDateString("en-CA") : "—"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 

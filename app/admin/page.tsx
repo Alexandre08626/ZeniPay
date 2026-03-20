@@ -56,6 +56,7 @@ export default function AdminPage() {
   const [copiedKey, setCopiedKey]   = useState("");
   const [clientView, setClientView] = useState<string | null>(null);
   const [signups, setSignups]       = useState<any[]>([]);
+  const [adminStats, setAdminStats] = useState<any>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -66,7 +67,6 @@ export default function AdminPage() {
       .then(r => r.json())
       .then(data => {
         if (data.merchants) {
-          // Convert snake_case from DB to camelCase for display
           setSignups(data.merchants.map((m: any) => ({
             id: m.id,
             businessName:  m.business_name,
@@ -91,6 +91,11 @@ export default function AdminPage() {
         }
       })
       .catch(err => console.error("[Admin] Failed to load merchants:", err));
+    // Load real stats (transactions, revenue, wallets)
+    fetch("/api/zenipay/stats")
+      .then(r => r.json())
+      .then(data => setAdminStats(data))
+      .catch(err => console.error("[Admin] Failed to load stats:", err));
   }, [router]);
 
   const CLIENTS = [
@@ -259,11 +264,11 @@ export default function AdminPage() {
 
               {/* KPI row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 20 }}>
-                <MetricCard label="Client Volume"      value={fmt(0)}  sub="All-time processed"  accent={ZP_GREEN}  icon="💰" />
-                <MetricCard label="ZeniPay Earnings"   value={fmt(0)}  sub="Auto-deposited · ••••9201" accent={ZP_CYAN} icon="🏦" />
+                <MetricCard label="Client Volume"      value={fmt(adminStats?.stats?.total_revenue ?? 0)}  sub={`${adminStats?.stats?.total_payments ?? 0} total transactions`}  accent={ZP_GREEN}  icon="💰" />
+                <MetricCard label="ZeniPay Earnings"   value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.005)}  sub="~0.5% platform margin" accent={ZP_CYAN} icon="🏦" />
                 <MetricCard label="Active Clients"     value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
-                <MetricCard label="Pending Payouts"    value={fmt(0)}  sub="0 queued"            accent="#D97706"   icon="⏳" />
-                <MetricCard label="Platform Balance"   value={fmt(PLATFORM_ACCOUNT.balance)} sub="ZeniPay ••••9201" accent={ZP_BLUE} icon="⚡" />
+                <MetricCard label="Success Rate"       value={`${adminStats?.stats?.success_rate ?? 0}%`}  sub={`${adminStats?.stats?.succeeded_payments ?? 0} succeeded`}            accent="#D97706"   icon="⏳" />
+                <MetricCard label="Platform Balance"   value={fmt(adminStats?.wallets?.platform?.available ?? PLATFORM_ACCOUNT.balance)} sub="ZeniPay ••••9201" accent={ZP_BLUE} icon="⚡" />
               </div>
 
               {/* Revenue chart + recent signups */}
@@ -277,7 +282,7 @@ export default function AdminPage() {
                     </div>
                     <div style={{ padding: "4px 12px", borderRadius: 20, background: "rgba(45,190,96,0.08)", border: "1px solid rgba(45,190,96,0.2)", fontSize: 11, fontWeight: 700, color: ZP_GREEN }}>Sandbox mode</div>
                   </div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: TEXT, letterSpacing: "-1px", marginBottom: 20 }}>$0.00</div>
+                  <div style={{ fontSize: 28, fontWeight: 900, color: TEXT, letterSpacing: "-1px", marginBottom: 20 }}>{fmt(adminStats?.stats?.total_revenue ?? 0)}</div>
                   {/* Bar chart */}
                   <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 72, marginBottom: 8 }}>
                     {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
@@ -546,24 +551,38 @@ export default function AdminPage() {
                 <select style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, color: TEXT, background: LIGHT, fontFamily: "inherit" }}>
                   {["Last 7 days","30 days","90 days","All time"].map(v => <option key={v}>{v}</option>)}
                 </select>
-                <div style={{ marginLeft: "auto", fontSize: 12, color: MUTED }}>0 transactions found</div>
+                <div style={{ marginLeft: "auto", fontSize: 12, color: MUTED }}>{adminStats?.recent_transactions?.length ?? 0} transactions found</div>
               </div>
 
               {/* Header row */}
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "8px 16px", marginBottom: 4 }}>
-                {["Client / Description","Amount","Status","Method","Date"].map(h => (
+                {["Client / Description","Amount","Status","Gateway","Date"].map(h => (
                   <div key={h} style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</div>
                 ))}
               </div>
 
-              <div style={{ ...card({ padding: "60px 20px", textAlign: "center" }) }}>
-                <div style={{ width: 64, height: 64, borderRadius: 18, background: "rgba(45,190,96,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>↕</div>
-                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>No transactions yet</div>
-                <div style={{ fontSize: 13, color: MUTED, maxWidth: 380, margin: "0 auto 24px" }}>Transactions will appear once Tilled live approval is complete and a client integrates the ZeniPay API.</div>
-                <a href="https://app.tilled.com" target="_blank" rel="noreferrer" style={{ padding: "10px 24px", borderRadius: 10, background: ZP_GRAD, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-block", boxShadow: "0 4px 12px rgba(45,190,96,0.25)" }}>
-                  Complete Tilled Onboarding →
-                </a>
-              </div>
+              {(!adminStats?.recent_transactions || adminStats.recent_transactions.length === 0) ? (
+                <div style={{ ...card({ padding: "60px 20px", textAlign: "center" }) }}>
+                  <div style={{ width: 64, height: 64, borderRadius: 18, background: "rgba(45,190,96,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>↕</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>No transactions yet</div>
+                  <div style={{ fontSize: 13, color: MUTED, maxWidth: 380, margin: "0 auto 24px" }}>Transactions will appear once clients integrate the ZeniPay API or payment links are used.</div>
+                </div>
+              ) : (
+                <div style={{ ...card({ overflow: "hidden" }) }}>
+                  {adminStats.recent_transactions.map((t: any, i: number) => (
+                    <div key={t.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "13px 16px", borderTop: i > 0 ? `1px solid ${BORDER}` : "none", alignItems: "center", background: i % 2 === 0 ? LIGHT : SURFACE }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>{t.customer || "—"}</div>
+                        <div style={{ fontSize: 11, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || t.id}</div>
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: t.status === "succeeded" ? ZP_GREEN : t.status === "failed" ? "#DC2626" : "#D97706" }}>{fmt(Number(t.amount))}</div>
+                      <div style={{ ...badge(t.status === "succeeded" ? "active" : t.status === "failed" ? "failed" : "pending") }}><span style={{ fontSize: 7 }}>●</span> {t.status}</div>
+                      <div style={{ fontSize: 12, color: MUTED }}>{t.gateway || "ZeniPay"}</div>
+                      <div style={{ fontSize: 12, color: MUTED }}>{t.date ? fmtDate(t.date) : "—"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -572,10 +591,10 @@ export default function AdminPage() {
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 20 }}>
                 {[
-                  { label: "Total Paid Out",    value: fmt(0), accent: ZP_GREEN  },
+                  { label: "Total Paid Out",    value: fmt(adminStats?.recent_payouts?.reduce((a: number, p: any) => a + Number(p.amount || 0), 0) ?? 0), accent: ZP_GREEN  },
                   { label: "Pending",            value: fmt(0), accent: "#D97706" },
-                  { label: "Platform Volume",    value: fmt(0), accent: ZP_PURPLE },
-                  { label: "Payouts This Month", value: "0",    accent: ZP_CYAN   },
+                  { label: "Platform Volume",    value: fmt(adminStats?.stats?.total_revenue ?? 0), accent: ZP_PURPLE },
+                  { label: "Payouts This Month", value: `${adminStats?.recent_payouts?.length ?? 0}`,    accent: ZP_CYAN   },
                 ].map(s => (
                   <div key={s.label} style={{ ...card({ padding: "18px" }), borderTop: `3px solid ${s.accent}` }}>
                     <div style={{ fontSize: 22, fontWeight: 900, color: s.accent }}>{s.value}</div>
@@ -621,7 +640,7 @@ export default function AdminPage() {
                     <div style={{ fontSize: 11, color: MUTED }}>Auto-commission account · Unit.co {PLATFORM_ACCOUNT.account}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: ZP_CYAN }}>{fmt(PLATFORM_ACCOUNT.balance)}</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: ZP_CYAN }}>{fmt(adminStats?.wallets?.platform?.available ?? PLATFORM_ACCOUNT.balance)}</div>
                     <div style={{ fontSize: 11, color: MUTED }}>Platform earnings</div>
                   </div>
                   <button style={{ padding: "7px 16px", borderRadius: 8, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Withdraw →</button>
@@ -664,7 +683,7 @@ export default function AdminPage() {
                     { k: "Customer ID",       v: BANK_STATUS.customerId,  color: TEXT      },
                     { k: "Routing Number",    v: BANK_STATUS.routing,     color: TEXT      },
                     { k: "Account Number",    v: BANK_STATUS.account,     color: TEXT      },
-                    { k: "Available Balance", v: fmt(BANK_STATUS.balance), color: ZP_GREEN },
+                    { k: "Available Balance", v: fmt(adminStats?.wallets?.platform?.available ?? BANK_STATUS.balance), color: ZP_GREEN },
                     { k: "Account Type",      v: "Business Chequing",     color: ZP_PURPLE },
                     { k: "Debit Card",        v: "Virtual Visa",          color: ZP_BLUE   },
                   ].map(s => (

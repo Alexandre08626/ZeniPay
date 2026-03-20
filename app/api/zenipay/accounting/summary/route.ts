@@ -59,17 +59,17 @@ export async function GET() {
     const ledgerRows = ledger || [];
     const commissionRows = commissions || [];
 
-    // Calculate totals from ledger
+    // Calculate totals from ledger (event_type + direction + wallet_type are the real column names)
     const totalRevenue = ledgerRows
-      .filter((l: Record<string, unknown>) => l.type === "payment" && Number(l.amount) > 0)
+      .filter((l: Record<string, unknown>) => l.event_type === "customer_payment" && l.direction === "credit")
       .reduce((sum: number, l: Record<string, unknown>) => sum + Number(l.amount), 0);
 
     const totalRefunds = ledgerRows
-      .filter((l: Record<string, unknown>) => l.type === "refund")
+      .filter((l: Record<string, unknown>) => l.event_type === "refund")
       .reduce((sum: number, l: Record<string, unknown>) => sum + Math.abs(Number(l.amount)), 0);
 
     const totalPayouts = ledgerRows
-      .filter((l: Record<string, unknown>) => l.type === "payout" && Number(l.amount) < 0)
+      .filter((l: Record<string, unknown>) => l.event_type === "payout" && l.direction === "debit")
       .reduce((sum: number, l: Record<string, unknown>) => sum + Math.abs(Number(l.amount)), 0);
 
     const agentCommissions = commissionRows
@@ -80,10 +80,13 @@ export async function GET() {
     const totalExpenses = totalRefunds + totalPayouts + agentCommissions;
     const netProfit = totalRevenue - totalExpenses;
 
-    // Chart of accounts — compute balances
+    // Chart of accounts — compute balances (wallet_type is the correct column name)
     const platformWalletBalance = ledgerRows
-      .filter((l: Record<string, unknown>) => l.wallet === "platform")
-      .reduce((sum: number, l: Record<string, unknown>) => sum + Number(l.amount), 0);
+      .filter((l: Record<string, unknown>) => l.wallet_type === "platform")
+      .reduce((sum: number, l: Record<string, unknown>) => {
+        const amt = Number(l.amount);
+        return sum + ((l.direction === "credit") ? amt : -amt);
+      }, 0);
 
     const travelRevenueBalance = totalRevenue;
 

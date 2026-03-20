@@ -66,9 +66,15 @@ export async function POST(req: NextRequest) {
       const invoice = {
         id: `INV-${Date.now()}`,
         client: customer_name || "Client",
+        email: "",
         booking: description || pay_link_id,
+        description: description || pay_link_id,
         amount: amt, currency: cur,
-        status: "paid", date: now.split("T")[0],
+        status: "paid",
+        date: now.split("T")[0],
+        dueDate: now.split("T")[0],
+        createdAt: now,
+        items: [{ desc: description || pay_link_id, qty: 1, price: amt }],
       };
 
       // ── 3. Update merchant: transactions + invoice + balance + volume ───
