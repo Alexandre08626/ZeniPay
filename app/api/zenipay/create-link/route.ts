@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 /**
  * ZeniPay — Pay Links API
  * GET  — list pay links from Supabase
- * POST — create a new pay link
+ * POST — create a new pay link (optionally linked to a merchant via api_key)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -38,16 +38,18 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, currency = "USD", description, expiry } = await req.json();
+    const { amount, currency = "USD", description, expiry, merchant, api_key } = await req.json();
 
     if (!amount || parseFloat(String(amount)) <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
     const id = `LINK-${Date.now().toString(36).toUpperCase()}`;
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zenivatravel.com";
-    const url = `${baseUrl}/pay/${id}?amount=${amount}&currency=${currency}&desc=${encodeURIComponent(description || "")}`;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zenipay.ca";
+    const merchantParam = merchant ? `&m=${encodeURIComponent(merchant)}` : "";
+    const url = `${baseUrl}/pay/${id}?amount=${amount}&currency=${currency}&desc=${encodeURIComponent(description || "")}${merchantParam}`;
 
+    const now = new Date().toISOString();
     const linkData = {
       id,
       url,
@@ -57,11 +59,44 @@ export async function POST(req: NextRequest) {
       status: "active",
       uses: 0,
       expires_at: expiry ? new Date(expiry).toISOString() : null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
     };
 
     const supabase = getSupabase();
+
+    // ── Look up merchant by API key and add link to their dashboard ──────
+    if (supabase && api_key) {
+      const { data: merchants } = await supabase
+        .from("zenipay_merchants")
+        .select("id, merchant_data")
+        .or(`sandbox_key.eq.${api_key},live_key.eq.${api_key}`)
+        .limit(1);
+
+      const merchantRow = merchants?.[0];
+      if (merchantRow) {
+        const existing = merchantRow.merchant_data || {};
+        const existingLinks: unknown[] = existing.payLinks || [];
+        const newLink = {
+          id,
+          url,
+          amount: parseFloat(String(amount)),
+          currency,
+          description: description || "",
+          status: "active",
+          uses: 0,
+          createdAt: now,
+        };
+        await supabase
+          .from("zenipay_merchants")
+          .update({
+            merchant_data: { ...existing, payLinks: [newLink, ...existingLinks] },
+            updated_at: now,
+          })
+          .eq("id", merchantRow.id);
+      }
+    }
+
     if (supabase) {
       await supabase.from("zenipay_pay_links").insert(linkData);
     }
