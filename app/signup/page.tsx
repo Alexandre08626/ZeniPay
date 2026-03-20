@@ -82,7 +82,7 @@ export default function SignupPage() {
       country,
       monthlyVolume,
       status: "sandbox",
-      plan: "Sandbox",
+      plan: "Standard",
       sandboxKey: sbKey,
       sandboxSecret: sbSecret,
       liveKey,

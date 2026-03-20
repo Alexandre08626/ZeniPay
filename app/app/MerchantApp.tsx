@@ -223,7 +223,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
     <div>
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 4px" }}>Welcome back, {account.ownerName || account.businessName}</h2>
-        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.4)" }}>{isSandbox ? "🧪 Sandbox — test your integration" : "🟢 Live — real transactions"}</p>
+        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.4)" }}>{isSandbox ? "Sandbox environment — test your integration" : "Live environment — real transactions"}</p>
       </div>
       {/* KPI Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 }}>
@@ -278,12 +278,12 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
       )}
       {/* Sandbox test cards */}
       {isSandbox && (
-        <div style={{ marginTop: 20, background: "rgba(21,184,201,0.06)", border: "1px solid rgba(21,184,201,0.2)", borderRadius: 14, padding: "14px 18px" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: ZP_CYAN, marginBottom: 8 }}>🧪 Test Cards</div>
+        <div style={{ marginTop: 20, background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "14px 18px" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>Test Cards</div>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
             {[{ brand: "Visa", num: "4111 1111 1111 1111" }, { brand: "MC", num: "5454 5454 5454 5454" }].map(c => (
               <span key={c.brand} style={{ fontSize: 12 }}>
-                <span style={{ color: ZP_CYAN, fontWeight: 700 }}>{c.brand}: </span>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>{c.brand}: </span>
                 <code style={{ color: "rgba(255,255,255,0.8)" }}>{c.num}</code>
               </span>
             ))}
@@ -997,7 +997,10 @@ console.log(payment.id); // pay_xxxxxxxx`}
             <button onClick={() => setSideOpen(true)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 22, padding: "0 4px" }}>☰</button>
           )}
           <div style={{ flex: 1, fontSize: 15, fontWeight: 700 }}>{TABS.find(t => t.id === tab)?.icon} {TABS.find(t => t.id === tab)?.label}</div>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>{account.plan} plan</span>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>
+            {account.plan === "Sandbox" ? "Standard" : account.plan} plan
+            {isSandbox && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: ZP_GREEN }}>SANDBOX</span>}
+          </span>
         </div>
         {/* Page */}
         <div style={{ flex: 1, overflowY: "auto", padding: "28px 24px" }}>
