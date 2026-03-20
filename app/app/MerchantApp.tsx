@@ -9,11 +9,17 @@ const ZP_PURPLE = "#7B4FBF";
 const ZP_BLUE   = "#2A8FE0";
 const ZP_GRAD   = "linear-gradient(135deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
 const CARD_GRAD = "linear-gradient(135deg, #E5247B 0%, #F5A623 50%, #7B4FBF 100%)";
-const DARK      = "#0A0F1E";
-const DARK2     = "#111827";
-const PANEL     = "#0d1524";
-const GLASS     = "rgba(255,255,255,0.05)";
-const BORDER    = "rgba(255,255,255,0.09)";
+
+// ─── Theme (matches ZenivaComplete / zenivatravel.com/agent/finance) ───
+const PAGE_BG   = "#f0f4f8";    // light blue-gray page background
+const CARD_BG   = "#ffffff";    // white cards
+const BORDER    = "#e2e8f0";    // light border
+const ROW_SEP   = "#f1f5f9";    // row separator
+const SIDEBAR   = "linear-gradient(180deg, #0d1633 0%, #1a2a5e 30%, #2A8FE0 70%, #7B4FBF 100%)";
+const TOPBAR_BG = "#ffffff";
+const TEXT      = "#0f172a";    // dark main text
+const MUTED     = "#64748b";    // muted secondary text
+const LIGHT     = "#94a3b8";    // very muted text
 
 // ─── Types ──────────────────────────────────────────────
 interface Account {
@@ -38,7 +44,7 @@ function CopyBtn({ text, small }: { text: string; small?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copy = () => { navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }); };
   return (
-    <button onClick={copy} style={{ background: copied ? "rgba(45,190,96,0.15)" : "rgba(255,255,255,0.07)", border: `1px solid ${copied ? "rgba(45,190,96,0.4)" : BORDER}`, color: copied ? ZP_GREEN : "rgba(255,255,255,0.7)", padding: small ? "4px 10px" : "6px 14px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" as const }}>
+    <button onClick={copy} style={{ background: copied ? "rgba(45,190,96,0.1)" : "#f8fafc", border: `1px solid ${copied ? "rgba(45,190,96,0.4)" : BORDER}`, color: copied ? ZP_GREEN : MUTED, padding: small ? "4px 10px" : "6px 14px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" as const }}>
       {copied ? "✓ Copied" : "Copy"}
     </button>
   );
@@ -69,7 +75,6 @@ function getTabs(plan: string) {
     { id: "analytics",     icon: "📈", label: "Analytics"   },
   ];
   if (plan === "Business" || plan === "Complete") {
-    // Insert banking after overview, accounting/analytics before keys
     const result = [base[0], base[1], businessExtra[0], ...base.slice(2, 5), businessExtra[1], businessExtra[2], ...base.slice(5)];
     return result;
   }
@@ -79,11 +84,11 @@ function getTabs(plan: string) {
 // ─── Modal wrapper ─────────────────────────────────────────
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ background: DARK2, border: `1px solid ${BORDER}`, borderRadius: 20, width: "100%", maxWidth: 560, maxHeight: "85vh", overflow: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 20, width: "100%", maxWidth: 560, maxHeight: "85vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px", borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ fontSize: 16, fontWeight: 800 }}>{title}</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>
+          <div style={{ fontSize: 16, fontWeight: 800, color: TEXT }}>{title}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: LIGHT, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>
         </div>
         <div style={{ padding: "20px" }}>{children}</div>
       </div>
@@ -94,8 +99,8 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 // ─── Input style ───────────────────────────────────────────
 const IS: React.CSSProperties = {
   width: "100%", padding: "11px 14px", borderRadius: 10,
-  background: "rgba(255,255,255,0.07)", border: `1px solid ${BORDER}`,
-  color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit",
+  background: "#f8fafc", border: `1px solid ${BORDER}`,
+  color: TEXT, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit",
 };
 
 // ════════════════════════════════════════════════════════
@@ -183,7 +188,6 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   const [glStep,      setGlStep]      = useState<number>(() => loadGL().step ?? 0);
   const [glForm,      setGlForm]      = useState<Record<string,string>>(() => loadGL().form ?? {});
   const [glChecked,   setGlChecked]   = useState<Record<string,boolean>>(() => loadGL().checked ?? {});
-  const [glCopied,    setGlCopied]    = useState<string|null>(null);
   const setGlField = (k: string, v: string) => { const f = { ...glForm, [k]: v }; setGlForm(f); saveGL({ form: f }); };
   const toggleGL = (k: string) => { const c = { ...glChecked, [k]: !glChecked[k] }; setGlChecked(c); saveGL({ checked: c }); };
 
@@ -222,8 +226,8 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   const OverviewSection = (
     <div>
       <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 4px" }}>Welcome back, {account.ownerName || account.businessName}</h2>
-        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.4)" }}>{isSandbox ? "Sandbox environment — test your integration" : "Live environment — real transactions"}</p>
+        <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 4px", color: TEXT }}>Welcome back, {account.ownerName || account.businessName}</h2>
+        <p style={{ margin: 0, fontSize: 14, color: MUTED }}>{isSandbox ? "Sandbox environment — test your integration" : "Live environment — real transactions"}</p>
       </div>
       {/* KPI Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 }}>
@@ -234,15 +238,15 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
           { label: "Active Pay Links",  value: String(payLinks.filter(p => p.status === "active").length), color: ZP_BLUE },
           { label: "Open Invoices",     value: String(invoices.filter(i => i.status === "sent").length),  color: "#F5A623" },
         ].map(k => (
-          <div key={k.label} style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "18px 16px" }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{k.label}</div>
+          <div key={k.label} style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "18px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            <div style={{ fontSize: 11, color: LIGHT, marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{k.label}</div>
             <div style={{ fontSize: 24, fontWeight: 900, color: k.color }}>{k.value}</div>
           </div>
         ))}
       </div>
       {/* Quick Actions */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 12 }}>Quick Actions</div>
+        <div style={{ fontSize: 11, color: LIGHT, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 12 }}>Quick Actions</div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {[
             { label: "New Payment Link", icon: "🔗", action: () => { setTab("paylinks"); setModal("paylink"); } },
@@ -250,7 +254,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
             { label: "Send Payout",      icon: "💸", action: () => { setTab("payouts");  setModal("payout"); } },
             { label: "API Keys",         icon: "🔑", action: () => setTab("keys") },
           ].map(a => (
-            <button key={a.label} onClick={a.action} style={{ display: "flex", alignItems: "center", gap: 8, background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            <button key={a.label} onClick={a.action} style={{ display: "flex", alignItems: "center", gap: 8, background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "10px 18px", color: TEXT, fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
               <span>{a.icon}</span>{a.label}
             </button>
           ))}
@@ -259,16 +263,16 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
       {/* Recent Pay Links */}
       {payLinks.length > 0 && (
         <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 12 }}>Recent Pay Links</div>
-          <div style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden" }}>
+          <div style={{ fontSize: 11, color: LIGHT, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 12 }}>Recent Pay Links</div>
+          <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
             {payLinks.slice(0, 5).map(l => (
-              <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+              <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderBottom: `1px solid ${ROW_SEP}` }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{l.title}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{l.url}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{l.title}</div>
+                  <div style={{ fontSize: 11, color: LIGHT, marginTop: 2 }}>{l.url}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 15, fontWeight: 900 }}>{fmt(l.amount)}</span>
+                  <span style={{ fontSize: 15, fontWeight: 900, color: TEXT }}>{fmt(l.amount)}</span>
                   <Badge label={l.status} color={l.status === "active" ? ZP_GREEN : "#94A3B8"} />
                 </div>
               </div>
@@ -278,16 +282,16 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
       )}
       {/* Sandbox test cards */}
       {isSandbox && (
-        <div style={{ marginTop: 20, background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "14px 18px" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>Test Cards</div>
+        <div style={{ marginTop: 20, background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "14px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: MUTED, marginBottom: 8 }}>Test Cards</div>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
             {[{ brand: "Visa", num: "4111 1111 1111 1111" }, { brand: "MC", num: "5454 5454 5454 5454" }].map(c => (
               <span key={c.brand} style={{ fontSize: 12 }}>
-                <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>{c.brand}: </span>
-                <code style={{ color: "rgba(255,255,255,0.8)" }}>{c.num}</code>
+                <span style={{ color: MUTED, fontWeight: 700 }}>{c.brand}: </span>
+                <code style={{ color: TEXT }}>{c.num}</code>
               </span>
             ))}
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>Any future exp · CVC 999</span>
+            <span style={{ fontSize: 12, color: LIGHT }}>Any future exp · CVC 999</span>
           </div>
         </div>
       )}
@@ -298,37 +302,37 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   const PayLinksSection = (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Payment Links</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, color: TEXT }}>Payment Links</h2>
         <button onClick={() => setModal("paylink")} style={{ background: ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, padding: "10px 20px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>+ New Link</button>
       </div>
       {payLinks.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 20px", background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
+        <div style={{ textAlign: "center", padding: "60px 20px", background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🔗</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>No payment links yet</div>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: "0 0 20px" }}>Create a shareable link and get paid in seconds</p>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: TEXT }}>No payment links yet</div>
+          <p style={{ fontSize: 13, color: MUTED, margin: "0 0 20px" }}>Create a shareable link and get paid in seconds</p>
           <button onClick={() => setModal("paylink")} style={{ background: ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, padding: "10px 24px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>Create your first link →</button>
         </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {payLinks.map(l => (
-            <div key={l.id} style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+            <div key={l.id} style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontSize: 15, fontWeight: 800 }}>{l.title}</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: TEXT }}>{l.title}</span>
                   <Badge label={l.status} color={l.status === "active" ? ZP_GREEN : "#94A3B8"} />
                 </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{l.url}</div>
+                <div style={{ fontSize: 11, color: LIGHT }}>{l.url}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 18, fontWeight: 900 }}>{fmt(l.amount)}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{l.uses} use{l.uses !== 1 ? "s" : ""}</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: TEXT }}>{fmt(l.amount)}</div>
+                  <div style={{ fontSize: 11, color: LIGHT }}>{l.uses} use{l.uses !== 1 ? "s" : ""}</div>
                 </div>
                 <CopyBtn text={l.url} small />
-                <button onClick={() => setPayLinks(p => p.map(x => x.id === l.id ? { ...x, status: x.status === "active" ? "paused" : "active" } : x))} style={{ background: "rgba(255,255,255,0.07)", border: `1px solid ${BORDER}`, color: "rgba(255,255,255,0.7)", padding: "5px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>
+                <button onClick={() => setPayLinks(p => p.map(x => x.id === l.id ? { ...x, status: x.status === "active" ? "paused" : "active" } : x))} style={{ background: "#f8fafc", border: `1px solid ${BORDER}`, color: MUTED, padding: "5px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>
                   {l.status === "active" ? "Pause" : "Resume"}
                 </button>
-                <button onClick={() => setPayLinks(p => p.filter(x => x.id !== l.id))} style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#EF4444", padding: "5px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>Delete</button>
+                <button onClick={() => setPayLinks(p => p.filter(x => x.id !== l.id))} style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", padding: "5px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>Delete</button>
               </div>
             </div>
           ))}
@@ -338,31 +342,31 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   );
 
   // ── INVOICES ─────────────────────────────────────────────
-  const statusColor = (s: string) => ({ draft:"#94A3B8", sent:ZP_CYAN, paid:ZP_GREEN, overdue:"#EF4444" }[s] || "#fff");
+  const statusColor = (s: string) => ({ draft:"#94A3B8", sent:ZP_CYAN, paid:ZP_GREEN, overdue:"#EF4444" }[s] || TEXT);
   const InvoicesSection = (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Invoices</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, color: TEXT }}>Invoices</h2>
         <button onClick={() => setModal("invoice")} style={{ background: ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, padding: "10px 20px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>+ New Invoice</button>
       </div>
       {invoices.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 20px", background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
+        <div style={{ textAlign: "center", padding: "60px 20px", background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>No invoices yet</div>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: "0 0 20px" }}>Professional invoices with automatic payment collection</p>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: TEXT }}>No invoices yet</div>
+          <p style={{ fontSize: 13, color: MUTED, margin: "0 0 20px" }}>Professional invoices with automatic payment collection</p>
           <button onClick={() => setModal("invoice")} style={{ background: ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, padding: "10px 24px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>Create first invoice →</button>
         </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {invoices.map(inv => (
-            <div key={inv.id} style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "16px 20px" }}>
+            <div key={inv.id} style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "16px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 800 }}>#{inv.id} — {inv.client}</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{inv.email} · Due {new Date(inv.dueDate).toLocaleDateString("en-CA")}</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: TEXT }}>#{inv.id} — {inv.client}</div>
+                  <div style={{ fontSize: 12, color: LIGHT, marginTop: 2 }}>{inv.email} · Due {new Date(inv.dueDate).toLocaleDateString("en-CA")}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 18, fontWeight: 900 }}>{fmt(inv.amount)}</span>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: TEXT }}>{fmt(inv.amount)}</span>
                   <Badge label={inv.status} color={statusColor(inv.status)} />
                 </div>
               </div>
@@ -371,9 +375,9 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
                   <button onClick={() => setInvoices(p => p.map(x => x.id === inv.id ? { ...x, status: "sent" } : x))} style={{ background: ZP_GRAD, color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Send</button>
                 )}
                 {(inv.status === "sent" || inv.status === "overdue") && (
-                  <button onClick={() => setInvoices(p => p.map(x => x.id === inv.id ? { ...x, status: "paid" } : x))} style={{ background: "rgba(45,190,96,0.15)", color: ZP_GREEN, border: "1px solid rgba(45,190,96,0.3)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Mark Paid</button>
+                  <button onClick={() => setInvoices(p => p.map(x => x.id === inv.id ? { ...x, status: "paid" } : x))} style={{ background: "rgba(45,190,96,0.1)", color: ZP_GREEN, border: "1px solid rgba(45,190,96,0.3)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Mark Paid</button>
                 )}
-                <button onClick={() => setInvoices(p => p.filter(x => x.id !== inv.id))} style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#EF4444", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Delete</button>
+                <button onClick={() => setInvoices(p => p.filter(x => x.id !== inv.id))} style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Delete</button>
               </div>
             </div>
           ))}
@@ -386,28 +390,28 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   const PayoutsSection = (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Payouts</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, color: TEXT }}>Payouts</h2>
         <button onClick={() => setModal("payout")} style={{ background: ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, padding: "10px 20px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>+ Send Payout</button>
       </div>
       {payouts.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 20px", background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
+        <div style={{ textAlign: "center", padding: "60px 20px", background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>💸</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>No payouts yet</div>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: "0 0 20px" }}>Pay suppliers, employees, or withdraw funds</p>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: TEXT }}>No payouts yet</div>
+          <p style={{ fontSize: 13, color: MUTED, margin: "0 0 20px" }}>Pay suppliers, employees, or withdraw funds</p>
           <button onClick={() => setModal("payout")} style={{ background: ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, padding: "10px 24px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>Send first payout →</button>
         </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {payouts.map(po => (
-            <div key={po.id} style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+            <div key={po.id} style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{po.recipient}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{po.method} · {new Date(po.createdAt).toLocaleDateString("en-CA")}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{po.recipient}</div>
+                <div style={{ fontSize: 12, color: LIGHT, marginTop: 2 }}>{po.method} · {new Date(po.createdAt).toLocaleDateString("en-CA")}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 17, fontWeight: 900 }}>{fmt(po.amount)}</span>
+                <span style={{ fontSize: 17, fontWeight: 900, color: TEXT }}>{fmt(po.amount)}</span>
                 <Badge label={po.status} color={po.status === "sent" ? ZP_GREEN : po.status === "failed" ? "#EF4444" : "#F5A623"} />
-                <button onClick={() => setPayouts(p => p.filter(x => x.id !== po.id))} style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#EF4444", padding: "4px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>Delete</button>
+                <button onClick={() => setPayouts(p => p.filter(x => x.id !== po.id))} style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", padding: "4px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>Delete</button>
               </div>
             </div>
           ))}
@@ -419,11 +423,11 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   // ── TRANSACTIONS ─────────────────────────────────────────
   const TransactionsSection = (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px" }}>Transactions</h2>
-      <div style={{ textAlign: "center", padding: "60px 20px", background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px", color: TEXT }}>Transactions</h2>
+      <div style={{ textAlign: "center", padding: "60px 20px", background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>💳</div>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>No transactions yet</div>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: 0, lineHeight: 1.7 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: TEXT }}>No transactions yet</div>
+        <p style={{ fontSize: 13, color: MUTED, margin: 0, lineHeight: 1.7 }}>
           {isSandbox
             ? "Create a pay link and simulate a payment with a test card to see transactions here."
             : "Your live transactions will appear here in real time."}
@@ -435,10 +439,9 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   // ── BANKING (ZeniCard) ─────────────────────────────────────
   const BankingSection = (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px" }}>ZeniCard Account</h2>
-      {/* Card visual */}
+      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px", color: TEXT }}>ZeniCard Account</h2>
       <div style={{ maxWidth: 380, marginBottom: 20 }}>
-        <div style={{ borderRadius: 22, background: CARD_GRAD, padding: "24px", position: "relative", overflow: "hidden", boxShadow: "0 20px 60px rgba(229,36,123,0.3)" }}>
+        <div style={{ borderRadius: 22, background: CARD_GRAD, padding: "24px", position: "relative", overflow: "hidden", boxShadow: "0 20px 60px rgba(229,36,123,0.3)", color: "#fff" }}>
           <img src="/zenipay-logo.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.12, filter: "brightness(2) saturate(0)", mixBlendMode: "overlay" }} />
           <div style={{ position: "relative" }}>
             <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>ZeniPay</div>
@@ -453,8 +456,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
           </div>
         </div>
       </div>
-      {/* Account details */}
-      <div style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         {[
           ["Account Type", "Business Chequing"],
           ["Institution",  "ZeniPay (Unit.co)"],
@@ -462,15 +464,15 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
           ["Transit #",    "•••• 218"],
           ["Currency",     "CAD"],
         ].map(([l, v]) => (
-          <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "12px 18px", borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
-            <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 13 }}>{l}</span>
-            <span style={{ fontWeight: 700, fontSize: 13 }}>{v}</span>
+          <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "12px 18px", borderBottom: `1px solid ${ROW_SEP}` }}>
+            <span style={{ color: MUTED, fontSize: 13 }}>{l}</span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: TEXT }}>{v}</span>
           </div>
         ))}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {["Transfer Out", "Receive", "Statement", "Freeze Card"].map(label => (
-          <button key={label} style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "14px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{label}</button>
+          <button key={label} style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "14px", color: TEXT, fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>{label}</button>
         ))}
       </div>
     </div>
@@ -483,14 +485,14 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   const AccountingSection = (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Accounting</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, color: TEXT }}>Accounting</h2>
         <button onClick={() => {
           const rows = ["Date,Description,Type,Amount"];
           invoices.forEach(i => rows.push(`${i.createdAt.split("T")[0]},Invoice ${i.id} - ${i.client},Revenue,${i.amount}`));
           payouts.forEach(p => rows.push(`${p.createdAt.split("T")[0]},Payout to ${p.recipient},Expense,-${p.amount}`));
           const blob = new Blob([rows.join("\n")], { type: "text/csv" });
           const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "zenipay_accounting.csv"; a.click();
-        }} style={{ background: GLASS, border: `1px solid ${BORDER}`, color: "#fff", borderRadius: 12, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⬇ Export CSV</button>
+        }} style={{ background: CARD_BG, border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 12, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⬇ Export CSV</button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 24 }}>
         {[
@@ -498,28 +500,27 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
           { label: "Total Expenses", value: fmt(AcctPayouts), color: "#EF4444" },
           { label: "Net Profit",     value: fmt(AcctProfit),  color: AcctProfit >= 0 ? ZP_CYAN : "#EF4444" },
         ].map(k => (
-          <div key={k.label} style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "18px 16px", textAlign: "center" as const }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{k.label}</div>
+          <div key={k.label} style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "18px 16px", textAlign: "center" as const, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            <div style={{ fontSize: 11, color: LIGHT, marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{k.label}</div>
             <div style={{ fontSize: 22, fontWeight: 900, color: k.color }}>{k.value}</div>
           </div>
         ))}
       </div>
-      {/* Journal */}
-      <div style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden" }}>
-        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${BORDER}`, fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700, textTransform: "uppercase" as const }}>Journal Entries</div>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${BORDER}`, fontSize: 11, color: MUTED, fontWeight: 700, textTransform: "uppercase" as const }}>Journal Entries</div>
         {[...invoices.map(i => ({ date: i.createdAt, label: `Invoice ${i.id} — ${i.client}`, type: "Revenue", amount: i.amount, color: ZP_GREEN })),
           ...payouts.map(p => ({ date: p.createdAt, label: `Payout → ${p.recipient}`, type: "Expense", amount: -p.amount, color: "#EF4444" }))
         ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20).map((e, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 18px", borderBottom: `1px solid rgba(255,255,255,0.03)` }}>
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 18px", borderBottom: `1px solid ${ROW_SEP}` }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{e.label}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{new Date(e.date).toLocaleDateString("en-CA")} · {e.type}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{e.label}</div>
+              <div style={{ fontSize: 11, color: LIGHT }}>{new Date(e.date).toLocaleDateString("en-CA")} · {e.type}</div>
             </div>
             <span style={{ fontSize: 14, fontWeight: 900, color: e.color }}>{e.amount >= 0 ? "+" : ""}{fmt(e.amount)}</span>
           </div>
         ))}
         {invoices.length === 0 && payouts.length === 0 && (
-          <div style={{ padding: "30px 20px", textAlign: "center", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>No entries yet</div>
+          <div style={{ padding: "30px 20px", textAlign: "center", color: LIGHT, fontSize: 13 }}>No entries yet</div>
         )}
       </div>
     </div>
@@ -528,7 +529,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   // ── ANALYTICS ────────────────────────────────────────────
   const AnalyticsSection = (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px" }}>Analytics</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px", color: TEXT }}>Analytics</h2>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
         {[
           { label: "Conversion Rate", value: payLinks.length > 0 ? `${Math.round((payLinks.filter(p => p.uses > 0).length / payLinks.length) * 100)}%` : "—" },
@@ -536,21 +537,20 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
           { label: "Invoices Paid",    value: invoices.length > 0 ? `${Math.round((invoices.filter(i => i.status === "paid").length / invoices.length) * 100)}%` : "—" },
           { label: "Active Links",     value: String(payLinks.filter(p => p.status === "active").length) },
         ].map(k => (
-          <div key={k.label} style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "18px 16px", textAlign: "center" as const }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{k.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 900 }}>{k.value}</div>
+          <div key={k.label} style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "18px 16px", textAlign: "center" as const, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            <div style={{ fontSize: 11, color: LIGHT, marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{k.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: TEXT }}>{k.value}</div>
           </div>
         ))}
       </div>
-      {/* Revenue bar chart placeholder */}
-      <div style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "20px" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: "rgba(255,255,255,0.6)" }}>Revenue — Last 12 months</div>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "20px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: MUTED }}>Revenue — Last 12 months</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 80 }}>
           {[10, 25, 18, 40, 32, 55, 42, 60, 48, 70, 55, account.volume > 0 ? 75 : 0].map((h, i) => (
-            <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: "4px 4px 0 0", background: i === 11 ? ZP_GRAD : "rgba(45,190,96,0.2)" }} />
+            <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: "4px 4px 0 0", background: i === 11 ? ZP_GRAD : "rgba(21,184,201,0.15)" }} />
           ))}
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.25)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 10, color: LIGHT }}>
           {["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"].map(m => <span key={m}>{m}</span>)}
         </div>
       </div>
@@ -560,44 +560,41 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
   // ── API KEYS ──────────────────────────────────────────────
   const KeysSection = (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 6px" }}>API Keys</h2>
-      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 24px" }}>Authenticate your API requests with these keys.</p>
+      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 6px", color: TEXT }}>API Keys</h2>
+      <p style={{ fontSize: 13, color: MUTED, margin: "0 0 24px" }}>Authenticate your API requests with these keys.</p>
       {/* Sandbox */}
-      <div style={{ background: "rgba(45,190,96,0.05)", border: "1px solid rgba(45,190,96,0.2)", borderRadius: 18, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(45,190,96,0.15)", fontSize: 11, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>● Sandbox</div>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 18, overflow: "hidden", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${BORDER}`, fontSize: 11, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>● Sandbox</div>
         {[{ label: "Publishable Key", val: account.sandboxKey }, { label: "Secret Key", val: account.sandboxSecret }].map(k => (
-          <div key={k.label} style={{ padding: "12px 18px", borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>{k.label}</div>
+          <div key={k.label} style={{ padding: "12px 18px", borderBottom: `1px solid ${ROW_SEP}` }}>
+            <div style={{ fontSize: 11, color: MUTED, marginBottom: 6 }}>{k.label}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <code style={{ flex: 1, fontSize: 11, background: "rgba(0,0,0,0.25)", padding: "8px 12px", borderRadius: 8, color: "rgba(255,255,255,0.85)", wordBreak: "break-all" as const }}>{k.val}</code>
+              <code style={{ flex: 1, fontSize: 11, background: "#f8fafc", padding: "8px 12px", borderRadius: 8, color: TEXT, wordBreak: "break-all" as const, border: `1px solid ${BORDER}` }}>{k.val}</code>
               <CopyBtn text={k.val} small />
             </div>
           </div>
         ))}
       </div>
       {/* Live */}
-      <div style={{ background: "rgba(45,190,96,0.05)", border: "1px solid rgba(45,190,96,0.2)", borderRadius: 18, overflow: "hidden", marginBottom: 20 }}>
-        <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(45,190,96,0.15)", fontSize: 11, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>● Live</div>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 18, overflow: "hidden", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${BORDER}`, fontSize: 11, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>● Live</div>
         <div style={{ padding: "20px 18px", textAlign: "center" }}>
           {account.status === "live" || mode === "live" ? (
             <div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Live Key</div>
+              <div style={{ fontSize: 11, color: MUTED, marginBottom: 6 }}>Live Key</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <code style={{ flex: 1, fontSize: 11, background: "rgba(0,0,0,0.25)", padding: "8px 12px", borderRadius: 8, color: "rgba(255,255,255,0.85)", wordBreak: "break-all" as const }}>{account.liveKey}</code>
+                <code style={{ flex: 1, fontSize: 11, background: "#f8fafc", padding: "8px 12px", borderRadius: 8, color: TEXT, wordBreak: "break-all" as const, border: `1px solid ${BORDER}` }}>{account.liveKey}</code>
                 <CopyBtn text={account.liveKey} small />
               </div>
             </div>
           ) : (
             <div>
               <div style={{ fontSize: 32, marginBottom: 10 }}>🚀</div>
-              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>Prêt à passer en production ?</div>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "0 0 16px", lineHeight: 1.6 }}>
-                Votre compte sandbox est pleinement fonctionnel. Lorsque vous êtes prêt à accepter de vrais paiements, activez le mode Live en quelques étapes simples.
+              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8, color: TEXT }}>Prêt à passer en production ?</div>
+              <p style={{ fontSize: 12, color: MUTED, margin: "0 0 16px", lineHeight: 1.6 }}>
+                Votre compte sandbox est pleinement fonctionnel. Lorsque vous êtes prêt à accepter de vrais paiements, activez le mode Live.
               </p>
-              <button
-                onClick={() => setTab("go-live")}
-                style={{ display: "inline-block", background: ZP_GRAD, color: "#fff", border: "none", cursor: "pointer", padding: "11px 28px", borderRadius: 12, fontSize: 13, fontWeight: 800 }}
-              >
+              <button onClick={() => setTab("go-live")} style={{ display: "inline-block", background: ZP_GRAD, color: "#fff", border: "none", cursor: "pointer", padding: "11px 28px", borderRadius: 12, fontSize: 13, fontWeight: 800 }}>
                 Activer le mode Live →
               </button>
             </div>
@@ -605,9 +602,9 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved }: {
         </div>
       </div>
       {/* Code snippet */}
-      <div style={{ background: "#0d1117", border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden" }}>
-        <div style={{ padding: "10px 16px", borderBottom: `1px solid ${BORDER}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700 }}>Node.js — Create Payment</span>
+      <div style={{ background: "#0d1117", border: `1px solid #30363d`, borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ padding: "10px 16px", borderBottom: "1px solid #30363d", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "#8b949e", fontWeight: 700 }}>Node.js — Create Payment</span>
           <CopyBtn text={`import ZeniPay from '@zenipay/node';\nconst zp = new ZeniPay('${activeKey || "YOUR_KEY"}');\nconst payment = await zp.payments.create({ amount: 1000, currency: 'cad' });`} small />
         </div>
         <pre style={{ margin: 0, padding: "14px 18px", fontSize: 12, lineHeight: 1.7, color: "#e6edf3", overflowX: "auto" as const }}>
@@ -629,21 +626,19 @@ console.log(payment.id); // pay_xxxxxxxx`}
   // ── SETTINGS ─────────────────────────────────────────────
   const SettingsSection = (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 24px" }}>Settings</h2>
-      {/* Plan */}
-      <div style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "18px 20px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 24px", color: TEXT }}>Settings</h2>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "18px 20px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Current Plan</div>
-          <div style={{ fontSize: 18, fontWeight: 900 }}>{account.plan}</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
-            {account.plan === "Standard" ? "2.9% + $0.30" : account.plan === "Business" ? "2.2% + $0.25" : "2% + $0.20"} per transaction
+          <div style={{ fontSize: 11, color: MUTED, marginBottom: 4 }}>Current Plan</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: TEXT }}>{account.plan === "Sandbox" ? "Standard" : account.plan}</div>
+          <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
+            {(account.plan === "Standard" || account.plan === "Sandbox") ? "2.9% + $0.30" : account.plan === "Business" ? "2.2% + $0.25" : "2% + $0.20"} per transaction
           </div>
         </div>
         <a href="/payments" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "10px 20px", borderRadius: 12, fontSize: 13, fontWeight: 800 }}>Upgrade Plan →</a>
       </div>
-      {/* Business Info */}
-      <div style={{ background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${BORDER}`, fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.1em" }}>Business Info</div>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${BORDER}`, fontSize: 11, color: MUTED, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.1em" }}>Business Info</div>
         {[
           ["Business Name", account.businessName],
           ["Owner",         account.ownerName],
@@ -655,19 +650,18 @@ console.log(payment.id); // pay_xxxxxxxx`}
           ["Est. Volume",   account.monthlyVolume ? `$${account.monthlyVolume}/mo` : "—"],
           ["Member Since",  new Date(account.createdAt).toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" })],
         ].map(([l, v]) => (
-          <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "11px 18px", borderBottom: `1px solid rgba(255,255,255,0.03)` }}>
-            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{l}</span>
-            <span style={{ fontWeight: 600, fontSize: 13 }}>{v || "—"}</span>
+          <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "11px 18px", borderBottom: `1px solid ${ROW_SEP}` }}>
+            <span style={{ color: MUTED, fontSize: 13 }}>{l}</span>
+            <span style={{ fontWeight: 600, fontSize: 13, color: TEXT }}>{v || "—"}</span>
           </div>
         ))}
       </div>
-      {/* Support */}
-      <div style={{ background: "rgba(42,143,224,0.07)", border: "1px solid rgba(42,143,224,0.2)", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
+      <div style={{ background: "rgba(42,143,224,0.06)", border: "1px solid rgba(42,143,224,0.2)", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: ZP_BLUE, marginBottom: 6 }}>💬 Support</div>
-        <p style={{ margin: "0 0 8px", fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.7 }}>Mon–Fri, 9am–6pm ET</p>
+        <p style={{ margin: "0 0 8px", fontSize: 13, color: MUTED, lineHeight: 1.7 }}>Mon–Fri, 9am–6pm ET</p>
         <a href="mailto:info@zenipay.ca" style={{ fontSize: 13, color: ZP_CYAN, fontWeight: 700, textDecoration: "none" }}>info@zenipay.ca</a>
       </div>
-      <button onClick={onSignOut} style={{ width: "100%", padding: "13px", borderRadius: 14, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Sign Out</button>
+      <button onClick={onSignOut} style={{ width: "100%", padding: "13px", borderRadius: 14, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Sign Out</button>
     </div>
   );
 
@@ -687,38 +681,38 @@ console.log(payment.id); // pay_xxxxxxxx`}
   const GoLiveSection = (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 6px" }}>Activate Live Account</h2>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: 0 }}>Complete all steps to unlock real payments and receive your live API keys.</p>
+        <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 6px", color: TEXT }}>Activate Live Account</h2>
+        <p style={{ fontSize: 13, color: MUTED, margin: 0 }}>Complete all steps to unlock real payments and receive your live API keys.</p>
       </div>
       {/* Progress bar */}
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
         {GL_STEPS.map((s, i) => (
           <div key={s.id} onClick={() => i < glStep && setGlStep(i)} style={{ flex: 1, cursor: i < glStep ? "pointer" : "default" }}>
-            <div style={{ height: 4, borderRadius: 4, background: i < glStep ? ZP_GREEN : i === glStep ? ZP_CYAN : "rgba(255,255,255,0.1)", marginBottom: 6, transition: "background 0.3s" }} />
-            <div style={{ fontSize: 11, color: i === glStep ? "#fff" : "rgba(255,255,255,0.35)", fontWeight: i === glStep ? 700 : 400, textAlign: "center" as const }}>{i < glStep ? "✓ " : ""}{s.title.split(" ")[0]}</div>
+            <div style={{ height: 4, borderRadius: 4, background: i < glStep ? ZP_GREEN : i === glStep ? ZP_CYAN : BORDER, marginBottom: 6, transition: "background 0.3s" }} />
+            <div style={{ fontSize: 11, color: i === glStep ? TEXT : LIGHT, fontWeight: i === glStep ? 700 : 400, textAlign: "center" as const }}>{i < glStep ? "✓ " : ""}{s.title.split(" ")[0]}</div>
           </div>
         ))}
       </div>
-      {/* Sandbox keys always visible */}
-      <div style={{ background: "rgba(45,190,96,0.05)", border: "1px solid rgba(45,190,96,0.2)", borderRadius: 14, padding: "14px 18px", marginBottom: 20 }}>
+      {/* Sandbox keys */}
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "14px 18px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: ZP_GREEN, marginBottom: 10 }}>🧪 Your Sandbox Keys (active now)</div>
         <div style={{ display: "grid", gap: 8 }}>
           {[{ label: "Publishable Key", value: account.sandboxKey }, { label: "Secret Key", value: account.sandboxSecret }].map(k => (
             <div key={k.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", width: 110, flexShrink: 0 }}>{k.label}</span>
-              <code style={{ flex: 1, fontSize: 11, background: "rgba(0,0,0,0.25)", padding: "6px 10px", borderRadius: 8, color: "rgba(255,255,255,0.85)", wordBreak: "break-all" as const }}>{k.value || "—"}</code>
+              <span style={{ fontSize: 11, color: MUTED, width: 110, flexShrink: 0 }}>{k.label}</span>
+              <code style={{ flex: 1, fontSize: 11, background: "#f8fafc", padding: "6px 10px", borderRadius: 8, color: TEXT, wordBreak: "break-all" as const, border: `1px solid ${BORDER}` }}>{k.value || "—"}</code>
               <CopyBtn text={k.value} small />
             </div>
           ))}
         </div>
       </div>
       {/* Step card */}
-      <div style={{ background: DARK2, border: `1px solid ${BORDER}`, borderRadius: 18, overflow: "hidden" }}>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 18, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 38, height: 38, borderRadius: 12, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{GL_STEPS[glStep].icon}</div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 900 }}>Step {glStep + 1} — {GL_STEPS[glStep].title}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{GL_STEPS[glStep].desc}</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: TEXT }}>Step {glStep + 1} — {GL_STEPS[glStep].title}</div>
+            <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{GL_STEPS[glStep].desc}</div>
           </div>
         </div>
         <div style={{ padding: "20px" }}>
@@ -734,7 +728,7 @@ console.log(payment.id); // pay_xxxxxxxx`}
                   { key: "website2",     label: "Business Website",     type: "text",   placeholder: "https://yourbusiness.com",        full: false },
                 ].map(f => (
                   <div key={f.key} style={{ gridColumn: f.full ? "1/-1" : "auto" }}>
-                    <label style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
+                    <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
                     {f.type === "select"
                       ? <select value={glForm[f.key]||""} onChange={e => setGlField(f.key, e.target.value)} style={IS}><option value="">Choose…</option>{(f.options||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>
                       : <input type="text" placeholder={f.placeholder} value={glForm[f.key]||""} onChange={e => setGlField(f.key, e.target.value)} style={IS} />
@@ -742,35 +736,35 @@ console.log(payment.id); // pay_xxxxxxxx`}
                   </div>
                 ))}
               </div>
-              <button onClick={() => { setGlStep(1); saveGL({ step: 1 }); }} disabled={!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry} style={{ marginTop: 18, width: "100%", padding: 13, background: (!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry) ? "rgba(255,255,255,0.1)" : ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Save & Continue →</button>
+              <button onClick={() => { setGlStep(1); saveGL({ step: 1 }); }} disabled={!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry} style={{ marginTop: 18, width: "100%", padding: 13, background: (!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry) ? BORDER : ZP_GRAD, color: (!glForm.legalName||!glForm.businessNum||!glForm.address||!glForm.industry) ? MUTED : "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Save & Continue →</button>
             </div>
           )}
           {/* Step 1 – Integration */}
           {glStep === 1 && (
             <div>
-              <div style={{ marginBottom: 14, padding: "10px 14px", background: "rgba(45,190,96,0.07)", border: "1px solid rgba(45,190,96,0.2)", borderRadius: 10, fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>Follow these steps in your terminal / codebase. Check each one when done.</div>
+              <div style={{ marginBottom: 14, padding: "10px 14px", background: "rgba(45,190,96,0.06)", border: "1px solid rgba(45,190,96,0.2)", borderRadius: 10, fontSize: 13, color: MUTED, lineHeight: 1.6 }}>Follow these steps in your terminal / codebase. Check each one when done.</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {SDK_STEPS.map((s, i) => (
-                  <div key={s.key} style={{ background: GLASS, border: `1px solid ${glChecked[s.key] ? "rgba(45,190,96,0.4)" : BORDER}`, borderRadius: 12, overflow: "hidden" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: `1px solid ${BORDER}` }}>
+                  <div key={s.key} style={{ background: "#f8fafc", border: `1px solid ${glChecked[s.key] ? "rgba(45,190,96,0.4)" : BORDER}`, borderRadius: 12, overflow: "hidden" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: `1px solid ${BORDER}`, background: CARD_BG }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: glChecked[s.key] ? ZP_GREEN : "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>{glChecked[s.key] ? "✓" : i+1}</div>
-                        <span style={{ fontSize: 13, fontWeight: 700 }}>{s.label}</span>
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: glChecked[s.key] ? ZP_GREEN : BORDER, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: glChecked[s.key] ? "#fff" : MUTED }}>{glChecked[s.key] ? "✓" : i+1}</div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{s.label}</span>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
                         <CopyBtn text={s.code} small />
-                        <button onClick={() => toggleGL(s.key)} style={{ background: glChecked[s.key] ? "rgba(45,190,96,0.2)" : "rgba(255,255,255,0.08)", border: `1px solid ${glChecked[s.key] ? "rgba(45,190,96,0.4)" : BORDER}`, color: glChecked[s.key] ? ZP_GREEN : "rgba(255,255,255,0.7)", padding: "4px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>{glChecked[s.key] ? "Done ✓" : "Mark done"}</button>
+                        <button onClick={() => toggleGL(s.key)} style={{ background: glChecked[s.key] ? "rgba(45,190,96,0.1)" : CARD_BG, border: `1px solid ${glChecked[s.key] ? "rgba(45,190,96,0.4)" : BORDER}`, color: glChecked[s.key] ? ZP_GREEN : MUTED, padding: "4px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>{glChecked[s.key] ? "Done ✓" : "Mark done"}</button>
                       </div>
                     </div>
                     <pre style={{ margin: 0, padding: "10px 14px", fontSize: 11, lineHeight: 1.7, color: "#e6edf3", overflowX: "auto" as const, background: "#0d1117" }}>{s.code}</pre>
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: 12, background: "rgba(21,184,201,0.06)", border: "1px solid rgba(21,184,201,0.2)", borderRadius: 10, padding: "10px 14px", fontSize: 12 }}>
+              <div style={{ marginTop: 12, background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "10px 14px", fontSize: 12 }}>
                 <span style={{ fontWeight: 700, color: ZP_CYAN }}>Test cards: </span>
-                <span>Visa: <code>4111 1111 1111 1111</code> · MC: <code>5454 5454 5454 5454</code> · Any future exp · CVC 999</span>
+                <span style={{ color: MUTED }}>Visa: <code style={{ color: TEXT }}>4111 1111 1111 1111</code> · MC: <code style={{ color: TEXT }}>5454 5454 5454 5454</code> · Any future exp · CVC 999</span>
               </div>
-              <button onClick={() => { setGlStep(2); saveGL({ step: 2 }); }} disabled={Object.values(glChecked).filter(Boolean).length < 2} style={{ marginTop: 18, width: "100%", padding: 13, background: Object.values(glChecked).filter(Boolean).length < 2 ? "rgba(255,255,255,0.1)" : ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Integration looks good → Continue</button>
+              <button onClick={() => { setGlStep(2); saveGL({ step: 2 }); }} disabled={Object.values(glChecked).filter(Boolean).length < 2} style={{ marginTop: 18, width: "100%", padding: 13, background: Object.values(glChecked).filter(Boolean).length < 2 ? BORDER : ZP_GRAD, color: Object.values(glChecked).filter(Boolean).length < 2 ? MUTED : "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Integration looks good → Continue</button>
             </div>
           )}
           {/* Step 2 – Compliance */}
@@ -785,7 +779,7 @@ console.log(payment.id); // pay_xxxxxxxx`}
                   { key: "termsUrl",       label: "Terms of Service URL",         type: "text",   placeholder: "https://yourbusiness.com/terms",                                              full: true  },
                 ].map(f => (
                   <div key={f.key} style={{ gridColumn: f.full ? "1/-1" : "auto" }}>
-                    <label style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
+                    <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
                     {f.type === "select"
                       ? <select value={glForm[f.key]||""} onChange={e => setGlField(f.key, e.target.value)} style={IS}><option value="">Choose…</option>{(f.options||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>
                       : <input type="text" placeholder={f.placeholder} value={glForm[f.key]||""} onChange={e => setGlField(f.key, e.target.value)} style={IS} />
@@ -793,16 +787,16 @@ console.log(payment.id); // pay_xxxxxxxx`}
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: 14, padding: "10px 14px", background: GLASS, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.7 }}>By submitting this application you agree to the ZeniPay Merchant Agreement and confirm all provided information is accurate and complete.</div>
-              <button onClick={() => { setGlStep(3); saveGL({ step: 3, submitted: true }); }} disabled={!glForm.monthlyVolume2||!glForm.avgTicket} style={{ marginTop: 14, width: "100%", padding: 13, background: (!glForm.monthlyVolume2||!glForm.avgTicket) ? "rgba(255,255,255,0.1)" : ZP_GRAD, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Submit for Live Review →</button>
+              <div style={{ marginTop: 14, padding: "10px 14px", background: "#f8fafc", border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 12, color: MUTED, lineHeight: 1.7 }}>By submitting this application you agree to the ZeniPay Merchant Agreement and confirm all provided information is accurate and complete.</div>
+              <button onClick={() => { setGlStep(3); saveGL({ step: 3, submitted: true }); }} disabled={!glForm.monthlyVolume2||!glForm.avgTicket} style={{ marginTop: 14, width: "100%", padding: 13, background: (!glForm.monthlyVolume2||!glForm.avgTicket) ? BORDER : ZP_GRAD, color: (!glForm.monthlyVolume2||!glForm.avgTicket) ? MUTED : "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Submit for Live Review →</button>
             </div>
           )}
           {/* Step 3 – Under Review */}
           {glStep === 3 && (
             <div style={{ textAlign: "center" as const, padding: "16px 0 8px" }}>
               <div style={{ fontSize: 48, marginBottom: 14 }}>⏳</div>
-              <h3 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 10px" }}>Application submitted!</h3>
-              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: "0 0 20px", lineHeight: 1.7 }}>Our team will review your application within <strong style={{ color: "#fff" }}>1–2 business days</strong>.<br />We will email <strong style={{ color: ZP_CYAN }}>{account.email}</strong> when approved.</p>
+              <h3 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 10px", color: TEXT }}>Application submitted!</h3>
+              <p style={{ color: MUTED, fontSize: 14, margin: "0 0 20px", lineHeight: 1.7 }}>Our team will review your application within <strong style={{ color: TEXT }}>1–2 business days</strong>.<br />We will email <strong style={{ color: ZP_CYAN }}>{account.email}</strong> when approved.</p>
               <div style={{ display: "grid", gap: 8, maxWidth: 360, margin: "0 auto 20px" }}>
                 {[
                   { icon: "✅", label: "Business Verification", done: true  },
@@ -810,14 +804,14 @@ console.log(payment.id); // pay_xxxxxxxx`}
                   { icon: "✅", label: "Compliance Review",     done: true  },
                   { icon: "🔄", label: "ZeniPay Review",        done: false },
                 ].map(item => (
-                  <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, background: GLASS, border: `1px solid ${item.done ? "rgba(45,190,96,0.3)" : BORDER}`, borderRadius: 10, padding: "10px 14px" }}>
+                  <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, background: item.done ? "rgba(45,190,96,0.06)" : "#f8fafc", border: `1px solid ${item.done ? "rgba(45,190,96,0.3)" : BORDER}`, borderRadius: 10, padding: "10px 14px" }}>
                     <span style={{ fontSize: 18 }}>{item.icon}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: item.done ? ZP_GREEN : "rgba(255,255,255,0.6)" }}>{item.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: item.done ? ZP_GREEN : MUTED }}>{item.label}</span>
                   </div>
                 ))}
               </div>
-              <a href="mailto:info@zenipay.ca" style={{ display: "inline-block", background: GLASS, border: `1px solid ${BORDER}`, color: "#fff", textDecoration: "none", padding: "10px 22px", borderRadius: 12, fontSize: 13, fontWeight: 700 }}>Contact Support</a>
-              <div style={{ marginTop: 16, padding: "8px 14px", background: "rgba(123,79,191,0.1)", border: "1px solid rgba(123,79,191,0.3)", borderRadius: 10, fontSize: 11, color: ZP_PURPLE }}>
+              <a href="mailto:info@zenipay.ca" style={{ display: "inline-block", background: "#f8fafc", border: `1px solid ${BORDER}`, color: TEXT, textDecoration: "none", padding: "10px 22px", borderRadius: 12, fontSize: 13, fontWeight: 700 }}>Contact Support</a>
+              <div style={{ marginTop: 16, padding: "8px 14px", background: "rgba(123,79,191,0.06)", border: "1px solid rgba(123,79,191,0.2)", borderRadius: 10, fontSize: 11, color: ZP_PURPLE }}>
                 Demo: <button onClick={() => onApproved?.()} style={{ background: "none", border: "none", color: ZP_PURPLE, cursor: "pointer", fontWeight: 700, fontSize: 11, padding: "0 4px" }}>Simulate approval →</button>
               </div>
             </div>
@@ -844,12 +838,11 @@ console.log(payment.id); // pay_xxxxxxxx`}
   // ── MODALS ────────────────────────────────────────────────
   const payLinkModal = modal === "paylink" && (
     <Modal title="Create Payment Link" onClose={() => setModal(null)}>
-      {/* Templates */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" as const }}>Templates</div>
+        <div style={{ fontSize: 11, color: MUTED, fontWeight: 700, marginBottom: 8, textTransform: "uppercase" as const }}>Templates</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {LINK_TEMPLATES.map(t => (
-            <button key={t.title} onClick={() => setPlForm(f => ({ ...f, title: t.title, amount: t.amount, desc: t.desc }))} style={{ background: GLASS, border: `1px solid ${BORDER}`, color: "rgba(255,255,255,0.8)", padding: "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>{t.title}</button>
+            <button key={t.title} onClick={() => setPlForm(f => ({ ...f, title: t.title, amount: t.amount, desc: t.desc }))} style={{ background: "#f8fafc", border: `1px solid ${BORDER}`, color: MUTED, padding: "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>{t.title}</button>
           ))}
         </div>
       </div>
@@ -861,7 +854,7 @@ console.log(payment.id); // pay_xxxxxxxx`}
           { label: "Description",  key: "desc",   type: "text",   ph: "What is this payment for?" },
         ].map(f => (
           <div key={f.key}>
-            <label style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
+            <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
             <input type={f.type} placeholder={f.ph} value={plForm[f.key as keyof typeof plForm]} onChange={e => setPlForm(p => ({ ...p, [f.key]: e.target.value }))} style={IS} />
           </div>
         ))}
@@ -872,12 +865,11 @@ console.log(payment.id); // pay_xxxxxxxx`}
 
   const invoiceModal = modal === "invoice" && (
     <Modal title="Create Invoice" onClose={() => setModal(null)}>
-      {/* Templates */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" as const }}>Templates</div>
+        <div style={{ fontSize: 11, color: MUTED, fontWeight: 700, marginBottom: 8, textTransform: "uppercase" as const }}>Templates</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {INV_TEMPLATES.map(t => (
-            <button key={t.name} onClick={() => { setInvItems(t.items); setModal("invoice"); }} style={{ background: GLASS, border: `1px solid ${BORDER}`, color: "rgba(255,255,255,0.8)", padding: "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>{t.name}</button>
+            <button key={t.name} onClick={() => { setInvItems(t.items); setModal("invoice"); }} style={{ background: "#f8fafc", border: `1px solid ${BORDER}`, color: MUTED, padding: "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>{t.name}</button>
           ))}
         </div>
       </div>
@@ -888,16 +880,15 @@ console.log(payment.id); // pay_xxxxxxxx`}
           { label: "Due Date",     key: "dueDate", type: "date",  ph: "" },
         ].map(f => (
           <div key={f.key}>
-            <label style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
+            <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
             <input type={f.type} placeholder={f.ph} value={invForm[f.key as keyof typeof invForm]} onChange={e => setInvForm(p => ({ ...p, [f.key]: e.target.value }))} style={IS} />
           </div>
         ))}
       </div>
-      {/* Line items */}
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700, marginBottom: 8 }}>LINE ITEMS</div>
+        <div style={{ fontSize: 11, color: MUTED, fontWeight: 700, marginBottom: 8 }}>LINE ITEMS</div>
         {invItems.map((item, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: GLASS, borderRadius: 8, marginBottom: 6, fontSize: 13 }}>
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f8fafc", borderRadius: 8, marginBottom: 6, fontSize: 13, color: TEXT }}>
             <span>{item.desc} × {item.qty}</span>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <span style={{ fontWeight: 700 }}>{fmt(item.qty * item.price)}</span>
@@ -909,11 +900,11 @@ console.log(payment.id); // pay_xxxxxxxx`}
           <input placeholder="Description" value={invForm.desc} onChange={e => setInvForm(f => ({ ...f, desc: e.target.value }))} style={{ ...IS, fontSize: 12 }} />
           <input placeholder="Qty" type="number" value={invForm.qty} onChange={e => setInvForm(f => ({ ...f, qty: e.target.value }))} style={{ ...IS, fontSize: 12 }} />
           <input placeholder="Price $" type="number" value={invForm.price} onChange={e => setInvForm(f => ({ ...f, price: e.target.value }))} style={{ ...IS, fontSize: 12 }} />
-          <button onClick={addInvItem} style={{ background: GLASS, border: `1px solid ${BORDER}`, color: "#fff", borderRadius: 10, padding: "0 12px", fontSize: 20, cursor: "pointer" }}>+</button>
+          <button onClick={addInvItem} style={{ background: "#f8fafc", border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 10, padding: "0 12px", fontSize: 20, cursor: "pointer" }}>+</button>
         </div>
       </div>
       {invItems.length > 0 && (
-        <div style={{ textAlign: "right", fontWeight: 800, fontSize: 16, marginBottom: 12 }}>
+        <div style={{ textAlign: "right", fontWeight: 800, fontSize: 16, marginBottom: 12, color: TEXT }}>
           Total: {fmt(invItems.reduce((s, i) => s + i.qty * i.price, 0))}
         </div>
       )}
@@ -930,12 +921,12 @@ console.log(payment.id); // pay_xxxxxxxx`}
           { label: "Note (optional)",key: "note",      type: "text",   ph: "Invoice #1042 payment" },
         ].map(f => (
           <div key={f.key}>
-            <label style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
+            <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, display: "block", marginBottom: 5 }}>{f.label}</label>
             <input type={f.type} placeholder={f.ph} value={poForm[f.key as keyof typeof poForm]} onChange={e => setPoForm(p => ({ ...p, [f.key]: e.target.value }))} style={IS} />
           </div>
         ))}
         <div>
-          <label style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700, display: "block", marginBottom: 5 }}>Payment Method</label>
+          <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, display: "block", marginBottom: 5 }}>Payment Method</label>
           <select value={poForm.method} onChange={e => setPoForm(p => ({ ...p, method: e.target.value }))} style={{ ...IS }}>
             {["e-Transfer","ACH / EFT","Wire Transfer","Interac"].map(m => <option key={m} value={m}>{m}</option>)}
           </select>
@@ -947,44 +938,47 @@ console.log(payment.id); // pay_xxxxxxxx`}
 
   // ────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: DARK, color: "#fff", fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", position: "relative" }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: PAGE_BG, color: TEXT, fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", position: "relative" }}>
       <style>{`
         * { box-sizing: border-box; }
-        select option { background: #1e293b; color: #fff; }
+        select option { background: #fff; color: #0f172a; }
         pre { font-family: 'SF Mono','Fira Code',monospace; }
         button:active { opacity: 0.85; }
-        ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+        ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
       `}</style>
 
       {/* ── Sidebar ─────────────────────────────── */}
       {(sideOpen || !isMobile) && (
-        <aside style={{ width: isMobile ? "100vw" : 220, background: PANEL, borderRight: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", position: isMobile ? "fixed" : "sticky", top: 0, height: "100vh", zIndex: 100, flexShrink: 0 }}>
+        <aside style={{ width: isMobile ? "100vw" : 220, background: SIDEBAR, borderRight: "1px solid rgba(255,255,255,0.15)", display: "flex", flexDirection: "column", position: isMobile ? "fixed" : "sticky", top: 0, height: "100vh", zIndex: 100, flexShrink: 0 }}>
           {/* Logo */}
-          <div style={{ padding: "16px 20px 12px", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14 }}>Z</div>
+          <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <img src="/zenipay-logo.png" alt="ZeniPay" style={{ width: 32, height: 32, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(21,184,201,0.5))" }}
+                onError={e => { (e.target as HTMLImageElement).style.display = "none"; (e.target as HTMLImageElement).nextElementSibling?.removeAttribute("style"); }}
+              />
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: ZP_GRAD, alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14, color: "#fff", display: "none" } as React.CSSProperties}>Z</div>
               <span style={{ fontWeight: 800, fontSize: 16, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ZeniPay</span>
             </div>
-            {isMobile && <button onClick={() => setSideOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 22 }}>×</button>}
+            {isMobile && <button onClick={() => setSideOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 22 }}>×</button>}
           </div>
           {/* Business + mode */}
-          <div style={{ padding: "12px 16px", borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{account.businessName}</div>
-            <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 10, background: "rgba(45,190,96,0.15)", color: ZP_GREEN, border: "1px solid rgba(45,190,96,0.3)" }}>
+            <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 10, background: "rgba(45,190,96,0.2)", color: ZP_GREEN, border: "1px solid rgba(45,190,96,0.4)" }}>
               {isSandbox ? "● SANDBOX" : "● LIVE"}
             </span>
           </div>
           {/* Nav */}
-          <nav style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+          <nav style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
             {TABS.map(t => (
-              <button key={t.id} onClick={() => { setTab(t.id); if (isMobile) setSideOpen(false); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", background: tab === t.id ? "rgba(21,184,201,0.1)" : "none", border: "none", borderLeft: `3px solid ${tab === t.id ? ZP_CYAN : "transparent"}`, color: tab === t.id ? "#fff" : "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer", textAlign: "left" as const }}>
+              <button key={t.id} onClick={() => { setTab(t.id); if (isMobile) setSideOpen(false); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: tab === t.id ? `linear-gradient(135deg, ${ZP_CYAN}25, ${ZP_CYAN}10)` : "transparent", border: tab === t.id ? `1px solid ${ZP_CYAN}40` : "1px solid transparent", borderRadius: 10, color: tab === t.id ? "#fff" : "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: tab === t.id ? 700 : 500, cursor: "pointer", textAlign: "left" as const, marginBottom: 1, transition: "all 0.15s" }}>
                 <span style={{ fontSize: 16, width: 22 }}>{t.icon}</span>{t.label}
               </button>
             ))}
           </nav>
           {/* Sign out */}
-          <div style={{ padding: "12px 16px", borderTop: `1px solid ${BORDER}` }}>
-            <button onClick={onSignOut} style={{ width: "100%", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", borderRadius: 10, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Sign Out</button>
+          <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+            <button onClick={onSignOut} style={{ width: "100%", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444", borderRadius: 10, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Sign Out</button>
           </div>
         </aside>
       )}
@@ -992,12 +986,12 @@ console.log(payment.id); // pay_xxxxxxxx`}
       {/* ── Main content ─────────────────────────── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Topbar */}
-        <div style={{ background: "rgba(10,15,30,0.95)", backdropFilter: "blur(20px)", borderBottom: `1px solid ${BORDER}`, height: 56, display: "flex", alignItems: "center", padding: "0 20px", gap: 12, flexShrink: 0 }}>
+        <div style={{ background: TOPBAR_BG, borderBottom: `1px solid ${BORDER}`, height: 56, display: "flex", alignItems: "center", padding: "0 20px", gap: 12, flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
           {isMobile && (
-            <button onClick={() => setSideOpen(true)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 22, padding: "0 4px" }}>☰</button>
+            <button onClick={() => setSideOpen(true)} style={{ background: "none", border: "none", color: TEXT, cursor: "pointer", fontSize: 22, padding: "0 4px" }}>☰</button>
           )}
-          <div style={{ flex: 1, fontSize: 15, fontWeight: 700 }}>{TABS.find(t => t.id === tab)?.icon} {TABS.find(t => t.id === tab)?.label}</div>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>
+          <div style={{ flex: 1, fontSize: 15, fontWeight: 700, color: TEXT }}>{TABS.find(t => t.id === tab)?.icon} {TABS.find(t => t.id === tab)?.label}</div>
+          <span style={{ fontSize: 12, color: MUTED }}>
             {account.plan === "Sandbox" ? "Standard" : account.plan} plan
             {isSandbox && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: ZP_GREEN }}>SANDBOX</span>}
           </span>
