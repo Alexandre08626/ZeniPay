@@ -18,12 +18,23 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError("");
 
-    // Check Supabase first
+    // Zeniva Travel — direct access with either email
+    const isZeniva = (email === "info@zeniva.ca" || email === "info@zenivatravel.com");
+    if (isZeniva && (pw === "client2026" || pw === "zeniva2026")) {
+      sessionStorage.setItem("zp_client", "cl-001");
+      sessionStorage.setItem("zp_client_email", "info@zeniva.ca");
+      sessionStorage.setItem("zp_client_mode", mode);
+      sessionStorage.setItem("zp_client_sandbox_key", "zpk_sandbox_zeniva_7x2");
+      router.replace("/app");
+      return;
+    }
+
+    // Check Supabase for all other merchants
     try {
       const res = await fetch(`/api/zenipay/merchants?email=${encodeURIComponent(email)}`);
       const { merchants } = await res.json();
       const found = merchants?.[0];
-      if (found && (found.password === pw || pw === "client2026" || pw === "zeniva2026")) {
+      if (found && (found.password === pw || pw === "client2026")) {
         sessionStorage.setItem("zp_client", found.id || "client");
         sessionStorage.setItem("zp_client_email", email);
         sessionStorage.setItem("zp_client_mode", mode);
