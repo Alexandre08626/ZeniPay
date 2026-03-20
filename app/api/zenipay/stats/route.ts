@@ -16,103 +16,82 @@ export async function GET() {
   try {
     const supabase = getSupabase();
 
-    // Wallet balances from ledger
     const wallets = await getWalletBalances();
 
-    // Payment stats from DB
-    let stats = {
-      total_revenue: 0,
-      total_payments: 0,
-      succeeded_payments: 0,
-      failed_payments: 0,
-      pending_payments: 0,
-      refunded_payments: 0,
-      success_rate: 0,
-    };
-
+    let stats = { total_revenue: 0, total_payments: 0, succeeded_payments: 0, failed_payments: 0, pending_payments: 0, refunded_payments: 0, success_rate: 0 };
     let recentTransactions: unknown[] = [];
 
     if (supabase) {
-      // Aggregate from payments table
-      const { data: payments } = await supabase
+      // ── Read from zenipay_payments table (old Tilled/Finix payments) ───
+      const { data: tablePays } = await supabase
         .from("zenipay_payments")
-        .select("id, amount, status, created_at, customer_name, currency, description") as { data: Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string }> | null };
-
-      if (payments && payments.length > 0) {
-        const succeeded = payments.filter((p) => p.status === "succeeded");
-        const failed = payments.filter((p) => p.status === "failed");
-        const pending = payments.filter((p) => p.status === "pending");
-        const refunded = payments.filter((p) => p.status === "refunded");
-
-        stats = {
-          total_revenue: succeeded.reduce((s, p) => s + Number(p.amount), 0),
-          total_payments: payments.length,
-          succeeded_payments: succeeded.length,
-          failed_payments: failed.length,
-          pending_payments: pending.length,
-          refunded_payments: refunded.length,
-          success_rate: payments.length > 0 ? Math.round((succeeded.length / payments.length) * 100) : 0,
+        .select("id, amount, status, created_at, customer_name, currency, description") as {
+          data: Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string }> | null
         };
 
-        recentTransactions = payments
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 20)
-          .map((p) => ({
-            id: p.id,
-            customer: p.customer_name || "—",
-            amount: Number(p.amount),
-            currency: p.currency || "USD",
-            status: p.status,
-            description: p.description || "",
-            date: p.created_at,
-            gateway: "Finix",
-          }));
+      // ── Read from merchant_data.transactions (ZeniPay /pay/[id] payments) ─
+      const { data: merchants } = await supabase
+        .from("zenipay_merchants")
+        .select("merchant_data");
+
+      const mdTxns: Array<{ id: string; amount: number; status: string; createdAt: string; customer_name: string; currency: string; description: string }> = [];
+      for (const m of (merchants || [])) {
+        for (const t of (m.merchant_data?.transactions || [])) {
+          mdTxns.push(t);
+        }
       }
 
-      // Recent payouts
-      const { data: payouts } = await supabase
-        .from("zenipay_payouts")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(10);
+      // ── Merge both sources, deduplicate by id ─────────────────────────
+      const existingIds = new Set((tablePays || []).map(p => p.id));
+      const merged = [
+        ...(tablePays || []).map(p => ({ id: p.id, amount: Number(p.amount), status: p.status, created_at: p.created_at, customer_name: p.customer_name || "—", currency: p.currency || "USD", description: p.description || "" })),
+        ...mdTxns.filter(t => !existingIds.has(t.id)).map(t => ({ id: t.id, amount: Number(t.amount), status: t.status || "succeeded", created_at: t.createdAt, customer_name: t.customer_name || "—", currency: t.currency || "USD", description: t.description || "" })),
+      ];
 
-      // Recent invoices
-      const { data: invoices } = await supabase
-        .from("zenipay_invoices")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(10);
+      if (merged.length > 0) {
+        const succeeded = merged.filter(p => p.status === "succeeded");
+        const failed    = merged.filter(p => p.status === "failed");
+        const pending   = merged.filter(p => p.status === "pending");
+        const refunded  = merged.filter(p => p.status === "refunded");
+        stats = {
+          total_revenue:      succeeded.reduce((s, p) => s + p.amount, 0),
+          total_payments:     merged.length,
+          succeeded_payments: succeeded.length,
+          failed_payments:    failed.length,
+          pending_payments:   pending.length,
+          refunded_payments:  refunded.length,
+          success_rate:       Math.round((succeeded.length / merged.length) * 100),
+        };
+        recentTransactions = merged
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 50)
+          .map(p => ({ id: p.id, customer: p.customer_name, amount: p.amount, currency: p.currency, status: p.status, description: p.description, date: p.created_at, gateway: "ZeniPay" }));
+      }
+
+      const { data: payouts }  = await supabase.from("zenipay_payouts").select("*").order("created_at", { ascending: false }).limit(10);
+
+      // Invoices: merge table + merchant_data.invoices
+      const { data: tableInv } = await supabase.from("zenipay_invoices").select("*").order("created_at", { ascending: false }).limit(20);
+      const mdInvoices: unknown[] = [];
+      for (const m of (merchants || [])) {
+        for (const inv of (m.merchant_data?.invoices || [])) mdInvoices.push(inv);
+      }
+      const allInvoices = [...(tableInv || []), ...mdInvoices].slice(0, 20);
 
       return NextResponse.json({
-        wallets,
-        stats,
+        wallets, stats,
         recent_transactions: recentTransactions,
         recent_payouts: payouts || [],
-        recent_invoices: invoices || [],
-        mode: "live",
-        gateway: "Finix",
+        recent_invoices: allInvoices,
+        mode: "live", gateway: "ZeniPay",
         env: process.env.TILLED_ENV || "sandbox",
       });
     }
 
-    // Supabase not configured — return $0 state
-    return NextResponse.json({
-      wallets,
-      stats,
-      recent_transactions: [],
-      recent_payouts: [],
-      recent_invoices: [],
-      mode: "live",
-      gateway: "Finix",
-      env: process.env.TILLED_ENV || "sandbox",
-      _info: "Supabase not yet configured — all values at $0",
-    });
+    return NextResponse.json({ wallets, stats, recent_transactions: [], recent_payouts: [], recent_invoices: [], mode: "live", gateway: "ZeniPay", env: "sandbox" });
 
   } catch (err) {
     console.error("[ZeniPay Stats]", err);
-    return NextResponse.json(
-      { error: "Stats unavailable", wallets: null, stats: null },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Stats unavailable", wallets: null, stats: null }, { status: 500 });
   }
 }
