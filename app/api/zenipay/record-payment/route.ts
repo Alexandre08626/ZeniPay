@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       status: "succeeded",
       created_at: now,
     });
-    if (payErr) console.error("[record-payment] zenipay_payments insert:", payErr.message);
+    if (payErr) return NextResponse.json({ ok: false, step: "zenipay_payments", error: payErr.message, code: payErr.code });
 
     // ── 2. Find merchant ───────────────────────────────────────────────────
     let merchantId: string | null = null;
