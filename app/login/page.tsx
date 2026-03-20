@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     // Zeniva Travel — direct access with either email
     const isZeniva = (email === "info@zeniva.ca" || email === "info@zenivatravel.com");
-    if (isZeniva && (pw === "client2026" || pw === "zeniva2026")) {
+    if (isZeniva && (pw === "Ballon22" || pw === "client2026")) {
       sessionStorage.setItem("zp_client", "cl-001");
       sessionStorage.setItem("zp_client_email", "info@zeniva.ca");
       sessionStorage.setItem("zp_client_mode", mode);
