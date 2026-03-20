@@ -257,90 +257,70 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
     setTimeout(() => { setBenChat(c => [...c, { role:"ben", text:ans }]); setBenLoading(false); }, 1200);
   };
 
-  // ── Auto-seed sandbox data on first load ─────────────
+  // ── Auto-seed sandbox data once Supabase load completes ─────────────
   useEffect(() => {
-    // Build realistic Canadian business data from the account
+    if (!dataLoaded) return;
+
     const site = account.website || `https://${(account.businessName || "monentreprise").toLowerCase().replace(/\s+/g, "")}.ca`;
     const industry = account.businessType || "E-commerce";
     const volume   = (account.monthlyVolume || "").includes("200") ? "$200,000+" : "$10,000–$50,000";
 
-    // Pre-fill Go Live form if it's empty
+    // Pre-fill Go Live form (localStorage is fine for application state)
     const currentGL = (() => { try { return JSON.parse(localStorage.getItem(glKey) || "{}"); } catch { return {}; } })();
     if (!currentGL.form?.legalName) {
       const f: Record<string,string> = {
-        legalName:      account.businessName || account.ownerName,
-        businessNum:    "789456123",
-        address:        "456 Rue Saint-Denis, Montréal, QC  H2J 2L1",
-        industry,
-        website2:       site,
-        monthlyVolume2: volume,
-        avgTicket:      "$100–$500",
-        intlCards:      "Yes — mostly domestic",
-        refundPolicy:   `${site}/remboursements`,
-        termsUrl:       `${site}/conditions`,
+        legalName: account.businessName || account.ownerName, businessNum: "789456123",
+        address: "456 Rue Saint-Denis, Montréal, QC  H2J 2L1", industry,
+        website2: site, monthlyVolume2: volume, avgTicket: "$100–$500",
+        intlCards: "Yes — mostly domestic", refundPolicy: `${site}/remboursements`, termsUrl: `${site}/conditions`,
       };
       setGlForm(f);
       try { localStorage.setItem(glKey, JSON.stringify({ ...currentGL, form: f })); } catch {}
     }
 
     // Pre-configure bank account if not set
-    const currentBank: BankCfg = loadData("bankCfg", { holderName:"",bankName:"",transit:"",institution:"",accountNum:"",accountType:"chequing",step:0 });
-    if (currentBank.step === 0) {
-      const seeded: BankCfg = {
-        holderName:  account.ownerName || account.businessName,
-        bankName:    "TD Canada Trust",
-        transit:     "00152",
-        institution: "004",
-        accountNum:  "5678912",
-        accountType: "business chequing",
-        step:        3,
-      };
-      setBankCfg(seeded);
-      saveData("bankCfg", seeded);
+    if (bankCfg.step === 0) {
+      setBankCfg({ holderName: account.ownerName || account.businessName, bankName: "TD Canada Trust", transit: "00152", institution: "004", accountNum: "5678912", accountType: "business chequing", step: 3 });
     }
 
     // Seed sample pay links if none exist
-    const currentLinks: PayLink[] = loadData("paylinks", []);
-    if (currentLinks.length === 0) {
+    if (payLinks.length === 0) {
+      const base = typeof window !== "undefined" ? window.location.origin : "https://zenipay.ca";
       const links: PayLink[] = [
-        { id: uid(), title: "Consultation 1h",    amount: 150,  url: `https://pay.zenipay.ca/l/${uid().toLowerCase()}`, uses: 3,  createdAt: new Date(Date.now()-7*864e5).toISOString(),  status: "active" },
-        { id: uid(), title: "Forfait Mensuel",    amount: 499,  url: `https://pay.zenipay.ca/l/${uid().toLowerCase()}`, uses: 12, createdAt: new Date(Date.now()-14*864e5).toISOString(), status: "active" },
-        { id: uid(), title: "Dépôt Réservation",  amount: 250,  url: `https://pay.zenipay.ca/l/${uid().toLowerCase()}`, uses: 1,  createdAt: new Date(Date.now()-3*864e5).toISOString(),  status: "active" },
+        { id: `LINK-${uid()}`, title: "Consultation 1h",   amount: 150, url: `${base}/pay/LINK-${uid()}?amount=150&currency=USD&desc=Consultation+1h`,   uses: 3,  createdAt: new Date(Date.now()-7*864e5).toISOString(),  status: "active" },
+        { id: `LINK-${uid()}`, title: "Forfait Mensuel",   amount: 499, url: `${base}/pay/LINK-${uid()}?amount=499&currency=USD&desc=Forfait+Mensuel`,   uses: 12, createdAt: new Date(Date.now()-14*864e5).toISOString(), status: "active" },
+        { id: `LINK-${uid()}`, title: "Dépôt Réservation", amount: 250, url: `${base}/pay/LINK-${uid()}?amount=250&currency=USD&desc=Depot+Reservation`, uses: 1,  createdAt: new Date(Date.now()-3*864e5).toISOString(),  status: "active" },
       ];
       setPayLinks(links);
     }
 
     // Seed sample invoices if none
-    const currentInv: Invoice[] = loadData("invoices", []);
-    if (currentInv.length === 0) {
-      const invoiceSeed: Invoice[] = [
-        { id: "INV001", client: "Jean Tremblay",     email: "jean@tremblay.ca",   amount: 1800, status: "paid",  dueDate: new Date(Date.now()-5*864e5).toISOString().split("T")[0],  createdAt: new Date(Date.now()-20*864e5).toISOString(), items: [{desc:"Développement web",qty:1,price:1800}] },
-        { id: "INV002", client: "Marie Côté",        email: "marie@coteinc.ca",   amount: 650,  status: "sent",  dueDate: new Date(Date.now()+10*864e5).toISOString().split("T")[0], createdAt: new Date(Date.now()-7*864e5).toISOString(),  items: [{desc:"Design graphique",qty:1,price:650}] },
-        { id: "INV003", client: "Boutique Léa",      email: "lea@boutiqulea.ca",  amount: 2400, status: "paid",  dueDate: new Date(Date.now()-15*864e5).toISOString().split("T")[0], createdAt: new Date(Date.now()-30*864e5).toISOString(), items: [{desc:"Refonte boutique",qty:1,price:2000},{desc:"Formation",qty:2,price:200}] },
-        { id: "INV004", client: "Solutions Pro Inc", email: "admin@solpro.ca",    amount: 900,  status: "draft", dueDate: new Date(Date.now()+20*864e5).toISOString().split("T")[0], createdAt: new Date().toISOString(),                    items: [{desc:"Consultation",qty:3,price:300}] },
-        { id: "INV005", client: "Groupe Marchand",   email: "info@gmarchand.ca",  amount: 3200, status: "paid",  dueDate: new Date(Date.now()-25*864e5).toISOString().split("T")[0], createdAt: new Date(Date.now()-40*864e5).toISOString(), items: [{desc:"Projet e-commerce",qty:1,price:2800},{desc:"SEO setup",qty:1,price:400}] },
-      ];
-      setInvoices(invoiceSeed);
+    if (invoices.length === 0) {
+      setInvoices([
+        { id: "INV001", client: "Jean Tremblay",     email: "jean@tremblay.ca",  amount: 1800, status: "paid",  dueDate: new Date(Date.now()-5*864e5).toISOString().split("T")[0],  createdAt: new Date(Date.now()-20*864e5).toISOString(), items: [{desc:"Développement web",qty:1,price:1800}] },
+        { id: "INV002", client: "Marie Côté",        email: "marie@coteinc.ca",  amount: 650,  status: "sent",  dueDate: new Date(Date.now()+10*864e5).toISOString().split("T")[0], createdAt: new Date(Date.now()-7*864e5).toISOString(),  items: [{desc:"Design graphique",qty:1,price:650}] },
+        { id: "INV003", client: "Boutique Léa",      email: "lea@boutiqulea.ca", amount: 2400, status: "paid",  dueDate: new Date(Date.now()-15*864e5).toISOString().split("T")[0], createdAt: new Date(Date.now()-30*864e5).toISOString(), items: [{desc:"Refonte boutique",qty:1,price:2000},{desc:"Formation",qty:2,price:200}] },
+        { id: "INV004", client: "Solutions Pro Inc", email: "admin@solpro.ca",   amount: 900,  status: "draft", dueDate: new Date(Date.now()+20*864e5).toISOString().split("T")[0], createdAt: new Date().toISOString(),                    items: [{desc:"Consultation",qty:3,price:300}] },
+        { id: "INV005", client: "Groupe Marchand",   email: "info@gmarchand.ca", amount: 3200, status: "paid",  dueDate: new Date(Date.now()-25*864e5).toISOString().split("T")[0], createdAt: new Date(Date.now()-40*864e5).toISOString(), items: [{desc:"Projet e-commerce",qty:1,price:2800},{desc:"SEO setup",qty:1,price:400}] },
+      ]);
     }
 
     // Seed sample payouts if none
-    const currentPo: Payout[] = loadData("payouts", []);
-    if (currentPo.length === 0) {
-      const payoutSeed: Payout[] = [
-        { id: uid(), recipient: account.ownerName || account.businessName, amount: 2500, method: "e-Transfer",  status: "sent",    createdAt: new Date(Date.now()-10*864e5).toISOString() },
-        { id: uid(), recipient: "Fournisseur ABC",                         amount: 850,  method: "ACH / EFT",   status: "sent",    createdAt: new Date(Date.now()-22*864e5).toISOString() },
-        { id: uid(), recipient: account.ownerName || account.businessName, amount: 1800, method: "e-Transfer",  status: "pending", createdAt: new Date().toISOString() },
-      ];
-      setPayouts(payoutSeed);
+    if (payouts.length === 0) {
+      setPayouts([
+        { id: uid(), recipient: account.ownerName || account.businessName, amount: 2500, method: "e-Transfer", status: "sent",    createdAt: new Date(Date.now()-10*864e5).toISOString() },
+        { id: uid(), recipient: "Fournisseur ABC",                         amount: 850,  method: "ACH / EFT",  status: "sent",    createdAt: new Date(Date.now()-22*864e5).toISOString() },
+        { id: uid(), recipient: account.ownerName || account.businessName, amount: 1800, method: "e-Transfer", status: "pending", createdAt: new Date().toISOString() },
+      ]);
     }
 
-    // Mark Go Live as submitted (step 4 = Under Review) if not already advanced
+    // Mark Go Live as submitted
     if (!currentGL.step || currentGL.step < 4) {
       try { localStorage.setItem(glKey, JSON.stringify({ ...currentGL, step: 4, submitted: true })); } catch {}
       setGlStep(4);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account.email]);
+  }, [dataLoaded]);
 
   // ── Pay Link form ────────────────────────────────────
   const [plForm, setPlForm] = useState({ title: "", amount: "", email: "", desc: "" });
@@ -1340,13 +1320,13 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
     return s;
   };
   const saveAccountKeys = (patch: Partial<Account>) => {
-    try {
-      const all: Account[] = JSON.parse(localStorage.getItem("zp_accounts")||"[]");
-      const idx = all.findIndex(a=>a.email===account.email);
-      const updated = { ...account, ...patch };
-      if (idx >= 0) all[idx] = updated; else all.push(updated);
-      localStorage.setItem("zp_accounts", JSON.stringify(all));
-    } catch {}
+    // Keys are saved in Supabase via the merchants API
+    if (!merchantId) return;
+    fetch(`/api/zenipay/merchants`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: merchantId, ...patch }),
+    }).catch(() => {});
   };
   const CODE: Record<string, string> = {
     node: `// Install\nnpm install @zenipay/node\n\n// Initialize\nimport ZeniPay from '@zenipay/node';\nconst zp = new ZeniPay('${activeKey||"YOUR_API_KEY"}');\n\n// Create payment\nconst payment = await zp.payments.create({\n  amount: 1000,          // in cents (CAD)\n  currency: 'cad',\n  description: 'Order #1042',\n  source: { token: 'tok_from_checkout' }\n});\nconsole.log(payment.id); // pay_xxxxxxxx`,
@@ -1496,7 +1476,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
           <label style={{ fontSize:11,color:MUTED,fontWeight:700,display:"block",marginBottom:6 }}>WEBHOOK ENDPOINT URL</label>
           <div style={{ display:"flex",gap:8 }}>
             <input type="url" placeholder="https://yourdomain.com/webhook/zenipay" value={whUrl} onChange={e=>{setWhUrl(e.target.value);setWhSaved(false);}} style={{ ...IS,flex:1 }} />
-            <button onClick={()=>{ saveData("webhookUrl",whUrl); setWhSaved(true); }} style={{ background:whSaved?"rgba(45,190,96,0.1)":ZP_GRAD,border:`1px solid ${whSaved?"rgba(45,190,96,0.4)":"transparent"}`,color:whSaved?ZP_GREEN:"#fff",padding:"10px 18px",borderRadius:10,fontSize:13,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap" as const }}>{whSaved?"✓ Saved":"Save"}</button>
+            <button onClick={()=>{ try { localStorage.setItem(`zp_webhook_${merchantId}`, whUrl); } catch {} setWhSaved(true); }} style={{ background:whSaved?"rgba(45,190,96,0.1)":ZP_GRAD,border:`1px solid ${whSaved?"rgba(45,190,96,0.4)":"transparent"}`,color:whSaved?ZP_GREEN:"#fff",padding:"10px 18px",borderRadius:10,fontSize:13,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap" as const }}>{whSaved?"✓ Saved":"Save"}</button>
           </div>
           <div style={{ marginTop:8,fontSize:11,color:LIGHT }}>Events: payment.succeeded · payment.failed · invoice.paid · payout.sent</div>
         </div>
