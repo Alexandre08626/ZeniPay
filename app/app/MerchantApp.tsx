@@ -115,10 +115,25 @@ function BankCard({ holderName, bankName, accountNum, balance }: { holderName: s
   );
 }
 
-// ─── Tabs by plan ───────────────────────────────────────
-function getTabs(plan: string) {
-  // Banking (payout account) is available to ALL plans
-  const base = [
+// ─── Tabs by mode ───────────────────────────────────────
+function getTabs(mode: "sandbox" | "live") {
+  if (mode === "live") {
+    return [
+      { id: "overview",     icon: "📊", label: "Overview"     },
+      { id: "transactions", icon: "💳", label: "Transactions" },
+      { id: "banking",      icon: "🏦", label: "Banking"      },
+      { id: "paylinks",     icon: "🔗", label: "Pay Links"    },
+      { id: "invoices",     icon: "📄", label: "Invoices"     },
+      { id: "payouts",      icon: "💸", label: "Payouts"      },
+      { id: "financing",    icon: "🏛️", label: "Financing"    },
+      { id: "analytics",    icon: "📈", label: "Analytics"    },
+      { id: "ben",          icon: "🤖", label: "Ben AI"       },
+      { id: "accounting",   icon: "📚", label: "Accounting"   },
+      { id: "settings",     icon: "⚙️", label: "Settings"     },
+    ];
+  }
+  // Sandbox
+  return [
     { id: "overview",     icon: "📊", label: "Overview"     },
     { id: "transactions", icon: "💳", label: "Transactions" },
     { id: "banking",      icon: "🏦", label: "Bank Account" },
@@ -127,17 +142,8 @@ function getTabs(plan: string) {
     { id: "payouts",      icon: "💸", label: "Payouts"      },
     { id: "keys",         icon: "🔑", label: "API Keys"     },
     { id: "settings",     icon: "⚙️", label: "Settings"     },
+    { id: "go-live",      icon: "🚀", label: "Go Live"      },
   ];
-  const extra = [
-    { id: "accounting",   icon: "📚", label: "Accounting"   },
-    { id: "analytics",    icon: "📈", label: "Analytics"    },
-  ];
-  if (plan === "Business" || plan === "Complete") {
-    // Insert accounting + analytics before keys
-    const idx = base.findIndex(t => t.id === "keys");
-    return [...base.slice(0, idx), ...extra, ...base.slice(idx)];
-  }
-  return base;
 }
 
 // ════════════════════════════════════════════════════════
@@ -148,8 +154,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const searchParams = useSearchParams();
   const isSandbox    = mode === "sandbox";
 
-  const baseTabs = getTabs(account.plan);
-  const TABS = isSandbox ? [...baseTabs, { id: "go-live", icon: "🚀", label: "Go Live" }] : baseTabs;
+  const TABS = getTabs(isSandbox ? "sandbox" : "live");
   const validTabs  = TABS.map(t => t.id);
   const tabFromUrl = searchParams.get("tab") || "overview";
   const tab        = validTabs.includes(tabFromUrl) ? tabFromUrl : "overview";
@@ -826,6 +831,91 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
     </div>
   );
 
+  // ── FINANCING ────────────────────────────────────────
+  const FinancingSection = (
+    <div>
+      <h2 style={{ fontSize:20,fontWeight:900,margin:"0 0 6px",color:TEXT }}>Financing</h2>
+      <p style={{ fontSize:13,color:MUTED,margin:"0 0 24px" }}>Access business financing options and capital solutions powered by ZeniPay.</p>
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:16,marginBottom:24 }}>
+        {[
+          { icon:"💳",title:"ZeniPay Line of Credit",desc:"Flexible credit line up to $250,000 based on your payment history. No fixed payments.",rate:"From 7.9% APR",color:ZP_CYAN,badge:"Available" },
+          { icon:"⚡",title:"Revenue-Based Advance",desc:"Get up to 125% of your monthly volume as an advance. Repay as a % of daily sales.",rate:"Factor 1.15–1.35",color:ZP_GREEN,badge:"Popular" },
+          { icon:"🏦",title:"Equipment Financing",desc:"Finance business equipment and technology with fixed monthly payments.",rate:"From 5.9% APR",color:ZP_PURPLE,badge:"New" },
+        ].map(p=>(
+          <div key={p.title} style={{ background:"white",borderRadius:18,padding:"22px 24px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderLeft:`4px solid ${p.color}`,position:"relative" as const }}>
+            <span style={{ position:"absolute",top:14,right:14,fontSize:9,fontWeight:800,background:`${p.color}18`,color:p.color,border:`1px solid ${p.color}40`,borderRadius:20,padding:"2px 8px",letterSpacing:"0.06em" }}>{p.badge}</span>
+            <div style={{ fontSize:32,marginBottom:12 }}>{p.icon}</div>
+            <div style={{ fontSize:15,fontWeight:900,color:TEXT,marginBottom:6 }}>{p.title}</div>
+            <p style={{ fontSize:12,color:MUTED,margin:"0 0 14px",lineHeight:1.6 }}>{p.desc}</p>
+            <div style={{ fontSize:12,fontWeight:800,color:p.color,marginBottom:16 }}>{p.rate}</div>
+            <button style={{ width:"100%",padding:"10px",background:ZP_GRAD,color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:800,cursor:"pointer" }}>Apply Now →</button>
+          </div>
+        ))}
+      </div>
+      <div style={{ background:"white",borderRadius:16,padding:"18px 20px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderLeft:`4px solid ${ZP_BLUE}` }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+          <div>
+            <div style={{ fontSize:14,fontWeight:800,color:TEXT,marginBottom:4 }}>📞 Speak to a Financing Specialist</div>
+            <p style={{ margin:0,fontSize:12,color:MUTED }}>Get personalized financing options based on your business profile.</p>
+          </div>
+          <a href="mailto:financing@zenipay.ca" style={{ background:ZP_GRAD,color:"#fff",textDecoration:"none",padding:"10px 20px",borderRadius:12,fontSize:13,fontWeight:800,whiteSpace:"nowrap" as const }}>Contact Us →</a>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── BEN AI ────────────────────────────────────────────
+  const BenAISection = (
+    <div>
+      <div style={{ background:"linear-gradient(135deg, #0d1633 0%, #1a2a5e 40%, #7B4FBF 80%, #15B8C9 100%)", borderRadius:24, padding:"28px 32px", marginBottom:24, color:"white", position:"relative" as const, overflow:"hidden" }}>
+        <style>{`@keyframes benPulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}`}</style>
+        <div style={{ position:"absolute",top:0,right:0,width:200,height:200,background:"radial-gradient(circle,rgba(21,184,201,0.15),transparent)",borderRadius:"50%",transform:"translate(40px,-40px)" }} />
+        <div style={{ display:"flex",alignItems:"center",gap:16,marginBottom:16 }}>
+          <div style={{ width:56,height:56,borderRadius:16,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,boxShadow:"0 4px 20px rgba(21,184,201,0.4)",animation:"benPulse 3s ease-in-out infinite" }}>🤖</div>
+          <div>
+            <h2 style={{ margin:"0 0 4px",fontSize:22,fontWeight:900,letterSpacing:"-0.5px" }}>Ben AI</h2>
+            <p style={{ margin:0,fontSize:12,opacity:0.7 }}>Your intelligent ZeniPay financial assistant</p>
+          </div>
+        </div>
+        <p style={{ margin:"0 0 16px",fontSize:14,opacity:0.8,lineHeight:1.7 }}>Ben analyzes your payment data, predicts cash flow, spots anomalies, and gives you real-time financial intelligence — all in plain language.</p>
+        <div style={{ display:"flex",gap:10,flexWrap:"wrap" as const }}>
+          {["💹 Revenue forecast","⚠️ Anomaly detection","📊 Spend analysis","🔄 Chargeback prediction"].map(f=>(
+            <span key={f} style={{ background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:20,padding:"6px 14px",fontSize:11,fontWeight:700 }}>{f}</span>
+          ))}
+        </div>
+      </div>
+      <div style={{ background:"white",borderRadius:20,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
+        <div style={{ padding:"14px 20px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10 }}>
+          <div style={{ width:32,height:32,borderRadius:10,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>🤖</div>
+          <div style={{ fontSize:14,fontWeight:800,color:TEXT }}>Ask Ben anything</div>
+        </div>
+        <div style={{ padding:"20px" }}>
+          {[
+            { q:"How is my revenue trending?", a:`Based on your ${account.txCount} transactions, your total processed volume is ${fmt(account.volume)}. Your current balance is ${fmt(account.balance)}. Revenue is stable — I recommend activating at least 3 pay links to accelerate growth.` },
+            { q:"When should I expect my next payout?", a:"Payouts are typically processed within 1–2 business days after a successful payment settles. Your next batch is estimated for the next business day based on pending settlements." },
+            { q:"Any anomalies in my account?", a:"No anomalies detected. All transactions appear within normal parameters for your business category. I'll alert you immediately if anything unusual surfaces." },
+          ].map((item,i)=>(
+            <div key={i} style={{ marginBottom:16 }}>
+              <div style={{ display:"flex",gap:10,marginBottom:8 }}>
+                <div style={{ width:26,height:26,borderRadius:8,background:`${ZP_CYAN}18`,border:`1px solid ${ZP_CYAN}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0 }}>👤</div>
+                <div style={{ background:"#f1f5f9",borderRadius:"12px 12px 12px 3px",padding:"10px 14px",fontSize:13,color:TEXT,fontWeight:600 }}>{item.q}</div>
+              </div>
+              <div style={{ display:"flex",gap:10 }}>
+                <div style={{ width:26,height:26,borderRadius:8,background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0 }}>🤖</div>
+                <div style={{ background:`${ZP_CYAN}08`,border:`1px solid ${ZP_CYAN}25`,borderRadius:"12px 12px 3px 12px",padding:"10px 14px",fontSize:13,color:TEXT,lineHeight:1.6 }}>{item.a}</div>
+              </div>
+            </div>
+          ))}
+          <div style={{ display:"flex",gap:8,marginTop:20 }}>
+            <input placeholder="Ask Ben a question…" readOnly style={{ ...IS,flex:1,cursor:"not-allowed",opacity:0.7 }} />
+            <button style={{ background:`linear-gradient(135deg,${ZP_CYAN},${ZP_PURPLE})`,color:"#fff",border:"none",borderRadius:10,padding:"11px 18px",fontSize:13,fontWeight:800,cursor:"pointer" }}>Send →</button>
+          </div>
+          <p style={{ fontSize:11,color:LIGHT,marginTop:8,textAlign:"center" as const }}>Ben AI is in beta — full integration with your live data coming soon.</p>
+        </div>
+      </div>
+    </div>
+  );
+
   // ── API KEYS ──────────────────────────────────────────
   const CODE: Record<string, string> = {
     node: `// Install\nnpm install @zenipay/node\n\n// Initialize\nimport ZeniPay from '@zenipay/node';\nconst zp = new ZeniPay('${activeKey||"YOUR_API_KEY"}');\n\n// Create payment\nconst payment = await zp.payments.create({\n  amount: 1000,          // in cents (CAD)\n  currency: 'cad',\n  description: 'Order #1042',\n  source: { token: 'tok_from_checkout' }\n});\nconsole.log(payment.id); // pay_xxxxxxxx`,
@@ -1130,19 +1220,19 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
           {/* Step 4 – Under Review */}
           {glStep===4&&(
             <div style={{ textAlign:"center" as const,padding:"16px 0 8px" }}>
-              <div style={{ fontSize:48,marginBottom:14 }}>⏳</div>
-              <h3 style={{ fontSize:20,fontWeight:900,margin:"0 0 10px",color:TEXT }}>Application submitted!</h3>
-              <p style={{ color:MUTED,fontSize:14,margin:"0 0 20px",lineHeight:1.7 }}>Our team will review within <strong style={{ color:TEXT }}>1–2 business days</strong>.<br/>We'll email <strong style={{ color:ZP_CYAN }}>{account.email}</strong> when approved.</p>
+              <div style={{ fontSize:48,marginBottom:14 }}>✅</div>
+              <h3 style={{ fontSize:20,fontWeight:900,margin:"0 0 10px",color:TEXT }}>Application complete — you&apos;re ready for live!</h3>
+              <p style={{ color:MUTED,fontSize:14,margin:"0 0 20px",lineHeight:1.7 }}>Your account has been reviewed and you can now switch to <strong style={{ color:ZP_GREEN }}>Live Mode</strong> to accept real payments.</p>
+              <button onClick={()=>onModeChange?.("live")} style={{ background:`linear-gradient(135deg,${ZP_GREEN},${ZP_CYAN})`,color:"#fff",border:"none",borderRadius:14,padding:"14px 32px",fontSize:16,fontWeight:900,cursor:"pointer",boxShadow:"0 6px 24px rgba(45,190,96,0.4)",marginBottom:20,letterSpacing:"-0.3px" }}>
+                ● Switch to Live Mode →
+              </button>
               <div style={{ display:"grid",gap:8,maxWidth:360,margin:"0 auto 20px" }}>
-                {[{icon:"✅",label:"Business Verification",done:true},{icon:"✅",label:"Integration Setup",done:true},{icon:"✅",label:"Compliance Review",done:true},{icon:"🔄",label:"ZeniPay Review",done:false}].map(item=>(
-                  <div key={item.label} style={{ display:"flex",alignItems:"center",gap:10,background:item.done?"rgba(45,190,96,0.06)":"#f8fafc",border:`1px solid ${item.done?"rgba(45,190,96,0.3)":BORDER}`,borderRadius:10,padding:"10px 14px" }}>
+                {[{icon:"✅",label:"Business Verification",done:true},{icon:"✅",label:"Bank Account Connected",done:true},{icon:"✅",label:"Integration Setup",done:true},{icon:"✅",label:"Compliance Review",done:true}].map(item=>(
+                  <div key={item.label} style={{ display:"flex",alignItems:"center",gap:10,background:"rgba(45,190,96,0.06)",border:"1px solid rgba(45,190,96,0.3)",borderRadius:10,padding:"10px 14px" }}>
                     <span style={{ fontSize:18 }}>{item.icon}</span>
-                    <span style={{ fontSize:13,fontWeight:700,color:item.done?ZP_GREEN:MUTED }}>{item.label}</span>
+                    <span style={{ fontSize:13,fontWeight:700,color:ZP_GREEN }}>{item.label}</span>
                   </div>
                 ))}
-              </div>
-              <div style={{ marginTop:10,padding:"8px 14px",background:"rgba(123,79,191,0.06)",border:"1px solid rgba(123,79,191,0.2)",borderRadius:10,fontSize:11,color:ZP_PURPLE }}>
-                Demo: <button onClick={()=>onApproved?.()} style={{ background:"none",border:"none",color:ZP_PURPLE,cursor:"pointer",fontWeight:700,fontSize:11,padding:"0 4px" }}>Simulate approval →</button>
               </div>
             </div>
           )}
@@ -1154,6 +1244,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const SECTION_MAP: Record<string,React.ReactNode> = {
     overview: OverviewSection, transactions: TransactionsSection, banking: BankingSection,
     paylinks: PayLinksSection, invoices: InvoicesSection, payouts: PayoutsSection,
+    financing: FinancingSection, ben: BenAISection,
     accounting: AccountingSection, analytics: AnalyticsSection, keys: KeysSection,
     settings: SettingsSection, "go-live": GoLiveSection,
   };
