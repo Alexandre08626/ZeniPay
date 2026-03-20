@@ -32,7 +32,7 @@ export async function GET() {
       // ── Read from merchant_data.transactions (ZeniPay /pay/[id] payments) ─
       const { data: merchants, error: mdErr } = await supabase
         .from("zenipay_merchants")
-        .select("merchant_data");
+        .select("id, merchant_data");
 
       console.log("[stats] merchants count:", merchants?.length, "mdErr:", mdErr?.message);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,7 +89,7 @@ export async function GET() {
         recent_invoices: allInvoices,
         mode: "live", gateway: "ZeniPay",
         env: process.env.TILLED_ENV || "sandbox",
-        _debug: { merchants_count: merchants?.length ?? "null", md_txns: mdTxns.length, md_err: mdErr?.message ?? null, table_pays: (tablePays || []).length, first_merchant_data_type: typeof merchants?.[0]?.merchant_data, first_merchant_data_keys: merchants?.[0]?.merchant_data ? Object.keys(merchants[0].merchant_data) : null, first_txns_is_array: Array.isArray(merchants?.[0]?.merchant_data?.transactions), first_txns_len: merchants?.[0]?.merchant_data?.transactions?.length ?? "no .transactions" },
+        _debug: { merchants_count: merchants?.length ?? "null", md_txns: mdTxns.length, md_err: mdErr?.message ?? null, table_pays: (tablePays || []).length, first_merchant_id: merchants?.[0]?.id ?? null, first_merchant_data_type: typeof merchants?.[0]?.merchant_data, first_merchant_data_keys: merchants?.[0]?.merchant_data ? Object.keys(merchants[0].merchant_data) : null, first_txns_is_array: Array.isArray(merchants?.[0]?.merchant_data?.transactions), first_txns_len: merchants?.[0]?.merchant_data?.transactions?.length ?? "no .transactions" },
       });
     }
 
