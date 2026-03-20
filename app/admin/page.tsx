@@ -15,14 +15,8 @@ const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-US", { year: "
 const STATUS_COLOR: Record<string, string> = { active: "#16A34A", pending: "#D97706", inactive: "#94A3B8", failed: "#DC2626", live: "#16A34A", sandbox: "#D97706" };
 const STATUS_BG:    Record<string, string> = { active: "rgba(22,163,74,0.08)", pending: "rgba(217,119,6,0.08)", inactive: "rgba(148,163,184,0.08)", failed: "rgba(220,38,38,0.08)", live: "rgba(22,163,74,0.08)", sandbox: "rgba(217,119,6,0.08)" };
 
-const CLIENTS_DEFAULT = [{
-  id: "cl-001", name: "Zeniva Travel LLC", domain: "zenivatravel.com",
-  status: "active", volume: 0, txCount: 0, balance: 0,
-  apiKey: "zpk_live_zeniva_****3k9", sandboxKey: "zpk_sandbox_zeniva_****7x2",
-  plan: "Business", since: "2026-02-24", contact: "info@zenivatravel.com",
-  gateway: "Tilled (Sandbox)", bankAccount: "Unit.co ••••5847",
-  description: "AI-powered travel concierge platform",
-}];
+// All clients now come from Supabase — no hardcoded defaults
+const CLIENTS_DEFAULT: typeof [] = [];
 
 const GATEWAY_STATUS = { accountId: "acct_XlRKvhpbdl1UxJ9zINmoL", webhook: "https://zenipay.ca/api/zenipay/webhooks/tilled", fees: "2.9% + $0.30" };
 const BANK_STATUS    = { routing: "812345678", account: "••••5847", balance: 0, customerId: "4647873" };
@@ -102,19 +96,27 @@ export default function AdminPage() {
   const CLIENTS = [
     ...CLIENTS_DEFAULT,
     ...signups.map((s: any) => ({
-      id: s.id, name: s.businessName, domain: s.website || "—",
-      status: "sandbox", volume: 0, txCount: 0, balance: 0,
-      apiKey: s.liveKey || "—", sandboxKey: s.sandboxKey,
-      plan: s.plan || "Sandbox", since: s.createdAt?.slice(0, 10) || "—",
-      contact: s.email, gateway: "Sandbox", bankAccount: "—",
-      description: s.businessType || "New signup",
-      // Full fiche fields
-      ownerName: s.ownerName || "—",
+      id: s.id,
+      name: s.businessName || s.business_name || "—",
+      domain: s.website || "—",
+      status: s.status || "sandbox",
+      volume:  s.volume  ?? 0,
+      txCount: s.txCount ?? s.tx_count ?? 0,
+      balance: s.balance ?? 0,
+      apiKey: s.liveKey || s.live_key || "—",
+      sandboxKey: s.sandboxKey || s.sandbox_key || "—",
+      plan: s.plan || "Sandbox",
+      since: (s.createdAt || s.created_at || "—").slice(0, 10),
+      contact: s.email,
+      gateway: s.status === "active" ? "Tilled (Live)" : "Sandbox",
+      bankAccount: "—",
+      description: s.businessType || s.business_type || s.notes || "New signup",
+      ownerName: s.ownerName || s.owner_name || "—",
       phone: s.phone || "—",
       country: s.country || "—",
-      monthlyVolume: s.monthlyVolume || "—",
+      monthlyVolume: s.monthlyVolume || s.monthly_volume || "—",
       notes: s.notes || "",
-      createdAt: s.createdAt || "—",
+      createdAt: s.createdAt || s.created_at || "—",
     })),
   ];
 
