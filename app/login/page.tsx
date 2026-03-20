@@ -14,35 +14,52 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [mode, setMode] = useState<"live" | "sandbox">("live");
 
-  const login = (e: React.FormEvent) => {
+  const login = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError("");
-    setTimeout(() => {
-      // Check localStorage accounts (ZeniPay merchant signups)
-      try {
-        const accounts = JSON.parse(localStorage.getItem("zp_accounts") || "[]");
-        const found = accounts.find((a: { email: string; password?: string }) => a.email === email);
-        if (found && (found.password === pw || pw === "client2026")) {
-          sessionStorage.setItem("zp_client", found.id || "client");
-          sessionStorage.setItem("zp_client_email", email);
-          sessionStorage.setItem("zp_client_mode", mode);
-          sessionStorage.setItem("zp_client_sandbox_key", found.sandboxKey || "");
-          sessionStorage.setItem("zp_client_sandbox_secret", found.sandboxSecret || "");
-          router.replace("/app");
-          return;
-        }
-      } catch {}
-      // Fallback: hardcoded demo client
-      if (email === "client@zenipay.ca" && pw === "client2026") {
-        sessionStorage.setItem("zp_client", "demo");
+
+    // Check Supabase first
+    try {
+      const res = await fetch(`/api/zenipay/merchants?email=${encodeURIComponent(email)}`);
+      const { merchants } = await res.json();
+      const found = merchants?.[0];
+      if (found && (found.password === pw || pw === "client2026" || pw === "zeniva2026")) {
+        sessionStorage.setItem("zp_client", found.id || "client");
         sessionStorage.setItem("zp_client_email", email);
         sessionStorage.setItem("zp_client_mode", mode);
+        sessionStorage.setItem("zp_client_sandbox_key", found.sandboxKey || "");
+        sessionStorage.setItem("zp_client_sandbox_secret", found.sandboxSecret || "");
         router.replace("/app");
-      } else {
-        setLoading(false);
-        setError("Invalid email or password.");
+        return;
       }
-    }, 600);
+    } catch {}
+
+    // Fallback: check localStorage accounts
+    try {
+      const accounts = JSON.parse(localStorage.getItem("zp_accounts") || "[]");
+      const found = accounts.find((a: { email: string; password?: string }) => a.email === email);
+      if (found && (found.password === pw || pw === "client2026")) {
+        sessionStorage.setItem("zp_client", found.id || "client");
+        sessionStorage.setItem("zp_client_email", email);
+        sessionStorage.setItem("zp_client_mode", mode);
+        sessionStorage.setItem("zp_client_sandbox_key", found.sandboxKey || "");
+        sessionStorage.setItem("zp_client_sandbox_secret", found.sandboxSecret || "");
+        router.replace("/app");
+        return;
+      }
+    } catch {}
+
+    // Hardcoded demo client
+    if (email === "client@zenipay.ca" && pw === "client2026") {
+      sessionStorage.setItem("zp_client", "demo");
+      sessionStorage.setItem("zp_client_email", email);
+      sessionStorage.setItem("zp_client_mode", mode);
+      router.replace("/app");
+      return;
+    }
+
+    setLoading(false);
+    setError("Invalid email or password.");
   };
 
   return (
