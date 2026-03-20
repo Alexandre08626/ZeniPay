@@ -1,12 +1,5 @@
 export const dynamic = "force-dynamic";
 
-/**
- * ZeniPay — Record Payment
- * POST — called when a client completes payment on /pay/[id]
- *        Finds the merchant who owns the pay link and adds the
- *        transaction to their merchant_data in Supabase.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -26,17 +19,32 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase();
     if (!supabase) return NextResponse.json({ ok: true, note: "No DB" });
 
-    // Find the pay link to get the merchant_id
+    // ── Find merchant: first check zenipay_pay_links table ───────────────
+    let merchantId: string | null = null;
     const { data: link } = await supabase
       .from("zenipay_pay_links")
       .select("merchant_id")
       .eq("id", pay_link_id)
       .single();
+    merchantId = link?.merchant_id || null;
 
-    const merchantId = link?.merchant_id;
-    if (!merchantId) return NextResponse.json({ ok: true, note: "No merchant linked" });
+    // ── Fallback: scan merchant_data.payLinks for the link id ────────────
+    if (!merchantId) {
+      const { data: allMerchants } = await supabase
+        .from("zenipay_merchants")
+        .select("id, merchant_data");
+      for (const m of (allMerchants || [])) {
+        const links: { id: string }[] = m.merchant_data?.payLinks || [];
+        if (links.some((l) => l.id === pay_link_id)) {
+          merchantId = m.id;
+          break;
+        }
+      }
+    }
 
-    // Load merchant's current data
+    if (!merchantId) return NextResponse.json({ ok: true, note: "No merchant linked to this pay link" });
+
+    // ── Load and update merchant data ────────────────────────────────────
     const { data: merchantRow } = await supabase
       .from("zenipay_merchants")
       .select("merchant_data")
@@ -44,8 +52,6 @@ export async function POST(req: NextRequest) {
       .single();
 
     const existing = merchantRow?.merchant_data || {};
-    const existingTxns: unknown[] = existing.transactions || [];
-
     const txn = {
       id: `TXN-${Date.now().toString(36).toUpperCase()}`,
       pay_link_id,
@@ -58,11 +64,10 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    // Add transaction + update pay link uses count
     await supabase
       .from("zenipay_merchants")
       .update({
-        merchant_data: { ...existing, transactions: [txn, ...existingTxns] },
+        merchant_data: { ...existing, transactions: [txn, ...(existing.transactions || [])] },
         updated_at: new Date().toISOString(),
       })
       .eq("id", merchantId);

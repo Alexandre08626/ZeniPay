@@ -324,18 +324,35 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
   // ── Pay Link form ────────────────────────────────────
   const [plForm, setPlForm] = useState({ title: "", amount: "", email: "", desc: "" });
-  const createPayLink = () => {
+  const createPayLink = async () => {
     if (!plForm.title || !plForm.amount) return;
-    const id = `LINK-${uid()}`;
-    const base = typeof window !== "undefined" ? window.location.origin : "https://zenipay.ca";
-    const params = new URLSearchParams({
-      amount: String(Number(plForm.amount)),
-      currency: "USD",
-      desc: plForm.title + (plForm.desc ? ` — ${plForm.desc}` : ""),
-    });
-    const url = `${base}/pay/${id}?${params.toString()}`;
-    const link: PayLink = { id, title: plForm.title, amount: Number(plForm.amount), url, uses: 0, createdAt: new Date().toISOString(), status: "active" };
-    setPayLinks(p => [link, ...p]); setPlForm({ title: "", amount: "", email: "", desc: "" }); setModal(null);
+    const apiKey = isSandbox ? account.sandboxKey : (account.liveKey || account.sandboxKey);
+    try {
+      const res = await fetch("/api/zenipay/create-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: Number(plForm.amount),
+          currency: "USD",
+          description: plForm.title + (plForm.desc ? ` — ${plForm.desc}` : ""),
+          merchant: account.businessName,
+          api_key: apiKey,
+        }),
+      });
+      const data = await res.json();
+      if (data.id && data.url) {
+        const link: PayLink = { id: data.id, title: plForm.title, amount: Number(plForm.amount), url: data.url, uses: 0, createdAt: new Date().toISOString(), status: "active" };
+        setPayLinks(p => [link, ...p]);
+      }
+    } catch {
+      // Fallback: create locally
+      const id = `LINK-${uid()}`;
+      const params = new URLSearchParams({ amount: String(Number(plForm.amount)), currency: "USD", desc: plForm.title + (plForm.desc ? ` — ${plForm.desc}` : ""), m: account.businessName });
+      const url = `https://zenipay.ca/pay/${id}?${params.toString()}`;
+      const link: PayLink = { id, title: plForm.title, amount: Number(plForm.amount), url, uses: 0, createdAt: new Date().toISOString(), status: "active" };
+      setPayLinks(p => [link, ...p]);
+    }
+    setPlForm({ title: "", amount: "", email: "", desc: "" }); setModal(null);
   };
 
   // ── Invoice form ─────────────────────────────────────
