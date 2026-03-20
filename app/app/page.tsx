@@ -43,56 +43,67 @@ export default function AppRouter() {
 
     setMode(storedMode);
 
-    // Try to find account in Supabase (works on all devices)
-    if (email) {
-      fetch(`/api/zenipay/merchants?email=${encodeURIComponent(email)}`)
-        .then(r => r.json())
-        .then(({ merchants }) => {
-          const found = merchants?.[0];
-          if (found) {
-            setAccount(found);
-            setApproved(found.status === "live");
-            setReady(true);
-          }
-        })
-        .catch(() => {});
-    }
-
-    // Zeniva Travel demo client (clientId = "demo" or "zeniva") — no account in localStorage
-    if (clientId && clientId !== "client") {
-      // Build a placeholder Zeniva account
+    // Zeniva Travel (clientId set, no email needed)
+    if (clientId && clientId !== "client" && !email) {
       setAccount({
-        id: "zeniva-001",
+        id: "cl-001",
         businessName: "Zeniva Travel LLC",
         ownerName: "Alexandre",
-        email: email || "client@zenipay.ca",
-        phone: "", website: "https://zeniva.ca",
+        email: "info@zenivatravel.com",
+        phone: "", website: "https://zenivatravel.com",
         businessType: "Travel Agency", country: "CA",
         monthlyVolume: "200000+",
         status: "live", plan: "Complete",
-        sandboxKey: sessionStorage.getItem("zp_client_sandbox_key") || "zpk_sb_demo",
+        sandboxKey: sessionStorage.getItem("zp_client_sandbox_key") || "zpk_sandbox_zeniva_7x2",
         sandboxSecret: "zps_sb_demo",
-        liveKey: "zpk_live_demo",
-        createdAt: "2025-01-01T00:00:00Z",
-        volume: 284750, txCount: 1842, balance: 12480, notes: "",
+        liveKey: "zpk_live_zeniva_3k9",
+        createdAt: "2026-02-24T00:00:00Z",
+        volume: 0, txCount: 0, balance: 0, notes: "",
       });
       setApproved(true);
       setReady(true);
       return;
     }
 
-    // Fallback placeholder
-    setAccount({
-      id: "", businessName: "My Business", ownerName: "", email: email || "",
-      phone: "", website: "", businessType: "", country: "CA", monthlyVolume: "",
-      status: "sandbox", plan: "Standard",
-      sandboxKey: sessionStorage.getItem("zp_client_sandbox_key") || "",
-      sandboxSecret: sessionStorage.getItem("zp_client_sandbox_secret") || "",
-      liveKey: "",
-      createdAt: new Date().toISOString(),
-      volume: 0, txCount: 0, balance: 0, notes: "",
-    });
-    setReady(true);
+    // Load from Supabase by email — works on all devices
+    const lookupEmail = email || "info@zenivatravel.com";
+    fetch(`/api/zenipay/merchants?email=${encodeURIComponent(lookupEmail)}`)
+      .then(r => r.json())
+      .then(({ merchants }) => {
+        const found = merchants?.[0];
+        if (found) {
+          setAccount(found);
+          setApproved(found.status === "active" || found.status === "live");
+          setReady(true);
+          return;
+        }
+        // Not in DB yet — build fallback with sandbox key from session
+        setAccount({
+          id: `sess_${Date.now()}`,
+          businessName: "My Business", ownerName: "", email: lookupEmail,
+          phone: "", website: "", businessType: "", country: "CA", monthlyVolume: "",
+          status: "sandbox", plan: "Standard",
+          sandboxKey: sessionStorage.getItem("zp_client_sandbox_key") || "",
+          sandboxSecret: "",
+          liveKey: "",
+          createdAt: new Date().toISOString(),
+          volume: 0, txCount: 0, balance: 0, notes: "",
+        });
+        setReady(true);
+      })
+      .catch(() => {
+        setAccount({
+          id: `sess_${Date.now()}`,
+          businessName: "My Business", ownerName: "", email: lookupEmail,
+          phone: "", website: "", businessType: "", country: "CA", monthlyVolume: "",
+          status: "sandbox", plan: "Standard",
+          sandboxKey: sessionStorage.getItem("zp_client_sandbox_key") || "",
+          sandboxSecret: "", liveKey: "",
+          createdAt: new Date().toISOString(),
+          volume: 0, txCount: 0, balance: 0, notes: "",
+        });
+        setReady(true);
+      });
   }, [router]);
 
   const signOut = () => { sessionStorage.clear(); router.replace("/login"); };

@@ -221,13 +221,11 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
     }).catch(() => {});
   }, [merchantId]);
 
-  const [_snap, setSnap] = useState({ payLinks, invoices, payouts, bankCfg });
   useEffect(() => {
     if (!dataLoaded) return;
-    setSnap({ payLinks, invoices, payouts, bankCfg });
     saveToSupabase({ paylinks: payLinks, invoices, payouts, bankCfg });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payLinks, invoices, payouts, bankCfg, dataLoaded]);
+  }, [payLinks, invoices, payouts, bankCfg, dataLoaded, saveToSupabase]);
 
   // Ben AI live activity feed — built from seeded data
   const liveActivity = [
@@ -348,17 +346,14 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [plForm, setPlForm] = useState({ title: "", amount: "", email: "", desc: "" });
   const createPayLink = () => {
     if (!plForm.title || !plForm.amount) return;
-    const id = uid();
-    const params = new URLSearchParams({
-      t: plForm.title,
-      a: String(Math.round(Number(plForm.amount) * 100)), // dollars → cents
-      m: account.businessName || account.ownerName || "Merchant",
-      k: activeKey || account.sandboxKey || "",
-      c: "CAD",
-      ...(plForm.desc ? { d: plForm.desc } : {}),
-    });
+    const id = `LINK-${uid()}`;
     const base = typeof window !== "undefined" ? window.location.origin : "https://zenipay.ca";
-    const url = `${base}/pay?id=${id}&${params.toString()}`;
+    const params = new URLSearchParams({
+      amount: String(Number(plForm.amount)),
+      currency: "USD",
+      desc: plForm.title + (plForm.desc ? ` — ${plForm.desc}` : ""),
+    });
+    const url = `${base}/pay/${id}?${params.toString()}`;
     const link: PayLink = { id, title: plForm.title, amount: Number(plForm.amount), url, uses: 0, createdAt: new Date().toISOString(), status: "active" };
     setPayLinks(p => [link, ...p]); setPlForm({ title: "", amount: "", email: "", desc: "" }); setModal(null);
   };
