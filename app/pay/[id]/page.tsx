@@ -201,13 +201,17 @@ function PayLinkContent() {
               <p style={{ margin: "0 0 12px", color: "#78350F", fontSize: 13, lineHeight: 1.5 }}>
                 Please contact us directly to complete your booking.
               </p>
-              <a href="mailto:info@zeniva.ca" style={{
-                display: "inline-block", background: "#F59E0B", color: "white",
-                padding: "10px 18px", borderRadius: 8, textDecoration: "none",
-                fontWeight: 700, fontSize: 13, cursor: "pointer"
-              }}>
+              <button
+                type="button"
+                onClick={() => window.location.href = "mailto:info@zeniva.ca"}
+                style={{
+                  background: "#F59E0B", color: "white",
+                  padding: "10px 18px", borderRadius: 8, border: "none",
+                  fontWeight: 700, fontSize: 13, cursor: "pointer"
+                }}
+              >
                 📧 Email info@zeniva.ca
-              </a>
+              </button>
             </div>
           )}
 
