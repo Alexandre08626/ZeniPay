@@ -18,6 +18,8 @@ function cardType(v: string) {
 }
 
 function PayLinkContent() {
+  const SANDBOX_MODE = false; // Change to true to show maintenance message
+
   const params   = useSearchParams();
   const { id }   = useParams<{ id: string }>();
 
@@ -191,11 +193,29 @@ function PayLinkContent() {
 
           {error && <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(220,38,38,0.08)", color: "#DC2626", fontSize: 13, marginBottom: 14, fontWeight: 600 }}>{error}</div>}
 
+          {SANDBOX_MODE && (
+            <div style={{ padding: 14, borderRadius: 12, background: "#FEF3C7", border: "1px solid #FBBF24", marginBottom: 14 }}>
+              <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#92400E", fontSize: 14 }}>
+                ⚠️ Payment system temporarily unavailable
+              </p>
+              <p style={{ margin: "0 0 12px", color: "#78350F", fontSize: 13, lineHeight: 1.5 }}>
+                Please contact us directly to complete your booking.
+              </p>
+              <a href="mailto:info@zeniva.ca" style={{
+                display: "inline-block", background: "#F59E0B", color: "white",
+                padding: "10px 18px", borderRadius: 8, textDecoration: "none",
+                fontWeight: 700, fontSize: 13, cursor: "pointer"
+              }}>
+                📧 Email info@zeniva.ca
+              </a>
+            </div>
+          )}
+
           <button
-            type="submit" disabled={loading}
-            style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading ? "not-allowed" : "pointer", letterSpacing: "0.02em" }}
+            type="submit" disabled={loading || SANDBOX_MODE}
+            style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading || SANDBOX_MODE ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading || SANDBOX_MODE ? "not-allowed" : "pointer", letterSpacing: "0.02em", opacity: SANDBOX_MODE ? 0.6 : 1 }}
           >
-            {loading ? "Processing…" : `Pay ${fmtMoney(amount)}`}
+            {SANDBOX_MODE ? "🔒 Payment Disabled" : loading ? "Processing…" : `Pay ${fmtMoney(amount)}`}
           </button>
 
           <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "#94A3B8", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
