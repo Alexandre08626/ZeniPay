@@ -18,7 +18,7 @@ function cardType(v: string) {
 }
 
 function PayLinkContent() {
-  const SANDBOX_MODE = false; // Change to true to show maintenance message
+  const SANDBOX_MODE = true; // Maintenance mode active
 
   const params   = useSearchParams();
   const { id }   = useParams<{ id: string }>();
