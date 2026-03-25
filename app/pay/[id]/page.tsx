@@ -18,7 +18,7 @@ function cardType(v: string) {
 }
 
 function PayLinkContent() {
-  const SANDBOX_MODE = true; // Maintenance mode active
+  const SANDBOX_MODE = false; // Finix integration active
 
   const params   = useSearchParams();
   const { id }   = useParams<{ id: string }>();
@@ -83,8 +83,12 @@ function PayLinkContent() {
       setError("Please fill in all card details."); return;
     }
     setError(""); setLoading(true);
+
     try {
-      await fetch("/api/zenipay/record-payment", {
+      // Parse expiry MM/YY
+      const [expiryMonth, expiryYear] = expiry.split("/");
+
+      const res = await fetch("/api/zenipay/finix/process-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -93,11 +97,29 @@ function PayLinkContent() {
           currency,
           description: desc,
           customer_name: name,
-          card_last4: cardNum.replace(/\s/g, "").slice(-4),
+          cardNumber: cardNum.replace(/\s/g, ""),
+          expiryMonth,
+          expiryYear,
+          cvc,
+          postalCode: "",
         }),
       });
-      setSuccess(true);
-    } catch {
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.message || data.error || "Payment declined. Please check your card details.");
+        return;
+      }
+
+      // Payment succeeded or pending
+      if (data.state === "SUCCEEDED" || data.state === "PENDING") {
+        setSuccess(true);
+      } else {
+        setError("Payment could not be processed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
       setError("Payment failed. Please try again.");
     } finally {
       setLoading(false);

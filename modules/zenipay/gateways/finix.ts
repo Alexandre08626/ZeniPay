@@ -1,7 +1,66 @@
 /**
- * ZeniPay → Finix Gateway
- * Finix Sandbox: https://finix.sandbox-payments-api.com
- * Auth: HTTP Basic (username:password)
+ * ZeniPay → Finix Gateway Integration
+ *
+ * FINIX API ENDPOINTS USED:
+ * ========================
+ *
+ * Base URLs:
+ * - Sandbox: https://finix.sandbox-payments-api.com
+ * - Production: https://finix.live-payments-api.com
+ *
+ * Authentication: HTTP Basic Auth (username:password encoded as base64)
+ * API Version Header: Finix-Version: 2022-02-01
+ *
+ * PAYMENT PROCESSING:
+ * ------------------
+ * POST /payment_instruments
+ *   → Tokenize card details and create payment instrument
+ *   → Required: type, number, expiration_month, expiration_year, security_code, name, address, identity
+ *   → Returns: instrument ID, brand, last_four
+ *
+ * POST /transfers
+ *   → Create a payment transfer (charge a card)
+ *   → Required: merchant, amount, currency, source (instrument_id), operation_key
+ *   → Returns: transfer ID, state (SUCCEEDED|PENDING|FAILED), amount
+ *
+ * GET /transfers/:id
+ *   → Get transfer status and details
+ *   → Returns: complete transfer object with state, amount, fees, timestamps
+ *
+ * POST /transfers/:id/reversals
+ *   → Create a refund/reversal for a transfer
+ *   → Optional: amount (for partial refunds)
+ *   → Returns: reversal object with state
+ *
+ * MERCHANT ONBOARDING:
+ * -------------------
+ * POST /identities
+ *   → Create a merchant identity (business/person entity)
+ *   → Required: entity type, business_name, tax_id, address, phone, email
+ *   → Returns: identity ID
+ *
+ * POST /merchants
+ *   → Create a merchant account from an identity
+ *   → Required: identity ID, processor (FINIX)
+ *   → Returns: merchant ID, onboarding state, verification status
+ *
+ * COMMISSION SPLITS:
+ * -----------------
+ * Configured via merchant-level settings (not implemented yet)
+ * Uses Finix's platform fee model: 90% of markup goes to ZeniPay
+ *
+ * WEBHOOKS:
+ * --------
+ * Handled in: app/api/zenipay/webhooks/tilled/route.ts
+ * Events: TRANSFER_SUCCEEDED, TRANSFER_FAILED, TRANSFER_REVERSED
+ * Security: HMAC-SHA256 signature verification using FINIX_WEBHOOK_SECRET
+ *
+ * PRICING MODEL:
+ * -------------
+ * ZeniPay charges: 2.90% + $0.30
+ * Finix cost (interchange-plus): 1.90% + $0.15
+ * Markup: 1.00% + $0.15
+ * ZeniPay receives: 90% of markup = 0.90% + $0.135
  */
 
 const FINIX_BASE = process.env.FINIX_ENV === "production"
