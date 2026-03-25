@@ -63,8 +63,9 @@ export async function POST(req: NextRequest) {
         card_last4: card_last4 || "", status: "succeeded", createdAt: now,
       };
 
+      const invoiceId = `INV-${txnId}`;
       const invoice = {
-        id: `INV-${Date.now()}`,
+        id: invoiceId,
         client: customer_name || "Client",
         email: "",
         booking: description || pay_link_id,
@@ -77,7 +78,26 @@ export async function POST(req: NextRequest) {
         items: [{ desc: description || pay_link_id, qty: 1, price: amt }],
       };
 
-      // ── 3. Update merchant: transactions + invoice + balance + volume ───
+      // ── 3. Create invoice in zenipay_invoices table ───────────────────
+      await supabase.from("zenipay_invoices").insert({
+        id: invoiceId,
+        payment_id: txnId,
+        booking_id: `BK-${txnId}`,
+        customer_name: customer_name || "Client",
+        customer_email: "",
+        items: JSON.stringify([{ description: description || pay_link_id, qty: 1, unit_price: amt, total: amt }]),
+        subtotal: amt,
+        tax: 0,
+        total: amt,
+        currency: cur,
+        status: "paid",
+        paid_at: now,
+        notes: `ZeniPay Payment — ${txnId}`,
+        created_at: now,
+        updated_at: now,
+      }).then(() => {}).catch((e) => console.error("[record-payment] invoice insert:", e.message));
+
+      // ── 4. Update merchant: transactions + invoice + balance + volume ───
       const { error: updErr } = await supabase.from("zenipay_merchants").update({
         merchant_data: {
           ...md,
@@ -91,7 +111,7 @@ export async function POST(req: NextRequest) {
       }).eq("id", merchantId);
       if (updErr) console.error("[record-payment] merchant update:", updErr.message);
 
-      // ── 4. Update ledger (wallets/banking) ────────────────────────────
+      // ── 5. Update ledger (wallets/banking) ────────────────────────────
       await supabase.from("zenipay_ledger").insert({
         id: `led_${Date.now()}`,
         payment_id: txnId,
@@ -105,7 +125,7 @@ export async function POST(req: NextRequest) {
         created_at: now,
       }).then(() => {}).catch(() => {});
 
-      // ── 5. Mark pay link used ─────────────────────────────────────────
+      // ── 6. Mark pay link used ─────────────────────────────────────────
       await supabase.from("zenipay_pay_links")
         .update({ uses: (link?.uses || 0) + 1, updated_at: now }).eq("id", pay_link_id);
     }

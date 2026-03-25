@@ -147,10 +147,58 @@ async function processWebhookEvent(
     case "TRANSFER.SUCCEEDED": {
       if (state === "SUCCEEDED" || eventType.includes("SUCCEED")) {
         if (supabase && transferId) {
+          // Get payment details
+          const { data: payment } = await supabase
+            .from("zenipay_payments")
+            .select("id, customer_name, customer_email, description, amount, currency")
+            .eq("gateway_transfer_id", transferId)
+            .single();
+
+          // Update payment status
           await supabase
             .from("zenipay_payments")
             .update({ status: "succeeded", updated_at: new Date().toISOString() })
             .eq("gateway_transfer_id", transferId);
+
+          // Create invoice if payment exists and no invoice created yet
+          if (payment) {
+            const invoiceId = `INV-${payment.id}`;
+            const { data: existingInvoice } = await supabase
+              .from("zenipay_invoices")
+              .select("id")
+              .eq("payment_id", payment.id)
+              .single();
+
+            if (!existingInvoice) {
+              const now = new Date().toISOString();
+              await supabase.from("zenipay_invoices").insert({
+                id: invoiceId,
+                payment_id: payment.id,
+                booking_id: `BK-${payment.id}`,
+                customer_name: payment.customer_name || "Client",
+                customer_email: payment.customer_email || "",
+                items: JSON.stringify([{
+                  description: payment.description || "Payment",
+                  qty: 1,
+                  unit_price: payment.amount,
+                  total: payment.amount
+                }]),
+                subtotal: payment.amount,
+                tax: 0,
+                total: payment.amount,
+                currency: payment.currency || "USD",
+                status: "paid",
+                paid_at: now,
+                notes: `ZeniPay Payment — ${payment.id} | Finix: ${transferId}`,
+                created_at: now,
+                updated_at: now,
+              }).then(() => {
+                console.log(`[ZeniPay Webhook] Created invoice ${invoiceId}`);
+              }).catch((e) => {
+                console.error(`[ZeniPay Webhook] Invoice creation error:`, e.message);
+              });
+            }
+          }
         }
 
         // Write ledger if not already done
