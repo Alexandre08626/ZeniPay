@@ -7,8 +7,21 @@ import { processFinixPayment } from "@/modules/zenipay/gateways/finix";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getSupabase(): any {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = serviceKey || anonKey;
+
+  console.log("[Supabase] Connection details:", {
+    url: url ? `${url.substring(0, 30)}...` : "MISSING",
+    usingServiceRole: !!serviceKey,
+    usingAnonKey: !serviceKey && !!anonKey,
+    keyType: serviceKey ? "SERVICE_ROLE" : (anonKey ? "ANON" : "NONE"),
+  });
+
+  if (!url || !key) {
+    console.error("[Supabase] Missing credentials!", { url: !!url, key: !!key });
+    return null;
+  }
   return createClient(url, key);
 }
 
@@ -97,8 +110,15 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── 2. RECORD PAYMENT IN DATABASE ───────────────────────────────────
+    console.log("[DB] BEFORE INSERT zenipay_payments:", {
+      paymentId,
+      amount: amountNum,
+      customer: customer_name,
+      status: finixResult.state,
+    });
+
     // Insert core fields first, then update with card details to bypass schema cache
-    const { error: payErr } = await supabase.from("zenipay_payments").insert({
+    const { data: insertedPayment, error: payErr } = await supabase.from("zenipay_payments").insert({
       id: paymentId,
       amount: amountNum,
       currency,
@@ -109,15 +129,23 @@ export async function POST(req: NextRequest) {
       gateway_transfer_id: finixResult.transferId,
       created_at: now,
       updated_at: now,
+    }).select();
+
+    console.log("[DB] AFTER INSERT zenipay_payments:", {
+      success: !payErr,
+      error: payErr ? JSON.stringify(payErr) : null,
+      insertedData: insertedPayment,
     });
 
     // Update card details separately (these columns might be cached)
     if (!payErr) {
-      await supabase.from("zenipay_payments").update({
+      console.log("[DB] BEFORE UPDATE card details for:", paymentId);
+      const { error: updateErr } = await supabase.from("zenipay_payments").update({
         gateway_instrument_id: finixResult.instrumentId,
         card_brand: finixResult.brand,
         card_last4: finixResult.last4,
       }).eq("id", paymentId);
+      console.log("[DB] AFTER UPDATE card details:", { success: !updateErr, error: updateErr });
     }
 
     if (payErr) {
@@ -155,7 +183,9 @@ export async function POST(req: NextRequest) {
     if (finixResult.state === "SUCCEEDED") {
       const invoiceId = `INV-${paymentId}`;
 
-      await supabase.from("zenipay_invoices").insert({
+      console.log("[DB] BEFORE INSERT zenipay_invoices:", { invoiceId, paymentId });
+
+      const { data: invoiceData, error: invoiceErr } = await supabase.from("zenipay_invoices").insert({
         id: invoiceId,
         payment_id: paymentId,
         booking_id: `BK-${paymentId}`,
@@ -176,11 +206,19 @@ export async function POST(req: NextRequest) {
         notes: `ZeniPay Payment — ${paymentId} | Finix: ${finixResult.transferId}`,
         created_at: now,
         updated_at: now,
-      }).then(() => {
-        console.log(`[Finix] Created invoice ${invoiceId}`);
-      }).catch((e: unknown) => {
-        console.error("[Finix] Invoice creation error:", e instanceof Error ? e.message : String(e));
+      }).select();
+
+      console.log("[DB] AFTER INSERT zenipay_invoices:", {
+        success: !invoiceErr,
+        error: invoiceErr ? JSON.stringify(invoiceErr) : null,
+        invoiceData,
       });
+
+      if (invoiceErr) {
+        console.error("[Finix] Invoice creation error:", invoiceErr);
+      } else {
+        console.log(`[Finix] Created invoice ${invoiceId}`);
+      }
     }
 
     // ─── 5. UPDATE MERCHANT STATS ────────────────────────────────────────
