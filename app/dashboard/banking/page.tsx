@@ -58,7 +58,7 @@ export default function BankingPage() {
                   <div>
                     <div style={{ fontWeight: 600, color: "#111827", marginBottom: 4 }}>{tx.description || "Dépôt"}</div>
                     <div style={{ fontSize: 13, color: "#6B7280" }}>
-                      {new Date(tx.created_at || tx.createdAt).toLocaleString("fr-FR")}
+                      {new Date(tx.created_at || (tx as any).createdAt).toLocaleString("fr-FR")}
                     </div>
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: "#10B981" }}>

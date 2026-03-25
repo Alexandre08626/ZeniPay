@@ -13,19 +13,19 @@ export default function AccountingPage() {
 
       const now = new Date();
       const daily = succeeded.filter((tx: any) => {
-        const txDate = new Date(tx.created_at || tx.createdAt);
+        const txDate = new Date(tx.created_at || (tx as any).createdAt);
         return txDate.toDateString() === now.toDateString();
       }).reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
 
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const weekly = succeeded.filter((tx: any) => {
-        const txDate = new Date(tx.created_at || tx.createdAt);
+        const txDate = new Date(tx.created_at || (tx as any).createdAt);
         return txDate >= weekAgo;
       }).reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
 
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const monthly = succeeded.filter((tx: any) => {
-        const txDate = new Date(tx.created_at || tx.createdAt);
+        const txDate = new Date(tx.created_at || (tx as any).createdAt);
         return txDate >= monthAgo;
       }).reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
 
@@ -37,7 +37,7 @@ export default function AccountingPage() {
   const exportCSV = () => {
     const csv = [
       ["ID", "Date", "Client", "Montant", "Devise", "Statut"].join(","),
-      ...transactions.map(tx => [
+      ...transactions.map((tx: any) => [
         tx.id,
         new Date(tx.created_at || tx.createdAt).toISOString(),
         tx.customer_name || "",

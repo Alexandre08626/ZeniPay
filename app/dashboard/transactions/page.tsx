@@ -41,8 +41,9 @@ export default function TransactionsPage() {
 
   const filteredTransactions = transactions.filter(tx => {
     if (filter.status !== "all" && tx.status !== filter.status) return false;
-    if (filter.dateFrom && new Date(tx.created_at || tx.createdAt) < new Date(filter.dateFrom)) return false;
-    if (filter.dateTo && new Date(tx.created_at || tx.createdAt) > new Date(filter.dateTo)) return false;
+    const txDate = new Date(tx.created_at || (tx as any).createdAt);
+    if (filter.dateFrom && txDate < new Date(filter.dateFrom)) return false;
+    if (filter.dateTo && txDate > new Date(filter.dateTo)) return false;
     return true;
   });
 
@@ -206,7 +207,7 @@ export default function TransactionsPage() {
                         </span>
                       </td>
                       <td style={{ padding: "16px 20px", fontSize: 14, color: "#6B7280" }}>
-                        {new Date(tx.created_at || tx.createdAt).toLocaleDateString("fr-FR", {
+                        {new Date(tx.created_at || (tx as any).createdAt).toLocaleDateString("fr-FR", {
                           year: "numeric",
                           month: "short",
                           day: "numeric",

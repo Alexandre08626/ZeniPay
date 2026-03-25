@@ -28,10 +28,10 @@ export default function AnalyticsPage() {
       // Group by day for chart
       const byDay: any = {};
       txns.forEach((tx: any) => {
-        const date = new Date(tx.created_at || tx.createdAt).toLocaleDateString("fr-FR");
+        const date = new Date(tx.created_at || (tx as any).createdAt).toLocaleDateString("fr-FR");
         byDay[date] = (byDay[date] || 0) + (tx.amount || 0);
       });
-      setChartData(Object.entries(byDay).map(([date, amount]) => ({ date, amount })));
+      setChartData(Object.entries(byDay).map(([date, amount]) => ({ date, amount: amount as number })));
     }).catch(() => {});
   }, []);
 
