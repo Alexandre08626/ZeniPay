@@ -194,8 +194,8 @@ async function processWebhookEvent(
                 updated_at: now,
               }).then(() => {
                 console.log(`[ZeniPay Webhook] Created invoice ${invoiceId}`);
-              }).catch((e) => {
-                console.error(`[ZeniPay Webhook] Invoice creation error:`, e.message);
+              }).catch((e: unknown) => {
+                console.error(`[ZeniPay Webhook] Invoice creation error:`, e instanceof Error ? e.message : String(e));
               });
             }
           }

@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
         notes: `ZeniPay Payment — ${txnId}`,
         created_at: now,
         updated_at: now,
-      }).then(() => {}).catch((e) => console.error("[record-payment] invoice insert:", e.message));
+      }).then(() => {}).catch((e: unknown) => console.error("[record-payment] invoice insert:", e instanceof Error ? e.message : String(e)));
 
       // ── 4. Update merchant: transactions + invoice + balance + volume ───
       const { error: updErr } = await supabase.from("zenipay_merchants").update({
