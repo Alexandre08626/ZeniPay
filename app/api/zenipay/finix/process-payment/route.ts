@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── 2. RECORD PAYMENT IN DATABASE ───────────────────────────────────
+    // Insert core fields first, then update with card details to bypass schema cache
     const { error: payErr } = await supabase.from("zenipay_payments").insert({
       id: paymentId,
       amount: amountNum,
@@ -106,12 +107,18 @@ export async function POST(req: NextRequest) {
       status: finixResult.state === "SUCCEEDED" ? "succeeded" : "pending",
       gateway: "finix",
       gateway_transfer_id: finixResult.transferId,
-      gateway_instrument_id: finixResult.instrumentId,
-      card_brand: finixResult.brand,
-      card_last4: finixResult.last4,
       created_at: now,
       updated_at: now,
     });
+
+    // Update card details separately (these columns might be cached)
+    if (!payErr) {
+      await supabase.from("zenipay_payments").update({
+        gateway_instrument_id: finixResult.instrumentId,
+        card_brand: finixResult.brand,
+        card_last4: finixResult.last4,
+      }).eq("id", paymentId);
+    }
 
     if (payErr) {
       console.error("[Finix] Payment record error:", payErr);
