@@ -6,15 +6,15 @@ export default function BankingPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
 
   useEffect(() => {
-    // Fetch balance from Finix API (mocked for now - would need server endpoint)
-    fetch("/api/zenipay/bank-balance").then(res => res.json()).then(data => {
-      if (data.balance) setBalance(data.balance);
-    }).catch(() => {});
-
-    // Fetch transaction history
+    // Fetch balance and transactions from stats
     fetch("/api/zenipay/stats").then(res => res.json()).then(data => {
-      const txns = data.merchants?.[0]?.merchant_data?.transactions || [];
-      setTransactions(txns.filter((tx: any) => tx.status === "succeeded"));
+      // Calculate balance from succeeded transactions (sandbox mock)
+      const txns = data.recent_transactions || [];
+      const succeeded = txns.filter((tx: any) => tx.status === "succeeded");
+      const available = succeeded.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
+
+      setBalance({ available, pending: 0 });
+      setTransactions(succeeded);
     }).catch(() => {});
   }, []);
 
@@ -58,7 +58,7 @@ export default function BankingPage() {
                   <div>
                     <div style={{ fontWeight: 600, color: "#111827", marginBottom: 4 }}>{tx.description || "Dépôt"}</div>
                     <div style={{ fontSize: 13, color: "#6B7280" }}>
-                      {new Date(tx.created_at || (tx as any).createdAt).toLocaleString("fr-FR")}
+                      {new Date(tx.date || tx.created_at).toLocaleString("fr-FR")}
                     </div>
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: "#10B981" }}>

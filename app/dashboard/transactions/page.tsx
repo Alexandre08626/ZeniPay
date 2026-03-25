@@ -29,8 +29,19 @@ export default function TransactionsPage() {
       const res = await fetch("/api/zenipay/stats");
       const data = await res.json();
 
-      // Get transactions from merchant_data
-      const txns = data.merchants?.[0]?.merchant_data?.transactions || [];
+      // Get transactions from recent_transactions
+      const txns = (data.recent_transactions || []).map((tx: any) => ({
+        id: tx.id,
+        amount: tx.amount,
+        currency: tx.currency || "USD",
+        status: tx.status,
+        customer_name: tx.customer || tx.customer_name,
+        description: tx.description || "",
+        card_brand: tx.card_brand,
+        card_last4: tx.card_last4,
+        gateway: tx.gateway || "Finix",
+        created_at: tx.date || tx.created_at,
+      }));
       setTransactions(txns);
     } catch (err) {
       console.error("Error fetching transactions:", err);
@@ -41,7 +52,7 @@ export default function TransactionsPage() {
 
   const filteredTransactions = transactions.filter(tx => {
     if (filter.status !== "all" && tx.status !== filter.status) return false;
-    const txDate = new Date(tx.created_at || (tx as any).createdAt);
+    const txDate = new Date(tx.created_at);
     if (filter.dateFrom && txDate < new Date(filter.dateFrom)) return false;
     if (filter.dateTo && txDate > new Date(filter.dateTo)) return false;
     return true;
@@ -207,7 +218,7 @@ export default function TransactionsPage() {
                         </span>
                       </td>
                       <td style={{ padding: "16px 20px", fontSize: 14, color: "#6B7280" }}>
-                        {new Date(tx.created_at || (tx as any).createdAt).toLocaleDateString("fr-FR", {
+                        {new Date(tx.created_at).toLocaleDateString("fr-FR", {
                           year: "numeric",
                           month: "short",
                           day: "numeric",

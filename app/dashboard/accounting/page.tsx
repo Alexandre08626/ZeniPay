@@ -8,24 +8,24 @@ export default function AccountingPage() {
 
   useEffect(() => {
     fetch("/api/zenipay/stats").then(res => res.json()).then(data => {
-      const txns = data.merchants?.[0]?.merchant_data?.transactions || [];
+      const txns = data.recent_transactions || [];
       const succeeded = txns.filter((tx: any) => tx.status === "succeeded");
 
       const now = new Date();
       const daily = succeeded.filter((tx: any) => {
-        const txDate = new Date(tx.created_at || (tx as any).createdAt);
+        const txDate = new Date(tx.date || tx.created_at);
         return txDate.toDateString() === now.toDateString();
       }).reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
 
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const weekly = succeeded.filter((tx: any) => {
-        const txDate = new Date(tx.created_at || (tx as any).createdAt);
+        const txDate = new Date(tx.date || tx.created_at);
         return txDate >= weekAgo;
       }).reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
 
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const monthly = succeeded.filter((tx: any) => {
-        const txDate = new Date(tx.created_at || (tx as any).createdAt);
+        const txDate = new Date(tx.date || tx.created_at);
         return txDate >= monthAgo;
       }).reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
 
@@ -39,8 +39,8 @@ export default function AccountingPage() {
       ["ID", "Date", "Client", "Montant", "Devise", "Statut"].join(","),
       ...transactions.map((tx: any) => [
         tx.id,
-        new Date(tx.created_at || tx.createdAt).toISOString(),
-        tx.customer_name || "",
+        new Date(tx.date || tx.created_at).toISOString(),
+        tx.customer || tx.customer_name || "",
         tx.amount || 0,
         tx.currency || "USD",
         tx.status,

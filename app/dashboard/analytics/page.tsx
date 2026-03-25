@@ -12,7 +12,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetch("/api/zenipay/stats").then(res => res.json()).then(data => {
-      const txns = data.merchants?.[0]?.merchant_data?.transactions || [];
+      const txns = data.recent_transactions || [];
       const total = txns.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0);
       const succeeded = txns.filter((tx: any) => tx.status === "succeeded");
       const successRate = txns.length > 0 ? (succeeded.length / txns.length) * 100 : 0;
@@ -28,7 +28,7 @@ export default function AnalyticsPage() {
       // Group by day for chart
       const byDay: any = {};
       txns.forEach((tx: any) => {
-        const date = new Date(tx.created_at || (tx as any).createdAt).toLocaleDateString("fr-FR");
+        const date = new Date(tx.date || tx.created_at).toLocaleDateString("fr-FR");
         byDay[date] = (byDay[date] || 0) + (tx.amount || 0);
       });
       setChartData(Object.entries(byDay).map(([date, amount]) => ({ date, amount: amount as number })));
