@@ -257,14 +257,13 @@ export async function POST(req: NextRequest) {
         reference: paymentId,
         note: `Finix payment: ${description || pay_link_id}`,
         created_at: now,
-      }).then(() => {}).catch((e) => console.error("[DB] Ledger insert failed:", e));
+      });
     }
 
     // ─── 7. UPDATE PAY LINK USAGE ────────────────────────────────────────
     await supabase.from("zenipay_pay_links")
       .update({ uses: linkUses + 1, updated_at: now })
-      .eq("id", pay_link_id)
-      .then(() => {}).catch(() => {});
+      .eq("id", pay_link_id);
 
     // ─── 8. RETURN SUCCESS ───────────────────────────────────────────────
     return NextResponse.json({
