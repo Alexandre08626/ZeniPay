@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!payResult.ok) {
-      console.error("[DB] Payment insert failed:", payResult.error);
+      console.error("[DB] Payment insert failed:", JSON.stringify(payResult));
       return NextResponse.json({
         success: true,
         warning: "Payment succeeded but database record failed — will be reconciled",
@@ -137,7 +137,8 @@ export async function POST(req: NextRequest) {
         state: finixResult.state,
         amount: amountNum,
         currency,
-        dbError: payResult.error,
+        dbError: payResult.error || "unknown",
+        dbRaw: JSON.stringify(payResult).slice(0, 300),
       });
     }
 
