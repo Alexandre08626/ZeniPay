@@ -173,7 +173,7 @@ export async function POST() {
     // ── Step 5: Persist to Supabase (non-fatal) ───────────────────
     try {
       const sbUrl = "https://mjkvkibdfteonvlahtag.supabase.co";
-      const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const sbKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkdX9RdJPGYV_ZJBeG7DD4";
       if (sbUrl && sbKey) {
         const { createClient: sbCreate } = await import("@supabase/supabase-js");
         const sb = sbCreate(sbUrl, sbKey);
