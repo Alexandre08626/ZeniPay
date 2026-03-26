@@ -31,13 +31,15 @@ export async function recordPaymentReceived(opts: {
   paymentId: string;
   amount: number;
   currency: string;
+  merchantId?: string;
   agentCode?: string;
 }): Promise<void> {
-  const { paymentId, amount, currency } = opts;
+  const { paymentId, amount, currency, merchantId } = opts;
 
   // Credit 100% to Platform wallet
   await appendLedger({
     payment_id: paymentId,
+    merchant_id: merchantId,
     event_type: "customer_payment",
     wallet_type: "platform",
     direction: "credit",
@@ -79,7 +81,7 @@ export async function recordPayoutExecution(opts: {
 }
 
 // ─── Fetch wallet balances (derived from ledger) ──────────────────────────
-export async function getWalletBalances(): Promise<Record<WalletType, ZeniWalletBalance>> {
+export async function getWalletBalances(merchantId?: string): Promise<Record<WalletType, ZeniWalletBalance>> {
   const supabase = getSupabase();
 
   const defaults: Record<WalletType, ZeniWalletBalance> = {
@@ -91,9 +93,11 @@ export async function getWalletBalances(): Promise<Record<WalletType, ZeniWallet
 
   try {
     // Compute balances directly from zenipay_ledger (source of truth)
-    const { data: ledgerRows } = await supabase
+    let query = supabase
       .from("zenipay_ledger")
       .select("wallet_type, direction, amount");
+    if (merchantId) query = query.eq("merchant_id", merchantId);
+    const { data: ledgerRows } = await query;
 
     if (ledgerRows && ledgerRows.length > 0) {
       for (const row of ledgerRows) {

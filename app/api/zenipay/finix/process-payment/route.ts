@@ -107,12 +107,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ─── 2. RECORD PAYMENT VIA EDGE FUNCTION (bypasses PostgREST schema cache) ─
-    console.log("[DB] Inserting payment via Edge Function:", paymentId);
+    // ─── 2. FIND MERCHANT (before inserting, so we tag the payment) ─────
+    let merchantId: string | null = null;
+    let linkUses = 0;
+
+    const { data: link } = await supabase
+      .from("zenipay_pay_links")
+      .select("merchant_id, uses")
+      .eq("id", pay_link_id)
+      .single();
+
+    if (link) {
+      merchantId = link.merchant_id;
+      linkUses = link.uses || 0;
+    }
+
+    if (!merchantId) {
+      const { data: allMerchants } = await supabase.from("zenipay_merchants").select("id, merchant_data");
+      for (const m of (allMerchants || [])) {
+        if ((m.merchant_data?.payLinks || []).some((l: { id: string }) => l.id === pay_link_id)) {
+          merchantId = m.id;
+          break;
+        }
+      }
+    }
+
+    // ─── 3. RECORD PAYMENT VIA EDGE FUNCTION (bypasses PostgREST schema cache) ─
+    console.log("[DB] Inserting payment via Edge Function:", paymentId, "merchant:", merchantId);
 
     const payResult = await edgeWrite("insert_payment", {
       id: paymentId,
       payment_link_id: pay_link_id,
+      merchant_id: merchantId || "unknown",
       amount: amountNum,
       currency,
       description: description || "",
@@ -144,31 +170,6 @@ export async function POST(req: NextRequest) {
 
     console.log("[DB] Payment recorded:", paymentId);
 
-    // ─── 3. FIND MERCHANT ────────────────────────────────────────────────
-    let merchantId: string | null = null;
-    let linkUses = 0;
-
-    const { data: link } = await supabase
-      .from("zenipay_pay_links")
-      .select("merchant_id, uses")
-      .eq("id", pay_link_id)
-      .single();
-
-    if (link) {
-      merchantId = link.merchant_id;
-      linkUses = link.uses || 0;
-    }
-
-    if (!merchantId) {
-      const { data: allMerchants } = await supabase.from("zenipay_merchants").select("id, merchant_data");
-      for (const m of (allMerchants || [])) {
-        if ((m.merchant_data?.payLinks || []).some((l: { id: string }) => l.id === pay_link_id)) {
-          merchantId = m.id;
-          break;
-        }
-      }
-    }
-
     // ─── 4. CREATE INVOICE VIA EDGE FUNCTION ─────────────────────────────
     if (finixResult.state === "SUCCEEDED") {
       const countResult = await edgeWrite("count", { table: "zenipay_invoices" });
@@ -181,6 +182,7 @@ export async function POST(req: NextRequest) {
         id: invoiceId,
         invoice_number: invoiceNumber,
         payment_id: paymentId,
+        merchant_id: merchantId || "unknown",
         booking_id: `BK-${paymentId}`,
         customer_name: customer_name || "Client",
         customer_email: customer_email || "",
@@ -244,6 +246,7 @@ export async function POST(req: NextRequest) {
       await edgeWrite("insert_ledger", {
         id: `led_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         payment_id: paymentId,
+        merchant_id: merchantId || "unknown",
         event_type: "customer_payment",
         wallet_type: "platform",
         direction: "credit",

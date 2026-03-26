@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabase();
     const merchant_id = req.nextUrl.searchParams.get("merchant_id");
 
-    const wallets = await getWalletBalances();
+    const wallets = await getWalletBalances(merchant_id || undefined);
 
     let stats = { total_revenue: 0, total_payments: 0, succeeded_payments: 0, failed_payments: 0, pending_payments: 0, refunded_payments: 0, success_rate: 0 };
     let recentTransactions: unknown[] = [];
@@ -33,9 +33,9 @@ export async function GET(req: NextRequest) {
         };
 
       // ── Read from merchant_data.transactions (ZeniPay /pay/[id] payments) ─
-      const { data: merchants } = await supabase
-        .from("zenipay_merchants")
-        .select("merchant_data");
+      let mdQuery = supabase.from("zenipay_merchants").select("merchant_data");
+      if (merchant_id) mdQuery = mdQuery.eq("id", merchant_id);
+      const { data: merchants } = await mdQuery;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mdTxns: any[] = [];
@@ -72,7 +72,9 @@ export async function GET(req: NextRequest) {
           .map(p => ({ id: p.id, customer: p.customer_name, amount: p.amount, currency: p.currency, status: p.status, description: p.description, date: p.created_at, gateway: "ZeniPay" }));
       }
 
-      const { data: payouts }  = await supabase.from("zenipay_payouts").select("*").order("created_at", { ascending: false }).limit(10);
+      let payoutsQuery = supabase.from("zenipay_payouts").select("*").order("created_at", { ascending: false }).limit(10);
+      if (merchant_id) payoutsQuery = payoutsQuery.eq("merchant_id", merchant_id);
+      const { data: payouts } = await payoutsQuery;
 
       // Invoices: merge table + merchant_data.invoices
       let invoicesQuery = supabase.from("zenipay_invoices").select("*").order("created_at", { ascending: false }).limit(20);

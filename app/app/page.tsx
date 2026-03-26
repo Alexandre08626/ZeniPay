@@ -34,10 +34,12 @@ export default function AppRouter() {
   const [mode,     setMode]     = useState<"sandbox" | "live">("sandbox");
   const [approved, setApproved] = useState(false);
 
-  // Fetch real stats and update account with live numbers
+  // Fetch real stats and update account with live numbers (filtered by merchant)
   useEffect(() => {
     if (!account) return;
-    fetch("/api/zenipay/stats")
+    const mid = account.id;
+    const url = mid ? `/api/zenipay/stats?merchant_id=${encodeURIComponent(mid)}` : "/api/zenipay/stats";
+    fetch(url)
       .then(r => r.json())
       .then(data => {
         if (data?.stats) {
@@ -62,30 +64,10 @@ export default function AppRouter() {
 
     setMode(storedMode);
 
-    // Zeniva Travel (clientId set, no email needed)
-    if (clientId && clientId !== "client" && !email) {
-      setAccount({
-        id: "cl-001",
-        businessName: "Zeniva Travel LLC",
-        ownerName: "Alexandre",
-        email: "info@zeniva.ca",
-        phone: "", website: "https://zenivatravel.com",
-        businessType: "Travel Agency", country: "CA",
-        monthlyVolume: "200000+",
-        status: "live", plan: "Complete",
-        sandboxKey: sessionStorage.getItem("zp_client_sandbox_key") || "zpk_sandbox_zeniva_7x2",
-        sandboxSecret: "zps_sb_demo",
-        liveKey: "zpk_live_zeniva_3k9",
-        createdAt: "2026-02-24T00:00:00Z",
-        volume: 0, txCount: 0, balance: 0, notes: "",
-      });
-      setApproved(true);
-      setReady(true);
-      return;
-    }
+    // Load merchant from Supabase by email (all accounts, including Zeniva)
+    const lookupEmail = email || "";
+    if (!lookupEmail) { router.replace("/login"); return; }
 
-    // Load from Supabase by email — works on all devices
-    const lookupEmail = email || "info@zeniva.ca";
     fetch(`/api/zenipay/merchants?email=${encodeURIComponent(lookupEmail)}`)
       .then(r => r.json())
       .then(({ merchants }) => {

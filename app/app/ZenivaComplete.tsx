@@ -1164,7 +1164,7 @@ export default function ZenivaCompleteApp() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch("/api/zenipay/stats");
+        const res = await fetch("/api/zenipay/stats?merchant_id=zeniva-001");
         if (!res.ok) return;
         const data = await res.json();
 

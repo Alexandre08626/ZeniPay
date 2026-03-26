@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
       sandboxKey:    m.sandbox_key,
       sandboxSecret: m.sandbox_secret,
       liveKey:       m.live_key,
+      password:      m.password,
       createdAt:     m.created_at,
       volume:        m.volume   ?? 0,
       txCount:       m.tx_count ?? 0,

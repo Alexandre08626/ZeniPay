@@ -58,6 +58,7 @@ export interface ZeniLedgerEntry {
   id: string;
   payment_id?: string;
   payout_id?: string;
+  merchant_id?: string;
   event_type: LedgerEventType;
   wallet_type: WalletType;
   direction: "credit" | "debit";
