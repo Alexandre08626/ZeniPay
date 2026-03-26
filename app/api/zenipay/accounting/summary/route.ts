@@ -2,9 +2,10 @@ export const dynamic = "force-dynamic";
 
 /**
  * ZeniPay — Accounting Summary
- * GET /api/zenipay/accounting/summary
+ * GET /api/zenipay/accounting/summary?merchant_id=...
  */
 
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,6 +22,7 @@ const EMPTY_RESPONSE = {
   netProfit: 0,
   platformFees: 0,
   agentCommissions: 0,
+  zenipayFees: 0,
   journalEntries: [] as unknown[],
   chartOfAccounts: [
     { code: "1000", name: "Platform Wallet", balance: 0, type: "asset" },
@@ -31,87 +33,69 @@ const EMPTY_RESPONSE = {
   ],
 };
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabase();
     if (!supabase) return Response.json(EMPTY_RESPONSE);
 
-    // Get accounting entries
-    const { data: entries } = await supabase
+    const merchant_id = req.nextUrl.searchParams.get("merchant_id");
+
+    // ── Payments (source of truth for revenue) — filter in JS for PGRST204 ──
+    const { data: allPayments } = await supabase
+      .from("zenipay_payments")
+      .select("id, amount, status, merchant_id, created_at, customer_name, description")
+      .order("created_at", { ascending: false });
+
+    const payments = merchant_id
+      ? (allPayments || []).filter((p: { merchant_id?: string }) => p.merchant_id === merchant_id)
+      : (allPayments || []);
+
+    const succeededPayments = payments.filter((p: { status: string }) => p.status === "succeeded");
+    const totalRevenue = succeededPayments.reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0);
+    const txCount = succeededPayments.length;
+
+    // ZeniPay fees: 2.9% + $0.30/tx
+    const zenipayFees = totalRevenue * 0.029 + txCount * 0.30;
+    const totalExpenses = zenipayFees;
+    const netProfit = totalRevenue - totalExpenses;
+
+    // ── Accounting entries (journal) ──
+    const { data: allEntries } = await supabase
       .from("zenipay_accounting_entries")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(100);
 
-    // Get ledger entries
-    const { data: ledger } = await supabase
-      .from("zenipay_ledger")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const entries = merchant_id
+      ? (allEntries || []).filter((e: { payment_id?: string }) => {
+          const payIds = new Set(payments.map((p: { id: string }) => p.id));
+          return e.payment_id && payIds.has(e.payment_id);
+        })
+      : (allEntries || []);
 
-    // Get commissions
-    const { data: commissions } = await supabase
-      .from("zenipay_commissions")
-      .select("*");
-
-    const accountingRows = entries || [];
-    const ledgerRows = ledger || [];
-    const commissionRows = commissions || [];
-
-    // Calculate totals from ledger (event_type + direction + wallet_type are the real column names)
-    const totalRevenue = ledgerRows
-      .filter((l: Record<string, unknown>) => l.event_type === "customer_payment" && l.direction === "credit")
-      .reduce((sum: number, l: Record<string, unknown>) => sum + Number(l.amount), 0);
-
-    const totalRefunds = ledgerRows
-      .filter((l: Record<string, unknown>) => l.event_type === "refund")
-      .reduce((sum: number, l: Record<string, unknown>) => sum + Math.abs(Number(l.amount)), 0);
-
-    const totalPayouts = ledgerRows
-      .filter((l: Record<string, unknown>) => l.event_type === "payout" && l.direction === "debit")
-      .reduce((sum: number, l: Record<string, unknown>) => sum + Math.abs(Number(l.amount)), 0);
-
-    const agentCommissions = commissionRows
+    // ── Commissions ──
+    const { data: commissions } = await supabase.from("zenipay_commissions").select("*");
+    const agentCommissions = (commissions || [])
       .reduce((sum: number, c: Record<string, unknown>) => sum + Number(c.agent_amount || 0), 0);
-
-    const platformFees = 0; // Could be calculated from processor fees ledger entries
-
-    const totalExpenses = totalRefunds + totalPayouts + agentCommissions;
-    const netProfit = totalRevenue - totalExpenses;
-
-    // Chart of accounts — compute balances (wallet_type is the correct column name)
-    const platformWalletBalance = ledgerRows
-      .filter((l: Record<string, unknown>) => l.wallet_type === "platform")
-      .reduce((sum: number, l: Record<string, unknown>) => {
-        const amt = Number(l.amount);
-        return sum + ((l.direction === "credit") ? amt : -amt);
-      }, 0);
-
-    const travelRevenueBalance = totalRevenue;
-
-    const agentCommissionsBalance = agentCommissions;
-
-    const commissionsPayable = commissionRows
-      .filter((c: Record<string, unknown>) => c.status === "pending")
-      .reduce((sum: number, c: Record<string, unknown>) => sum + Number(c.agent_amount || 0), 0);
-
-    // Last 20 journal entries
-    const journalEntries = accountingRows.slice(0, 20);
 
     return Response.json({
       totalRevenue,
       totalExpenses,
       netProfit,
-      platformFees,
+      platformFees: zenipayFees,
+      zenipayFees,
       agentCommissions,
-      journalEntries,
+      journalEntries: entries.slice(0, 40),
       chartOfAccounts: [
-        { code: "1000", name: "Platform Wallet", balance: platformWalletBalance, type: "asset" },
-        { code: "4000", name: "Travel Revenue", balance: travelRevenueBalance, type: "revenue" },
-        { code: "5000", name: "Agent Commissions", balance: agentCommissionsBalance, type: "expense" },
-        { code: "5100", name: "Processor Fees", balance: platformFees, type: "expense" },
-        { code: "2000", name: "Commissions Payable", balance: commissionsPayable, type: "liability" },
+        { code: "1000", name: "Platform Wallet", balance: totalRevenue, type: "asset" },
+        { code: "1200", name: "Accounts Receivable", balance: 0, type: "asset" },
+        { code: "2000", name: "Commissions Payable", balance: 0, type: "liability" },
+        { code: "2500", name: "Tax Payable", balance: netProfit * 0.15, type: "liability" },
+        { code: "3000", name: "Retained Earnings", balance: netProfit, type: "equity" },
+        { code: "4000", name: "Travel Revenue", balance: totalRevenue, type: "revenue" },
+        { code: "5000", name: "Agent Commissions", balance: agentCommissions, type: "expense" },
+        { code: "5100", name: "Processor Fees (ZeniPay)", balance: zenipayFees, type: "expense" },
+        { code: "7000", name: "Operating Expenses", balance: 0, type: "expense" },
       ],
     });
 

@@ -1258,7 +1258,7 @@ export default function ZenivaCompleteApp() {
   const [WALLETS, setWALLETS] = useState(DEFAULT_WALLETS);
   const [TRANSACTIONS, setTRANSACTIONS] = useState<{ id: string; customer: string; booking: string; amount: number; currency: string; method: string; gateway: string; status: string; date: string }[]>([]);
   const [STATS, setSTATS] = useState<{ totalTransactions: number; totalRevenue: number; successRate: number; env: string }>({ totalTransactions: 0, totalRevenue: 0, successRate: 0, env: "sandbox" });
-  const [accountingSummary, setAccountingSummary] = useState<{ totalRevenue: number; totalExpenses: number; netProfit: number; platformFees: number; agentCommissions: number; journalEntries: unknown[]; chartOfAccounts: {code:string;name:string;balance:number;type:string}[] } | null>(null);
+  const [accountingSummary, setAccountingSummary] = useState<{ totalRevenue: number; totalExpenses: number; netProfit: number; platformFees: number; zenipayFees?: number; agentCommissions: number; journalEntries: unknown[]; chartOfAccounts: {code:string;name:string;balance:number;type:string}[] } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [openWallet, setOpenWallet] = useState<{name:string;data:typeof DEFAULT_WALLETS.platform;icon:string;color:string}|null>(null);
   const [liveActivity, setLiveActivity] = useState<{ id: number; text: string; time: string; type: string }[]>([]);
@@ -1337,7 +1337,7 @@ export default function ZenivaCompleteApp() {
 
     async function fetchAccountingSummary() {
       try {
-        const res = await fetch("/api/zenipay/accounting/summary");
+        const res = await fetch("/api/zenipay/accounting/summary?merchant_id=zeniva-001");
         if (!res.ok) return;
         const data = await res.json();
         setAccountingSummary(data);
@@ -3154,16 +3154,10 @@ export default function ZenivaCompleteApp() {
                   </select>
                 </div>
                 {[
-                  { label: "Travel Bookings Revenue", amount: accountingSummary?.totalRevenue ?? 0, type: "income" },
-                  { label: "ZeniStay Revenue", amount: 0, type: "income" },
-                  { label: "Agent Commissions (in)", amount: 0, type: "income" },
-                  { label: "ZeniYacht Revenue", amount: 0, type: "income" },
+                  { label: "Payment Revenue", amount: accountingSummary?.totalRevenue ?? 0, type: "income" },
                   { label: "TOTAL REVENUE", amount: accountingSummary?.totalRevenue ?? 0, type: "total-income" },
-                  { label: "Supplier Payouts", amount: 0, type: "expense" },
-                  { label: "Agent Commissions (out)", amount: accountingSummary?.agentCommissions ?? 0, type: "expense" },
-                  { label: "Influencer Payouts", amount: 0, type: "expense" },
-                  { label: "Tech Infrastructure", amount: 0, type: "expense" },
-                  { label: "Marketing", amount: 0, type: "expense" },
+                  { label: "ZeniPay Processing Fees (2.9% + $0.30/tx)", amount: accountingSummary?.zenipayFees ?? accountingSummary?.platformFees ?? 0, type: "expense" },
+                  { label: "Agent Commissions", amount: accountingSummary?.agentCommissions ?? 0, type: "expense" },
                   { label: "TOTAL EXPENSES", amount: accountingSummary?.totalExpenses ?? 0, type: "total-expense" },
                   { label: "NET INCOME", amount: accountingSummary?.netProfit ?? 0, type: "net" },
                 ].map((row, i) => (
