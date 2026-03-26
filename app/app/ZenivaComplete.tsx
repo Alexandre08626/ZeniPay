@@ -1393,6 +1393,9 @@ export default function ZenivaCompleteApp() {
   }, []);
 
   const totalRevenue = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").reduce((a, t) => a + t.amount, 0);
+  const succeededCount = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length;
+  // ZeniPay charges merchants 2.9% + $0.30/tx
+  const zenipayFees = totalRevenue * 0.029 + succeededCount * 0.30;
   const platformBalance = WALLETS.platform.available + WALLETS.agent.available + WALLETS.influencer.available + WALLETS.supplier.available;
   const successRate = TRANSACTIONS.length > 0 ? Math.round(TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length / TRANSACTIONS.length * 100) : 0;
   const isLive = true; // Zeniva Travel is always live
@@ -1439,7 +1442,7 @@ export default function ZenivaCompleteApp() {
     const responses: Record<string, string> = {
       "revenue": `📊 Revenue Analysis:\n• Total today: ${fmt(totalRevenue)}\n• MTD: ${fmt(totalRevenue)}\n• Active agents: Louis, Jason, Luca\n• Success rate: ${successRate}%`,
       "fraud": `🛡️ Fraud Monitoring:\n• No high-risk transactions detected\n• Carlos Ruiz failure flagged: card declined (3x attempt)\n• Recommendation: request alternative payment method`,
-      "payout": `💸 Upcoming Payouts:\n• Merchant Revenue: ${fmt(totalRevenue)}\n• ZeniPay Fees: ${fmt(WALLETS.platform.available)}\n• Agents: Louis, Jason, Luca — $0 pending\n• No payouts scheduled yet — activate Finix live to begin`,
+      "payout": `💸 Upcoming Payouts:\n• Merchant Revenue: ${fmt(totalRevenue)}\n• ZeniPay Fees: ${fmt(zenipayFees)}\n• Agents: Louis, Jason, Luca — $0 pending\n• No payouts scheduled yet — activate Finix live to begin`,
       "rapport": `📄 Financial Report — Current:\n• Gross Revenue: ${fmt(totalRevenue)}\n• Platform Wallet: ${fmt(WALLETS.platform.available)} available\n• Agent Commissions Paid: ${fmt(WALLETS.agent.paid)} (70% travel agents)\n• Influencer Referrals Paid: ${fmt(WALLETS.influencer.paid)} (5% net profit)\n• Supplier Balance: ${fmt(WALLETS.supplier.available)}\n• ZeniYacht: 100% Zeniva`,
     };
     const keyword = Object.keys(responses).find(k => userMsg.toLowerCase().includes(k));
@@ -1492,7 +1495,7 @@ export default function ZenivaCompleteApp() {
           <div style={{ fontSize:42, fontWeight:900, letterSpacing:"-1.5px", lineHeight:1 }}>{fmt(STATS.totalRevenue||0)}</div>
           <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:4 }}>USD · Real-time · {STATS.env==="production"?"🟢 Live":"🟡 Sandbox"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:1, marginTop:18, background:"rgba(255,255,255,0.05)", borderRadius:16, overflow:"hidden" }}>
-            {[{label:"Total Revenue",value:fmt(STATS.totalRevenue||0),color:"#2DBE60"},{label:"ZeniPay Fees",value:fmt(WALLETS.platform.available||0),color:"#F5A623"},{label:"Net Revenue",value:fmt((STATS.totalRevenue||0)-(WALLETS.platform.available||0)),color:"#2A8FE0"}].map((s,i)=>(
+            {[{label:"Total Revenue",value:fmt(STATS.totalRevenue||0),color:"#2DBE60"},{label:"ZeniPay Fees",value:fmt(zenipayFees),color:"#F5A623"},{label:"Net Revenue",value:fmt((STATS.totalRevenue||0)-zenipayFees),color:"#2A8FE0"}].map((s,i)=>(
               <div key={i} style={{ padding:"11px 6px", textAlign:"center", borderRight:i<2?"1px solid rgba(255,255,255,0.07)":"none" }}>
                 <div style={{ fontSize:14, fontWeight:800, color:s.color }}>{s.value}</div>
                 <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", marginTop:3, letterSpacing:"0.08em" }}>{s.label}</div>
@@ -1858,7 +1861,7 @@ export default function ZenivaCompleteApp() {
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" as const }}>
                   {[
                     { v: fmt(totalRevenue), l: "Total Volume" },
-                    { v: fmt(WALLETS.platform.available), l: "ZeniPay Fees" },
+                    { v: fmt(zenipayFees), l: "ZeniPay Fees" },
                     { v: `${successRate}%`, l: "Success Rate" },
                     { v: String(STATS.totalTransactions), l: "Transactions" },
                   ].map(s => (
@@ -1878,7 +1881,7 @@ export default function ZenivaCompleteApp() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 24 }}>
               {[
                 { icon: "💰", label: "Total Revenue", value: fmt(totalRevenue), sub: "Real payments only", color: ORANGE },
-                { icon: "🏛️", label: "ZeniPay Fees", value: fmt(WALLETS.platform.available), sub: "Processing fees", color: BLUE },
+                { icon: "🏛️", label: "ZeniPay Fees", value: fmt(zenipayFees), sub: "2.9% + $0.30/tx", color: BLUE },
                 { icon: "✅", label: "Success Rate", value: `${successRate}%`, sub: `${TRANSACTIONS.length} txns`, color: GREEN },
                 { icon: "⏳", label: "Pending", value: fmt(WALLETS.platform.pending + WALLETS.agent.pending), sub: "Awaiting settlement", color: GOLD },
                 { icon: "👤", label: "Agent Pool", value: fmt(WALLETS.agent.available), sub: "Louis · Jason · Luca", color: PURPLE },
@@ -2233,13 +2236,13 @@ export default function ZenivaCompleteApp() {
                 <div>
                   <p style={{ margin: "0 0 6px", fontSize: 11, opacity: 0.55, textTransform: "uppercase" as const, letterSpacing: "0.12em", fontWeight: 700 }}>ZeniPay — Merchant Revenue</p>
                   <p style={{ margin: 0, fontWeight: 900, fontSize: 48, letterSpacing: "-2px", lineHeight: 1 }}>{fmt(totalRevenue)}</p>
-                  <p style={{ margin: "10px 0 0", fontSize: 12, opacity: 0.45 }}>USD · Real-time · ZeniPay Fees: {fmt(WALLETS.platform.available)}</p>
+                  <p style={{ margin: "10px 0 0", fontSize: 12, opacity: 0.45 }}>USD · Real-time · ZeniPay Fees: {fmt(zenipayFees)}</p>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   {[
                     { l: "Total Revenue", v: totalRevenue, c: GREEN },
-                    { l: "ZeniPay Fees", v: WALLETS.platform.available, c: GOLD },
-                    { l: "Net Revenue", v: totalRevenue - WALLETS.platform.available, c: "#94a3b8" },
+                    { l: "ZeniPay Fees", v: zenipayFees, c: GOLD },
+                    { l: "Net Revenue", v: totalRevenue - zenipayFees, c: "#94a3b8" },
                     { l: "Gateway", v: "Finix", c: BLUE, txt: true },
                   ].map(s => (
                     <div key={s.l} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 14px", backdropFilter: "blur(8px)" }}>
