@@ -1228,12 +1228,13 @@ export default function ZenivaCompleteApp() {
 
     async function fetchZpInvoices() {
       try {
-        const r = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/zenipay_invoices?select=*&order=created_at.desc`,
-          { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}` } }
-        );
+        // Use stats API which already returns invoices (avoids NEXT_PUBLIC_SUPABASE_URL mismatch)
+        const r = await fetch("/api/zenipay/stats");
+        if (!r.ok) return;
         const d = await r.json();
-        setZpInvoices(Array.isArray(d) ? d : []);
+        if (Array.isArray(d.recent_invoices)) {
+          setZpInvoices(d.recent_invoices);
+        }
       } catch {}
     }
 

@@ -90,21 +90,23 @@ export async function getWalletBalances(): Promise<Record<WalletType, ZeniWallet
   };
 
   try {
-    // Try the view first
-    const { data, error } = await supabase.from("zenipay_wallet_balances").select("*");
-    if (error || !data) return defaults;
+    // Compute balances directly from zenipay_ledger (source of truth)
+    const { data: ledgerRows } = await supabase
+      .from("zenipay_ledger")
+      .select("wallet_type, direction, amount");
 
-    for (const row of data) {
-      const wt = row.wallet_type as WalletType;
-      if (wt in defaults) {
-        defaults[wt] = {
-          wallet_type: wt,
-          available: Number(row.available) || 0,
-          pending: 0,
-          paid_out: Number(row.paid_out) || 0,
-          currency: row.currency || "USD",
-          last_updated: row.last_updated || new Date().toISOString(),
-        };
+    if (ledgerRows && ledgerRows.length > 0) {
+      for (const row of ledgerRows) {
+        const wt = (row.wallet_type || "platform") as WalletType;
+        if (wt in defaults) {
+          const amt = Number(row.amount) || 0;
+          if (row.direction === "credit") {
+            defaults[wt].available += amt;
+          } else if (row.direction === "debit") {
+            defaults[wt].paid_out += amt;
+            defaults[wt].available -= amt;
+          }
+        }
       }
     }
   } catch {
