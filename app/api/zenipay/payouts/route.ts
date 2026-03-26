@@ -13,7 +13,7 @@ import type { WalletType } from "../../../../modules/zenipay/database/schema";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getSupabase(): any {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mjkvkibdfteonvlahtag.supabase.co";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return createClient(url, key);
