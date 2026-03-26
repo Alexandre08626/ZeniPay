@@ -96,24 +96,25 @@ export async function POST(req: NextRequest) {
     // ─── 2. RECORD PAYMENT IN SUPABASE ───────────────────────────────────
     console.log("[DB] Inserting payment:", paymentId, "amount:", amountNum);
 
-    // Use RPC function to bypass PostgREST schema cache issues
-    const { error: payErr } = await supabase.rpc("insert_payment", {
-      p_id: paymentId,
-      p_payment_link_id: pay_link_id,
-      p_amount: amountNum,
-      p_currency: currency,
-      p_description: description || "",
-      p_customer_name: customer_name || "",
-      p_customer_email: customer_email || "",
-      p_status: finixResult.state === "SUCCEEDED" ? "succeeded" : "pending",
-      p_gateway: "finix",
-      p_gateway_transfer_id: finixResult.transferId || "",
-      p_gateway_instrument_id: finixResult.instrumentId || "",
-      p_card_brand: finixResult.brand || "",
-      p_card_last4: finixResult.last4 || "",
-      p_created_at: now,
-      p_updated_at: now,
-    });
+    const { error: payErr } = await supabase
+      .from("zenipay_payments")
+      .insert({
+        id: paymentId,
+        payment_link_id: pay_link_id,
+        amount: amountNum,
+        currency,
+        description: description || "",
+        customer_name: customer_name || "",
+        customer_email: customer_email || "",
+        status: finixResult.state === "SUCCEEDED" ? "succeeded" : "pending",
+        gateway: "finix",
+        gateway_transfer_id: finixResult.transferId || "",
+        gateway_instrument_id: finixResult.instrumentId || "",
+        card_brand: finixResult.brand || "",
+        card_last4: finixResult.last4 || "",
+        created_at: now,
+        updated_at: now,
+      });
 
     if (payErr) {
       console.error("[DB] zenipay_payments INSERT FAILED:", JSON.stringify(payErr));
@@ -167,28 +168,28 @@ export async function POST(req: NextRequest) {
       const invoiceNumber = `INV-${year}-${seq}`;
       const invoiceId = `INV-${paymentId}`;
 
-      const { error: invoiceErr } = await supabase.rpc("insert_invoice", {
-        p_id: invoiceId,
-        p_invoice_number: invoiceNumber,
-        p_payment_id: paymentId,
-        p_booking_id: `BK-${paymentId}`,
-        p_customer_name: customer_name || "Client",
-        p_customer_email: customer_email || "",
-        p_items: JSON.stringify([{
+      const { error: invoiceErr } = await supabase.from("zenipay_invoices").insert({
+        id: invoiceId,
+        invoice_number: invoiceNumber,
+        payment_id: paymentId,
+        booking_id: `BK-${paymentId}`,
+        customer_name: customer_name || "Client",
+        customer_email: customer_email || "",
+        items: JSON.stringify([{
           description: description || pay_link_id,
           qty: 1,
           unit_price: amountNum,
           total: amountNum,
         }]),
-        p_subtotal: amountNum,
-        p_tax: 0,
-        p_total: amountNum,
-        p_currency: currency,
-        p_status: "paid",
-        p_paid_at: now,
-        p_notes: `ZeniPay Payment ${paymentId} | Finix: ${finixResult.transferId}`,
-        p_created_at: now,
-        p_updated_at: now,
+        subtotal: amountNum,
+        tax: 0,
+        total: amountNum,
+        currency,
+        status: "paid",
+        paid_at: now,
+        notes: `ZeniPay Payment ${paymentId} | Finix: ${finixResult.transferId}`,
+        created_at: now,
+        updated_at: now,
       });
 
       if (invoiceErr) {
