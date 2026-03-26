@@ -21,12 +21,25 @@ async function edgeWrite(action: string, data: Record<string, unknown>) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return { ok: false, error: "Missing env vars" };
 
-  const res = await fetch(`${url}/functions/v1/insert-payment`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ action, data }),
-  });
-  return res.json();
+  try {
+    const endpoint = `${url}/functions/v1/insert-payment`;
+    console.log("[edgeWrite]", action, "→", endpoint);
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ action, data }),
+    });
+    const text = await res.text();
+    console.log("[edgeWrite] status:", res.status, "body:", text.slice(0, 200));
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { ok: false, error: `Non-JSON response (${res.status}): ${text.slice(0, 100)}` };
+    }
+  } catch (err) {
+    console.error("[edgeWrite] fetch error:", err);
+    return { ok: false, error: String(err) };
+  }
 }
 
 /**
