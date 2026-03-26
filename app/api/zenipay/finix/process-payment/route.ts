@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { processFinixPayment } from "@/modules/zenipay/gateways/finix";
 
 function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mjkvkibdfteonvlahtag.supabase.co";
+  const url = "https://mjkvkibdfteonvlahtag.supabase.co";
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const key = serviceKey || anonKey;
@@ -17,7 +17,7 @@ function getSupabaseAdmin() {
 
 /** Call the Supabase Edge Function for DB writes (bypasses PostgREST schema cache) */
 async function edgeWrite(action: string, data: Record<string, unknown>) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mjkvkibdfteonvlahtag.supabase.co";
+  const url = "https://mjkvkibdfteonvlahtag.supabase.co";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return { ok: false, error: "Missing env vars" };
 
