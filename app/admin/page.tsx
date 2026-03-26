@@ -18,7 +18,7 @@ const STATUS_BG:    Record<string, string> = { active: "rgba(22,163,74,0.08)", p
 // All clients now come from Supabase — no hardcoded defaults
 const CLIENTS_DEFAULT: never[] = [];
 
-const GATEWAY_STATUS = { accountId: "acct_XlRKvhpbdl1UxJ9zINmoL", webhook: "https://zenipay.ca/api/zenipay/webhooks/tilled", fees: "2.9% + $0.30" };
+const GATEWAY_STATUS = { accountId: "MUcTenaz57m9JrwwRZwpSfDc", webhook: "https://zenipay.ca/api/zenipay/webhooks/finix", fees: "2.9% + $0.30" };
 const BANK_STATUS    = { routing: "812345678", account: "••••5847", balance: 0, customerId: "4647873" };
 
 // ZeniPay's own platform revenue account — commissions auto-deposited here
@@ -31,11 +31,11 @@ const PLATFORM_ACCOUNT = {
   type: "Business Chequing (Unit.co)",
 };
 
-// Commission split rules per plan (ZeniPay margin after Tilled cost ~2.4%+$0.20)
+// Commission split rules per plan (ZeniPay margin after Finix cost ~2.4%+$0.20)
 const COMMISSION_RULES = [
-  { plan: "Standard", charged: "2.9% + $0.30", tilled: "~2.4% + $0.20", zeniMargin: "~0.5% + $0.10", color: ZP_GREEN  },
-  { plan: "Business",  charged: "2.5% + $0.25", tilled: "~2.4% + $0.20", zeniMargin: "~0.1% + $0.05", color: ZP_CYAN   },
-  { plan: "Complete",  charged: "2.0% + $0.20", tilled: "~1.8% + $0.15", zeniMargin: "~0.2% + $0.05", color: ZP_PURPLE },
+  { plan: "Standard", charged: "2.9% + $0.30", finix: "~2.4% + $0.20", zeniMargin: "~0.5% + $0.10", color: ZP_GREEN  },
+  { plan: "Business",  charged: "2.5% + $0.25", finix: "~2.4% + $0.20", zeniMargin: "~0.1% + $0.05", color: ZP_CYAN   },
+  { plan: "Complete",  charged: "2.0% + $0.20", finix: "~1.8% + $0.15", zeniMargin: "~0.2% + $0.05", color: ZP_PURPLE },
 ];
 
 const NAV = [
@@ -113,7 +113,7 @@ export default function AdminPage() {
       plan: s.plan || "Sandbox",
       since: (s.createdAt || s.created_at || "—").slice(0, 10),
       contact: s.email,
-      gateway: s.status === "active" ? "Tilled (Live)" : "Sandbox",
+      gateway: s.status === "active" ? "Finix (Live)" : "Sandbox",
       bankAccount: "—",
       description: s.businessType || s.business_type || s.notes || "New signup",
       ownerName: s.ownerName || s.owner_name || "—",
@@ -185,7 +185,7 @@ export default function AdminPage() {
         {sidebarOpen && (
           <div style={{ margin: "12px 10px 4px", padding: "6px 10px", borderRadius: 10, background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.2)", display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706" }} />
-            <div style={{ fontSize: 10, color: "#D97706", fontWeight: 700 }}>Sandbox · Tilled pending</div>
+            <div style={{ fontSize: 10, color: "#D97706", fontWeight: 700 }}>Sandbox · Finix Active</div>
           </div>
         )}
 
@@ -256,10 +256,10 @@ export default function AdminPage() {
               <div style={{ marginBottom: 20, padding: "12px 18px", borderRadius: 12, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.2)", display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ fontSize: 20 }}>⚠️</div>
                 <div style={{ flex: 1 }}>
-                  <span style={{ fontWeight: 700, color: "#B45309", fontSize: 13 }}>Payment processor in Sandbox Mode</span>
-                  <span style={{ color: "#92400E", fontSize: 13, marginLeft: 8 }}>— Complete Tilled live onboarding to accept real payments.</span>
+                  <span style={{ fontWeight: 700, color: "#B45309", fontSize: 13 }}>Finix Gateway — Sandbox Mode</span>
+                  <span style={{ color: "#92400E", fontSize: 13, marginLeft: 8 }}>— Live migration in progress. Sandbox payments active.</span>
                 </div>
-                <a href="https://app.tilled.com" target="_blank" rel="noreferrer" style={{ padding: "6px 16px", borderRadius: 8, background: "#D97706", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>Complete →</a>
+                <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ padding: "6px 16px", borderRadius: 8, background: "#D97706", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>Finix Dashboard →</a>
               </div>
 
               {/* KPI row */}
@@ -322,12 +322,12 @@ export default function AdminPage() {
                 <div style={{ ...card({ padding: "22px" }) }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>System Status</div>
                   {[
-                    { name: "ZeniPay API",     status: "active",  note: "Operational",   icon: "🟢" },
-                    { name: "Tilled Gateway",  status: "sandbox", note: "Sandbox only",  icon: "🟡" },
-                    { name: "Unit.co Banking", status: "active",  note: "Connected",     icon: "🟢" },
-                    { name: "Supabase DB",     status: "active",  note: "Connected",     icon: "🟢" },
-                    { name: "Webhooks",        status: "active",  note: "Configured",    icon: "🟢" },
-                    { name: "Live Payments",   status: "pending", note: "Pending Tilled approval", icon: "🟡" },
+                    { name: "ZeniPay API",      status: "active",  note: "Operational",         icon: "🟢" },
+                    { name: "Finix Gateway",   status: "active",  note: "Sandbox Active",     icon: "🟢" },
+                    { name: "Supabase DB",     status: "active",  note: "Connected",          icon: "🟢" },
+                    { name: "Webhooks (Finix)", status: "active", note: "/webhooks/finix",    icon: "🟢" },
+                    { name: "Vercel Deploy",   status: "active",  note: "Auto-deploy on push", icon: "🟢" },
+                    { name: "Live Migration",  status: "pending", note: "Finix Live pending",  icon: "🟡" },
                   ].map(s => (
                     <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: `1px solid ${BORDER}` }}>
                       <span style={{ fontSize: 10 }}>{s.icon}</span>
@@ -340,10 +340,10 @@ export default function AdminPage() {
                 <div style={{ ...card({ padding: "22px" }) }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>Action Items</div>
                   {[
-                    { n: "01", title: "Complete Tilled Live Approval", desc: "Required to accept real card payments.", urgent: true,  link: "https://app.tilled.com", cta: "Open Tilled →" },
-                    { n: "02", title: "Integrate Zeniva API Key",       desc: "Connect zpk_live_zeniva to your site.",  urgent: true,  link: null, cta: "Copy key" },
-                    { n: "03", title: "Auto Bank Transfers",            desc: "Automate wallet → Unit.co payouts.",     urgent: false, link: null, cta: "Coming soon" },
-                    { n: "04", title: "Onboard 2nd Client",             desc: "Expand the ZeniPay platform.",           urgent: false, link: null, cta: "Coming soon" },
+                    { n: "01", title: "Complete Finix Live Migration",  desc: "Switch from Sandbox to Live for real payments.", urgent: true,  link: "https://dashboard.finix.com", cta: "Open Finix →" },
+                    { n: "02", title: "Register Finix Webhook",         desc: "Point to /api/zenipay/webhooks/finix.",   urgent: true,  link: null, cta: "Copy URL" },
+                    { n: "03", title: "Test Full Payment Flow",         desc: "Use test card 4111...1111 on a Pay Link.", urgent: false, link: null, cta: "Test →" },
+                    { n: "04", title: "Onboard 2nd Client",             desc: "Expand the ZeniPay platform.",             urgent: false, link: null, cta: "Coming soon" },
                   ].map(s => (
                     <div key={s.n} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderTop: `1px solid ${BORDER}` }}>
                       <div style={{ width: 22, height: 22, borderRadius: 6, background: s.urgent ? "rgba(220,38,38,0.1)" : "rgba(45,190,96,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: s.urgent ? "#DC2626" : ZP_GREEN, flexShrink: 0, marginTop: 1 }}>{s.n}</div>
@@ -761,7 +761,7 @@ export default function AdminPage() {
                     <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Auto Commission Flow</div>
                     {[
                       { label: "Client pays",        sub: "e.g. $100.00",       color: ZP_GREEN,  icon: "💳" },
-                      { label: "Tilled processing",  sub: "~2.4% + $0.20 cost", color: "#D97706", icon: "⚙️" },
+                      { label: "Finix processing",  sub: "~2.4% + $0.20 cost", color: "#D97706", icon: "⚙️" },
                       { label: "ZeniPay margin",     sub: "auto → ••••9201",    color: ZP_CYAN,   icon: "🏦" },
                       { label: "Client net",         sub: "lands in ZeniCard",  color: ZP_PURPLE, icon: "⚡" },
                     ].map((s, i) => (
@@ -785,7 +785,7 @@ export default function AdminPage() {
                       <div style={{ fontWeight: 800, fontSize: 13, color: r.color, marginBottom: 8 }}>{r.plan}</div>
                       {[
                         { k: "Charged to client", v: r.charged },
-                        { k: "Tilled cost",        v: r.tilled  },
+                        { k: "Finix cost",        v: r.finix  },
                         { k: "ZeniPay margin →••••9201", v: r.zeniMargin, bold: true },
                       ].map(s => (
                         <div key={s.k} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0", borderBottom: `1px solid ${r.color}18` }}>
@@ -798,17 +798,17 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Tilled gateway */}
+              {/* Finix gateway */}
               <div style={{ ...card({ padding: "24px" }) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 15 }}>Payment Processor — Tilled</div>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>Payment Processor — Finix</div>
                     <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Incoming payment gateway · Visa, Mastercard, Amex, Discover</div>
                   </div>
                   <div style={{ ...badge("sandbox") }}><span style={{ fontSize: 7 }}>◎</span> Sandbox</div>
                 </div>
                 <div style={{ padding: "10px 16px", borderRadius: 10, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.2)", marginBottom: 16, fontSize: 13, color: "#92400E", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>⚠️</span> Tilled is in sandbox — complete live onboarding to accept real card payments.
+                  <span>⚠️</span> Finix is in sandbox — complete live onboarding to accept real card payments.
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 16 }}>
                   {[
@@ -823,8 +823,8 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-                <a href="https://app.tilled.com" target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "10px 24px", borderRadius: 10, background: ZP_GRAD, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 12px rgba(45,190,96,0.25)" }}>
-                  Complete Tilled Live Onboarding →
+                <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "10px 24px", borderRadius: 10, background: ZP_GRAD, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 12px rgba(45,190,96,0.25)" }}>
+                  Complete Finix Live Onboarding →
                 </a>
               </div>
             </div>
@@ -907,11 +907,11 @@ export default function AdminPage() {
                   { k: "Website",      v: "zenipay.ca" },
                   { k: "Version",      v: "1.0.0" },
                 ]},
-                { title: "Tilled Processor", color: ZP_CYAN, action: { label: "Tilled Portal →", href: "https://app.tilled.com" }, rows: [
+                { title: "Finix Processor", color: ZP_CYAN, action: { label: "Finix Portal →", href: "https://dashboard.finix.com" }, rows: [
                   { k: "Account ID",   v: "acct_XlRKvhpb..." },
                   { k: "Environment",  v: "Sandbox" },
                   { k: "Fees",         v: "2.9% + $0.30" },
-                  { k: "Webhook",      v: "/api/.../tilled" },
+                  { k: "Webhook",      v: "/api/.../finix" },
                   { k: "HMAC",         v: "Enabled" },
                 ]},
                 { title: "Unit.co Banking", color: ZP_PURPLE, rows: [
