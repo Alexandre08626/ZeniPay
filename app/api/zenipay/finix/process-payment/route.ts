@@ -22,7 +22,8 @@ async function edgeWrite(action: string, data: Record<string, unknown>) {
   if (!url || !key) return { ok: false, error: "Missing env vars" };
 
   try {
-    const endpoint = `${url}/functions/v1/insert-payment`;
+    // Use hardcoded Supabase ref to ensure correct edge function URL
+    const endpoint = `https://mjkvkibdfteonvlahtag.supabase.co/functions/v1/insert-payment`;
     console.log("[edgeWrite]", action, "→", endpoint);
     const res = await fetch(endpoint, {
       method: "POST",
