@@ -136,6 +136,21 @@ export async function POST(req: NextRequest) {
       merchantId = bodyMerchantId;
     }
 
+    // ─── 2b. FETCH MERCHANT DATA (for invoice branding) ──────────────────
+    let merchantName = "";
+    let merchantEmail = "";
+    if (merchantId) {
+      const { data: mRow } = await supabase
+        .from("zenipay_merchants")
+        .select("merchant_data")
+        .eq("id", merchantId)
+        .single();
+      if (mRow?.merchant_data) {
+        merchantName = mRow.merchant_data.businessName || "";
+        merchantEmail = mRow.merchant_data.email || "";
+      }
+    }
+
     // ─── 3. RECORD PAYMENT VIA EDGE FUNCTION (bypasses PostgREST schema cache) ─
     console.log("[DB] Inserting payment via Edge Function:", paymentId, "merchant:", merchantId);
 
@@ -202,6 +217,8 @@ export async function POST(req: NextRequest) {
         currency,
         status: "paid",
         paid_at: now,
+        merchant_name: merchantName || "",
+        merchant_email: merchantEmail || "",
         notes: `ZeniPay Payment ${paymentId} | Finix: ${finixResult.transferId}`,
         created_at: now,
         updated_at: now,

@@ -55,6 +55,7 @@ const NAV = [
   { key: "payouts",      icon: "→",  label: "Payouts",      color: ZP_PURPLE },
   { key: "bank",         icon: "⬡",  label: "ZeniCard",     color: ZP_GREEN  },
   { key: "api",          icon: "⌥",  label: "API & Keys",   color: ZP_CYAN   },
+  { key: "billing",      icon: "💳", label: "Billing",      color: "#E5247B" },
   { key: "settings",     icon: "⚙",  label: "Settings",     color: ZP_PURPLE },
 ] as const;
 type TabKey = typeof NAV[number]["key"];
@@ -67,6 +68,9 @@ export default function AdminPage() {
   const [clientView, setClientView] = useState<string | null>(null);
   const [signups, setSignups]       = useState<any[]>([]);
   const [adminStats, setAdminStats] = useState<any>(null);
+  const [billingInvoices, setBillingInvoices] = useState<any[]>([]);
+  const [billingLoading, setBillingLoading]   = useState(false);
+  const [billingForm, setBillingForm]         = useState<{ open: boolean; merchant_id: string; merchant_name: string; period_start: string; period_end: string }>({ open: false, merchant_id: "", merchant_name: "", period_start: "", period_end: "" });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -106,6 +110,11 @@ export default function AdminPage() {
       .then(r => r.json())
       .then(data => setAdminStats(data))
       .catch(err => console.error("[Admin] Failed to load stats:", err));
+    // Load billing invoices
+    fetch("/api/zenipay/admin/billing")
+      .then(r => r.json())
+      .then(data => { if (data.invoices) setBillingInvoices(data.invoices); })
+      .catch(err => console.error("[Admin] Failed to load billing:", err));
   }, [router]);
 
   const CLIENTS = [
@@ -908,6 +917,212 @@ export default function AdminPage() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════ BILLING ════════════════ */}
+          {tab === "billing" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>ZeniPay &rarr; Merchant Billing</div>
+                  <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Invoice merchants for processing fees</div>
+                </div>
+                <button
+                  onClick={() => setBillingForm(f => ({ ...f, open: !f.open }))}
+                  style={{ padding: "9px 20px", borderRadius: 10, background: "linear-gradient(135deg, #E5247B 0%, #7B4FBF 100%)", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(229,36,123,0.25)" }}
+                >
+                  {billingForm.open ? "Cancel" : "+ Generate Monthly Invoice"}
+                </button>
+              </div>
+
+              {/* Generate Invoice Form */}
+              {billingForm.open && (
+                <div style={{ ...card({ padding: "24px", marginBottom: 20 }), borderTop: "3px solid #E5247B" }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: "#E5247B" }}>Generate New Invoice</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Merchant</label>
+                      <select
+                        value={billingForm.merchant_id}
+                        onChange={e => {
+                          const sel = CLIENTS.find(c => c.id === e.target.value);
+                          setBillingForm(f => ({ ...f, merchant_id: e.target.value, merchant_name: sel?.name ?? "" }));
+                        }}
+                        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: 13, background: SURFACE, color: TEXT, outline: "none" }}
+                      >
+                        <option value="">Select a merchant...</option>
+                        {CLIENTS.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Period Start</label>
+                      <input
+                        type="date"
+                        value={billingForm.period_start}
+                        onChange={e => setBillingForm(f => ({ ...f, period_start: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: 13, background: SURFACE, color: TEXT, outline: "none" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Period End</label>
+                      <input
+                        type="date"
+                        value={billingForm.period_end}
+                        onChange={e => setBillingForm(f => ({ ...f, period_end: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: 13, background: SURFACE, color: TEXT, outline: "none" }}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    disabled={billingLoading || !billingForm.merchant_id || !billingForm.period_start || !billingForm.period_end}
+                    onClick={async () => {
+                      setBillingLoading(true);
+                      try {
+                        const res = await fetch("/api/zenipay/admin/billing", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            merchant_id: billingForm.merchant_id,
+                            merchant_name: billingForm.merchant_name,
+                            period_start: billingForm.period_start,
+                            period_end: billingForm.period_end,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.invoice) {
+                          setBillingInvoices(prev => [data.invoice, ...prev]);
+                          setBillingForm({ open: false, merchant_id: "", merchant_name: "", period_start: "", period_end: "" });
+                        } else {
+                          alert("Error: " + (data.error || "Failed to generate invoice"));
+                        }
+                      } catch (err) {
+                        alert("Failed to generate invoice");
+                      } finally {
+                        setBillingLoading(false);
+                      }
+                    }}
+                    style={{
+                      padding: "10px 28px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                      background: (!billingForm.merchant_id || !billingForm.period_start || !billingForm.period_end) ? "#CBD5E1" : "linear-gradient(135deg, #E5247B 0%, #7B4FBF 100%)",
+                      color: "#fff", boxShadow: "0 4px 12px rgba(229,36,123,0.18)", opacity: billingLoading ? 0.6 : 1,
+                    }}
+                  >
+                    {billingLoading ? "Generating..." : "Generate Invoice"}
+                  </button>
+                </div>
+              )}
+
+              {/* Summary cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+                {[
+                  { label: "Total Invoices", value: `${billingInvoices.length}`, accent: "#E5247B" },
+                  { label: "Pending", value: `${billingInvoices.filter(i => i.status === "pending").length}`, accent: "#D97706" },
+                  { label: "Paid", value: `${billingInvoices.filter(i => i.status === "paid").length}`, accent: ZP_GREEN },
+                  { label: "Total Billed", value: fmt(billingInvoices.reduce((a: number, i: any) => a + Number(i.total_fees ?? 0), 0)), accent: ZP_PURPLE },
+                ].map(s => (
+                  <div key={s.label} style={{ ...card({ padding: "14px 16px" }), borderTop: `3px solid ${s.accent}` }}>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: s.accent }}>{s.value}</div>
+                    <div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Billing table */}
+              <div style={{ ...card({ overflow: "hidden" }) }}>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>
+                        {["Invoice #", "Merchant", "Period", "Volume", "Tx Count", "Fees (2.9% + $0.30)", "Platform Fee", "Total", "Status", ""].map(h => (
+                          <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {billingInvoices.length === 0 ? (
+                        <tr><td colSpan={10} style={{ padding: "32px 14px", textAlign: "center", color: MUTED }}>No invoices yet. Generate your first billing invoice above.</td></tr>
+                      ) : billingInvoices.map((inv: any) => {
+                        const statusColors: Record<string, { bg: string; fg: string; border: string }> = {
+                          pending: { bg: "rgba(217,119,6,0.08)", fg: "#D97706", border: "#D9770633" },
+                          paid:    { bg: "rgba(22,163,74,0.08)", fg: "#16A34A", border: "#16A34A33" },
+                          overdue: { bg: "rgba(220,38,38,0.08)", fg: "#DC2626", border: "#DC262633" },
+                        };
+                        const sc = statusColors[inv.status] ?? statusColors.pending;
+                        return (
+                          <tr key={inv.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                            <td style={{ padding: "12px 14px", fontWeight: 700, color: "#E5247B" }}>{inv.invoice_number}</td>
+                            <td style={{ padding: "12px 14px", fontWeight: 600 }}>{inv.merchant_name}</td>
+                            <td style={{ padding: "12px 14px", color: MUTED, whiteSpace: "nowrap" }}>{inv.period_start?.slice(0, 10)} &rarr; {inv.period_end?.slice(0, 10)}</td>
+                            <td style={{ padding: "12px 14px", fontWeight: 600 }}>{fmt(Number(inv.transactions_volume ?? 0))}</td>
+                            <td style={{ padding: "12px 14px", textAlign: "center" }}>{inv.transactions_count}</td>
+                            <td style={{ padding: "12px 14px", fontWeight: 600 }}>{fmt(Number(inv.transactions_volume ?? 0) * 0.029 + Number(inv.transactions_count ?? 0) * 0.3)}</td>
+                            <td style={{ padding: "12px 14px", fontWeight: 600 }}>{fmt(Number(inv.platform_fee ?? 97))}</td>
+                            <td style={{ padding: "12px 14px", fontWeight: 800, color: "#E5247B" }}>{fmt(Number(inv.total_fees ?? 0))}</td>
+                            <td style={{ padding: "12px 14px" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.fg, border: `1px solid ${sc.border}`, letterSpacing: "0.04em" }}>
+                                <span style={{ fontSize: 7 }}>●</span> {inv.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: "12px 14px" }}>
+                              <button
+                                onClick={() => {
+                                  const w = window.open("", "_blank", "width=800,height=900");
+                                  if (!w) return;
+                                  w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${inv.invoice_number}</title><style>
+                                    body{font-family:'Inter',system-ui,sans-serif;padding:48px;color:#0F172A;max-width:760px;margin:0 auto}
+                                    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px}
+                                    .logo{font-size:28px;font-weight:900;background:linear-gradient(135deg,#2DBE60,#15B8C9,#7B4FBF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+                                    .inv-num{font-size:24px;font-weight:800;color:#E5247B;margin-bottom:4px}
+                                    .label{font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:4px}
+                                    .value{font-size:14px;font-weight:600;margin-bottom:12px}
+                                    table{width:100%;border-collapse:collapse;margin:24px 0}
+                                    th{background:#F8FAFC;padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:#64748B;font-weight:700;border-bottom:1px solid rgba(0,0,0,0.07)}
+                                    td{padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px}
+                                    .total-row td{font-weight:800;font-size:15px;border-top:2px solid #E5247B;background:#FDF2F8}
+                                    .footer{margin-top:40px;text-align:center;font-size:11px;color:#94A3B8}
+                                    @media print{body{padding:24px}}
+                                  </style></head><body>
+                                    <div class="header">
+                                      <div><div class="logo">ZeniPay</div><div style="font-size:12px;color:#64748B">Payment Processing Platform</div><div style="font-size:12px;color:#64748B;margin-top:2px">info@zenipay.ca | zenipay.ca</div></div>
+                                      <div style="text-align:right"><div class="inv-num">${inv.invoice_number}</div><div style="font-size:12px;color:#64748B">Generated: ${new Date(inv.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div></div>
+                                    </div>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
+                                      <div><div class="label">Bill To</div><div class="value">${inv.merchant_name}</div><div class="label">Merchant ID</div><div class="value" style="font-size:12px;color:#64748B">${inv.merchant_id}</div></div>
+                                      <div><div class="label">Billing Period</div><div class="value">${inv.period_start?.slice(0, 10)} to ${inv.period_end?.slice(0, 10)}</div><div class="label">Status</div><div class="value" style="color:${sc.fg};font-weight:700">${inv.status.toUpperCase()}</div></div>
+                                    </div>
+                                    <table>
+                                      <thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
+                                      <tbody>
+                                        <tr><td>Processing Fee (2.9% of $${Number(inv.transactions_volume ?? 0).toFixed(2)} volume)</td><td style="text-align:right">$${(Number(inv.transactions_volume ?? 0) * 0.029).toFixed(2)}</td></tr>
+                                        <tr><td>Per-Transaction Fee ($0.30 x ${inv.transactions_count} transactions)</td><td style="text-align:right">$${(Number(inv.transactions_count ?? 0) * 0.3).toFixed(2)}</td></tr>
+                                        <tr><td>Monthly Platform Fee</td><td style="text-align:right">$${Number(inv.platform_fee ?? 97).toFixed(2)}</td></tr>
+                                        <tr class="total-row"><td>Total Due</td><td style="text-align:right;color:#E5247B">$${Number(inv.total_fees ?? 0).toFixed(2)}</td></tr>
+                                      </tbody>
+                                    </table>
+                                    <div style="margin-top:24px;padding:16px;background:#F8FAFC;border-radius:8px;font-size:12px;color:#64748B">
+                                      <strong>Payment Terms:</strong> Net 30 days. Please remit payment to ZeniPay Inc.<br/>
+                                      <strong>Questions?</strong> Contact billing@zenipay.ca
+                                    </div>
+                                    <div class="footer"><hr style="border:none;border-top:1px solid #E2E8F0;margin:24px 0"/>ZeniPay Inc. | Payment Processing Platform | zenipay.ca</div>
+                                  </body></html>`);
+                                  w.document.close();
+                                  setTimeout(() => w.print(), 500);
+                                }}
+                                style={{ padding: "5px 14px", borderRadius: 8, border: `1px solid ${BORDER}`, background: SURFACE, fontSize: 11, fontWeight: 700, color: MUTED, cursor: "pointer" }}
+                              >
+                                Print
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

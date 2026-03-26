@@ -288,12 +288,13 @@ function WalletCard({ name, data, icon, color, onOpen }: { name: string; data: {
 }
 
 // ── Invoice Detail Modal ────────────────────────────────────────────────────
-function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string }; onClose: () => void }) {
+function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string; merchant_name?: string; merchant_email?: string }; onClose: () => void }) {
   const invNum = invoice.invoice_number || invoice.id;
   const cur = invoice.currency || "USD";
   const fmtC = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(n);
   const subtotal = invoice.subtotal ?? invoice.total;
   const tax = invoice.tax ?? 0;
+  const merchantDisplayName = invoice.merchant_name || "Zeniva Travel";
   let parsedItems: { description: string; qty: number; unit_price: number; total: number }[] = [];
   try {
     if (invoice.items) {
@@ -319,7 +320,7 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
       .badge{display:inline-block;background:#d1fae5;color:#065f46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:9999px}
       .footer{margin-top:40px;padding-top:20px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center}
     </style></head><body>
-      <div class="header"><div><div class="brand">ZeniPay</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">Payment Processing Platform</div></div><div style="text-align:right"><div class="inv-num">${invNum}</div><div style="font-size:12px;color:#64748b;margin-top:4px">${new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div><div class="badge" style="margin-top:8px">${invoice.status === "paid" ? "PAID" : invoice.status.toUpperCase()}</div></div></div>
+      <div class="header"><div><div class="brand">${merchantDisplayName}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">${invoice.merchant_email || ""}</div></div><div style="text-align:right"><div class="inv-num">${invNum}</div><div style="font-size:12px;color:#64748b;margin-top:4px">${new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div><div class="badge" style="margin-top:8px">${invoice.status === "paid" ? "PAID" : invoice.status.toUpperCase()}</div></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
         <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Bill To</div><div style="font-weight:700;font-size:14px">${invoice.customer_name}</div><div style="font-size:12px;color:#64748b">${invoice.customer_email}</div></div>
         <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Payment ID</div><div style="font-family:monospace;font-size:12px;color:#15B8C9">${invoice.payment_id}</div></div>
@@ -327,7 +328,7 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
       <table><thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th style="text-align:right">Total</th></tr></thead><tbody>${parsedItems.length > 0 ? parsedItems.map(it => `<tr><td>${it.description}</td><td>${it.qty}</td><td>${fmtC(it.unit_price)}</td><td style="text-align:right;font-weight:700">${fmtC(it.total)}</td></tr>`).join("") : `<tr><td>Payment</td><td>1</td><td>${fmtC(invoice.total)}</td><td style="text-align:right;font-weight:700">${fmtC(invoice.total)}</td></tr>`}</tbody></table>
       <div class="totals"><div>Subtotal: <strong>${fmtC(subtotal)}</strong></div><div>Tax: <strong>${fmtC(tax)}</strong></div><div class="total-line">Total: ${fmtC(invoice.total)}</div></div>
       ${invoice.notes ? `<div style="margin-top:24px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#64748b">${invoice.notes}</div>` : ""}
-      <div class="footer">ZeniPay · zenipay.ca · Powered by Finix</div>
+      <div class="footer">Powered by ZeniPay · zenipay.ca</div>
     </body></html>`);
     printWin.document.close();
     printWin.focus();
@@ -340,8 +341,8 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
         {/* Header */}
         <div style={{ padding: "24px 28px 0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 900, background: "linear-gradient(90deg, #2DBE60, #15B8C9, #7B4FBF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ZeniPay</div>
-            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>Payment Processing Platform</div>
+            <div style={{ fontSize: 22, fontWeight: 900, background: "linear-gradient(90deg, #2DBE60, #15B8C9, #7B4FBF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{merchantDisplayName}</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{invoice.merchant_email || ""}</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a" }}>{invNum}</div>
@@ -406,9 +407,14 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
         )}
 
         {/* Actions */}
-        <div style={{ padding: "16px 28px 24px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <div style={{ padding: "16px 28px 12px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button onClick={handlePrint} style={{ background: "linear-gradient(135deg, #2DBE60, #15B8C9)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🖨 Print / PDF</button>
           <button onClick={onClose} style={{ background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Close</button>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "0 28px 20px", textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "#94a3b8" }}>Powered by ZeniPay</div>
         </div>
       </div>
     </div>
@@ -1263,7 +1269,7 @@ export default function ZenivaCompleteApp() {
   const [openWallet, setOpenWallet] = useState<{name:string;data:typeof DEFAULT_WALLETS.platform;icon:string;color:string}|null>(null);
   const [liveActivity, setLiveActivity] = useState<{ id: number; text: string; time: string; type: string }[]>([]);
   const [recentBookings, setRecentBookings] = useState<{ id: string; client_name: string; destination: string; total_price: number; status: string; created_at: string }[]>([]);
-  const [zpInvoices, setZpInvoices] = useState<{ id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string }[]>([]);
+  const [zpInvoices, setZpInvoices] = useState<{ id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string; merchant_name?: string; merchant_email?: string }[]>([]);
   const [viewInvoice, setViewInvoice] = useState<typeof zpInvoices[number] | null>(null);
   // Unit.co banking layer
   const [unitAccounts, setUnitAccounts] = useState<{ id: string; type: string; name: string; status: string; balanceCents: number; availableCents: number; routingNumber: string; accountNumber: string; currency: string; createdAt: string }[]>([
