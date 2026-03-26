@@ -107,32 +107,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ─── 2. RECORD PAYMENT — DIRECT SUPABASE INSERT ───────────────────────
-    console.log("[DB] Inserting payment:", paymentId, "amount:", amountNum);
+    // ─── 2. RECORD PAYMENT VIA EDGE FUNCTION (bypasses PostgREST schema cache) ─
+    console.log("[DB] Inserting payment via Edge Function:", paymentId);
 
-    const { data: insertData, error: insertError } = await supabase
-      .from("zenipay_payments")
-      .insert({
-        id: paymentId,
-        payment_link_id: pay_link_id,
-        amount: amountNum,
-        currency,
-        description: description || "",
-        customer_name: customer_name || "",
-        customer_email: customer_email || "",
-        status: finixResult.state === "SUCCEEDED" ? "succeeded" : "pending",
-        gateway: "finix",
-        gateway_transfer_id: finixResult.transferId || "",
-        gateway_instrument_id: finixResult.instrumentId || "",
-        card_brand: finixResult.brand || "",
-        card_last4: finixResult.last4 || "",
-        created_at: now,
-        updated_at: now,
-      });
+    const payResult = await edgeWrite("insert_payment", {
+      id: paymentId,
+      payment_link_id: pay_link_id,
+      amount: amountNum,
+      currency,
+      description: description || "",
+      customer_name: customer_name || "",
+      customer_email: customer_email || "",
+      status: finixResult.state === "SUCCEEDED" ? "succeeded" : "pending",
+      gateway: "finix",
+      gateway_transfer_id: finixResult.transferId || "",
+      gateway_instrument_id: finixResult.instrumentId || "",
+      card_brand: finixResult.brand || "",
+      card_last4: finixResult.last4 || "",
+      created_at: now,
+      updated_at: now,
+    });
 
-    console.error("SUPABASE INSERT RESULT:", JSON.stringify({ data: insertData, error: insertError }));
-
-    if (insertError) {
+    if (!payResult.ok) {
+      console.error("[DB] Payment insert failed:", JSON.stringify(payResult));
       return NextResponse.json({
         success: true,
         warning: "Payment succeeded but database record failed",
@@ -141,10 +138,7 @@ export async function POST(req: NextRequest) {
         state: finixResult.state,
         amount: amountNum,
         currency,
-        dbError: insertError.message,
-        dbCode: insertError.code,
-        dbDetails: insertError.details,
-        dbHint: insertError.hint,
+        dbError: payResult.error || "unknown",
       });
     }
 
