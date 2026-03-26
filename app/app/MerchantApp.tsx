@@ -189,6 +189,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const merchantId = account.id || account.email;
   const [payLinks,      setPayLinks]      = useState<PayLink[]>([]);
   const [invoices,      setInvoices]      = useState<Invoice[]>([]);
+  const [viewInvoice,   setViewInvoice]   = useState<Invoice | null>(null);
   const [payouts,       setPayouts]       = useState<Payout[]>([]);
   const [bankCfg,       setBankCfg]       = useState<BankCfg>({ holderName: "", bankName: "", transit: "", institution: "", accountNum: "", accountType: "chequing", step: 0 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -881,6 +882,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
                 </div>
               </div>
               <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+                <button onClick={()=>setViewInvoice(inv)} style={{ background:`${ZP_CYAN}10`,border:`1px solid ${ZP_CYAN}30`,color:ZP_CYAN,borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer" }}>📄 View</button>
                 {inv.status==="draft" && <button onClick={()=>setInvoices(p=>p.map(x=>x.id===inv.id?{...x,status:"sent" as const}:x))} style={{ background:ZP_GRAD,color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer" }}>Send</button>}
                 {(inv.status==="sent"||inv.status==="overdue") && <button onClick={()=>setInvoices(p=>p.map(x=>x.id===inv.id?{...x,status:"paid" as const}:x))} style={{ background:"rgba(45,190,96,0.1)",color:ZP_GREEN,border:"1px solid rgba(45,190,96,0.3)",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer" }}>Mark Paid</button>}
                 <button onClick={()=>setInvoices(p=>p.filter(x=>x.id!==inv.id))} style={{ background:"rgba(239,68,68,0.06)",border:"1px solid rgba(239,68,68,0.2)",color:"#EF4444",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer" }}>Delete</button>
@@ -2058,6 +2060,69 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
       {payLinkModal}
       {invoiceModal}
       {payoutModal}
+
+      {/* Invoice Detail View Modal */}
+      {viewInvoice && (
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }} onClick={()=>setViewInvoice(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff",borderRadius:20,width:"100%",maxWidth:600,maxHeight:"90vh",overflow:"auto",boxShadow:"0 24px 80px rgba(0,0,0,0.3)" }}>
+            <div style={{ padding:"24px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
+              <div>
+                <div style={{ fontSize:22,fontWeight:900,background:ZP_GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent" }}>ZeniPay</div>
+                <div style={{ fontSize:10,color:"#94a3b8",marginTop:2 }}>Payment Processing Platform</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontWeight:800,fontSize:16,color:TEXT }}>#{viewInvoice.id}</div>
+                <div style={{ fontSize:11,color:MUTED,marginTop:2 }}>{new Date(viewInvoice.createdAt).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})}</div>
+                <span style={{ display:"inline-block",marginTop:6,background:viewInvoice.status==="paid"?"#d1fae5":"#fef3c7",color:viewInvoice.status==="paid"?"#065f46":"#92400e",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:9999 }}>{viewInvoice.status.toUpperCase()}</span>
+              </div>
+            </div>
+            <div style={{ padding:"20px 28px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:16 }}>
+              <div>
+                <div style={{ fontSize:9,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4 }}>Bill To</div>
+                <div style={{ fontWeight:700,fontSize:14,color:TEXT }}>{viewInvoice.client}</div>
+                <div style={{ fontSize:12,color:MUTED }}>{viewInvoice.email}</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:9,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4 }}>Due Date</div>
+                <div style={{ fontSize:12,color:MUTED }}>{new Date(viewInvoice.dueDate).toLocaleDateString("en-CA")}</div>
+              </div>
+            </div>
+            <div style={{ padding:"0 28px" }}>
+              <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                <thead><tr style={{ background:"#f8fafc" }}>
+                  {["Description","Qty","Price","Total"].map((h,i)=>(
+                    <th key={h} style={{ padding:"8px 12px",textAlign:i===3?"right":"left",fontSize:10,fontWeight:700,color:"#64748b",textTransform:"uppercase",borderBottom:"2px solid #e2e8f0" }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {viewInvoice.items.length > 0 ? viewInvoice.items.map((it,i)=>(
+                    <tr key={i} style={{ borderBottom:"1px solid #f1f5f9" }}>
+                      <td style={{ padding:"10px 12px",fontSize:13 }}>{it.desc}</td>
+                      <td style={{ padding:"10px 12px",fontSize:13 }}>{it.qty}</td>
+                      <td style={{ padding:"10px 12px",fontSize:13 }}>{fmt(it.price)}</td>
+                      <td style={{ padding:"10px 12px",fontSize:13,fontWeight:700,textAlign:"right" }}>{fmt(it.qty*it.price)}</td>
+                    </tr>
+                  )) : (
+                    <tr style={{ borderBottom:"1px solid #f1f5f9" }}>
+                      <td style={{ padding:"10px 12px",fontSize:13 }}>Payment</td>
+                      <td style={{ padding:"10px 12px",fontSize:13 }}>1</td>
+                      <td style={{ padding:"10px 12px",fontSize:13 }}>{fmt(viewInvoice.amount)}</td>
+                      <td style={{ padding:"10px 12px",fontSize:13,fontWeight:700,textAlign:"right" }}>{fmt(viewInvoice.amount)}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ padding:"16px 28px",textAlign:"right" }}>
+              <div style={{ fontSize:20,fontWeight:900,color:TEXT }}>Total: {fmt(viewInvoice.amount)}</div>
+            </div>
+            <div style={{ padding:"16px 28px 24px",display:"flex",gap:10,justifyContent:"flex-end" }}>
+              <button onClick={()=>{ const w=window.open("","_blank"); if(!w)return; w.document.write(`<!DOCTYPE html><html><head><title>Invoice #${viewInvoice.id}</title><style>body{font-family:sans-serif;margin:40px;color:#0f172a}h1{font-size:28px;font-weight:900;background:linear-gradient(90deg,#2DBE60,#15B8C9,#7B4FBF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}table{width:100%;border-collapse:collapse;margin:24px 0}th{background:#f8fafc;text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0}td{padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px}.total{text-align:right;font-size:20px;font-weight:900;margin-top:16px}</style></head><body><h1>ZeniPay</h1><p>Invoice #${viewInvoice.id}</p><p><strong>${viewInvoice.client}</strong> · ${viewInvoice.email}</p><p>Date: ${new Date(viewInvoice.createdAt).toLocaleDateString("en-CA")} · Due: ${new Date(viewInvoice.dueDate).toLocaleDateString("en-CA")}</p><table><thead><tr><th>Description</th><th>Qty</th><th>Price</th><th style="text-align:right">Total</th></tr></thead><tbody>${viewInvoice.items.map(it=>`<tr><td>${it.desc}</td><td>${it.qty}</td><td>$${it.price.toFixed(2)}</td><td style="text-align:right;font-weight:700">$${(it.qty*it.price).toFixed(2)}</td></tr>`).join("")||`<tr><td>Payment</td><td>1</td><td>$${viewInvoice.amount.toFixed(2)}</td><td style="text-align:right;font-weight:700">$${viewInvoice.amount.toFixed(2)}</td></tr>`}</tbody></table><div class="total">Total: $${viewInvoice.amount.toFixed(2)}</div><p style="margin-top:40px;font-size:11px;color:#94a3b8;text-align:center">ZeniPay · zenipay.ca</p></body></html>`); w.document.close(); w.focus(); setTimeout(()=>w.print(),300); }} style={{ background:ZP_GRAD,color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer" }}>🖨 Print / PDF</button>
+              <button onClick={()=>setViewInvoice(null)} style={{ background:"#f1f5f9",color:MUTED,border:"none",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:700,cursor:"pointer" }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

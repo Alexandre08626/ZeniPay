@@ -287,6 +287,134 @@ function WalletCard({ name, data, icon, color, onOpen }: { name: string; data: {
   );
 }
 
+// ── Invoice Detail Modal ────────────────────────────────────────────────────
+function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string }; onClose: () => void }) {
+  const invNum = invoice.invoice_number || invoice.id;
+  const cur = invoice.currency || "USD";
+  const fmtC = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(n);
+  const subtotal = invoice.subtotal ?? invoice.total;
+  const tax = invoice.tax ?? 0;
+  let parsedItems: { description: string; qty: number; unit_price: number; total: number }[] = [];
+  try {
+    if (invoice.items) {
+      const raw = typeof invoice.items === "string" ? JSON.parse(invoice.items) : invoice.items;
+      if (Array.isArray(raw)) parsedItems = raw;
+    }
+  } catch { /* ignore */ }
+
+  const handlePrint = () => {
+    const printWin = window.open("", "_blank");
+    if (!printWin) return;
+    printWin.document.write(`<!DOCTYPE html><html><head><title>Invoice ${invNum}</title><style>
+      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:40px;color:#0f172a}
+      .header{display:flex;justify-content:space-between;margin-bottom:40px}
+      .brand{font-size:28px;font-weight:900;background:linear-gradient(90deg,#2DBE60,#15B8C9,#7B4FBF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+      .inv-num{font-size:24px;font-weight:800;color:#0f172a}
+      table{width:100%;border-collapse:collapse;margin:24px 0}
+      th{background:#f8fafc;text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0}
+      td{padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px}
+      .totals{text-align:right;margin-top:16px}
+      .totals div{padding:4px 0;font-size:13px}
+      .total-line{font-size:18px;font-weight:900;color:#0f172a;border-top:2px solid #e2e8f0;padding-top:8px;margin-top:8px}
+      .badge{display:inline-block;background:#d1fae5;color:#065f46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:9999px}
+      .footer{margin-top:40px;padding-top:20px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center}
+    </style></head><body>
+      <div class="header"><div><div class="brand">ZeniPay</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">Payment Processing Platform</div></div><div style="text-align:right"><div class="inv-num">${invNum}</div><div style="font-size:12px;color:#64748b;margin-top:4px">${new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div><div class="badge" style="margin-top:8px">${invoice.status === "paid" ? "PAID" : invoice.status.toUpperCase()}</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
+        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Bill To</div><div style="font-weight:700;font-size:14px">${invoice.customer_name}</div><div style="font-size:12px;color:#64748b">${invoice.customer_email}</div></div>
+        <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Payment ID</div><div style="font-family:monospace;font-size:12px;color:#15B8C9">${invoice.payment_id}</div></div>
+      </div>
+      <table><thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th style="text-align:right">Total</th></tr></thead><tbody>${parsedItems.length > 0 ? parsedItems.map(it => `<tr><td>${it.description}</td><td>${it.qty}</td><td>${fmtC(it.unit_price)}</td><td style="text-align:right;font-weight:700">${fmtC(it.total)}</td></tr>`).join("") : `<tr><td>Payment</td><td>1</td><td>${fmtC(invoice.total)}</td><td style="text-align:right;font-weight:700">${fmtC(invoice.total)}</td></tr>`}</tbody></table>
+      <div class="totals"><div>Subtotal: <strong>${fmtC(subtotal)}</strong></div><div>Tax: <strong>${fmtC(tax)}</strong></div><div class="total-line">Total: ${fmtC(invoice.total)}</div></div>
+      ${invoice.notes ? `<div style="margin-top:24px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#64748b">${invoice.notes}</div>` : ""}
+      <div class="footer">ZeniPay · zenipay.ca · Powered by Finix</div>
+    </body></html>`);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => printWin.print(), 300);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 600, maxHeight: "90vh", overflow: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.3)" }}>
+        {/* Header */}
+        <div style={{ padding: "24px 28px 0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, background: "linear-gradient(90deg, #2DBE60, #15B8C9, #7B4FBF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ZeniPay</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>Payment Processing Platform</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a" }}>{invNum}</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
+            <span style={{ display: "inline-block", marginTop: 6, background: "#d1fae5", color: "#065f46", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 9999 }}>{invoice.status === "paid" ? "PAID" : invoice.status.toUpperCase()}</span>
+          </div>
+        </div>
+
+        {/* Bill To + Payment ID */}
+        <div style={{ padding: "20px 28px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Bill To</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{invoice.customer_name}</div>
+            <div style={{ fontSize: 12, color: "#64748b" }}>{invoice.customer_email}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Payment ID</div>
+            <div style={{ fontFamily: "monospace", fontSize: 11, color: "#15B8C9" }}>{invoice.payment_id}</div>
+          </div>
+        </div>
+
+        {/* Items table */}
+        <div style={{ padding: "0 28px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                {["Description", "Qty", "Unit Price", "Total"].map((h, i) => (
+                  <th key={h} style={{ padding: "8px 12px", textAlign: i === 3 ? "right" : "left", fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", borderBottom: "2px solid #e2e8f0" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {parsedItems.length > 0 ? parsedItems.map((it, i) => (
+                <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 12px", fontSize: 13 }}>{it.description}</td>
+                  <td style={{ padding: "10px 12px", fontSize: 13 }}>{it.qty}</td>
+                  <td style={{ padding: "10px 12px", fontSize: 13 }}>{fmtC(it.unit_price)}</td>
+                  <td style={{ padding: "10px 12px", fontSize: 13, fontWeight: 700, textAlign: "right" }}>{fmtC(it.total)}</td>
+                </tr>
+              )) : (
+                <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 12px", fontSize: 13 }}>Payment</td>
+                  <td style={{ padding: "10px 12px", fontSize: 13 }}>1</td>
+                  <td style={{ padding: "10px 12px", fontSize: 13 }}>{fmtC(invoice.total)}</td>
+                  <td style={{ padding: "10px 12px", fontSize: 13, fontWeight: 700, textAlign: "right" }}>{fmtC(invoice.total)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Totals */}
+        <div style={{ padding: "16px 28px", textAlign: "right" }}>
+          <div style={{ fontSize: 13, color: "#64748b", padding: "3px 0" }}>Subtotal: <strong style={{ color: "#0f172a" }}>{fmtC(subtotal)}</strong></div>
+          <div style={{ fontSize: 13, color: "#64748b", padding: "3px 0" }}>Tax: <strong style={{ color: "#0f172a" }}>{fmtC(tax)}</strong></div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: "#0f172a", borderTop: "2px solid #e2e8f0", paddingTop: 10, marginTop: 8 }}>Total: {fmtC(invoice.total)}</div>
+        </div>
+
+        {/* Notes */}
+        {invoice.notes && (
+          <div style={{ margin: "0 28px 16px", padding: "10px 14px", background: "#f8fafc", borderRadius: 10, fontSize: 12, color: "#64748b" }}>{invoice.notes}</div>
+        )}
+
+        {/* Actions */}
+        <div style={{ padding: "16px 28px 24px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button onClick={handlePrint} style={{ background: "linear-gradient(135deg, #2DBE60, #15B8C9)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🖨 Print / PDF</button>
+          <button onClick={onClose} style={{ background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WalletModal({ name, data, icon, color, onClose }: { name: string; data: { available: number; pending: number; paid: number; currency: string }; icon: string; color: string; onClose: () => void }) {
   const isPlatform = name === "Platform";
   type ModalTab = "overview" | "bank" | "history" | "distribute";
@@ -1135,7 +1263,8 @@ export default function ZenivaCompleteApp() {
   const [openWallet, setOpenWallet] = useState<{name:string;data:typeof DEFAULT_WALLETS.platform;icon:string;color:string}|null>(null);
   const [liveActivity, setLiveActivity] = useState<{ id: number; text: string; time: string; type: string }[]>([]);
   const [recentBookings, setRecentBookings] = useState<{ id: string; client_name: string; destination: string; total_price: number; status: string; created_at: string }[]>([]);
-  const [zpInvoices, setZpInvoices] = useState<{ id: string; customer_name: string; customer_email: string; total: number; status: string; payment_id: string; created_at: string }[]>([]);
+  const [zpInvoices, setZpInvoices] = useState<{ id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string }[]>([]);
+  const [viewInvoice, setViewInvoice] = useState<typeof zpInvoices[number] | null>(null);
   // Unit.co banking layer
   const [unitAccounts, setUnitAccounts] = useState<{ id: string; type: string; name: string; status: string; balanceCents: number; availableCents: number; routingNumber: string; accountNumber: string; currency: string; createdAt: string }[]>([
     { id:"11589672", type:"depositAccount", name:"ZeniPay Checking — Zeniva Travel LLC", status:"Open", balanceCents:0, availableCents:0, routingNumber:"812345678", accountNumber:"1009825847", currency:"USD", createdAt:"2026-03-17T18:09:35.382Z" }
@@ -1229,7 +1358,7 @@ export default function ZenivaCompleteApp() {
     async function fetchZpInvoices() {
       try {
         // Use stats API which already returns invoices (avoids NEXT_PUBLIC_SUPABASE_URL mismatch)
-        const r = await fetch("/api/zenipay/stats");
+        const r = await fetch("/api/zenipay/stats?merchant_id=zeniva-001");
         if (!r.ok) return;
         const d = await r.json();
         if (Array.isArray(d.recent_invoices)) {
@@ -1520,6 +1649,11 @@ export default function ZenivaCompleteApp() {
             🖥️ Open Full ZeniPay Dashboard →
           </button>
         </div>
+
+        {/* Invoice Detail Modal (mobile) */}
+        {viewInvoice && (
+          <InvoiceModal invoice={viewInvoice} onClose={() => setViewInvoice(null)} />
+        )}
       </div>
     );
   }
@@ -1885,6 +2019,11 @@ export default function ZenivaCompleteApp() {
             {/* Wallet Modal */}
             {openWallet && (
               <WalletModal name={openWallet.name} data={openWallet.data} icon={openWallet.icon} color={openWallet.color} onClose={() => setOpenWallet(null)} />
+            )}
+
+            {/* Invoice Detail Modal */}
+            {viewInvoice && (
+              <InvoiceModal invoice={viewInvoice} onClose={() => setViewInvoice(null)} />
             )}
 
             {/* ═══ ZENIPAY DUAL CARD SHOWCASE ═══ */}
@@ -2625,10 +2764,10 @@ export default function ZenivaCompleteApp() {
                           <span style={{ background: "#d1fae5", color: "#065f46", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 9999 }}>✓ Paid</span>
                         </td>
                         <td style={{ padding: "12px 16px" }}>
-                          <a href="#" target="_blank"
-                            style={{ background: `${BLUE}10`, border: `1px solid ${BLUE}30`, borderRadius: 8, padding: "6px 14px", fontSize: 11, cursor: "pointer", textDecoration: "none", color: BLUE, fontWeight: 700 }}>
+                          <button onClick={() => setViewInvoice(inv)}
+                            style={{ background: `${BLUE}10`, border: `1px solid ${BLUE}30`, borderRadius: 8, padding: "6px 14px", fontSize: 11, cursor: "pointer", color: BLUE, fontWeight: 700 }}>
                             📄 View Invoice
-                          </a>
+                          </button>
                         </td>
                       </tr>
                     ))}
