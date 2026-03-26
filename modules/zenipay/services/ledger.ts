@@ -6,7 +6,7 @@ import type { LedgerEventType, WalletType, ZeniLedgerEntry, ZeniWalletBalance } 
 
 function getSupabase() {
   const url = "https://mjkvkibdfteonvlahtag.supabase.co";
-  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4"!;
+  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
   return createClient(url, key);
 }
 
@@ -93,11 +93,14 @@ export async function getWalletBalances(merchantId?: string): Promise<Record<Wal
 
   try {
     // Compute balances directly from zenipay_ledger (source of truth)
-    let query = supabase
+    // NOTE: Fetch all and filter in JS — merchant_id column added via ALTER TABLE
+    // may not be visible to PostgREST schema cache (PGRST204 bug).
+    const { data: allLedgerRows } = await supabase
       .from("zenipay_ledger")
-      .select("wallet_type, direction, amount");
-    if (merchantId) query = query.eq("merchant_id", merchantId);
-    const { data: ledgerRows } = await query;
+      .select("wallet_type, direction, amount, merchant_id");
+    const ledgerRows = merchantId
+      ? (allLedgerRows || []).filter((r: { merchant_id?: string }) => r.merchant_id === merchantId)
+      : allLedgerRows;
 
     if (ledgerRows && ledgerRows.length > 0) {
       for (const row of ledgerRows) {

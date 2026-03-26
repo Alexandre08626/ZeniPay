@@ -24,13 +24,17 @@ export async function GET(req: NextRequest) {
 
     if (supabase) {
       // ── Read from zenipay_payments table ───
-      let paymentsQuery = supabase
+      // NOTE: Do NOT filter by merchant_id via PostgREST .eq() — the column was
+      // added via ALTER TABLE and PostgREST schema cache may not see it (PGRST204).
+      // Instead, fetch all and filter in JS.
+      const { data: allPays } = await supabase
         .from("zenipay_payments")
-        .select("id, amount, status, created_at, customer_name, currency, description");
-      if (merchant_id) paymentsQuery = paymentsQuery.eq("merchant_id", merchant_id);
-      const { data: tablePays } = await paymentsQuery as {
-          data: Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string }> | null
+        .select("id, amount, status, created_at, customer_name, currency, description, merchant_id") as {
+          data: Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string; merchant_id: string }> | null
         };
+      const tablePays = merchant_id
+        ? (allPays || []).filter(p => p.merchant_id === merchant_id)
+        : allPays;
 
       // ── Read from merchant_data.transactions (ZeniPay /pay/[id] payments) ─
       let mdQuery = supabase.from("zenipay_merchants").select("merchant_data");
@@ -72,14 +76,17 @@ export async function GET(req: NextRequest) {
           .map(p => ({ id: p.id, customer: p.customer_name, amount: p.amount, currency: p.currency, status: p.status, description: p.description, date: p.created_at, gateway: "ZeniPay" }));
       }
 
-      let payoutsQuery = supabase.from("zenipay_payouts").select("*").order("created_at", { ascending: false }).limit(10);
-      if (merchant_id) payoutsQuery = payoutsQuery.eq("merchant_id", merchant_id);
-      const { data: payouts } = await payoutsQuery;
+      // Payouts — also filter in JS to avoid PGRST204
+      const { data: allPayouts } = await supabase.from("zenipay_payouts").select("*").order("created_at", { ascending: false }).limit(50);
+      const payouts = merchant_id
+        ? (allPayouts || []).filter((p: { merchant_id?: string }) => p.merchant_id === merchant_id).slice(0, 10)
+        : (allPayouts || []).slice(0, 10);
 
-      // Invoices: merge table + merchant_data.invoices
-      let invoicesQuery = supabase.from("zenipay_invoices").select("*").order("created_at", { ascending: false }).limit(20);
-      if (merchant_id) invoicesQuery = invoicesQuery.eq("merchant_id", merchant_id);
-      const { data: tableInv } = await invoicesQuery;
+      // Invoices — also filter in JS to avoid PGRST204
+      const { data: allTableInv } = await supabase.from("zenipay_invoices").select("*").order("created_at", { ascending: false }).limit(50);
+      const tableInv = merchant_id
+        ? (allTableInv || []).filter((inv: { merchant_id?: string }) => inv.merchant_id === merchant_id).slice(0, 20)
+        : (allTableInv || []).slice(0, 20);
       const mdInvoices: unknown[] = [];
       for (const m of (merchants || [])) {
         for (const inv of (m.merchant_data?.invoices || [])) mdInvoices.push(inv);
