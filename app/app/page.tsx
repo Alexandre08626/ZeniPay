@@ -64,29 +64,38 @@ export default function AppRouter() {
 
     setMode(storedMode);
 
-    // Load merchant from Supabase by email (all accounts, including Zeniva)
+    // Load merchant from Supabase via merchant-info API (reads merchant_data JSONB — PostgREST safe)
     const lookupEmail = email || "";
-    if (!lookupEmail) { router.replace("/login"); return; }
+    const lookupId = clientId || "";
+    if (!lookupEmail && !lookupId) { router.replace("/login"); return; }
 
-    fetch(`/api/zenipay/merchants?email=${encodeURIComponent(lookupEmail)}`)
+    fetch(`/api/zenipay/merchant-info?${lookupEmail ? `email=${encodeURIComponent(lookupEmail)}` : `id=${encodeURIComponent(lookupId)}`}`)
       .then(r => r.json())
-      .then(({ merchants }) => {
-        const found = merchants?.[0];
-        if (found) {
-          setAccount(found);
-          setApproved(found.status === "active" || found.status === "live");
+      .then((data) => {
+        if (data.merchant) {
+          const m = data.merchant;
+          setAccount({
+            id: m.id, businessName: m.businessName || "My Business", ownerName: m.ownerName || "",
+            email: m.email || lookupEmail, phone: m.phone || "", website: m.website || "",
+            businessType: m.businessType || "", country: m.country || "CA", monthlyVolume: m.monthlyVolume || "",
+            status: m.status || "sandbox", plan: m.plan || "Standard",
+            sandboxKey: m.sandboxKey || sessionStorage.getItem("zp_client_sandbox_key") || "",
+            sandboxSecret: m.sandboxSecret || "", liveKey: m.liveKey || "",
+            createdAt: m.createdAt || new Date().toISOString(),
+            volume: 0, txCount: 0, balance: 0, notes: "",
+          });
+          setApproved(m.status === "active" || m.status === "live");
           setReady(true);
           return;
         }
-        // Not in DB yet — build fallback with sandbox key from session
+        // Not in DB yet — build fallback
         setAccount({
-          id: `sess_${Date.now()}`,
+          id: lookupId || `sess_${Date.now()}`,
           businessName: "My Business", ownerName: "", email: lookupEmail,
           phone: "", website: "", businessType: "", country: "CA", monthlyVolume: "",
           status: "sandbox", plan: "Standard",
           sandboxKey: sessionStorage.getItem("zp_client_sandbox_key") || "",
-          sandboxSecret: "",
-          liveKey: "",
+          sandboxSecret: "", liveKey: "",
           createdAt: new Date().toISOString(),
           volume: 0, txCount: 0, balance: 0, notes: "",
         });
@@ -94,7 +103,7 @@ export default function AppRouter() {
       })
       .catch(() => {
         setAccount({
-          id: `sess_${Date.now()}`,
+          id: lookupId || `sess_${Date.now()}`,
           businessName: "My Business", ownerName: "", email: lookupEmail,
           phone: "", website: "", businessType: "", country: "CA", monthlyVolume: "",
           status: "sandbox", plan: "Standard",

@@ -21,32 +21,20 @@ export default function LoginPage() {
     // Also accept info@zenivatravel.com as alias for info@zeniva.ca
     const lookupEmail = email === "info@zenivatravel.com" ? "info@zeniva.ca" : email;
 
-    // All merchants authenticated via Supabase
+    // Authenticate via /api/zenipay/login (reads merchant_data JSONB — PostgREST safe)
     try {
-      const res = await fetch(`/api/zenipay/merchants?email=${encodeURIComponent(lookupEmail)}`);
-      const { merchants } = await res.json();
-      const found = merchants?.[0];
-      if (found && (found.password === pw || pw === "client2026")) {
-        sessionStorage.setItem("zp_client", found.id);
-        sessionStorage.setItem("zp_client_email", lookupEmail);
+      const res = await fetch("/api/zenipay/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: lookupEmail, password: pw }),
+      });
+      const data = await res.json();
+      if (data.success && data.merchant) {
+        const m = data.merchant;
+        sessionStorage.setItem("zp_client", m.id);
+        sessionStorage.setItem("zp_client_email", m.email);
         sessionStorage.setItem("zp_client_mode", mode);
-        sessionStorage.setItem("zp_client_sandbox_key", found.sandboxKey || "");
-        sessionStorage.setItem("zp_client_sandbox_secret", found.sandboxSecret || "");
-        router.replace("/app");
-        return;
-      }
-    } catch {}
-
-    // Fallback: check localStorage accounts
-    try {
-      const accounts = JSON.parse(localStorage.getItem("zp_accounts") || "[]");
-      const found = accounts.find((a: { email: string; password?: string }) => a.email === lookupEmail);
-      if (found && (found.password === pw || pw === "client2026")) {
-        sessionStorage.setItem("zp_client", found.id || lookupEmail);
-        sessionStorage.setItem("zp_client_email", lookupEmail);
-        sessionStorage.setItem("zp_client_mode", mode);
-        sessionStorage.setItem("zp_client_sandbox_key", found.sandboxKey || "");
-        sessionStorage.setItem("zp_client_sandbox_secret", found.sandboxSecret || "");
+        sessionStorage.setItem("zp_client_sandbox_key", m.sandboxKey || "");
         router.replace("/app");
         return;
       }
