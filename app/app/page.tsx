@@ -34,6 +34,25 @@ export default function AppRouter() {
   const [mode,     setMode]     = useState<"sandbox" | "live">("sandbox");
   const [approved, setApproved] = useState(false);
 
+  // Fetch real stats and update account with live numbers
+  useEffect(() => {
+    if (!account) return;
+    fetch("/api/zenipay/stats")
+      .then(r => r.json())
+      .then(data => {
+        if (data?.stats) {
+          setAccount(prev => prev ? {
+            ...prev,
+            volume: data.stats.total_revenue || 0,
+            txCount: data.stats.total_payments || 0,
+            balance: data.stats.total_revenue || 0,
+          } : prev);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!account]);
+
   useEffect(() => {
     const email      = sessionStorage.getItem("zp_client_email");
     const clientId   = sessionStorage.getItem("zp_client");
