@@ -39,9 +39,19 @@ function PayLinkContent() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error,   setError]   = useState("");
+  const [linkMerchantId, setLinkMerchantId] = useState<string | null>(null);
   const [particles, setParticles] = useState<{ x: number; y: number; c: string; r: number; vx: number; vy: number; a: number }[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
+
+  // Fetch merchant_id from pay link
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/zenipay/link-info?id=${encodeURIComponent(id)}`)
+      .then(r => r.json())
+      .then(d => { if (d.merchant_id) setLinkMerchantId(d.merchant_id); })
+      .catch(() => {});
+  }, [id]);
 
   const ct = cardType(cardNum);
   const fmtMoney = (n: number) =>
@@ -104,6 +114,7 @@ function PayLinkContent() {
           expiryYear,
           cvc,
           postalCode: "",
+          merchant_id: linkMerchantId || undefined,
         }),
       });
 

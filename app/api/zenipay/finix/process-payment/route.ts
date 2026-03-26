@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       expiryYear,
       cvc,
       postalCode,
+      merchant_id: bodyMerchantId,
     } = body;
 
     if (!pay_link_id || !amount || !cardNumber || !expiryMonth || !expiryYear || !cvc || !customer_name) {
@@ -128,6 +129,11 @@ export async function POST(req: NextRequest) {
           break;
         }
       }
+    }
+
+    // Final fallback: use merchant_id from request body (sent by checkout page)
+    if (!merchantId && bodyMerchantId) {
+      merchantId = bodyMerchantId;
     }
 
     // ─── 3. RECORD PAYMENT VIA EDGE FUNCTION (bypasses PostgREST schema cache) ─

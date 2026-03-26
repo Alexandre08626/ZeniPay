@@ -36,7 +36,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, currency = "USD", description, expiry, merchant, api_key } = await req.json();
+    const { amount, currency = "USD", description, expiry, merchant, merchant_id: directMerchantId, api_key } = await req.json();
 
     if (!amount || parseFloat(String(amount)) <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
@@ -49,9 +49,9 @@ export async function POST(req: NextRequest) {
     const url = `${baseUrl}/pay/${id}?amount=${amount}&currency=${currency}&desc=${encodeURIComponent(description || "")}${merchantParam}`;
     const now = new Date().toISOString();
 
-    // ── Look up merchant by API key → add link to their dashboard ────────
-    let merchantId: string | null = null;
-    if (supabase && api_key) {
+    // ── Look up merchant by API key or use direct merchant_id ────────
+    let merchantId: string | null = directMerchantId || null;
+    if (!merchantId && supabase && api_key) {
       const { data: merchants } = await supabase
         .from("zenipay_merchants")
         .select("id, merchant_data")

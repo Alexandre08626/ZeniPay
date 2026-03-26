@@ -1410,7 +1410,7 @@ export default function ZenivaCompleteApp() {
       const res = await fetch("/api/zenipay/create-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: linkForm.amount, description: linkForm.desc, expiry: linkForm.expiry || undefined }),
+        body: JSON.stringify({ amount: linkForm.amount, description: linkForm.desc, expiry: linkForm.expiry || undefined, merchant_id: "zeniva-001" }),
       });
       const data = await res.json();
       if (data.url) {

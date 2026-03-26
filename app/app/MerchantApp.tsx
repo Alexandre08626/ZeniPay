@@ -392,6 +392,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
           currency: "USD",
           description: plForm.title + (plForm.desc ? ` — ${plForm.desc}` : ""),
           merchant: account.businessName,
+          merchant_id: account.id,
           api_key: apiKey,
         }),
       });
