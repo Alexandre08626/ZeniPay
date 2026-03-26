@@ -215,13 +215,14 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantId]);
 
-  // Fetch real transactions + balance from zenipay_payments / zenipay_ledger
+  // Fetch real transactions + invoices from zenipay_payments / zenipay_invoices
   useEffect(() => {
     fetch("/api/zenipay/stats")
       .then(r => r.json())
-      .then((data: { recent_transactions?: { id: string; customer: string; description: string; amount: number; currency: string; status: string; date: string }[]; stats?: { total_revenue: number; total_payments: number } }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((data: any) => {
         if (data?.recent_transactions?.length) {
-          setTransactions(data.recent_transactions.map(t => ({
+          setTransactions(data.recent_transactions.map((t: any) => ({
             id: t.id,
             customer_name: t.customer || "",
             description: t.description || "",
@@ -231,6 +232,36 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
             created_at: t.date,
           })));
         }
+        if (data?.recent_invoices?.length) {
+          setInvoices(data.recent_invoices.map((inv: any) => {
+            let items: {desc:string;qty:number;price:number}[] = [];
+            try {
+              const raw = typeof inv.items === "string" ? JSON.parse(inv.items) : inv.items;
+              items = (raw || []).map((it: any) => ({ desc: it.description || "", qty: it.qty || 1, price: it.unit_price || it.total || 0 }));
+            } catch {}
+            return {
+              id: inv.invoice_number || inv.id,
+              client: inv.customer_name || "Client",
+              email: inv.customer_email || "",
+              amount: Number(inv.total || inv.subtotal || 0),
+              status: (inv.status === "paid" ? "paid" : inv.status === "sent" ? "sent" : "draft") as "draft"|"sent"|"paid"|"overdue",
+              dueDate: inv.paid_at || inv.created_at || "",
+              createdAt: inv.created_at || "",
+              items,
+            };
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch real balance from ledger
+  const [realBalance, setRealBalance] = useState<number | null>(null);
+  useEffect(() => {
+    fetch("/api/zenipay/banking")
+      .then(r => r.json())
+      .then((data: { balance?: number }) => {
+        if (typeof data?.balance === "number") setRealBalance(data.balance);
       })
       .catch(() => {});
   }, []);
@@ -570,7 +601,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
       {/* Configured — show card + details */}
       {bankConfigured && (
         <div style={{ display:"grid",gridTemplateColumns:"auto 1fr",gap:28,alignItems:"flex-start",marginBottom:24 }}>
-          <BankCard holderName={bankCfg.holderName} bankName={bankCfg.bankName} accountNum={bankCfg.accountNum} balance={account.balance} />
+          <BankCard holderName={bankCfg.holderName} bankName={bankCfg.bankName} accountNum={bankCfg.accountNum} balance={realBalance ?? account.balance} />
           <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
             <div style={{ background:"white",borderRadius:16,padding:"18px 20px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderLeft:`4px solid ${ZP_GREEN}` }}>
               <p style={{ margin:"0 0 4px",fontSize:11,fontWeight:700,color:MUTED,textTransform:"uppercase" as const,letterSpacing:"0.06em" }}>Bank Account Connected</p>
