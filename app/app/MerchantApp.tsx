@@ -215,6 +215,26 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantId]);
 
+  // Fetch real transactions + balance from zenipay_payments / zenipay_ledger
+  useEffect(() => {
+    fetch("/api/zenipay/stats")
+      .then(r => r.json())
+      .then((data: { recent_transactions?: { id: string; customer: string; description: string; amount: number; currency: string; status: string; date: string }[]; stats?: { total_revenue: number; total_payments: number } }) => {
+        if (data?.recent_transactions?.length) {
+          setTransactions(data.recent_transactions.map(t => ({
+            id: t.id,
+            customer_name: t.customer || "",
+            description: t.description || "",
+            amount: t.amount,
+            currency: t.currency || "USD",
+            status: t.status || "succeeded",
+            created_at: t.date,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Save to Supabase whenever data changes (after initial load)
   const saveToSupabase = React.useCallback((patch: Record<string, unknown>) => {
     if (!merchantId) return;
