@@ -4,39 +4,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { processFinixPayment } from "@/modules/zenipay/gateways/finix";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getSupabase(): any {
+function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const key = serviceKey || anonKey;
 
-  console.log("[Supabase] Connection details:", {
-    url: url ? `${url.substring(0, 30)}...` : "MISSING",
-    usingServiceRole: !!serviceKey,
-    usingAnonKey: !serviceKey && !!anonKey,
-    keyType: serviceKey ? "SERVICE_ROLE" : (anonKey ? "ANON" : "NONE"),
-  });
-
   if (!url || !key) {
-    console.error("[Supabase] Missing credentials!", { url: !!url, key: !!key });
+    console.error("[Supabase] MISSING ENV VARS:", {
+      hasUrl: !!url,
+      hasServiceKey: !!serviceKey,
+      hasAnonKey: !!anonKey,
+    });
     return null;
   }
-  return createClient(url, key);
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
 
 /**
  * Finix Payment Processing Endpoint
- *
  * POST /api/zenipay/finix/process-payment
  *
- * Processes a real payment through Finix gateway:
- * 1. Validates card details
- * 2. Tokenizes card via Finix
- * 3. Creates transfer (charge)
- * 4. Records payment in zenipay_payments
- * 5. Auto-generates invoice on success
- * 6. Updates merchant stats
+ * Flow: Validate → Finix charge → Record in zenipay_payments →
+ *       Create invoice → Update merchant stats → Ledger entry
  */
 export async function POST(req: NextRequest) {
   try {
@@ -47,6 +39,7 @@ export async function POST(req: NextRequest) {
       currency = "USD",
       description,
       customer_name,
+      customer_email,
       cardNumber,
       expiryMonth,
       expiryYear,
@@ -54,15 +47,14 @@ export async function POST(req: NextRequest) {
       postalCode,
     } = body;
 
-    // Validate required fields
     if (!pay_link_id || !amount || !cardNumber || !expiryMonth || !expiryYear || !cvc || !customer_name) {
       return NextResponse.json(
-        { error: "Missing required fields", required: ["pay_link_id", "amount", "cardNumber", "expiryMonth", "expiryYear", "cvc", "customer_name"] },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     if (!supabase) {
       return NextResponse.json({ error: "Database connection failed" }, { status: 500 });
     }
@@ -89,89 +81,79 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       console.error("[Finix] Payment processing error:", err);
       return NextResponse.json(
-        {
-          error: "Payment processing failed",
-          message: err instanceof Error ? err.message : String(err),
-          paymentId,
-        },
+        { error: "Payment processing failed", message: err instanceof Error ? err.message : String(err), paymentId },
         { status: 402 }
       );
     }
 
     if (!finixResult.success) {
       return NextResponse.json(
-        {
-          error: "Payment declined",
-          state: finixResult.state,
-          paymentId,
-        },
+        { error: "Payment declined", state: finixResult.state, paymentId },
         { status: 402 }
       );
     }
 
-    // ─── 2. RECORD PAYMENT IN DATABASE ───────────────────────────────────
-    console.log("[DB] BEFORE INSERT zenipay_payments:", {
-      paymentId,
-      amount: amountNum,
-      customer: customer_name,
-      status: finixResult.state,
-    });
-
-    // Insert core fields first, then update with card details to bypass schema cache
-    const { data: insertedPayment, error: payErr } = await supabase.from("zenipay_payments").insert({
+    // ─── 2. RECORD PAYMENT IN SUPABASE ───────────────────────────────────
+    const paymentRecord = {
       id: paymentId,
+      payment_link_id: pay_link_id,
       amount: amountNum,
       currency,
       description: description || "",
       customer_name: customer_name || "",
+      customer_email: customer_email || "",
       status: finixResult.state === "SUCCEEDED" ? "succeeded" : "pending",
       gateway: "finix",
-      gateway_transfer_id: finixResult.transferId,
+      gateway_transfer_id: finixResult.transferId || "",
+      gateway_instrument_id: finixResult.instrumentId || "",
+      card_brand: finixResult.brand || "",
+      card_last4: finixResult.last4 || "",
       created_at: now,
       updated_at: now,
-    }).select();
+    };
 
-    console.log("[DB] AFTER INSERT zenipay_payments:", {
-      success: !payErr,
-      error: payErr ? JSON.stringify(payErr) : null,
-      insertedData: insertedPayment,
-    });
+    console.log("[DB] Inserting payment:", paymentId, "amount:", amountNum);
 
-    // Update card details separately (these columns might be cached)
-    if (!payErr) {
-      console.log("[DB] BEFORE UPDATE card details for:", paymentId);
-      const { error: updateErr } = await supabase.from("zenipay_payments").update({
-        gateway_instrument_id: finixResult.instrumentId,
-        card_brand: finixResult.brand,
-        card_last4: finixResult.last4,
-      }).eq("id", paymentId);
-      console.log("[DB] AFTER UPDATE card details:", { success: !updateErr, error: updateErr });
-    }
+    const { error: payErr } = await supabase
+      .from("zenipay_payments")
+      .insert(paymentRecord);
 
     if (payErr) {
-      console.error("[Finix] Payment record error:", payErr);
-      // Payment succeeded but DB failed - log for manual reconciliation
+      console.error("[DB] zenipay_payments INSERT FAILED:", JSON.stringify(payErr));
+      // Payment succeeded at Finix but DB failed — still return success to user
+      // but flag it for reconciliation
       return NextResponse.json({
-        warning: "Payment succeeded but record failed",
+        success: true,
+        warning: "Payment succeeded but database record failed — will be reconciled",
         paymentId,
         transferId: finixResult.transferId,
-        error: payErr.message,
+        state: finixResult.state,
+        amount: amountNum,
+        currency,
+        dbError: payErr.message,
       });
     }
 
+    console.log("[DB] Payment recorded:", paymentId);
+
     // ─── 3. FIND MERCHANT ────────────────────────────────────────────────
     let merchantId: string | null = null;
+    let linkUses = 0;
+
     const { data: link } = await supabase
       .from("zenipay_pay_links")
       .select("merchant_id, uses")
       .eq("id", pay_link_id)
       .single();
 
-    merchantId = link?.merchant_id || null;
+    if (link) {
+      merchantId = link.merchant_id;
+      linkUses = link.uses || 0;
+    }
 
     if (!merchantId) {
-      const { data: all } = await supabase.from("zenipay_merchants").select("id, merchant_data");
-      for (const m of (all || [])) {
+      const { data: allMerchants } = await supabase.from("zenipay_merchants").select("id, merchant_data");
+      for (const m of (allMerchants || [])) {
         if ((m.merchant_data?.payLinks || []).some((l: { id: string }) => l.id === pay_link_id)) {
           merchantId = m.id;
           break;
@@ -179,18 +161,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ─── 4. CREATE INVOICE (only if payment succeeded) ──────────────────
+    // ─── 4. CREATE INVOICE ───────────────────────────────────────────────
     if (finixResult.state === "SUCCEEDED") {
+      // Generate sequential invoice number: INV-2026-001
+      const year = new Date().getFullYear();
+      const { count } = await supabase
+        .from("zenipay_invoices")
+        .select("id", { count: "exact", head: true });
+      const seq = String((count || 0) + 1).padStart(3, "0");
+      const invoiceNumber = `INV-${year}-${seq}`;
       const invoiceId = `INV-${paymentId}`;
 
-      console.log("[DB] BEFORE INSERT zenipay_invoices:", { invoiceId, paymentId });
-
-      const { data: invoiceData, error: invoiceErr } = await supabase.from("zenipay_invoices").insert({
+      const { error: invoiceErr } = await supabase.from("zenipay_invoices").insert({
         id: invoiceId,
+        invoice_number: invoiceNumber,
         payment_id: paymentId,
         booking_id: `BK-${paymentId}`,
         customer_name: customer_name || "Client",
-        customer_email: "",
+        customer_email: customer_email || "",
         items: JSON.stringify([{
           description: description || pay_link_id,
           qty: 1,
@@ -203,63 +191,63 @@ export async function POST(req: NextRequest) {
         currency,
         status: "paid",
         paid_at: now,
-        notes: `ZeniPay Payment — ${paymentId} | Finix: ${finixResult.transferId}`,
+        notes: `ZeniPay Payment ${paymentId} | Finix: ${finixResult.transferId}`,
         created_at: now,
         updated_at: now,
-      }).select();
-
-      console.log("[DB] AFTER INSERT zenipay_invoices:", {
-        success: !invoiceErr,
-        error: invoiceErr ? JSON.stringify(invoiceErr) : null,
-        invoiceData,
       });
 
       if (invoiceErr) {
-        console.error("[Finix] Invoice creation error:", invoiceErr);
+        console.error("[DB] Invoice insert failed:", JSON.stringify(invoiceErr));
       } else {
-        console.log(`[Finix] Created invoice ${invoiceId}`);
+        console.log("[DB] Invoice created:", invoiceNumber);
       }
     }
 
     // ─── 5. UPDATE MERCHANT STATS ────────────────────────────────────────
     if (merchantId && finixResult.state === "SUCCEEDED") {
-      const { data: merchant } = await supabase
-        .from("zenipay_merchants")
-        .select("merchant_data, volume, tx_count, balance")
-        .eq("id", merchantId)
-        .single();
+      try {
+        const { data: merchant } = await supabase
+          .from("zenipay_merchants")
+          .select("merchant_data, volume, tx_count, balance")
+          .eq("id", merchantId)
+          .single();
 
-      const md = merchant?.merchant_data || {};
+        const md = merchant?.merchant_data || {};
 
-      const txn = {
-        id: paymentId,
-        pay_link_id,
-        amount: amountNum,
-        currency,
-        description: description || "",
-        customer_name: customer_name || "",
-        card_last4: finixResult.last4,
-        card_brand: finixResult.brand,
-        status: "succeeded",
-        gateway: "finix",
-        transfer_id: finixResult.transferId,
-        createdAt: now,
-      };
+        const txn = {
+          id: paymentId,
+          pay_link_id,
+          amount: amountNum,
+          currency,
+          description: description || "",
+          customer_name: customer_name || "",
+          card_last4: finixResult.last4,
+          card_brand: finixResult.brand,
+          status: "succeeded",
+          gateway: "finix",
+          transfer_id: finixResult.transferId,
+          createdAt: now,
+        };
 
-      await supabase.from("zenipay_merchants").update({
-        merchant_data: {
-          ...md,
-          transactions: [txn, ...(md.transactions || [])],
-        },
-        balance: (merchant?.balance || 0) + amountNum,
-        volume: (merchant?.volume || 0) + amountNum,
-        tx_count: (merchant?.tx_count || 0) + 1,
-        updated_at: now,
-      }).eq("id", merchantId);
+        await supabase.from("zenipay_merchants").update({
+          merchant_data: {
+            ...md,
+            transactions: [txn, ...(md.transactions || [])],
+          },
+          balance: (merchant?.balance || 0) + amountNum,
+          volume: (merchant?.volume || 0) + amountNum,
+          tx_count: (merchant?.tx_count || 0) + 1,
+          updated_at: now,
+        }).eq("id", merchantId);
+      } catch (e) {
+        console.error("[DB] Merchant update failed:", e);
+      }
+    }
 
-      // Update ledger
+    // ─── 6. LEDGER ENTRY ─────────────────────────────────────────────────
+    if (finixResult.state === "SUCCEEDED") {
       await supabase.from("zenipay_ledger").insert({
-        id: `led_${Date.now()}`,
+        id: `led_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         payment_id: paymentId,
         event_type: "customer_payment",
         wallet_type: "platform",
@@ -269,15 +257,16 @@ export async function POST(req: NextRequest) {
         reference: paymentId,
         note: `Finix payment: ${description || pay_link_id}`,
         created_at: now,
-      }).then(() => {}).catch(() => {});
-
-      // Mark pay link used
-      await supabase.from("zenipay_pay_links")
-        .update({ uses: (link?.uses || 0) + 1, updated_at: now })
-        .eq("id", pay_link_id);
+      }).then(() => {}).catch((e) => console.error("[DB] Ledger insert failed:", e));
     }
 
-    // ─── 6. RETURN SUCCESS ───────────────────────────────────────────────
+    // ─── 7. UPDATE PAY LINK USAGE ────────────────────────────────────────
+    await supabase.from("zenipay_pay_links")
+      .update({ uses: linkUses + 1, updated_at: now })
+      .eq("id", pay_link_id)
+      .then(() => {}).catch(() => {});
+
+    // ─── 8. RETURN SUCCESS ───────────────────────────────────────────────
     return NextResponse.json({
       success: true,
       paymentId,

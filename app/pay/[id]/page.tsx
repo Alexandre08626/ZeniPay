@@ -31,9 +31,10 @@ function PayLinkContent() {
 
   const [cardNum, setCardNum] = useState("");
   const [name,    setName]    = useState("");
+  const [email,   setEmail]   = useState("");
   const [expiry,  setExpiry]  = useState("");
   const [cvc,     setCvc]     = useState("");
-  const [focused, setFocused] = useState<"card" | "name" | "expiry" | "cvc" | null>(null);
+  const [focused, setFocused] = useState<"card" | "name" | "email" | "expiry" | "cvc" | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -97,6 +98,7 @@ function PayLinkContent() {
           currency,
           description: desc,
           customer_name: name,
+          customer_email: email,
           cardNumber: cardNum.replace(/\s/g, ""),
           expiryMonth,
           expiryYear,
@@ -182,6 +184,17 @@ function PayLinkContent() {
               placeholder="Jane Smith"
               onFocus={() => setFocused("name")} onBlur={() => setFocused(null)}
               style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${focused === "name" ? "#15B8C9" : "#E2E8F0"}`, fontSize: 14, outline: "none", boxSizing: "border-box", color: "#0D1B3A", background: "#F8FAFC" }}
+            />
+          </div>
+
+          {/* Email */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>EMAIL (for receipt)</label>
+            <input
+              value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="you@email.com" type="email"
+              onFocus={() => setFocused("email")} onBlur={() => setFocused(null)}
+              style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${focused === "email" ? "#15B8C9" : "#E2E8F0"}`, fontSize: 14, outline: "none", boxSizing: "border-box", color: "#0D1B3A", background: "#F8FAFC" }}
             />
           </div>
 
