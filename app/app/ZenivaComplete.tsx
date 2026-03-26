@@ -3123,8 +3123,8 @@ export default function ZenivaCompleteApp() {
             <div style={{ background: `linear-gradient(135deg, ${DARK}, #1a2f6e)`, borderRadius: 20, padding: 28, color: "white" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <h2 style={{ margin: "0 0 6px", fontWeight: 900, fontSize: 24 }}>📚 ZeniPay Accounting</h2>
-                  <p style={{ margin: 0, opacity: 0.6, fontSize: 14 }}>Automatic bookkeeping · Real-time P&L · Tax-ready reports</p>
+                  <h2 style={{ margin: "0 0 6px", fontWeight: 900, fontSize: 24 }}>📚 Zeniva Travel — Accounting</h2>
+                  <p style={{ margin: 0, opacity: 0.6, fontSize: 14 }}>Your business bookkeeping · Real-time P&L · Tax-ready reports</p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   {["📥 Import", "📤 Export", "🖨️ Print"].map(btn => (
@@ -3160,11 +3160,10 @@ export default function ZenivaCompleteApp() {
                   </select>
                 </div>
                 {[
-                  { label: "Payment Revenue", amount: accountingSummary?.totalRevenue ?? 0, type: "income" },
+                  { label: "Client Payments Received", amount: accountingSummary?.totalRevenue ?? 0, type: "income" },
                   { label: "TOTAL REVENUE", amount: accountingSummary?.totalRevenue ?? 0, type: "total-income" },
-                  { label: "ZeniPay Processing Fees (2.9% + $0.30/tx)", amount: accountingSummary?.zenipayFees ?? accountingSummary?.platformFees ?? 0, type: "expense" },
-                  { label: "Agent Commissions", amount: accountingSummary?.agentCommissions ?? 0, type: "expense" },
-                  { label: "TOTAL EXPENSES", amount: accountingSummary?.totalExpenses ?? 0, type: "total-expense" },
+                  { label: "Processing Fees (ZeniPay 2.9% + $0.30/tx)", amount: -(accountingSummary?.zenipayFees ?? 0), type: "expense" },
+                  { label: "TOTAL EXPENSES", amount: -(accountingSummary?.totalExpenses ?? 0), type: "total-expense" },
                   { label: "NET INCOME", amount: accountingSummary?.netProfit ?? 0, type: "net" },
                 ].map((row, i) => (
                   <div key={i} style={{
@@ -3188,39 +3187,36 @@ export default function ZenivaCompleteApp() {
                 <div style={{ marginBottom: 16 }}>
                   <p style={{ margin: "0 0 10px", fontWeight: 700, fontSize: 12, color: "#64748b", textTransform: "uppercase" as const }}>Assets</p>
                   {[
-                    { label: "ZeniPay Platform Wallet", value: 0 },
-                    { label: "Agent Wallets", value: 0 },
-                    { label: "Supplier Wallets", value: 0 },
+                    { label: "Business Account (ZeniPay)", value: accountingSummary?.totalRevenue ?? 0 },
                     { label: "Accounts Receivable", value: 0 },
                     { label: "Cash & Equivalents", value: 0 },
                   ].map(a => (
                     <div key={a.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 10px", fontSize: 13 }}>
                       <span style={{ color: "#374151" }}>{a.label}</span>
-                      <span style={{ fontWeight: 700, color: GREEN }}>${(a.value/1000).toFixed(0)}k</span>
+                      <span style={{ fontWeight: 700, color: GREEN }}>{fmt(a.value)}</span>
                     </div>
                   ))}
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: "#f0fdf4", borderRadius: 8, fontWeight: 800, fontSize: 13, marginTop: 4 }}>
-                    <span>TOTAL ASSETS</span><span style={{ color: GREEN }}>$0</span>
+                    <span>TOTAL ASSETS</span><span style={{ color: GREEN }}>{fmt(accountingSummary?.totalRevenue ?? 0)}</span>
                   </div>
                 </div>
                 <div>
                   <p style={{ margin: "0 0 10px", fontWeight: 700, fontSize: 12, color: "#64748b", textTransform: "uppercase" as const }}>Liabilities & Equity</p>
                   {[
-                    { label: "Pending Payouts", value: 0 },
-                    { label: "Agent Pending", value: 0 },
-                    { label: "Tax Provision", value: 0 },
+                    { label: "Processing Fees Owed", value: accountingSummary?.zenipayFees ?? 0 },
+                    { label: "Tax Provision (est.)", value: (accountingSummary?.netProfit ?? 0) * 0.15 },
                   ].map(l => (
                     <div key={l.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 10px", fontSize: 13 }}>
                       <span style={{ color: "#374151" }}>{l.label}</span>
-                      <span style={{ fontWeight: 700, color: RED }}>-${(l.value/1000).toFixed(0)}k</span>
+                      <span style={{ fontWeight: 700, color: RED }}>-{fmt(l.value)}</span>
                     </div>
                   ))}
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 10px", fontSize: 13 }}>
                     <span style={{ color: "#374151" }}>Retained Earnings</span>
-                    <span style={{ fontWeight: 700, color: BLUE }}>$449k</span>
+                    <span style={{ fontWeight: 700, color: BLUE }}>{fmt(accountingSummary?.netProfit ?? 0)}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: "#eff6ff", borderRadius: 8, fontWeight: 800, fontSize: 13, marginTop: 4 }}>
-                    <span>TOTAL L+E</span><span style={{ color: BLUE }}>$0</span>
+                    <span>TOTAL L+E</span><span style={{ color: BLUE }}>{fmt(accountingSummary?.totalRevenue ?? 0)}</span>
                   </div>
                 </div>
               </div>
@@ -3234,34 +3230,18 @@ export default function ZenivaCompleteApp() {
                   <h3 style={{ margin: 0, fontWeight: 800, fontSize: 15 }}>📋 Chart of Accounts</h3>
                   <button style={{ background: BLUE, color: "white", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>+ New Account</button>
                 </div>
-                {(accountingSummary?.chartOfAccounts ? [
-                  { code: "1000", name: "Platform Wallet", type: "Asset", balance: accountingSummary.chartOfAccounts.find(a => a.code === "1000")?.balance ?? 0 },
-                  { code: "1200", name: "Accounts Receivable", type: "Asset", balance: 0 },
-                  { code: "2000", name: "Commissions Payable", type: "Liability", balance: -(accountingSummary.chartOfAccounts.find(a => a.code === "2000")?.balance ?? 0) },
-                  { code: "2500", name: "Tax Payable", type: "Liability", balance: 0 },
-                  { code: "3000", name: "Retained Earnings", type: "Equity", balance: accountingSummary.netProfit },
-                  { code: "4000", name: "Travel Revenue", type: "Income", balance: accountingSummary.chartOfAccounts.find(a => a.code === "4000")?.balance ?? 0 },
-                  { code: "5000", name: "Agent Commissions", type: "Expense", balance: -(accountingSummary.chartOfAccounts.find(a => a.code === "5000")?.balance ?? 0) },
-                  { code: "5100", name: "Processor Fees", type: "Expense", balance: -(accountingSummary.chartOfAccounts.find(a => a.code === "5100")?.balance ?? 0) },
-                  { code: "7000", name: "Operating Expenses", type: "Expense", balance: 0 },
-                ] : [
-                  { code: "1000", name: "Platform Wallet", type: "Asset", balance: 0 },
-                  { code: "1200", name: "Accounts Receivable", type: "Asset", balance: 0 },
-                  { code: "2000", name: "Commissions Payable", type: "Liability", balance: 0 },
-                  { code: "2500", name: "Tax Payable", type: "Liability", balance: 0 },
-                  { code: "3000", name: "Retained Earnings", type: "Equity", balance: 0 },
-                  { code: "4000", name: "Travel Revenue", type: "Income", balance: 0 },
-                  { code: "5000", name: "Agent Commissions", type: "Expense", balance: 0 },
-                  { code: "5100", name: "Processor Fees", type: "Expense", balance: 0 },
-                  { code: "7000", name: "Operating Expenses", type: "Expense", balance: 0 },
-                ]).map(a => (
+                {(accountingSummary?.chartOfAccounts ?? []).map(a => ({
+                  code: a.code, name: a.name,
+                  type: a.type === "asset" ? "Asset" : a.type === "liability" ? "Liability" : a.type === "equity" ? "Equity" : a.type === "revenue" ? "Income" : "Expense",
+                  balance: a.balance,
+                })).map(a => (
                   <div key={a.code} style={{ display: "flex", alignItems: "center", padding: "7px 10px", borderRadius: 8, marginBottom: 2, cursor: "pointer" }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#f8fafc"}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                     <span style={{ fontSize: 11, color: "#94a3b8", width: 36, fontFamily: "monospace" }}>{a.code}</span>
                     <span style={{ flex: 1, fontSize: 12, color: "#374151" }}>{a.name}</span>
                     <span style={{ fontSize: 10, color: "#94a3b8", marginRight: 8 }}>{a.type}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: a.balance > 0 ? GREEN : RED }}>{a.balance > 0 ? "+" : ""}{(a.balance/1000).toFixed(0)}k</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: a.balance > 0 ? GREEN : RED }}>{a.balance > 0 ? "+" : ""}{fmt(a.balance)}</span>
                   </div>
                 ))}
               </div>
@@ -3350,12 +3330,12 @@ export default function ZenivaCompleteApp() {
                 {[
                   { icon: "📊", title: "Income Statement", desc: "Revenue, expenses, profit", color: BLUE },
                   { icon: "🏛️", title: "Balance Sheet", desc: "Assets, liabilities, equity", color: PURPLE },
-                  { icon: "💸", title: "Cash Flow", desc: "Operating, investing, financing", color: GREEN },
-                  { icon: "🧾", title: "Tax Return Prep", desc: "Delaware corp filing ready", color: GOLD },
-                  { icon: "👤", title: "Agent Payroll Report", desc: "Commissions & 1099s", color: "#ec4899" },
-                  { icon: "📦", title: "COGS Report", desc: "Supplier costs by booking", color: RED },
-                  { icon: "📈", title: "Revenue by Channel", desc: "Hotel, Yacht, Flights, Stay", color: BLUE },
-                  { icon: "🌍", title: "Multi-Currency Report", desc: "CAD/USD/EUR reconciliation", color: "white" },
+                  { icon: "💸", title: "Cash Flow", desc: "Operating & financing", color: GREEN },
+                  { icon: "🧾", title: "Tax Return Prep", desc: "Corp filing ready", color: GOLD },
+                  { icon: "📈", title: "Revenue by Channel", desc: "Pay links, invoices", color: BLUE },
+                  { icon: "📦", title: "Expense Report", desc: "Processing fees breakdown", color: RED },
+                  { icon: "📋", title: "Transaction Report", desc: "All payments & payouts", color: PURPLE },
+                  { icon: "🌍", title: "Multi-Currency", desc: "CAD/USD reconciliation", color: "#94a3b8" },
                 ].map(r => (
                   <button key={r.title} style={{ background: `${r.color}10`, border: `1px solid ${r.color}25`, borderRadius: 14, padding: "16px 14px", cursor: "pointer", textAlign: "left" as const }}>
                     <div style={{ fontSize: 24, marginBottom: 8 }}>{r.icon}</div>

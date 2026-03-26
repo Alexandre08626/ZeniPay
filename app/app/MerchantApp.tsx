@@ -267,6 +267,15 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
       .catch(() => {});
   }, []);
 
+  // Fetch accounting summary from API
+  const [acctSummary, setAcctSummary] = useState<{ totalRevenue: number; totalExpenses: number; netProfit: number; zenipayFees: number; txCount: number; journalEntries: unknown[]; chartOfAccounts: {code:string;name:string;balance:number;type:string}[] } | null>(null);
+  useEffect(() => {
+    fetch(`/api/zenipay/accounting/summary?merchant_id=${encodeURIComponent(merchantId)}`)
+      .then(r => r.json())
+      .then(data => setAcctSummary(data))
+      .catch(() => {});
+  }, [merchantId]);
+
   // Save to Supabase whenever data changes (after initial load)
   const saveToSupabase = React.useCallback((patch: Record<string, unknown>) => {
     if (!merchantId) return;
@@ -930,9 +939,9 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   );
 
   // ── ACCOUNTING ────────────────────────────────────────
-  const AcctRev = invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.amount,0);
-  const AcctExp = payouts.reduce((s,p)=>s+p.amount,0);
-  const AcctNet = AcctRev - AcctExp;
+  const AcctRev = acctSummary?.totalRevenue ?? invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.amount,0);
+  const AcctExp = acctSummary?.totalExpenses ?? payouts.reduce((s,p)=>s+p.amount,0);
+  const AcctNet = acctSummary?.netProfit ?? (AcctRev - AcctExp);
   const exportCSV = () => {
     const rows=["Date,Description,Type,Amount"];
     invoices.forEach(i=>rows.push(`${i.createdAt.split("T")[0]},Invoice ${i.id} - ${i.client},Revenue,${i.amount}`));
@@ -946,8 +955,8 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
       <div style={{ background:`linear-gradient(135deg, #0d1633, #1a2a5e)`, borderRadius:20, padding:28, color:"white" }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20 }}>
           <div>
-            <h2 style={{ margin:"0 0 6px",fontWeight:900,fontSize:24 }}>📚 ZeniPay Accounting</h2>
-            <p style={{ margin:0,opacity:0.6,fontSize:14 }}>Automatic bookkeeping · Real-time P&L · Tax-ready reports</p>
+            <h2 style={{ margin:"0 0 6px",fontWeight:900,fontSize:24 }}>📚 {account.businessName} — Accounting</h2>
+            <p style={{ margin:0,opacity:0.6,fontSize:14 }}>Your business bookkeeping · Real-time P&L · Tax-ready reports</p>
           </div>
           <div style={{ display:"flex",gap:8 }}>
             {[["📥 Import","#fff"],["📤 Export CSV","#fff"]].map(([b])=>(
@@ -957,8 +966,8 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
         </div>
         <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12 }}>
           {[
-            {label:"Gross Revenue",value:fmt(AcctRev),sub:"Invoices paid",color:"#4ade80"},
-            {label:"Total Expenses",value:fmt(AcctExp),sub:"Payouts sent",color:"#f87171"},
+            {label:"Gross Revenue",value:fmt(AcctRev),sub:"Client payments",color:"#4ade80"},
+            {label:"Total Expenses",value:fmt(AcctExp),sub:"Processing fees",color:"#f87171"},
             {label:"Net Income",value:fmt(AcctNet),sub:"Before tax",color:"#fde68a"},
             {label:"Tax Provision",value:fmt(AcctNet*0.15),sub:"Est. 15% corp",color:"#94a3b8"},
           ].map(s=>(
@@ -982,12 +991,10 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
             </select>
           </div>
           {[
-            {label:"Client Invoices Revenue",amount:AcctRev,type:"income"},
-            {label:"Pay Link Revenue",amount:payLinks.filter(p=>p.uses>0).length*250,type:"income"},
+            {label:"Client Payments Received",amount:AcctRev,type:"income"},
             {label:"TOTAL REVENUE",amount:AcctRev,type:"total-income"},
-            {label:"Payouts (commissions)",amount:AcctExp,type:"expense"},
-            {label:"Processing fees (est.)",amount:Math.round(AcctRev*0.029+0.30*invoices.length),type:"expense"},
-            {label:"TOTAL EXPENSES",amount:AcctExp+Math.round(AcctRev*0.029),type:"total-expense"},
+            {label:"Processing Fees (ZeniPay 2.9% + $0.30/tx)",amount:-(acctSummary?.zenipayFees ?? Math.round(AcctRev*0.029+0.30*invoices.length)),type:"expense"},
+            {label:"TOTAL EXPENSES",amount:-AcctExp,type:"total-expense"},
             {label:"NET INCOME",amount:AcctNet,type:"net"},
           ].map((row,i)=>(
             <div key={i} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",borderRadius:8,background:row.type==="total-income"?"#f0fdf4":row.type==="total-expense"?"#fff1f2":row.type==="net"?`${ZP_CYAN}10`:"transparent",marginBottom:2,borderTop:(row.type==="total-income"||row.type==="total-expense"||row.type==="net")?"2px solid #e2e8f0":"none" }}>
@@ -1002,9 +1009,8 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
           <div style={{ marginBottom:16 }}>
             <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:12,color:"#64748b",textTransform:"uppercase" as const }}>Assets</p>
             {[
-              {label:"ZeniPay Balance",value:account.balance},
+              {label:"Business Account (ZeniPay)",value:AcctRev},
               {label:"Accounts Receivable",value:invoices.filter(i=>i.status==="sent").reduce((s,i)=>s+i.amount,0)},
-              {label:"Cash Equivalents",value:account.volume*0.05},
             ].map(a=>(
               <div key={a.label} style={{ display:"flex",justifyContent:"space-between",padding:"6px 10px",fontSize:13 }}>
                 <span style={{ color:"#374151" }}>{a.label}</span>
@@ -1012,13 +1018,13 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
               </div>
             ))}
             <div style={{ display:"flex",justifyContent:"space-between",padding:"8px 10px",background:"#f0fdf4",borderRadius:8,fontWeight:800,fontSize:13,marginTop:4 }}>
-              <span>TOTAL ASSETS</span><span style={{ color:ZP_GREEN }}>{fmt(account.balance+invoices.filter(i=>i.status==="sent").reduce((s,i)=>s+i.amount,0))}</span>
+              <span>TOTAL ASSETS</span><span style={{ color:ZP_GREEN }}>{fmt(AcctRev+invoices.filter(i=>i.status==="sent").reduce((s,i)=>s+i.amount,0))}</span>
             </div>
           </div>
           <div>
             <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:12,color:"#64748b",textTransform:"uppercase" as const }}>Liabilities & Equity</p>
             {[
-              {label:"Pending Payouts",value:payouts.filter(p=>p.status==="pending").reduce((s,p)=>s+p.amount,0)},
+              {label:"Processing Fees Owed",value:acctSummary?.zenipayFees ?? 0},
               {label:"Tax Provision (est.)",value:AcctNet*0.15},
             ].map(l=>(
               <div key={l.label} style={{ display:"flex",justifyContent:"space-between",padding:"6px 10px",fontSize:13 }}>
@@ -1046,14 +1052,13 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
             <button style={{ background:ZP_CYAN,color:"white",border:"none",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer" }}>+ New Account</button>
           </div>
           {[
-            {code:"1000",name:"ZeniPay Balance",type:"Asset",balance:account.balance,color:ZP_GREEN},
+            {code:"1000",name:"Business Account",type:"Asset",balance:AcctRev,color:ZP_GREEN},
             {code:"1200",name:"Accounts Receivable",type:"Asset",balance:invoices.filter(i=>i.status==="sent").reduce((s,i)=>s+i.amount,0),color:ZP_GREEN},
-            {code:"2000",name:"Payouts Payable",type:"Liability",balance:-payouts.filter(p=>p.status==="pending").reduce((s,p)=>s+p.amount,0),color:"#EF4444"},
+            {code:"2000",name:"Payables",type:"Liability",balance:0,color:"#EF4444"},
             {code:"2500",name:"Tax Payable",type:"Liability",balance:-(AcctNet*0.15),color:"#EF4444"},
             {code:"3000",name:"Retained Earnings",type:"Equity",balance:AcctNet,color:ZP_BLUE},
-            {code:"4000",name:"Invoice Revenue",type:"Income",balance:AcctRev,color:ZP_GREEN},
-            {code:"5000",name:"Payout Expenses",type:"Expense",balance:-AcctExp,color:"#EF4444"},
-            {code:"5100",name:"Processor Fees",type:"Expense",balance:-Math.round(AcctRev*0.029),color:"#EF4444"},
+            {code:"4000",name:"Client Revenue",type:"Income",balance:AcctRev,color:ZP_GREEN},
+            {code:"5100",name:"Processing Fees (ZeniPay)",type:"Expense",balance:-(acctSummary?.zenipayFees ?? Math.round(AcctRev*0.029)),color:"#EF4444"},
           ].map(a=>(
             <div key={a.code} style={{ display:"flex",alignItems:"center",padding:"7px 10px",borderRadius:8,marginBottom:2,cursor:"pointer" }}
               onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="#f8fafc"}

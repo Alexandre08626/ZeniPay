@@ -284,7 +284,7 @@ export default function AdminPage() {
               {/* KPI row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 20 }}>
                 <MetricCard label="Merchant Volume"     value={fmt(adminStats?.stats?.total_revenue ?? 0)}  sub={`${adminStats?.stats?.total_payments ?? 0} total transactions`}  accent={ZP_GREEN}  icon="💰" />
-                <MetricCard label="ZeniPay Fees Collected" value={fmt(adminStats?.wallets?.platform?.available ?? 0)}  sub="Processing fees revenue" accent={ZP_CYAN} icon="🏦" />
+                <MetricCard label="ZeniPay Fees Collected" value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.029 + (adminStats?.stats?.total_payments ?? 0) * 0.30)}  sub="2.9% + $0.30/tx" accent={ZP_CYAN} icon="🏦" />
                 <MetricCard label="Active Clients"     value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
                 <MetricCard label="Success Rate"       value={`${adminStats?.stats?.success_rate ?? 0}%`}  sub={`${adminStats?.stats?.succeeded_payments ?? 0} succeeded`}            accent="#D97706"   icon="⏳" />
                 <MetricCard label="Finix Cost"         value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.019 + (adminStats?.stats?.total_payments ?? 0) * 0.15)} sub="1.90% + $0.15/tx" accent={ZP_BLUE} icon="⚡" />
