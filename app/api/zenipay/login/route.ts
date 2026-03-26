@@ -23,12 +23,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Query ALL merchants and check merchant_data JSONB (visible to PostgREST)
-    const { data: merchants } = await supabase
+    const { data: merchants, error: dbError } = await supabase
       .from("zenipay_merchants")
       .select("id, merchant_data, sandbox_key, live_key");
 
+    console.error("[Login API] DB query result:", { count: merchants?.length, error: dbError?.message, ids: merchants?.map((m: { id: string }) => m.id) });
+
     if (!merchants || merchants.length === 0) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid credentials", debug: { dbError: dbError?.message, url: process.env.NEXT_PUBLIC_SUPABASE_URL } }, { status: 401 });
     }
 
     // Find merchant by email in merchant_data JSONB
@@ -40,7 +42,10 @@ export async function POST(req: NextRequest) {
     });
 
     if (!found) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const emails = merchants.map((m: any) => m.merchant_data?.email).filter(Boolean);
+      console.error("[Login API] No match for", email, "in", emails);
+      return NextResponse.json({ error: "Invalid credentials", debug: { availableEmails: emails, lookingFor: email } }, { status: 401 });
     }
 
     const md = found.merchant_data;
