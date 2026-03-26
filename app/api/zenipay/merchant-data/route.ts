@@ -43,9 +43,18 @@ export async function PUT(req: NextRequest) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });
 
+  // Merge with existing merchant_data to preserve auth fields (email, password, plan, status)
+  const { data: existing } = await supabase
+    .from("zenipay_merchants")
+    .select("merchant_data")
+    .eq("id", merchant_id)
+    .single();
+
+  const merged = { ...(existing?.merchant_data || {}), ...body };
+
   const { error } = await supabase
     .from("zenipay_merchants")
-    .update({ merchant_data: body, updated_at: new Date().toISOString() })
+    .update({ merchant_data: merged, updated_at: new Date().toISOString() })
     .eq("id", merchant_id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
