@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
         notes: `ZeniPay Payment — ${txnId}`,
         created_at: now,
         updated_at: now,
-      }).then(() => {}).catch((e: unknown) => console.error("[record-payment] invoice insert:", e instanceof Error ? e.message : String(e)));
+      });
 
       // ── 4. Update merchant: transactions + invoice + balance + volume ───
       const { error: updErr } = await supabase.from("zenipay_merchants").update({
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
         reference: txnId,
         note: `Payment: ${description || pay_link_id}`,
         created_at: now,
-      }).then(() => {}).catch(() => {});
+      });
 
       // ── 6. Mark pay link used ─────────────────────────────────────────
       await supabase.from("zenipay_pay_links")

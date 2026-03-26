@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       payload,
       status: "received",
       created_at: new Date().toISOString(),
-    }).catch(() => {});
+    });
   }
 
   if (!supabase) {
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
                 paid_at: now,
                 created_at: now,
                 updated_at: now,
-              }).catch((e) => console.error("[Webhook] Invoice error:", e));
+              });
             }
           }
         }
@@ -163,8 +163,7 @@ export async function POST(request: Request) {
     // Update log status
     await supabase.from("zenipay_webhook_logs")
       .update({ status: "processed", processed_at: now })
-      .eq("event_id", payload.id as string)
-      .catch(() => {});
+      .eq("event_id", payload.id as string);
 
     return Response.json({ received: true });
 

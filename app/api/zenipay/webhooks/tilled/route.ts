@@ -192,11 +192,8 @@ async function processWebhookEvent(
                 notes: `ZeniPay Payment — ${payment.id} | Finix: ${transferId}`,
                 created_at: now,
                 updated_at: now,
-              }).then(() => {
-                console.log(`[ZeniPay Webhook] Created invoice ${invoiceId}`);
-              }).catch((e: unknown) => {
-                console.error(`[ZeniPay Webhook] Invoice creation error:`, e instanceof Error ? e.message : String(e));
               });
+              console.log(`[ZeniPay Webhook] Created invoice ${invoiceId}`);
             }
           }
         }
