@@ -217,7 +217,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
   // Fetch real transactions + invoices from zenipay_payments / zenipay_invoices
   useEffect(() => {
-    fetch("/api/zenipay/stats")
+    fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(merchantId)}`)
       .then(r => r.json())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((data: any) => {

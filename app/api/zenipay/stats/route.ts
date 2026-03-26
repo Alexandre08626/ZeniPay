@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getWalletBalances } from "../../../../modules/zenipay/services/ledger";
 
@@ -12,9 +12,10 @@ function getSupabase(): any {
   return createClient(url, key);
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabase();
+    const merchant_id = req.nextUrl.searchParams.get("merchant_id");
 
     const wallets = await getWalletBalances();
 
@@ -22,10 +23,12 @@ export async function GET() {
     let recentTransactions: unknown[] = [];
 
     if (supabase) {
-      // ── Read from zenipay_payments table (old Tilled/Finix payments) ───
-      const { data: tablePays } = await supabase
+      // ── Read from zenipay_payments table ───
+      let paymentsQuery = supabase
         .from("zenipay_payments")
-        .select("id, amount, status, created_at, customer_name, currency, description") as {
+        .select("id, amount, status, created_at, customer_name, currency, description");
+      if (merchant_id) paymentsQuery = paymentsQuery.eq("merchant_id", merchant_id);
+      const { data: tablePays } = await paymentsQuery as {
           data: Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string }> | null
         };
 
@@ -72,7 +75,9 @@ export async function GET() {
       const { data: payouts }  = await supabase.from("zenipay_payouts").select("*").order("created_at", { ascending: false }).limit(10);
 
       // Invoices: merge table + merchant_data.invoices
-      const { data: tableInv } = await supabase.from("zenipay_invoices").select("*").order("created_at", { ascending: false }).limit(20);
+      let invoicesQuery = supabase.from("zenipay_invoices").select("*").order("created_at", { ascending: false }).limit(20);
+      if (merchant_id) invoicesQuery = invoicesQuery.eq("merchant_id", merchant_id);
+      const { data: tableInv } = await invoicesQuery;
       const mdInvoices: unknown[] = [];
       for (const m of (merchants || [])) {
         for (const inv of (m.merchant_data?.invoices || [])) mdInvoices.push(inv);
