@@ -2022,11 +2022,6 @@ export default function ZenivaCompleteApp() {
               <WalletModal name={openWallet.name} data={openWallet.data} icon={openWallet.icon} color={openWallet.color} onClose={() => setOpenWallet(null)} />
             )}
 
-            {/* Invoice Detail Modal */}
-            {viewInvoice && (
-              <InvoiceModal invoice={viewInvoice} onClose={() => setViewInvoice(null)} />
-            )}
-
             {/* ═══ ZENIPAY DUAL CARD SHOWCASE ═══ */}
             <div style={{ background: "linear-gradient(135deg, #f8f4ff 0%, #f0f8ff 50%, #f4fff8 100%)", borderRadius: 24, padding: "36px 40px", border: "1px solid rgba(21,184,201,0.2)" }}>
               <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 28 }}>
@@ -3574,6 +3569,10 @@ export default function ZenivaCompleteApp() {
           </div>
         </div>
       </div>
+    )}
+    {/* Invoice Detail Modal — rendered outside all tabs */}
+    {viewInvoice && (
+      <InvoiceModal invoice={viewInvoice} onClose={() => setViewInvoice(null)} />
     )}
     </>
   );
