@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     console.error("[Login API] DB query result:", { count: merchants?.length, error: dbError?.message, ids: merchants?.map((m: { id: string }) => m.id) });
 
     if (!merchants || merchants.length === 0) {
-      return NextResponse.json({ error: "Invalid credentials", debug: { dbError: dbError?.message, url: process.env.NEXT_PUBLIC_SUPABASE_URL } }, { status: 401 });
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
     // Find merchant by email in merchant_data JSONB
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const emails = merchants.map((m: any) => m.merchant_data?.email).filter(Boolean);
       console.error("[Login API] No match for", email, "in", emails);
-      return NextResponse.json({ error: "Invalid credentials", debug: { availableEmails: emails, lookingFor: email } }, { status: 401 });
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
     const md = found.merchant_data;

@@ -18,7 +18,7 @@ const STATUS_BG:    Record<string, string> = { active: "rgba(22,163,74,0.08)", p
 // All clients now come from Supabase — no hardcoded defaults
 const CLIENTS_DEFAULT: never[] = [];
 
-const GATEWAY_STATUS = { accountId: "MUcTenaz57m9JrwwRZwpSfDc", webhook: "https://zenipay.ca/api/zenipay/webhooks/finix", fees: "2.9% + $0.30" };
+const GATEWAY_STATUS = { accountId: "MUcTenaz57m9JrwwRZwpSfDc", webhook: "https://zenipay.ca/api/zenipay/webhooks/finix", fees: "2.90% + $0.30/tx" };
 const BANK_STATUS    = { routing: "812345678", account: "••••5847", balance: 0, customerId: "4647873" };
 
 // ZeniPay's own platform revenue account — commissions auto-deposited here
@@ -31,11 +31,21 @@ const PLATFORM_ACCOUNT = {
   type: "Business Chequing (Unit.co)",
 };
 
-// Commission split rules per plan (ZeniPay margin after Finix cost ~2.4%+$0.20)
+// Finix cost breakdown: Interchange 1.75% + Finix fee 0.15% + $0.15/tx = total cost 1.90% + $0.15/tx
+// ZeniPay charges merchants 2.90% + $0.30/tx → markup = 1.00% + $0.15/tx
+// Finix pays ZeniPay 90% of the markup
+const FINIX_COST = {
+  interchange: "1.75%",
+  finixFee: "0.15% + $0.15/tx",
+  totalCost: "1.90% + $0.15/tx",
+  zeniCharge: "2.90% + $0.30/tx",
+  markup: "1.00% + $0.15/tx",
+  finixPaysBack: "90% of markup",
+};
 const COMMISSION_RULES = [
-  { plan: "Standard", charged: "2.9% + $0.30", finix: "~2.4% + $0.20", zeniMargin: "~0.5% + $0.10", color: ZP_GREEN  },
-  { plan: "Business",  charged: "2.5% + $0.25", finix: "~2.4% + $0.20", zeniMargin: "~0.1% + $0.05", color: ZP_CYAN   },
-  { plan: "Complete",  charged: "2.0% + $0.20", finix: "~1.8% + $0.15", zeniMargin: "~0.2% + $0.05", color: ZP_PURPLE },
+  { plan: "Standard", charged: "2.90% + $0.30", finixCost: "1.90% + $0.15", zeniMargin: "1.00% + $0.15", finixPaysBack: "0.90% + $0.135", color: ZP_GREEN  },
+  { plan: "Business",  charged: "2.50% + $0.25", finixCost: "1.90% + $0.15", zeniMargin: "0.60% + $0.10", finixPaysBack: "0.54% + $0.09", color: ZP_CYAN   },
+  { plan: "Complete",  charged: "2.00% + $0.20", finixCost: "1.90% + $0.15", zeniMargin: "0.10% + $0.05", finixPaysBack: "0.09% + $0.045", color: ZP_PURPLE },
 ];
 
 const NAV = [
@@ -264,11 +274,11 @@ export default function AdminPage() {
 
               {/* KPI row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 20 }}>
-                <MetricCard label="Client Volume"      value={fmt(adminStats?.stats?.total_revenue ?? 0)}  sub={`${adminStats?.stats?.total_payments ?? 0} total transactions`}  accent={ZP_GREEN}  icon="💰" />
-                <MetricCard label="ZeniPay Earnings"   value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.005)}  sub="~0.5% platform margin" accent={ZP_CYAN} icon="🏦" />
+                <MetricCard label="Merchant Volume"     value={fmt(adminStats?.stats?.total_revenue ?? 0)}  sub={`${adminStats?.stats?.total_payments ?? 0} total transactions`}  accent={ZP_GREEN}  icon="💰" />
+                <MetricCard label="ZeniPay Fees Collected" value={fmt(adminStats?.wallets?.platform?.available ?? 0)}  sub="Processing fees revenue" accent={ZP_CYAN} icon="🏦" />
                 <MetricCard label="Active Clients"     value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
                 <MetricCard label="Success Rate"       value={`${adminStats?.stats?.success_rate ?? 0}%`}  sub={`${adminStats?.stats?.succeeded_payments ?? 0} succeeded`}            accent="#D97706"   icon="⏳" />
-                <MetricCard label="Platform Balance"   value={fmt(adminStats?.wallets?.platform?.available ?? PLATFORM_ACCOUNT.balance)} sub="ZeniPay ••••9201" accent={ZP_BLUE} icon="⚡" />
+                <MetricCard label="Finix Cost"         value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.019 + (adminStats?.stats?.total_payments ?? 0) * 0.15)} sub="1.90% + $0.15/tx" accent={ZP_BLUE} icon="⚡" />
               </div>
 
               {/* Revenue chart + recent signups */}
@@ -641,7 +651,7 @@ export default function AdminPage() {
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 20, fontWeight: 900, color: ZP_CYAN }}>{fmt(adminStats?.wallets?.platform?.available ?? PLATFORM_ACCOUNT.balance)}</div>
-                    <div style={{ fontSize: 11, color: MUTED }}>Platform earnings</div>
+                    <div style={{ fontSize: 11, color: MUTED }}>ZeniPay fees collected</div>
                   </div>
                   <button style={{ padding: "7px 16px", borderRadius: 8, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Withdraw →</button>
                 </div>
@@ -758,12 +768,14 @@ export default function AdminPage() {
 
                   {/* Commission flow visual */}
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Auto Commission Flow</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Finix Fee Breakdown (per $100 transaction)</div>
                     {[
-                      { label: "Client pays",        sub: "e.g. $100.00",       color: ZP_GREEN,  icon: "💳" },
-                      { label: "Finix processing",  sub: "~2.4% + $0.20 cost", color: "#D97706", icon: "⚙️" },
-                      { label: "ZeniPay margin",     sub: "auto → ••••9201",    color: ZP_CYAN,   icon: "🏦" },
-                      { label: "Client net",         sub: "lands in ZeniCard",  color: ZP_PURPLE, icon: "⚡" },
+                      { label: "Client pays",                sub: "$100.00 (2.90% + $0.30 = $3.20 fee)",  color: ZP_GREEN,  icon: "💳" },
+                      { label: "Interchange cost",           sub: "1.75% = $1.75",                          color: "#D97706", icon: "🏧" },
+                      { label: "Finix fee",                  sub: "0.15% + $0.15 = $0.30",                  color: "#D97706", icon: "⚙️" },
+                      { label: "Total Finix cost",           sub: "1.90% + $0.15 = $2.05",                  color: "#EF4444", icon: "📊" },
+                      { label: "ZeniPay markup",             sub: "1.00% + $0.15 = $1.15",                  color: ZP_CYAN,   icon: "🏦" },
+                      { label: "Finix pays back 90%",        sub: "90% × $1.15 = $1.035 → ZeniPay",        color: ZP_PURPLE, icon: "⚡" },
                     ].map((s, i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < 3 ? `1px solid ${BORDER}` : "none" }}>
                         <div style={{ width: 28, height: 28, borderRadius: 8, background: s.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{s.icon}</div>
@@ -771,7 +783,7 @@ export default function AdminPage() {
                           <div style={{ fontWeight: 700, fontSize: 13, color: TEXT }}>{s.label}</div>
                           <div style={{ fontSize: 11, color: MUTED }}>{s.sub}</div>
                         </div>
-                        {i < 3 && <div style={{ fontSize: 14, color: MUTED }}>↓</div>}
+                        {i < 5 && <div style={{ fontSize: 14, color: MUTED }}>↓</div>}
                       </div>
                     ))}
                   </div>
@@ -784,9 +796,10 @@ export default function AdminPage() {
                     <div key={r.plan} style={{ padding: "12px 14px", borderRadius: 12, background: r.color + "08", border: `1px solid ${r.color}22` }}>
                       <div style={{ fontWeight: 800, fontSize: 13, color: r.color, marginBottom: 8 }}>{r.plan}</div>
                       {[
-                        { k: "Charged to client", v: r.charged },
-                        { k: "Finix cost",        v: r.finix  },
-                        { k: "ZeniPay margin →••••9201", v: r.zeniMargin, bold: true },
+                        { k: "Charged to merchant", v: r.charged },
+                        { k: "Finix total cost",    v: r.finixCost },
+                        { k: "ZeniPay markup",      v: r.zeniMargin },
+                        { k: "Finix pays back 90%", v: r.finixPaysBack, bold: true },
                       ].map(s => (
                         <div key={s.k} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0", borderBottom: `1px solid ${r.color}18` }}>
                           <span style={{ color: MUTED }}>{s.k}</span>
@@ -812,10 +825,14 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 16 }}>
                   {[
-                    { k: "Account ID",   v: GATEWAY_STATUS.accountId,  color: ZP_CYAN   },
-                    { k: "Environment",  v: "Sandbox",                  color: "#D97706" },
-                    { k: "Fees",         v: GATEWAY_STATUS.fees,        color: ZP_GREEN  },
-                    { k: "Webhook URL",  v: GATEWAY_STATUS.webhook,     color: TEXT      },
+                    { k: "Account ID",       v: GATEWAY_STATUS.accountId,     color: ZP_CYAN   },
+                    { k: "Environment",      v: "Sandbox",                    color: "#D97706" },
+                    { k: "Merchant Fee",     v: "2.90% + $0.30/tx",           color: ZP_GREEN  },
+                    { k: "Interchange",      v: "1.75%",                      color: "#D97706" },
+                    { k: "Finix Fee",        v: "0.15% + $0.15/tx",           color: "#EF4444" },
+                    { k: "Total Cost",       v: "1.90% + $0.15/tx",           color: "#EF4444" },
+                    { k: "Finix Pays Back",  v: "90% of markup",              color: ZP_PURPLE },
+                    { k: "Webhook URL",      v: GATEWAY_STATUS.webhook,       color: TEXT      },
                   ].map(s => (
                     <div key={s.k} style={{ padding: "12px 14px", borderRadius: 10, background: LIGHT, border: `1px solid ${BORDER}` }}>
                       <div style={{ fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 5 }}>{s.k.toUpperCase()}</div>
