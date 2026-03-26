@@ -94,34 +94,28 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── 2. RECORD PAYMENT IN SUPABASE ───────────────────────────────────
-    const paymentRecord = {
-      id: paymentId,
-      payment_link_id: pay_link_id,
-      amount: amountNum,
-      currency,
-      description: description || "",
-      customer_name: customer_name || "",
-      customer_email: customer_email || "",
-      status: finixResult.state === "SUCCEEDED" ? "succeeded" : "pending",
-      gateway: "finix",
-      gateway_transfer_id: finixResult.transferId || "",
-      gateway_instrument_id: finixResult.instrumentId || "",
-      card_brand: finixResult.brand || "",
-      card_last4: finixResult.last4 || "",
-      created_at: now,
-      updated_at: now,
-    };
-
     console.log("[DB] Inserting payment:", paymentId, "amount:", amountNum);
 
+    // Insert core fields first (avoids PostgREST schema cache issues with newer columns)
     const { error: payErr } = await supabase
       .from("zenipay_payments")
-      .insert(paymentRecord);
+      .insert({
+        id: paymentId,
+        payment_link_id: pay_link_id,
+        amount: amountNum,
+        currency,
+        description: description || "",
+        customer_name: customer_name || "",
+        customer_email: customer_email || "",
+        status: finixResult.state === "SUCCEEDED" ? "succeeded" : "pending",
+        gateway: "finix",
+        gateway_transfer_id: finixResult.transferId || "",
+        created_at: now,
+        updated_at: now,
+      });
 
     if (payErr) {
       console.error("[DB] zenipay_payments INSERT FAILED:", JSON.stringify(payErr));
-      // Payment succeeded at Finix but DB failed — still return success to user
-      // but flag it for reconciliation
       return NextResponse.json({
         success: true,
         warning: "Payment succeeded but database record failed — will be reconciled",
@@ -133,6 +127,16 @@ export async function POST(req: NextRequest) {
         dbError: payErr.message,
       });
     }
+
+    // Update card details separately (schema cache workaround)
+    await supabase
+      .from("zenipay_payments")
+      .update({
+        card_brand: finixResult.brand || "",
+        card_last4: finixResult.last4 || "",
+        gateway_instrument_id: finixResult.instrumentId || "",
+      })
+      .eq("id", paymentId);
 
     console.log("[DB] Payment recorded:", paymentId);
 
