@@ -1882,10 +1882,8 @@ export default function ZenivaCompleteApp() {
               {[
                 { icon: "💰", label: "Total Revenue", value: fmt(totalRevenue), sub: "Real payments only", color: ORANGE },
                 { icon: "🏛️", label: "ZeniPay Fees", value: fmt(zenipayFees), sub: "2.9% + $0.30/tx", color: BLUE },
+                { icon: "💵", label: "Net Revenue", value: fmt(totalRevenue - zenipayFees), sub: "After fees", color: GREEN },
                 { icon: "✅", label: "Success Rate", value: `${successRate}%`, sub: `${TRANSACTIONS.length} txns`, color: GREEN },
-                { icon: "⏳", label: "Pending", value: fmt(WALLETS.platform.pending + WALLETS.agent.pending), sub: "Awaiting settlement", color: GOLD },
-                { icon: "👤", label: "Agent Pool", value: fmt(WALLETS.agent.available), sub: "Louis · Jason · Luca", color: PURPLE },
-                { icon: "💸", label: "Paid Out", value: fmt(WALLETS.agent.paid + WALLETS.influencer.paid + WALLETS.supplier.paid), sub: "All wallets", color: RED },
                 { icon: "🧾", label: "Invoices", value: String(zpInvoices.length), sub: "ZeniPay invoices", color: GOLD },
                 { icon: "🔄", label: "Refunds", value: fmt(0), sub: "No refunds yet", color: PURPLE },
               ].map(s => (
