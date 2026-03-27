@@ -142,11 +142,6 @@ function PayLinkContent() {
   if (success) {
     return (
       <div style={{ minHeight: "100vh", background: ZP_DARK, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <div style={{ padding: "16px 20px", background: "linear-gradient(135deg, #F59E0B, #D97706)", borderRadius: 12, marginBottom: 20, textAlign: "center", color: "#fff" }}>
-          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Maintenance temporaire</div>
-          <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.95 }}>Pour finaliser votre reservation, veuillez contacter <strong>info@zeniva.ca</strong></div>
-        </div>
-
         <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 10 }} />
         <div style={{ textAlign: "center", color: "#fff", padding: 32 }}>
           <div style={{ fontSize: 72, marginBottom: 16 }}>✅</div>
@@ -155,6 +150,11 @@ function PayLinkContent() {
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>Ref: {id}</p>
         </div>
       </div>
+            <div style={{ padding: "16px 20px", background: "linear-gradient(135deg, #F59E0B, #D97706)", borderRadius: 12, marginBottom: 16, marginTop: 16, textAlign: "center", color: "#fff" }}>
+              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Maintenance temporaire</div>
+              <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.95 }}>Pour finaliser votre reservation, veuillez contacter <strong>info@zeniva.ca</strong></div>
+            </div>
+
     );
   }
 
