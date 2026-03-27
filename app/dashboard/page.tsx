@@ -150,7 +150,7 @@ function DashboardContent() {
               🔴 Live Mode — Real Transactions
             </div>
             <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: 0, lineHeight: 1.6 }}>
-              You are connected to the live Tilled payment gateway.
+              You are connected to the live Finix payment gateway.
               All transactions are real and will be settled to your bank account.
             </p>
           </div>

@@ -78,11 +78,31 @@ export async function POST(req: NextRequest) {
         items: [{ desc: description || pay_link_id, qty: 1, price: amt }],
       };
 
-      // ── 3. Create invoice in zenipay_invoices table ───────────────────
+      // ── 3. Create invoice in zenipay_invoices table (merchant-branded) ──
+      // Lookup merchant info for invoice branding
+      let mName = "";
+      let mEmail = "";
+      let mLogo = "";
+      if (merchantId) {
+        const { data: mInfo } = await supabase
+          .from("zenipay_merchants")
+          .select("business_name, email")
+          .eq("id", merchantId)
+          .single();
+        if (mInfo) {
+          mName = mInfo.business_name || "";
+          mEmail = mInfo.email || "";
+        }
+      }
+
       await supabase.from("zenipay_invoices").insert({
         id: invoiceId,
         payment_id: txnId,
         booking_id: `BK-${txnId}`,
+        merchant_id: merchantId || null,
+        merchant_name: mName,
+        merchant_email: mEmail,
+        merchant_logo: mLogo,
         customer_name: customer_name || "Client",
         customer_email: "",
         items: JSON.stringify([{ description: description || pay_link_id, qty: 1, unit_price: amt, total: amt }]),

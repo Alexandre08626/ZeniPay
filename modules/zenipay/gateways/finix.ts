@@ -51,7 +51,7 @@
  *
  * WEBHOOKS:
  * --------
- * Handled in: app/api/zenipay/webhooks/tilled/route.ts
+ * Handled in: app/api/zenipay/webhooks/finix/route.ts
  * Events: TRANSFER_SUCCEEDED, TRANSFER_FAILED, TRANSFER_REVERSED
  * Security: HMAC-SHA256 signature verification using FINIX_WEBHOOK_SECRET
  *

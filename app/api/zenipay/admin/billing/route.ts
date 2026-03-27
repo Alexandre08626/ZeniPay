@@ -140,3 +140,34 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+/* ── PATCH — update billing invoice status ── */
+export async function PATCH(req: NextRequest) {
+  try {
+    const { id, status } = await req.json();
+    if (!id || !status) {
+      return NextResponse.json({ error: "id and status are required" }, { status: 400 });
+    }
+    if (!["pending", "paid", "overdue"].includes(status)) {
+      return NextResponse.json({ error: "status must be pending, paid, or overdue" }, { status: 400 });
+    }
+
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from("zenipay_billing")
+      .update({ status })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ invoice: data });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 },
+    );
+  }
+}

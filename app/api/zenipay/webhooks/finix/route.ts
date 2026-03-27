@@ -83,7 +83,7 @@ export async function POST(request: Request) {
           // Check if invoice already exists
           const { data: payment } = await supabase
             .from("zenipay_payments")
-            .select("id, customer_name, customer_email, description, amount, currency")
+            .select("id, customer_name, customer_email, description, amount, currency, merchant_id")
             .eq("gateway_transfer_id", transferId)
             .single();
 
@@ -101,10 +101,30 @@ export async function POST(request: Request) {
                 .select("id", { count: "exact", head: true });
               const seq = String((count || 0) + 1).padStart(3, "0");
 
+              // Lookup merchant info for invoice branding
+              let merchantName = "";
+              let merchantEmail = "";
+              let merchantLogo = "";
+              if (payment.merchant_id) {
+                const { data: merchant } = await supabase
+                  .from("zenipay_merchants")
+                  .select("business_name, email")
+                  .eq("id", payment.merchant_id)
+                  .single();
+                if (merchant) {
+                  merchantName = merchant.business_name || "";
+                  merchantEmail = merchant.email || "";
+                }
+              }
+
               await supabase.from("zenipay_invoices").insert({
                 id: `INV-${payment.id}`,
                 invoice_number: `INV-${year}-${seq}`,
                 payment_id: payment.id,
+                merchant_id: payment.merchant_id || null,
+                merchant_name: merchantName,
+                merchant_email: merchantEmail,
+                merchant_logo: merchantLogo,
                 customer_name: payment.customer_name || "Client",
                 customer_email: payment.customer_email || "",
                 items: JSON.stringify([{

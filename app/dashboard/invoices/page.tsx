@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 interface Invoice {
   id: string;
   payment_id: string;
+  merchant_id: string;
+  merchant_name: string;
+  merchant_logo: string;
+  merchant_email: string;
   customer_name: string;
   customer_email: string;
   total: number;
@@ -83,8 +87,9 @@ export default function InvoicesPage() {
       <body>
         <div class="header">
           <div>
-            <div class="logo">ZeniPay</div>
-            <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">International Luxury Management Inc.</p>
+            ${invoice.merchant_logo ? `<img src="${invoice.merchant_logo}" alt="${invoice.merchant_name}" style="max-height: 48px; max-width: 200px; margin-bottom: 8px;" />` : ""}
+            <div class="logo">${invoice.merchant_name || "Invoice"}</div>
+            <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">${invoice.merchant_email || ""}</p>
           </div>
           <div class="invoice-number">
             <h1>FACTURE</h1>
@@ -129,7 +134,7 @@ export default function InvoicesPage() {
           <p><strong>Merci pour votre confiance!</strong></p>
           <p>ID de paiement: ${invoice.payment_id}</p>
           <p>Payé le: ${new Date(invoice.paid_at).toLocaleDateString("fr-FR")} à ${new Date(invoice.paid_at).toLocaleTimeString("fr-FR")}</p>
-          <p style="margin-top: 20px;">ZeniPay • Powered by Finix Payments</p>
+          <p style="margin-top: 20px; font-size: 11px; color: #aaa;">Powered by ZeniPay &middot; zenipay.ca</p>
         </div>
       </body>
       </html>

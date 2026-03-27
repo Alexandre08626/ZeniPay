@@ -1267,7 +1267,7 @@ export default function ZenivaCompleteApp() {
   const [accountingSummary, setAccountingSummary] = useState<{ totalRevenue: number; totalExpenses: number; netProfit: number; platformFees: number; zenipayFees?: number; agentCommissions: number; journalEntries: unknown[]; chartOfAccounts: {code:string;name:string;balance:number;type:string}[] } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [openWallet, setOpenWallet] = useState<{name:string;data:typeof DEFAULT_WALLETS.platform;icon:string;color:string}|null>(null);
-  const [liveActivity, setLiveActivity] = useState<{ id: number; text: string; time: string; type: string }[]>([]);
+  // liveActivity is derived from TRANSACTIONS — no separate state needed
   const [recentBookings, setRecentBookings] = useState<{ id: string; client_name: string; destination: string; total_price: number; status: string; created_at: string }[]>([]);
   const [zpInvoices, setZpInvoices] = useState<{ id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string; merchant_name?: string; merchant_email?: string }[]>([]);
   const [viewInvoice, setViewInvoice] = useState<typeof zpInvoices[number] | null>(null);
@@ -1397,6 +1397,19 @@ export default function ZenivaCompleteApp() {
     const interval = setInterval(() => { void fetchStats(); void fetchBookings(); void fetchZpInvoices(); }, 30_000);
     return () => clearInterval(interval);
   }, []);
+
+  // Build live activity feed from real transactions
+  const liveActivity = TRANSACTIONS.slice(0, 8).map((t, i) => {
+    const d = new Date(t.date);
+    const mins = Math.max(1, Math.round((Date.now() - d.getTime()) / 60000));
+    const timeStr = mins < 60 ? `${mins} min ago` : mins < 1440 ? `${Math.round(mins/60)}h ago` : `${Math.round(mins/1440)}d ago`;
+    return {
+      id: i + 1,
+      type: t.status === "succeeded" ? "success" : t.status === "failed" ? "alert" : "success",
+      text: `${t.status === "succeeded" ? "✅" : t.status === "failed" ? "❌" : "⏳"} ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(t.amount)} — ${t.customer || t.booking || t.id}`,
+      time: timeStr,
+    };
+  });
 
   const totalRevenue = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").reduce((a, t) => a + t.amount, 0);
   const succeededCount = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length;
@@ -3358,7 +3371,7 @@ export default function ZenivaCompleteApp() {
                 {[
                   { label: "Primary Gateway", value: "Finix ✅", status: "active" },
                   { label: "Environment", value: STATS.env === "production" ? "Live" : "Sandbox · Test Mode", status: STATS.env === "production" ? "active" : "pending" },
-                  { label: "Webhook Endpoint", value: "/api/zenipay/webhooks/tilled", status: null },
+                  { label: "Webhook Endpoint", value: "/api/zenipay/webhooks/finix", status: null },
                   { label: "Merchant ID", value: "●●●●●●●●●●●●", status: null },
                 ].map(item => (
                   <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>

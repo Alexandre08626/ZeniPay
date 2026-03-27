@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
         recent_payouts: payouts || [],
         recent_invoices: allInvoices,
         mode: "live", gateway: "ZeniPay",
-        env: process.env.TILLED_ENV || "sandbox",
+        env: process.env.FINIX_ENV || "sandbox",
       });
     }
 

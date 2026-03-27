@@ -1023,6 +1023,7 @@ export default function AdminPage() {
                   { label: "Total Invoices", value: `${billingInvoices.length}`, accent: "#E5247B" },
                   { label: "Pending", value: `${billingInvoices.filter(i => i.status === "pending").length}`, accent: "#D97706" },
                   { label: "Paid", value: `${billingInvoices.filter(i => i.status === "paid").length}`, accent: ZP_GREEN },
+                  { label: "Overdue", value: `${billingInvoices.filter(i => i.status === "overdue").length}`, accent: "#DC2626" },
                   { label: "Total Billed", value: fmt(billingInvoices.reduce((a: number, i: any) => a + Number(i.total_fees ?? 0), 0)), accent: ZP_PURPLE },
                 ].map(s => (
                   <div key={s.label} style={{ ...card({ padding: "14px 16px" }), borderTop: `3px solid ${s.accent}` }}>
@@ -1117,6 +1118,30 @@ export default function AdminPage() {
                               >
                                 Print
                               </button>
+                              {inv.status !== "paid" && (
+                                <button
+                                  onClick={async () => {
+                                    const res = await fetch("/api/zenipay/admin/billing", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: inv.id, status: "paid" }) });
+                                    const data = await res.json();
+                                    if (data.invoice) setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x));
+                                  }}
+                                  style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid rgba(22,163,74,0.3)", background: "rgba(22,163,74,0.08)", fontSize: 11, fontWeight: 700, color: "#16A34A", cursor: "pointer", marginLeft: 6 }}
+                                >
+                                  Mark Paid
+                                </button>
+                              )}
+                              {inv.status === "pending" && (
+                                <button
+                                  onClick={async () => {
+                                    const res = await fetch("/api/zenipay/admin/billing", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: inv.id, status: "overdue" }) });
+                                    const data = await res.json();
+                                    if (data.invoice) setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x));
+                                  }}
+                                  style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.08)", fontSize: 11, fontWeight: 700, color: "#DC2626", cursor: "pointer", marginLeft: 6 }}
+                                >
+                                  Mark Overdue
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );

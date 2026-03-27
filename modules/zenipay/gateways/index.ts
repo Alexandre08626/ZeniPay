@@ -1,7 +1,7 @@
 /**
  * ZeniPay Gateway Abstraction Layer
- * Architecture: Zeniva → ZeniPay → Tilled → Card Network → Bank
- * Primary: Tilled (LIVE)
+ * Architecture: Zeniva → ZeniPay → Finix → Card Network → Bank
+ * Primary: Finix (LIVE)
  */
 
 export interface GatewayResult {
@@ -26,14 +26,16 @@ export async function processPayment(params: {
   description?: string;
   paymentId: string;
 }): Promise<GatewayResult> {
-  // Always use Tilled — live payment processor
-  const tilledSk = process.env.TILLED_SECRET_KEY;
-  const tilledAccountId = process.env.TILLED_ACCOUNT_ID;
+  // Always use Finix — live payment processor
+  const finixUser = process.env.FINIX_API_USERNAME;
+  const finixPass = process.env.FINIX_API_PASSWORD;
+  const finixMerchant = process.env.FINIX_MERCHANT_ID;
 
-  if (!tilledSk || !tilledAccountId) {
-    console.error("[ZeniPay] MISSING TILLED ENV VARS:", {
-      hasSk: !!tilledSk,
-      hasAccountId: !!tilledAccountId,
+  if (!finixUser || !finixPass || !finixMerchant) {
+    console.error("[ZeniPay] MISSING FINIX ENV VARS:", {
+      hasUser: !!finixUser,
+      hasPass: !!finixPass,
+      hasMerchant: !!finixMerchant,
     });
     return {
       success: false,
@@ -43,23 +45,25 @@ export async function processPayment(params: {
     };
   }
 
-  const { processTilledPayment } = await import("./tilled");
+  const { processFinixPayment } = await import("./finix");
   try {
-    const result = await processTilledPayment({
+    const result = await processFinixPayment({
       ...params,
-      currency: params.currency || "usd",
+      currency: params.currency || "USD",
       description: params.description || `ZeniPay ${params.paymentId}`,
     });
     return {
       success: result.success,
       transactionId: result.transferId,
       instrumentId: result.instrumentId,
+      brand: result.brand,
+      last4: result.last4,
       state: result.state,
-      error: result.error,
+      error: undefined,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[ZeniPay] Tilled error:", msg);
+    console.error("[ZeniPay] Finix error:", msg);
     return {
       success: false,
       transactionId: "",
