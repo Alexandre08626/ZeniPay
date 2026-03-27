@@ -10,7 +10,7 @@ const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD   = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
 
 const fmt     = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
-const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+const fmtDate = (s: string) => { try { const d = new Date(s); return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }); } catch { return "—"; } };
 
 const STATUS_COLOR: Record<string, string> = { active: "#16A34A", pending: "#D97706", inactive: "#94A3B8", failed: "#DC2626", live: "#16A34A", sandbox: "#D97706" };
 const STATUS_BG:    Record<string, string> = { active: "rgba(22,163,74,0.08)", pending: "rgba(217,119,6,0.08)", inactive: "rgba(148,163,184,0.08)", failed: "rgba(220,38,38,0.08)", live: "rgba(22,163,74,0.08)", sandbox: "rgba(217,119,6,0.08)" };
@@ -127,15 +127,15 @@ export default function AdminPage() {
       name: s.businessName || s.business_name || "—",
       domain: s.website || "—",
       status: s.status || "sandbox",
-      volume:  s.volume  ?? 0,
-      txCount: s.txCount ?? s.tx_count ?? 0,
-      balance: s.balance ?? 0,
+      volume:  Number(s.volume) || 0,
+      txCount: Number(s.txCount ?? s.tx_count) || 0,
+      balance: Number(s.balance) || 0,
       apiKey: s.liveKey || s.live_key || "—",
       sandboxKey: s.sandboxKey || s.sandbox_key || "—",
       plan: s.plan || "Sandbox",
       since: (s.createdAt || s.created_at || "—").slice(0, 10),
       contact: s.email,
-      gateway: s.status === "active" ? "Finix (Live)" : "Sandbox",
+      gateway: (s.status === "active" || s.status === "live") ? "Finix (Live)" : "Sandbox",
       bankAccount: "—",
       description: s.businessType || s.business_type || s.notes || "New signup",
       ownerName: s.ownerName || s.owner_name || "—",

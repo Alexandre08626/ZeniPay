@@ -193,6 +193,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [invoices,      setInvoices]      = useState<Invoice[]>([]);
   const [viewInvoice,   setViewInvoice]   = useState<Invoice | null>(null);
   const [cashbackData, setCashbackData] = useState<Record<string,unknown> | null>(null);
+  useEffect(() => { fetch("/api/zenipay/cashback").then(r=>r.json()).then(d=>setCashbackData(d)).catch(()=>{}); }, []);
   const [payouts,       setPayouts]       = useState<Payout[]>([]);
   const [bankCfg,       setBankCfg]       = useState<BankCfg>({ holderName: "", bankName: "", transit: "", institution: "", accountNum: "", accountType: "chequing", step: 0 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1858,8 +1859,8 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
 
   const CashbackSection = (() => {
-    const load = async () => { try { const r = await fetch("/api/zenipay/cashback"); setCashbackData(await r.json()); } catch(e) { console.error(e); } };
-    if (!cashbackData) load();
+
+
     const s = (cashbackData as Record<string,unknown>)?.summary as Record<string,unknown> | undefined;
     const txF = ((cashbackData as Record<string,unknown>)?.transaction_fees || []) as Array<Record<string,unknown>>;
     const setts = ((cashbackData as Record<string,unknown>)?.settlements || []) as Array<Record<string,unknown>>;
