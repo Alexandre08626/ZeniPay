@@ -1,9 +1,3 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-export default function PayoutsPage() {
-  const router = useRouter();
-  useEffect(() => { router.replace("/app?tab=payouts"); }, [router]);
-  return null;
-}
+import AppRouter from "../page";
+export default function Page() { return <AppRouter />; }

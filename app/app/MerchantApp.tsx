@@ -159,9 +159,9 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
 
   const TABS = getTabs(isSandbox ? "sandbox" : "live");
   const validTabs  = TABS.map(t => t.id);
-  const tabFromUrl = searchParams.get("tab") || "overview";
+  const tabFromUrl = typeof window !== "undefined" ? (window.location.pathname.split("/app/")[1] || "overview") : "overview";
   const tab        = validTabs.includes(tabFromUrl) ? tabFromUrl : "overview";
-  const setTab     = (id: string) => router.push(`/app?tab=${id}`);
+  const setTab     = (id: string) => router.push(`/app/${id}`);
 
   const [modal,        setModal]        = useState<string|null>(null);
   const [menuOpen,     setMenuOpen]     = useState(false);
@@ -493,7 +493,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 24 }}>
         {[
-          { icon:"💰", label: "ZeniCard Balance", value: fmt(account.balance),  color: ZP_GREEN  },
+          { icon:"💰", label: "Account Balance", value: fmt(account.balance),  color: ZP_GREEN  },
           { icon:"📈", label: "Total Volume",     value: fmt(account.volume),   color: ZP_CYAN   },
           { icon:"💳", label: "Transactions",     value: String(account.txCount), color: ZP_PURPLE },
           { icon:"🔗", label: "Active Pay Links", value: String(payLinks.filter(p=>p.status==="active").length), color: ZP_BLUE },
@@ -611,7 +611,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const bankConfigured = bankCfg.step >= 3;
   const BankingSection = (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px", color: TEXT }}>ZeniCard — Business Banking</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 20px", color: TEXT }}>Business Banking — Checking Account</h2>
 
       {/* Configured — show card + details */}
       {bankConfigured && (
@@ -713,7 +713,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>ZeniPay</div>
-                    <div style={{ fontSize: 10, opacity: 0.6, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>ZeniCard Business</div>
+                    <div style={{ fontSize: 10, opacity: 0.6, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>Business Checking</div>
                   </div>
                   <div style={{ fontSize: 22 }}>💳</div>
                 </div>
