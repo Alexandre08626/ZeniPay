@@ -212,6 +212,8 @@ export default function ZeniPayLanding() {
             { label: "Payouts", href: "/payouts" },
             { label: "Tools", href: "/tools" },
             { label: "Docs", href: "/docs" },
+            { label: "Terms", href: "/terms" },
+            { label: "Privacy", href: "/privacy" },
           ].map(item => (
             <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>
           ))}

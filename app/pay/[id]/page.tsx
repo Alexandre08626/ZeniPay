@@ -274,7 +274,7 @@ function PayLinkContent() {
           </button>
 
           <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "#94A3B8", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            🔒 Secured by ZeniPay · {id}
+            🔒 Secured by ZeniPay | <a href="/terms" style={{color:"rgba(255,255,255,0.4)",textDecoration:"none"}}>Terms</a> | <a href="/privacy" style={{color:"rgba(255,255,255,0.4)",textDecoration:"none"}}>Privacy</a> · {id}
           </div>
         </form>
       </div>
