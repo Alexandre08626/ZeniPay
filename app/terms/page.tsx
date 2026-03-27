@@ -63,7 +63,7 @@ export default function TermsPage() {
           </p>
           <ul style={{ color: "#374151", lineHeight: 1.9, fontSize: 15, paddingLeft: 24, marginTop: 8 }}>
             <li><strong>Transaction Fee:</strong> 2.9% + $0.30 per transaction processed through the platform.</li>
-            <li><strong>Monthly Platform Fee:</strong> $97/month for access to the ZeniPay platform, dashboard, and support services.</li>
+            <li><strong>Monthly Platform Fee:</strong> No monthly fee. The ZeniPay platform, dashboard, and support services are included at no additional cost.</li>
             <li><strong>One-Time Setup Fee:</strong> $299 one-time fee for account setup, onboarding, and initial configuration.</li>
           </ul>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15, marginTop: 12 }}>
