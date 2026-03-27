@@ -1259,6 +1259,7 @@ export default function ZenivaCompleteApp() {
   const [linkCreated, setLinkCreated] = useState("");
   const [payLinks, setPayLinks] = useState<{ id: string; url: string; amount: number; description: string; status: string; uses: number; created_at: string; expires_at?: string }[]>([]);
   const [payLinksLoading, setPayLinksLoading] = useState(false);
+  const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
   React.useEffect(() => { fetch("/api/zenipay/cashback").then(r=>r.json()).then(d=>setCbData(d)).catch(()=>{}); }, []);
   const [cashbackData, setCbData] = useState<Record<string,unknown>|null>(null);
   const [benMsg, setBenMsg] = useState("");
@@ -1449,6 +1450,13 @@ export default function ZenivaCompleteApp() {
     setPayLinksLoading(false);
   };
 
+  const deletePayLinks = async (ids: string[]) => {
+    for (const id of ids) {
+      try { await fetch("/api/zenipay/create-link?id=" + id, { method: "DELETE" }); } catch {}
+    }
+    setSelectedLinks(new Set());
+    fetchPayLinks();
+  };
   const fetchPayLinks = async () => {
     try {
       const res = await fetch("/api/zenipay/create-link");
@@ -1583,7 +1591,7 @@ export default function ZenivaCompleteApp() {
               </div>
               <div>
                 <div style={{ fontSize:12, fontFamily:"monospace", letterSpacing:"0.2em", opacity:0.9 }}>•••• •••• •••• 1337</div>
-                <div style={{ fontSize:9, opacity:0.6, marginTop:3 }}>Mastercard Business</div>
+                <div style={{ fontSize:9, opacity:0.6, marginTop:3 }}>Merchant Revenue</div>
               </div>
             </div>
             {/* ZeniPay Debit */}
@@ -2064,12 +2072,12 @@ export default function ZenivaCompleteApp() {
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#E5247B" }} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#7B4FBF", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Visa Platform</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#7B4FBF", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Business Checking</span>
                     </div>
                     <BankCard
                       balance={platformBalance}
                       cardholder="ZENIVA TRAVEL LLC"
-                      subtitle="Platform · Visa"
+                      subtitle="Checking Account"
                       last4="0001"
                       expiry="12/28"
                       network="VISA"
@@ -2079,12 +2087,12 @@ export default function ZenivaCompleteApp() {
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#15B8C9" }} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#0ea5b0", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Mastercard Business</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#0ea5b0", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Merchant Revenue</span>
                     </div>
                     <BankCard
                       balance={WALLETS.platform.available}
                       cardholder="ZENIVA TRAVEL LLC"
-                      subtitle="Business · MC"
+                      subtitle="Revenue Account"
                       last4="0002"
                       expiry="12/28"
                       network="MASTERCARD"
@@ -2673,10 +2681,14 @@ export default function ZenivaCompleteApp() {
             {/* Pay Links List */}
             <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontWeight: 700 }}>📋 Active Pay Links</h3>
-                <button onClick={fetchPayLinks} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#374151" }}>
-                  🔄 Refresh
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <input type="checkbox" checked={selectedLinks.size === payLinks.length && payLinks.length > 0} onChange={e => setSelectedLinks(e.target.checked ? new Set(payLinks.map(l=>l.id)) : new Set())} />
+                  <h3 style={{ margin: 0, fontWeight: 700 }}>📋 Pay Links ({payLinks.length})</h3>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {selectedLinks.size > 0 && <button onClick={() => deletePayLinks(Array.from(selectedLinks))} style={{ background: "#DC2626", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🗑 Delete ({selectedLinks.size})</button>}
+                  <button onClick={fetchPayLinks} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#374151" }}>🔄 Refresh</button>
+                </div>
               </div>
               {payLinks.length === 0 ? (
                 <div style={{ background: "#f8fafc", borderRadius: 10, padding: "24px", textAlign: "center" as const, border: "1px dashed #e2e8f0" }}>
@@ -2688,6 +2700,7 @@ export default function ZenivaCompleteApp() {
                 <div style={{ display: "grid", gap: 10 }}>
                   {payLinks.map(link => (
                     <div key={link.id} style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, border: "1px solid #e2e8f0" }}>
+                      <input type="checkbox" checked={selectedLinks.has(link.id)} onChange={e => { const s = new Set(selectedLinks); e.target.checked ? s.add(link.id) : s.delete(link.id); setSelectedLinks(s); }} style={{ flexShrink: 0 }} />
                       <div style={{ width: 40, height: 40, background: `${BLUE}12`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>🔗</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 13, color: "#374151" }}>{link.description || "Payment Link"}</p>
@@ -2698,9 +2711,8 @@ export default function ZenivaCompleteApp() {
                         <p style={{ margin: 0, fontSize: 10, color: "#94a3b8" }}>{link.uses || 0} uses · {new Date(link.created_at).toLocaleDateString()}</p>
                       </div>
                       <StatusBadge status={link.status || "active"} />
-                      <button onClick={() => navigator.clipboard?.writeText(link.url)} style={{ background: BLUE, color: "white", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                        📋 Copy
-                      </button>
+                      <button onClick={() => navigator.clipboard?.writeText(link.url)} style={{ background: BLUE, color: "white", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>📋 Copy</button>
+                      <button onClick={() => deletePayLinks([link.id])} style={{ background: "#FEE2E2", color: "#DC2626", border: "1px solid #FECACA", borderRadius: 8, padding: "7px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>🗑</button>
                     </div>
                   ))}
                 </div>

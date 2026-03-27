@@ -92,3 +92,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create pay link" }, { status: 500 });
   }
 }
+
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+    const supabase = getSupabase();
+    if (!supabase) return NextResponse.json({ error: "No DB" }, { status: 500 });
+    const { error } = await supabase.from("zenipay_pay_links").delete().eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ deleted: true, id });
+  } catch (err) {
+    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+  }
+}
