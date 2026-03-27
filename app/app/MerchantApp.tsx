@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { SetupWizard, OnboardingStatus } from "./SetupWizard";
 
 // ─── Brand ─────────────────────────────────────────────
 const ZP_GREEN  = "#2DBE60";
@@ -137,6 +138,7 @@ function getTabs(mode: "sandbox" | "live") {
   // Sandbox
   return [
     { id: "overview",     icon: "📊", label: "Overview"     },
+    { id: "setup",        icon: "🛠️", label: "Setup"        },
     { id: "transactions", icon: "💳", label: "Transactions" },
     { id: "banking",      icon: "🏦", label: "Bank Account" },
     { id: "paylinks",     icon: "🔗", label: "Pay Links"    },
@@ -145,6 +147,7 @@ function getTabs(mode: "sandbox" | "live") {
     { id: "cashback",     icon: "💰", label: "Cashback"     },
     { id: "keys",         icon: "🔑", label: "API Keys"     },
     { id: "settings",     icon: "⚙️", label: "Settings"     },
+    { id: "onboarding-status", icon: "📋", label: "Status"  },
     { id: "go-live",      icon: "🚀", label: "Go Live"      },
   ];
 }
@@ -193,6 +196,11 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [invoices,      setInvoices]      = useState<Invoice[]>([]);
   const [viewInvoice,   setViewInvoice]   = useState<Invoice | null>(null);
   const [cashbackData, setCashbackData] = useState<Record<string,unknown> | null>(null);
+  const [setupStep, setSetupStep] = useState(0);
+  const [setupData, setSetupData] = useState<Record<string, Record<string,string>>>({ business: {}, owner: {}, bank: {} });
+  const [testResults, setTestResults] = useState<Record<string,boolean|null>>({ paylink: null, success: null, fail: null });
+  const [submitting, setSubmitting] = useState(false);
+  const [onboardingStatus, setOnboardingStatus] = useState<Record<string,unknown> | null>(null);
   useEffect(() => { fetch("/api/zenipay/cashback").then(r=>r.json()).then(d=>setCashbackData(d)).catch(()=>{}); }, []);
   const [payouts,       setPayouts]       = useState<Payout[]>([]);
   const [bankCfg,       setBankCfg]       = useState<BankCfg>({ holderName: "", bankName: "", transit: "", institution: "", accountNum: "", accountType: "chequing", step: 0 });
@@ -1886,12 +1894,15 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
     </div>);
   })();
 
+  const SetupSection = <SetupWizard accountId={account.id} onComplete={() => setTab("onboarding-status")} />;
+  const OnboardingStatusSection = <OnboardingStatus accountId={account.id} onGoLive={() => onModeChange("live")} />;
+
   const SECTION_MAP: Record<string,React.ReactNode> = {
     overview: OverviewSection, transactions: TransactionsSection, banking: BankingSection,
     paylinks: PayLinksSection, invoices: InvoicesSection, payouts: PayoutsSection,
     financing: FinancingSection, ben: BenAISection,
     accounting: AccountingSection, analytics: AnalyticsSection, keys: KeysSection,
-    settings: SettingsSection, "go-live": GoLiveSection, cashback: CashbackSection,
+    settings: SettingsSection, "go-live": GoLiveSection, cashback: CashbackSection, setup: SetupSection, "onboarding-status": OnboardingStatusSection,
   };
 
   // ─── MODALS ──────────────────────────────────────────
