@@ -11,7 +11,7 @@ function finixAuth() {
   return "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
 }
 
-async function finixReq(method: string, path: string, body?: object) {
+async function finixReq(method: string, path: string, body?: object): Promise<{status:number;data:Record<string,unknown>}> {
   const res = await fetch(`${FINIX_BASE}${path}`, {
     method,
     headers: { Authorization: finixAuth(), "Content-Type": "application/json", "Finix-Version": "2022-02-01" },
@@ -22,6 +22,11 @@ async function finixReq(method: string, path: string, body?: object) {
 
 export async function GET() {
   const R: Record<string, unknown> = {};
+  // Raise max transaction limit to 0,000
+  const identityId2 = process.env.FINIX_MERCHANT_IDENTITY_ID || "IDoCxHhKh8e1M1MjeW3RDoKD";
+  const limitUpdate = await finixReq("PUT", "/identities/" + identityId2, { entity: { max_transaction_amount: 5000000 } });
+  R.limit_update = { status: limitUpdate.status, max: limitUpdate.data?.entity?.max_transaction_amount };
+
   const merchantId = process.env.FINIX_MERCHANT_ID || "MUcTenaz57m9JrwwRZwpSfDc";
   const identityId = process.env.FINIX_MERCHANT_IDENTITY_ID || "IDoCxHhKh8e1M1MjeW3RDoKD";
 
