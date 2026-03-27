@@ -29,7 +29,9 @@ export async function GET(req: NextRequest) {
       // Instead, fetch all and filter in JS.
       const { data: allPays } = await supabase
         .from("zenipay_payments")
-        .select("id, amount, status, created_at, customer_name, currency, description, merchant_id") as {
+        .select("id, amount, status, created_at, customer_name, currency, description, merchant_id")
+        .order("created_at", { ascending: false })
+        .limit(500) as {
           data: Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string; merchant_id: string }> | null
         };
       const tablePays = merchant_id
@@ -83,7 +85,7 @@ export async function GET(req: NextRequest) {
         : (allPayouts || []).slice(0, 10);
 
       // Invoices — also filter in JS to avoid PGRST204
-      const { data: allTableInv } = await supabase.from("zenipay_invoices").select("*").order("created_at", { ascending: false }).limit(50);
+      const { data: allTableInv } = await supabase.from("zenipay_invoices").select("*").order("created_at", { ascending: false }).limit(500);
       const tableInv = merchant_id
         ? (allTableInv || []).filter((inv: { merchant_id?: string }) => inv.merchant_id === merchant_id).slice(0, 20)
         : (allTableInv || []).slice(0, 20);
