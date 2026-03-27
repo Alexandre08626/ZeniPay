@@ -25,7 +25,7 @@ export async function GET() {
   // Raise max transaction limit to 0,000
   const identityId2 = process.env.FINIX_MERCHANT_IDENTITY_ID || "IDoCxHhKh8e1M1MjeW3RDoKD";
   const limitUpdate = await finixReq("PUT", "/identities/" + identityId2, { entity: { max_transaction_amount: 5000000 } });
-  R.limit_update = { status: limitUpdate.status, max: limitUpdate.data?.entity?.max_transaction_amount };
+  R.limit_update = { status: limitUpdate.status, max: (limitUpdate.data as any)?.entity?.max_transaction_amount };
 
   const merchantId = process.env.FINIX_MERCHANT_ID || "MUcTenaz57m9JrwwRZwpSfDc";
   const identityId = process.env.FINIX_MERCHANT_IDENTITY_ID || "IDoCxHhKh8e1M1MjeW3RDoKD";
