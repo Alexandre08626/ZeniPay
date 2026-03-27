@@ -228,7 +228,11 @@ function PayPageContent() {
             <div style={{ fontSize:15,fontWeight:800,color:"#0D1B3A",marginBottom:20 }}>Card Details</div>
 
             {/* Card number */}
-            <div style={{ marginBottom:14 }}>
+                      <div style={{ padding: "14px 18px", background: "linear-gradient(135deg, #F59E0B, #D97706)", borderRadius: 10, marginBottom: 12, textAlign: "center", color: "#fff" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 4 }}>Temporary Maintenance</div>
+            <div style={{ fontSize: 12, opacity: 0.95 }}>To complete your booking, please contact <strong>info@zeniva.ca</strong></div>
+          </div>
+<div style={{ marginBottom:14 }}>
               <label style={{ fontSize:11,color:"#64748B",fontWeight:700,display:"block",marginBottom:6,letterSpacing:"0.07em" }}>CARD NUMBER</label>
               <div style={{ position:"relative" }}>
                 <input value={cardNum} onChange={e=>setCardNum(formatCard(e.target.value))} onFocus={()=>setFocused("card")} onBlur={()=>setFocused(null)}
