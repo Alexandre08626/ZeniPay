@@ -1895,7 +1895,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   })();
 
   const SetupSection = <SetupWizard accountId={account.id} onComplete={() => setTab("onboarding-status")} />;
-  const OnboardingStatusSection = <OnboardingStatus accountId={account.id} onGoLive={() => onModeChange("live")} />;
+  const OnboardingStatusSection = <OnboardingStatus accountId={account.id} onGoLive={() => onModeChange?.("live")} />;
 
   const SECTION_MAP: Record<string,React.ReactNode> = {
     overview: OverviewSection, transactions: TransactionsSection, banking: BankingSection,
