@@ -176,6 +176,26 @@ export async function POST(request: Request) {
         break;
       }
 
+      case "merchant.created":
+      case "merchant.underwritten":
+      case "merchant.updated": {
+        const merchantData = (payload.data || payload) as Record<string, unknown>;
+        const finixMerchantId = merchantData.id as string;
+        const onboardingState = merchantData.onboarding_state as string;
+
+        if (finixMerchantId && onboardingState) {
+          await supabase
+            .from("zenipay_merchants")
+            .update({
+              onboarding_state: onboardingState.toLowerCase(),
+              updated_at: now,
+            })
+            .eq("finix_merchant_id", finixMerchantId);
+          console.log(`[Webhook] Merchant ${finixMerchantId} → ${onboardingState}`);
+        }
+        break;
+      }
+
       default:
         console.log(`[Webhook] Unhandled: ${eventType}`);
     }
