@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
 
 // ═══════════════════════════════════════════════════════
@@ -1095,6 +1096,7 @@ const TABS = [
   { id: "analytics", icon: "📈", label: "Analytics" },
   { id: "ai", icon: "🤖", label: "Ben AI" },
   { id: "accounting", icon: "📚", label: "Accounting" },
+  { id: "cashback", icon: "💰", label: "Cashback" },
   { id: "settings", icon: "⚙️", label: "Settings" },
 ];
 
@@ -1246,7 +1248,9 @@ function RevenueSplitWidget() {
 //  MAIN COMPONENT
 // ══════════════════════════════════════════════════════
 export default function ZenivaCompleteApp() {
-  const [tab, setTab] = useState("overview");
+  const router = useRouter();
+  const [tab, setTabState] = useState(() => typeof window !== "undefined" ? (window.location.pathname.split("/app/")[1] || "overview") : "overview");
+  const setTab = (id: string) => { setTabState(id); router.push(`/app/${id}`); };
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [txSearch, setTxSearch] = useState("");
   const [txFilter, setTxFilter] = useState("all");
@@ -1255,6 +1259,8 @@ export default function ZenivaCompleteApp() {
   const [linkCreated, setLinkCreated] = useState("");
   const [payLinks, setPayLinks] = useState<{ id: string; url: string; amount: number; description: string; status: string; uses: number; created_at: string; expires_at?: string }[]>([]);
   const [payLinksLoading, setPayLinksLoading] = useState(false);
+  React.useEffect(() => { fetch("/api/zenipay/cashback").then(r=>r.json()).then(d=>setCbData(d)).catch(()=>{}); }, []);
+  const [cashbackData, setCbData] = useState<Record<string,unknown>|null>(null);
   const [benMsg, setBenMsg] = useState("");
   const [benChat, setBenChat] = useState<{ role: "user" | "ben"; text: string }[]>([
     { role: "ben", text: "Bonjour! Je suis Ben, votre agent IA ZeniPay. Je surveille les paiements, détecte les anomalies et génère vos rapports financiers en temps réel. Comment puis-je vous aider?" }
@@ -1483,7 +1489,7 @@ export default function ZenivaCompleteApp() {
     const zpGrad = "linear-gradient(90deg,#2DBE60 0%,#15B8C9 45%,#7B4FBF 100%)";
     const cardBalance = unitAccounts[0] ? (unitAccounts[0].availableCents / 100) : 0;
     const debitCard = unitCards[0];
-    const goTab = (tab: string) => { setTab(tab); setIsMobile(false); };
+    const goTab = (t: string) => { setTab(t); setIsMobile(false); };
     return (
       <div style={{ background:"linear-gradient(170deg,#080C1A 0%,#0B1740 45%,#0F1F5C 100%)", minHeight:"100vh", color:"white", fontFamily:"'Inter',system-ui,sans-serif", paddingBottom:110, overflowX:"hidden" }}>
         <style>{`@keyframes zpPulse{0%,100%{opacity:.7}50%{opacity:1}} @keyframes zpFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}} @keyframes zpShimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}`}</style>
@@ -3362,7 +3368,35 @@ export default function ZenivaCompleteApp() {
         )}
 
         {/* ════ SETTINGS ════ */}
-        {tab === "settings" && (
+
+        {tab === "cashback" && (() => {
+          const s = (cashbackData as Record<string,unknown>)?.summary as Record<string,unknown> | undefined;
+          const txF = ((cashbackData as Record<string,unknown>)?.transaction_fees || []) as Array<Record<string,unknown>>;
+          const setts = ((cashbackData as Record<string,unknown>)?.settlements || []) as Array<Record<string,unknown>>;
+          const fmtC = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return (<div style={{ display: "grid", gap: 16 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Finix Cashback — 90% Markup Return</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
+              {[{l:"Total Volume",v:s?fmtC(Number(s.total_volume||0)):"...",co:"#2DBE60"},{l:"Platform Fees",v:s?fmtC(Number(s.total_platform_fees||0)):"...",co:"#15B8C9"},{l:"Cashback (90%)",v:s?fmtC(Number(s.total_cashback_payouts||0)):"...",co:"#7B4FBF"},{l:"Settlements",v:s?String(s.settlements_count):"...",co:"#E5247B"}].map(k=>(<div key={k.l} style={{ background:"white",borderRadius:16,padding:"18px 20px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderTop: }}><div style={{ fontSize:24,fontWeight:900,color:k.co }}>{k.v}</div><div style={{ fontSize:11,color:"#64748b",marginTop:4 }}>{k.l}</div></div>))}
+            </div>
+            <div style={{ background:"white",borderRadius:16,padding:24,boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
+              <h3 style={{ margin:"0 0 16px",fontWeight:700 }}>Per-Transaction Breakdown</h3>
+              <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
+                <thead><tr style={{ borderBottom:"2px solid #e2e8f0" }}>{["Transaction","Amount","Gross Fee","Cashback 90%","Net Fee"].map(h=><th key={h} style={{ padding:"10px 12px",textAlign:"left",fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase" }}>{h}</th>)}</tr></thead>
+                <tbody>{txF.length===0?<tr><td colSpan={5} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Loading...</td></tr>:txF.map(t=>(<tr key={String(t.transfer_id)} style={{ borderBottom:"1px solid #f1f5f9" }}><td style={{ padding:"10px 12px",fontFamily:"monospace",fontSize:11 }}>{String(t.transfer_id).slice(0,16)}</td><td style={{ padding:"10px 12px",fontWeight:700 }}>{fmtC(Number(t.amount))}</td><td style={{ padding:"10px 12px",color:"#DC2626" }}>-{fmtC(Number(t.gross_fee))}</td><td style={{ padding:"10px 12px",color:"#2DBE60",fontWeight:700 }}>+{fmtC(Number(t.cashback_90pct))}</td><td style={{ padding:"10px 12px",fontWeight:800 }}>-{fmtC(Number(t.net_fee_merchant))}</td></tr>))}</tbody>
+              </table>
+            </div>
+            <div style={{ background:"white",borderRadius:16,padding:24,boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
+              <h3 style={{ margin:"0 0 16px",fontWeight:700 }}>Settlement History</h3>
+              <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
+                <thead><tr style={{ borderBottom:"2px solid #e2e8f0" }}>{["Period","Volume","Fees","Cashback","Net","Status"].map(h=><th key={h} style={{ padding:"10px 12px",textAlign:"left",fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase" }}>{h}</th>)}</tr></thead>
+                <tbody>{setts.length===0?<tr><td colSpan={6} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Loading...</td></tr>:setts.map(st=>(<tr key={String(st.id)} style={{ borderBottom:"1px solid #f1f5f9" }}><td style={{ padding:"10px 12px",fontSize:11,color:"#94a3b8" }}>{String(st.period_start||"*").slice(0,10)} → {String(st.period_end||"*").slice(0,10)}</td><td style={{ padding:"10px 12px",fontWeight:700 }}>{fmtC(Number(st.total_amount))}</td><td style={{ padding:"10px 12px",color:"#DC2626" }}>-{fmtC(Number(st.total_fees))}</td><td style={{ padding:"10px 12px",color:"#2DBE60",fontWeight:700 }}>+{fmtC(Number(st.cashback_to_platform))}</td><td style={{ padding:"10px 12px",fontWeight:800 }}>{fmtC(Number(st.net_amount))}</td><td style={{ padding:"10px 12px" }}><span style={{ padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:String(st.status)==="APPROVED"?"rgba(22,163,74,0.08)":"rgba(217,119,6,0.08)",color:String(st.status)==="APPROVED"?"#16A34A":"#D97706" }}>{String(st.status)}</span></td></tr>))}</tbody>
+              </table>
+            </div>
+          </div>);
+        })()}
+
+                {tab === "settings" && (
           <div style={{ display: "grid", gap: 16 }}>
             {/* Payment Gateway */}
             <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
