@@ -403,7 +403,7 @@ export default function AdminPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
                 {[
                   { label: "Total Clients",   value: `${CLIENTS.length}`,                                              accent: ZP_PURPLE },
-                  { label: "Live",            value: `${CLIENTS.filter(c => c.status === "active").length}`,           accent: ZP_GREEN  },
+                  { label: "Live",            value: `${CLIENTS.filter(c => c.status === "active" || c.status === "live").length}`,           accent: ZP_GREEN  },
                   { label: "Sandbox",         value: `${CLIENTS.filter(c => c.status === "sandbox").length}`,          accent: "#D97706" },
                   { label: "Total Volume",    value: fmt(CLIENTS.reduce((a, c) => a + c.volume, 0)),                   accent: ZP_CYAN   },
                 ].map(s => (
@@ -417,7 +417,7 @@ export default function AdminPage() {
               {CLIENTS.map(c => (
                 <div key={c.id} style={{ ...card({ marginBottom: 14, overflow: "hidden" }) }}>
                   {/* Coloured top stripe */}
-                  <div style={{ height: 3, background: c.status === "active" ? ZP_GRAD : "rgba(217,119,6,0.4)" }} />
+                  <div style={{ height: 3, background: (c.status === "active" || c.status === "live") ? ZP_GRAD : "rgba(217,119,6,0.4)" }} />
                   <div style={{ padding: "20px 24px" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
                       <Avatar name={c.name} size={48} grad />
@@ -475,6 +475,27 @@ export default function AdminPage() {
                               <span style={{ fontWeight: 600, maxWidth: 140, textAlign: "right", wordBreak: "break-all" }}>{s.v}</span>
                             </div>
                           ))}
+                        </div>
+
+                        {/* Cashback */}
+                        <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
+                          <div style={{ fontWeight: 700, fontSize: 11, color: "#10B981", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Cashback (Finix 90%)</div>
+                          {(() => {
+                            const vol = c.volume || 0;
+                            const txs = c.txCount || 0;
+                            const grossFees = vol * 0.029 + txs * 0.30;
+                            const cashback90 = grossFees * 0.90;
+                            const netFees = grossFees - cashback90;
+                            return [{k:"Gross Fees (2.9%+$0.30)",v:fmt(grossFees),co:"#DC2626"},{k:"Cashback to ZeniPay (90%)",v:fmt(cashback90),co:ZP_GREEN},{k:"Net Fee (Merchant pays)",v:fmt(netFees),co:ZP_PURPLE},{k:"Effective Rate",v:`${(vol>0?((netFees/vol)*100):0).toFixed(3)}%`,co:ZP_CYAN}].map(s=>(
+                              <div key={s.k} style={{ display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:12 }}>
+                                <span style={{ color:MUTED }}>{s.k}</span>
+                                <span style={{ fontWeight:700,color:s.co }}>{s.v}</span>
+                              </div>
+                            ));
+                          })()}
+                          <div style={{ marginTop:12,padding:10,background:"rgba(16,185,129,0.06)",borderRadius:8,border:"1px solid rgba(16,185,129,0.15)",fontSize:11,color:"#166534",lineHeight:1.6 }}>
+                            Finix returns 90% of the interchange markup to ZeniPay on every transaction.
+                          </div>
                         </div>
 
                         {/* API Keys */}
