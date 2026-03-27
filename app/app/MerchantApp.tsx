@@ -129,6 +129,7 @@ function getTabs(mode: "sandbox" | "live") {
       { id: "analytics",    icon: "📈", label: "Analytics"    },
       { id: "ben",          icon: "🤖", label: "Ben AI"       },
       { id: "accounting",   icon: "📚", label: "Accounting"   },
+      { id: "cashback",     icon: "💰", label: "Cashback"     },
       { id: "keys",         icon: "🔑", label: "API"          },
       { id: "settings",     icon: "⚙️", label: "Settings"     },
     ];
@@ -141,6 +142,7 @@ function getTabs(mode: "sandbox" | "live") {
     { id: "paylinks",     icon: "🔗", label: "Pay Links"    },
     { id: "invoices",     icon: "📄", label: "Invoices"     },
     { id: "payouts",      icon: "💸", label: "Payouts"      },
+    { id: "cashback",     icon: "💰", label: "Cashback"     },
     { id: "keys",         icon: "🔑", label: "API Keys"     },
     { id: "settings",     icon: "⚙️", label: "Settings"     },
     { id: "go-live",      icon: "🚀", label: "Go Live"      },
@@ -190,6 +192,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [payLinks,      setPayLinks]      = useState<PayLink[]>([]);
   const [invoices,      setInvoices]      = useState<Invoice[]>([]);
   const [viewInvoice,   setViewInvoice]   = useState<Invoice | null>(null);
+  const [cashbackData, setCashbackData] = useState<Record<string,unknown> | null>(null);
   const [payouts,       setPayouts]       = useState<Payout[]>([]);
   const [bankCfg,       setBankCfg]       = useState<BankCfg>({ holderName: "", bankName: "", transit: "", institution: "", accountNum: "", accountType: "chequing", step: 0 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1853,12 +1856,41 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
     </div>
   );
 
+
+  const CashbackSection = (() => {
+    const load = async () => { try { const r = await fetch("/api/zenipay/cashback"); setCashbackData(await r.json()); } catch(e) { console.error(e); } };
+    if (!cashbackData) load();
+    const s = (cashbackData as Record<string,unknown>)?.summary as Record<string,unknown> | undefined;
+    const txF = ((cashbackData as Record<string,unknown>)?.transaction_fees || []) as Array<Record<string,unknown>>;
+    const setts = ((cashbackData as Record<string,unknown>)?.settlements || []) as Array<Record<string,unknown>>;
+    return (<div>
+      <h2 style={{ fontSize:20,fontWeight:900,margin:"0 0 20px",color:TEXT }}>Finix Cashback — 90% Markup Return</h2>
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:14,marginBottom:24 }}>
+        {[{l:"Total Volume",v:s?`$${Number(s.total_volume||0).toFixed(2)}`:"...",c:ZP_GREEN},{l:"Platform Fees",v:s?`$${Number(s.total_platform_fees||0).toFixed(2)}`:"...",c:ZP_CYAN},{l:"Cashback to ZeniPay (90%)",v:s?`$${Number(s.total_cashback_payouts||0).toFixed(2)}`:"...",c:ZP_PURPLE},{l:"Settlements",v:s?String(s.settlements_count):"...",c:"#E5247B"}].map(c=>(<div key={c.l} style={{ background:"#fff",borderRadius:14,padding:"16px 18px",border:`1px solid ${BORDER}`,borderTop:`3px solid ${c.c}` }}><div style={{ fontSize:22,fontWeight:900,color:c.c }}>{c.v}</div><div style={{ fontSize:11,color:MUTED,marginTop:4,fontWeight:600 }}>{c.l}</div></div>))}
+      </div>
+      <div style={{ fontWeight:800,fontSize:15,marginBottom:12 }}>Per-Transaction Fee Breakdown</div>
+      <div style={{ background:"#fff",borderRadius:14,border:`1px solid ${BORDER}`,overflow:"hidden",marginBottom:24 }}>
+        <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
+          <thead><tr style={{ background:"#f8fafc",borderBottom:`1px solid ${BORDER}` }}>{["Transaction","Amount","Gross Fee","Cashback 90%","Net Fee"].map(h=><th key={h} style={{ padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:MUTED,textTransform:"uppercase" }}>{h}</th>)}</tr></thead>
+          <tbody>{txF.length===0?<tr><td colSpan={5} style={{ padding:24,textAlign:"center",color:MUTED }}>Loading...</td></tr>:txF.map(t=>(<tr key={String(t.transfer_id)} style={{ borderBottom:`1px solid ${BORDER}` }}><td style={{ padding:"10px 14px",fontFamily:"monospace",fontSize:11 }}>{String(t.transfer_id).slice(0,16)}...</td><td style={{ padding:"10px 14px",fontWeight:700 }}>${Number(t.amount).toFixed(2)}</td><td style={{ padding:"10px 14px",color:"#DC2626" }}>-${Number(t.gross_fee).toFixed(2)}</td><td style={{ padding:"10px 14px",color:ZP_GREEN,fontWeight:700 }}>+${Number(t.cashback_90pct).toFixed(2)}</td><td style={{ padding:"10px 14px",fontWeight:800 }}>-${Number(t.net_fee_merchant).toFixed(2)}</td></tr>))}</tbody>
+        </table>
+      </div>
+      <div style={{ fontWeight:800,fontSize:15,marginBottom:12 }}>Settlement History</div>
+      <div style={{ background:"#fff",borderRadius:14,border:`1px solid ${BORDER}`,overflow:"hidden" }}>
+        <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
+          <thead><tr style={{ background:"#f8fafc",borderBottom:`1px solid ${BORDER}` }}>{["Period","Volume","Fees","Cashback","Net","Status"].map(h=><th key={h} style={{ padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:MUTED,textTransform:"uppercase" }}>{h}</th>)}</tr></thead>
+          <tbody>{setts.length===0?<tr><td colSpan={6} style={{ padding:24,textAlign:"center",color:MUTED }}>Loading...</td></tr>:setts.map(st=>(<tr key={String(st.id)} style={{ borderBottom:`1px solid ${BORDER}` }}><td style={{ padding:"10px 14px",fontSize:11,color:MUTED }}>{String(st.period_start||"").slice(0,10)} → {String(st.period_end||"").slice(0,10)}</td><td style={{ padding:"10px 14px",fontWeight:700 }}>${Number(st.total_amount).toFixed(2)}</td><td style={{ padding:"10px 14px",color:"#DC2626" }}>-${Number(st.total_fees).toFixed(2)}</td><td style={{ padding:"10px 14px",color:ZP_GREEN,fontWeight:700 }}>+${Number(st.cashback_to_platform).toFixed(2)}</td><td style={{ padding:"10px 14px",fontWeight:800 }}>${Number(st.net_amount).toFixed(2)}</td><td style={{ padding:"10px 14px" }}><span style={{ padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:String(st.status)==="APPROVED"?"rgba(22,163,74,0.08)":"rgba(217,119,6,0.08)",color:String(st.status)==="APPROVED"?"#16A34A":"#D97706" }}>{String(st.status)}</span></td></tr>))}</tbody>
+        </table>
+      </div>
+    </div>);
+  })();
+
   const SECTION_MAP: Record<string,React.ReactNode> = {
     overview: OverviewSection, transactions: TransactionsSection, banking: BankingSection,
     paylinks: PayLinksSection, invoices: InvoicesSection, payouts: PayoutsSection,
     financing: FinancingSection, ben: BenAISection,
     accounting: AccountingSection, analytics: AnalyticsSection, keys: KeysSection,
-    settings: SettingsSection, "go-live": GoLiveSection,
+    settings: SettingsSection, "go-live": GoLiveSection, cashback: CashbackSection,
   };
 
   // ─── MODALS ──────────────────────────────────────────

@@ -56,6 +56,7 @@ const NAV = [
   { key: "bank",         icon: "⬡",  label: "ZeniCard",     color: ZP_GREEN  },
   { key: "api",          icon: "⌥",  label: "API & Keys",   color: ZP_CYAN   },
   { key: "billing",      icon: "💳", label: "Billing",      color: "#E5247B" },
+  { key: "cashback",     icon: "💰", label: "Cashback",     color: "#10B981" },
   { key: "settings",     icon: "⚙",  label: "Settings",     color: ZP_PURPLE },
 ] as const;
 type TabKey = typeof NAV[number]["key"];
@@ -69,6 +70,7 @@ export default function AdminPage() {
   const [signups, setSignups]       = useState<any[]>([]);
   const [adminStats, setAdminStats] = useState<any>(null);
   const [billingInvoices, setBillingInvoices] = useState<any[]>([]);
+  const [cashbackData, setCashbackData] = useState<Record<string,unknown> | null>(null);
   const [billingLoading, setBillingLoading]   = useState(false);
   const [billingForm, setBillingForm]         = useState<{ open: boolean; merchant_id: string; merchant_name: string; period_start: string; period_end: string }>({ open: false, merchant_id: "", merchant_name: "", period_start: "", period_end: "" });
 
@@ -110,6 +112,7 @@ export default function AdminPage() {
       .then(r => r.json())
       .then(data => setAdminStats(data))
       .catch(err => console.error("[Admin] Failed to load stats:", err));
+    fetch("/api/zenipay/cashback").then(r=>r.json()).then(d=>setCashbackData(d)).catch(()=>{});
     // Load billing invoices
     fetch("/api/zenipay/admin/billing")
       .then(r => r.json())
@@ -921,6 +924,34 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+
+          
+          {/* cashback tab */}
+          {tab === "cashback" && (() => {
+            const s = (cashbackData as Record<string,unknown>)?.summary as Record<string,unknown> | undefined;
+            const txF = ((cashbackData as Record<string,unknown>)?.transaction_fees || []) as Array<Record<string,unknown>>;
+            const setts = ((cashbackData as Record<string,unknown>)?.settlements || []) as Array<Record<string,unknown>>;
+            return (<div>
+              <div style={{ marginBottom: 20 }}><div style={{ fontWeight: 800, fontSize: 16 }}>Finix Cashback &mdash; Platform Revenue (90% Markup)</div><div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>ZeniPay receives 90% of the interchange markup on every transaction</div></div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+                {[{l:"Total Volume",v:s?fmt(Number(s.total_volume||0)):"...",a:ZP_GREEN},{l:"Fees Collected",v:s?fmt(Number(s.total_platform_fees||0)):"...",a:ZP_CYAN},{l:"Cashback (90%)",v:s?fmt(Number(s.total_cashback_payouts||0)):"...",a:ZP_PURPLE},{l:"Transactions",v:s?String(s.transactions_count):"...",a:"#E5247B"}].map(c=>(<div key={c.l} style={{ ...card({ padding: "14px 16px" }), borderTop: `3px solid ${c.a}` }}><div style={{ fontSize: 20, fontWeight: 900, color: c.a }}>{c.v}</div><div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>{c.l}</div></div>))}
+              </div>
+              <div style={{ ...card({ overflow: "hidden" }), marginBottom: 20 }}>
+                <div style={{ padding: "14px 16px", fontWeight: 700, borderBottom: `1px solid ${BORDER}` }}>Per-Transaction Cashback</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead><tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>{["Transfer","Amount","Gross Fee","Cashback 90%","Net Fee"].map(h=><th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{h}</th>)}</tr></thead>
+                  <tbody>{txF.length===0?<tr><td colSpan={5} style={{ padding:32,textAlign:"center",color:MUTED }}>Loading...</td></tr>:txF.map((t:Record<string,unknown>)=>(<tr key={String(t.transfer_id)} style={{ borderBottom:`1px solid ${BORDER}` }}><td style={{ padding:"10px 14px",fontFamily:"monospace",fontSize:11 }}>{String(t.transfer_id).slice(0,18)}</td><td style={{ padding:"10px 14px",fontWeight:700 }}>{fmt(Number(t.amount))}</td><td style={{ padding:"10px 14px",color:"#DC2626" }}>-{fmt(Number(t.gross_fee))}</td><td style={{ padding:"10px 14px",color:ZP_GREEN,fontWeight:700 }}>+{fmt(Number(t.cashback_90pct))}</td><td style={{ padding:"10px 14px",fontWeight:800 }}>{fmt(Number(t.net_fee_merchant))}</td></tr>))}</tbody>
+                </table>
+              </div>
+              <div style={{ ...card({ overflow: "hidden" }) }}>
+                <div style={{ padding: "14px 16px", fontWeight: 700, borderBottom: `1px solid ${BORDER}` }}>Settlement History</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead><tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>{["Period","Volume","Fees","Cashback","Net","Status"].map(h=><th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{h}</th>)}</tr></thead>
+                  <tbody>{setts.length===0?<tr><td colSpan={6} style={{ padding:32,textAlign:"center",color:MUTED }}>Loading...</td></tr>:setts.map((st:Record<string,unknown>)=>(<tr key={String(st.id)} style={{ borderBottom:`1px solid ${BORDER}` }}><td style={{ padding:"10px 14px",fontSize:11,color:MUTED }}>{String(st.period_start||"").slice(0,10)} &rarr; {String(st.period_end||"").slice(0,10)}</td><td style={{ padding:"10px 14px",fontWeight:700 }}>{fmt(Number(st.total_amount))}</td><td style={{ padding:"10px 14px",color:"#DC2626" }}>-{fmt(Number(st.total_fees))}</td><td style={{ padding:"10px 14px",color:ZP_GREEN,fontWeight:700 }}>+{fmt(Number(st.cashback_to_platform))}</td><td style={{ padding:"10px 14px",fontWeight:800 }}>{fmt(Number(st.net_amount))}</td><td style={{ padding:"10px 14px" }}><span style={{ padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:String(st.status)==="APPROVED"?"rgba(22,163,74,0.08)":"rgba(217,119,6,0.08)",color:String(st.status)==="APPROVED"?"#16A34A":"#D97706" }}>{String(st.status)}</span></td></tr>))}</tbody>
+                </table>
+              </div>
+            </div>);
+          })()}
 
           {/* ════════════════ BILLING ════════════════ */}
           {tab === "billing" && (
