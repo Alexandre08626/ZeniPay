@@ -150,10 +150,6 @@ function PayLinkContent() {
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>Ref: {id}</p>
         </div>
       </div>
-            <div style={{ padding: "16px 20px", background: "linear-gradient(135deg, #F59E0B, #D97706)", borderRadius: 12, marginBottom: 16, marginTop: 16, textAlign: "center", color: "#fff" }}>
-              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Maintenance temporaire</div>
-              <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.95 }}>Pour finaliser votre reservation, veuillez contacter <strong>info@zeniva.ca</strong></div>
-            </div>
 
     );
   }
@@ -204,7 +200,11 @@ function PayLinkContent() {
           </div>
 
           {/* Email */}
-          <div style={{ marginBottom: 14 }}>
+                    <div style={{ padding: "14px 18px", background: "linear-gradient(135deg, #F59E0B, #D97706)", borderRadius: 10, marginBottom: 12, textAlign: "center", color: "#fff" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 4 }}>Maintenance temporaire</div>
+            <div style={{ fontSize: 12, opacity: 0.95 }}>Pour finaliser votre reservation, contactez <strong>info@zeniva.ca</strong></div>
+          </div>
+<div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>EMAIL (for receipt)</label>
             <input
               value={email} onChange={e => setEmail(e.target.value)}
