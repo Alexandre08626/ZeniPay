@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
-import SandboxApproval from "./SandboxApproval";
+import { SetupWizard } from "./SetupWizard";
 
 // ═══════════════════════════════════════════════════════
 //  ZeniPay — The Financial Core of Zeniva Travel
@@ -1282,35 +1282,6 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const INVOICES = isZeniva ? ZENIVA_INVOICES : [];
   const PAYOUTS = isZeniva ? ZENIVA_PAYOUTS : [];
 
-  // Sandbox approval gate — non-Zeniva merchants in sandbox must complete the questionnaire
-  const [sandboxApproved, setSandboxApproved] = useState(() => {
-    if (isZeniva) return true; // Zeniva is always approved
-    if (MMODE !== "sandbox") return true; // Live mode = no gate
-    if (typeof window === "undefined") return false;
-    try {
-      const stored = JSON.parse(localStorage.getItem(`zp_approval_${BEMAIL}`) || "{}");
-      return stored.approved === true;
-    } catch { return false; }
-  });
-
-  if (!sandboxApproved) {
-    return (
-      <SandboxApproval
-        email={BEMAIL}
-        businessName={BNAME}
-        sandboxKey=""
-        sandboxSecret=""
-        onApproved={() => {
-          try {
-            const d = JSON.parse(localStorage.getItem(`zp_approval_${BEMAIL}`) || "{}");
-            localStorage.setItem(`zp_approval_${BEMAIL}`, JSON.stringify({ ...d, approved: true }));
-          } catch {}
-          setSandboxApproved(true);
-        }}
-      />
-    );
-  }
-
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [txSearch, setTxSearch] = useState("");
   const [txFilter, setTxFilter] = useState("all");
@@ -1491,6 +1462,14 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const platformBalance = merchantBalance > 0 ? merchantBalance : (WALLETS.platform.available + WALLETS.agent.available + WALLETS.influencer.available + WALLETS.supplier.available);
   const successRate = TRANSACTIONS.length > 0 ? Math.round(TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length / TRANSACTIONS.length * 100) : 0;
   const isLive = MMODE === "live";
+  // In sandbox mode, add Setup & Onboarding Status tabs
+  const activeTabs = MMODE === "sandbox" && !isZeniva
+    ? [
+        { id: "setup", icon: "🚀", label: "Setup" },
+        { id: "onboarding-status", icon: "✅", label: "Go Live" },
+        ...TABS,
+      ]
+    : TABS;
 
   const filteredTx = TRANSACTIONS.filter(t => {
     const matchSearch = !txSearch || t.customer.toLowerCase().includes(txSearch.toLowerCase()) || t.id.includes(txSearch) || t.booking.includes(txSearch);
@@ -1799,7 +1778,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         </div>
         {/* Nav items */}
         <div style={{ flex: 1, overflowY: "auto" as const, padding: "8px 6px", scrollbarWidth: "none" as const }}>
-          {TABS.map(t => {
+          {activeTabs.map(t => {
             const isLink = !!(t as unknown as { href?: string }).href;
             const isActive = tab === t.id;
             const btnStyle = {
@@ -1920,7 +1899,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
 
           {/* ── TAB BAR ── */}
           <div style={{ display: "flex", gap: 0, overflowX: "auto", scrollbarWidth: "none" as const }}>
-            {TABS.map(t => (
+            {activeTabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} className="zp-tab-btn" style={{
                 background: tab === t.id ? `${BLUE}15` : "transparent",
                 border: "none", borderBottom: tab === t.id ? `2px solid ${BLUE}` : "2px solid transparent",
@@ -3540,6 +3519,36 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ════ SETUP (Sandbox) ════ */}
+        {tab === "setup" && (
+          <SetupWizard accountId={MID} onComplete={() => setTab("onboarding-status")} />
+        )}
+
+        {/* ════ GO LIVE / ONBOARDING STATUS (Sandbox) ════ */}
+        {tab === "onboarding-status" && (
+          <div style={{ background: "white", borderRadius: 16, padding: 32, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+            <h2 style={{ margin: "0 0 8px", fontWeight: 900, fontSize: 22 }}>🚀 Go Live — Onboarding Status</h2>
+            <p style={{ margin: "0 0 24px", fontSize: 13, color: "#64748b" }}>Complete your setup to activate live payments for {BNAME}</p>
+            <div style={{ display: "grid", gap: 12 }}>
+              {[
+                { label: "Business Verification", done: true },
+                { label: "Owner KYC", done: true },
+                { label: "Bank Account", done: true },
+                { label: "Sandbox Tests", done: true },
+                { label: "Finix Approval", done: false },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: s.done ? "#f0fdf4" : "#f8fafc", borderRadius: 12, border: `1px solid ${s.done ? "#86efac" : "#e2e8f0"}` }}>
+                  <span style={{ fontSize: 18 }}>{s.done ? "✅" : "⏳"}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: s.done ? "#166534" : "#64748b" }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setTab("overview")} style={{ marginTop: 24, padding: "14px 32px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #2DBE60, #15B8C9, #7B4FBF)", color: "white", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
+              Switch to Live Mode →
+            </button>
           </div>
         )}
 
