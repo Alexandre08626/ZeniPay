@@ -8,7 +8,7 @@ const GOLD = "#F5A623";
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
-type Account = { id: string; merchant_id: string; account_type: string; account_name: string; account_number: string; routing_number: string; balance: number; status: string; is_primary: boolean; currency?: string; goal_amount?: number; goal_deadline?: string };
+type Account = { id: string; merchant_id: string; account_type: string; account_name: string; account_number: string; routing_number: string; balance: number; status: string; is_primary: boolean; currency?: string; goal_amount?: number; goal_deadline?: string; created_at?: string; updated_at?: string };
 type Transfer = { id: string; transfer_type: string; recipient_name: string; amount: number; fee: number; status: string; memo: string; created_at: string };
 type CardDB = { id: string; card_type: string; last4: string; expiry: string; status: string; is_virtual: boolean; is_physical: boolean; spending_limit: number; daily_limit: number; spent_this_month?: number };
 type Contact = { id: string; name: string; routing_number?: string; account_number?: string; bank_name?: string; swift_code?: string };
@@ -121,6 +121,7 @@ export default function BankingPage(props: BankingProps) {
   const [notifs, setNotifs] = useState<Notification>({ payment_received: true, payout_completed: true, card_transaction: true, weekly_summary: false, large_transaction_threshold: 1000, low_balance_threshold: 500 });
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const toastIdRef = useRef(0);
 
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
@@ -252,15 +253,19 @@ export default function BankingPage(props: BankingProps) {
           {accounts.map((a, i) => {
             const typeColor = ACCT_COLORS[a.account_type] || BLUE;
             return (
-              <div key={a.id} style={{ ...cardStyle, position: "relative", animation: `slideUp 0.3s ease forwards`, animationDelay: `${i * 0.05}s`, opacity: 0 }}>
+              <div key={a.id} onClick={() => setSelectedAccount(a)} style={{ ...cardStyle, position: "relative", animation: `slideUp 0.3s ease forwards`, animationDelay: `${i * 0.05}s`, opacity: 0, cursor: "pointer" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 32px rgba(0,0,0,0.10)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 24px rgba(0,0,0,0.06)"; }}>
                 <div style={{ position: "absolute", top: 20, left: 20, width: 8, height: 8, borderRadius: "50%", background: ACCT_GRADIENTS[a.account_type] || BLUE }} />
                 <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "flex-start", marginBottom: 8 }}>
                   <span style={badge(a.status, a.status === "active" ? GREEN : GOLD)}>{a.status}</span>
+                  {a.is_primary && <span style={{ ...badge("primary", BLUE), marginLeft: 6 }}>primary</span>}
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 16, color: "#0F172A", marginTop: 4, paddingLeft: 20 }}>{a.account_name}</div>
                 <div style={{ fontSize: 12, color: "#64748B", marginTop: 4, paddingLeft: 20, textTransform: "capitalize" }}>{a.account_type.replace(/_/g, " ")}</div>
                 <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 8, fontFamily: "'SF Mono', 'Fira Code', monospace", letterSpacing: "0.05em", paddingLeft: 20 }}>****{a.account_number?.slice(-4) || "0000"}</div>
                 <div style={{ fontSize: 28, fontWeight: 900, marginTop: 14, color: typeColor, letterSpacing: "-0.02em", paddingLeft: 20 }}>{fmt(a.balance || 0)}</div>
+                <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 8, paddingLeft: 20 }}>Click for 360° view →</div>
               </div>
             );
           })}
@@ -658,6 +663,139 @@ export default function BankingPage(props: BankingProps) {
       <div style={{ padding: 28, maxWidth: 1140, margin: "0 auto" }}>
         {renderSection()}
       </div>
+
+      {/* ═══ 360° ACCOUNT MODAL ═══ */}
+      {selectedAccount && (() => {
+        const a = selectedAccount;
+        const typeColor = ACCT_COLORS[a.account_type] || BLUE;
+        const acctTxns = transactions.filter(() => true).sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime()).slice(0, 10);
+        const acctTransfers = transfers.filter(t => t.status !== "failed").slice(0, 5);
+        const thisMonthTxns = transactions.filter(t => { const d = new Date(t.date); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && (t.status === "succeeded" || t.status === "completed"); });
+        const monthlyVolume = thisMonthTxns.reduce((s, t) => s + Number(t.amount), 0);
+        const monthlyFees = monthlyVolume * 0.029 + thisMonthTxns.length * 0.30;
+        const monthlyNet = monthlyVolume - monthlyFees;
+
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", display: "flex", justifyContent: "flex-end" }} onClick={() => setSelectedAccount(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ width: "min(680px,100vw)", height: "100vh", background: "#fff", overflowY: "auto", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)" }}>
+              {/* Header */}
+              <div style={{ background: ACCT_GRADIENTS[a.account_type] || `linear-gradient(135deg, ${BLUE}, ${PURPLE})`, padding: "32px 28px", color: "white" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <p style={{ margin: "0 0 4px", fontSize: 11, opacity: 0.7, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>360° Account View</p>
+                    <h2 style={{ margin: "0 0 6px", fontWeight: 900, fontSize: 24 }}>{a.account_name}</h2>
+                    <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>{businessName} · {a.account_type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</p>
+                  </div>
+                  <button onClick={() => setSelectedAccount(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 10, width: 36, height: 36, color: "white", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                </div>
+                <p style={{ margin: "20px 0 0", fontWeight: 900, fontSize: 42, letterSpacing: "-2px" }}>{fmt(Number(a.balance) || 0)}</p>
+                <p style={{ margin: "4px 0 0", fontSize: 12, opacity: 0.6 }}>Available Balance · {a.currency || "USD"}</p>
+              </div>
+
+              <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20 }}>
+                {/* Account Details */}
+                <div style={{ ...cardStyle }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>🏦 Account Details</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[
+                      { l: "Account Number", v: a.account_number || "—" },
+                      { l: "Routing Number", v: a.routing_number || "812345678" },
+                      { l: "Account Type", v: a.account_type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) },
+                      { l: "Currency", v: a.currency || "USD" },
+                      { l: "Status", v: a.status.charAt(0).toUpperCase() + a.status.slice(1) },
+                      { l: "Primary Account", v: a.is_primary ? "Yes" : "No" },
+                      { l: "Interest Rate", v: a.account_type.includes("savings") ? "0.5% APY" : "N/A" },
+                      { l: "Opened", v: a.created_at ? new Date(a.created_at).toLocaleDateString() : "—" },
+                    ].map(r => (
+                      <div key={r.l} style={{ padding: "10px 14px", background: "#FAFBFC", borderRadius: 10 }}>
+                        <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{r.l}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", fontFamily: r.l.includes("Number") ? "'SF Mono', monospace" : "inherit" }}>{r.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Merchant Info */}
+                <div style={{ ...cardStyle }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>🏢 Merchant Information</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[
+                      { l: "Business Name", v: businessName },
+                      { l: "Merchant ID", v: merchantId },
+                      { l: "Gross Revenue", v: fmt(grossRevenue) },
+                      { l: "ZeniPay Fees", v: fmt(zenipayFees) },
+                      { l: "Net Revenue", v: fmt(platformBalance) },
+                      { l: "Total Transactions", v: String(transactions.length) },
+                    ].map(r => (
+                      <div key={r.l} style={{ padding: "10px 14px", background: "#FAFBFC", borderRadius: 10 }}>
+                        <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{r.l}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{r.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* This Month */}
+                <div style={{ ...cardStyle }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>📊 This Month</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                    {[
+                      { l: "Volume", v: fmt(monthlyVolume), c: GREEN },
+                      { l: "Fees", v: fmt(monthlyFees), c: GOLD },
+                      { l: "Net", v: fmt(monthlyNet), c: typeColor },
+                    ].map(s => (
+                      <div key={s.l} style={{ textAlign: "center", padding: "16px 12px", background: "#FAFBFC", borderRadius: 12 }}>
+                        <div style={{ fontSize: 22, fontWeight: 900, color: s.c, letterSpacing: "-0.02em" }}>{s.v}</div>
+                        <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4, fontWeight: 700, textTransform: "uppercase" }}>{s.l}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div style={{ ...cardStyle }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>📋 Recent Activity</h3>
+                  {acctTxns.length === 0 && acctTransfers.length === 0 ? (
+                    <p style={{ color: "#94A3B8", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No activity yet</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                      {acctTxns.map(t => (
+                        <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #F1F5F9" }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: "#0F172A" }}>{t.customer}</div>
+                            <div style={{ fontSize: 11, color: "#94A3B8" }}>{new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                          </div>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: GREEN, fontFamily: "monospace" }}>+{fmt(t.amount)}</div>
+                        </div>
+                      ))}
+                      {acctTransfers.map(t => (
+                        <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #F1F5F9" }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: "#0F172A" }}>{t.transfer_type.toUpperCase()} to {t.recipient_name}</div>
+                            <div style={{ fontSize: 11, color: "#94A3B8" }}>{new Date(t.created_at).toLocaleDateString()}</div>
+                          </div>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: "#DC2626", fontFamily: "monospace" }}>-{fmt(Number(t.amount) + Number(t.fee))}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Actions */}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => { setSelectedAccount(null); setSection("Send Money"); }} style={btnPrimary()}>💸 Send Money</button>
+                  <button onClick={() => { setSelectedAccount(null); setSection("Transactions"); }} style={btnSecondary()}>📋 View All Transactions</button>
+                  {a.status === "active" ? (
+                    <button onClick={async () => { await post("freeze_account", { account_id: a.id, freeze: true }); setSelectedAccount(null); }} style={btnAccent("#DC2626", true)}>🔒 Freeze</button>
+                  ) : (
+                    <button onClick={async () => { await post("freeze_account", { account_id: a.id, freeze: false }); setSelectedAccount(null); }} style={btnAccent(GREEN, true)}>🔓 Unfreeze</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

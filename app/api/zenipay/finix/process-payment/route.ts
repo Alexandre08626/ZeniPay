@@ -160,6 +160,22 @@ export async function POST(req: NextRequest) {
           tx_count: (Number(merchant?.tx_count) || 0) + 1,
           updated_at: now,
         }).eq("id", merchantId);
+
+        // Also update the primary banking account balance (net = gross - fees)
+        const fee = amountNum * 0.029 + 0.30;
+        const netDeposit = amountNum - fee;
+        const { data: primaryAcct } = await supabase
+          .from("zenipay_accounts")
+          .select("id, balance")
+          .eq("merchant_id", merchantId)
+          .eq("is_primary", true)
+          .single();
+        if (primaryAcct) {
+          await supabase.from("zenipay_accounts").update({
+            balance: (Number(primaryAcct.balance) || 0) + netDeposit,
+            updated_at: now,
+          }).eq("id", primaryAcct.id);
+        }
       } catch (e) {
         console.error("[DB] Merchant update failed:", e);
       }
