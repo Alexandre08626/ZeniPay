@@ -67,13 +67,29 @@ export async function POST(request: Request) {
     if (cached) return Response.json({ ...cached, idempotent_replay: true });
 
     // ── Balance check — CRITICAL: cannot payout more than available ────────
-    const wallets = await getWalletBalances();
-    const walletBalance = wallets[from_wallet as WalletType];
+    // Use merchant balance as source of truth (stays in sync with payments + payouts)
+    const supabaseCheck = getSupabase();
+    const merchant_id_check = body.merchant_id || "zeniva-001";
+    let availableBalance = 0;
+    if (supabaseCheck) {
+      const { data: mCheck } = await supabaseCheck
+        .from("zenipay_merchants")
+        .select("balance")
+        .eq("id", merchant_id_check)
+        .single();
+      availableBalance = Number(mCheck?.balance) || 0;
+    }
+    // Fallback to ledger if merchant balance is 0
+    if (availableBalance === 0) {
+      const wallets = await getWalletBalances();
+      const walletBalance = wallets[from_wallet as WalletType];
+      availableBalance = walletBalance?.available || 0;
+    }
 
-    if (!walletBalance || walletBalance.available < parsedAmount) {
+    if (availableBalance < parsedAmount) {
       return Response.json({
-        error: `Insufficient balance. Available: $${walletBalance?.available?.toFixed(2) || "0.00"}`,
-        available: walletBalance?.available || 0,
+        error: `Insufficient balance. Available: $${availableBalance.toFixed(2)}`,
+        available: availableBalance,
       }, { status: 422 });
     }
 
@@ -115,6 +131,20 @@ export async function POST(request: Request) {
         status: "paid",
         executed_at: new Date().toISOString(),
       }).eq("id", payoutId);
+
+      // ── Decrement merchant balance to stay in sync ────────────────────
+      const merchant_id = body.merchant_id || "zeniva-001";
+      const { data: merchant } = await supabase
+        .from("zenipay_merchants")
+        .select("balance")
+        .eq("id", merchant_id)
+        .single();
+      if (merchant) {
+        await supabase.from("zenipay_merchants").update({
+          balance: Math.max(0, (Number(merchant.balance) || 0) - parsedAmount),
+          updated_at: new Date().toISOString(),
+        }).eq("id", merchant_id);
+      }
     }
 
     // ── Audit log ────────────────────────────────────────────────────────

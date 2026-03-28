@@ -133,8 +133,9 @@ export async function POST(req: NextRequest) {
 
       // ── 5. Update ledger (wallets/banking) ────────────────────────────
       await supabase.from("zenipay_ledger").insert({
-        id: `led_${Date.now()}`,
+        id: `led_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         payment_id: txnId,
+        merchant_id: merchantId,
         event_type: "customer_payment",
         wallet_type: "platform",
         direction: "credit",
