@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
+import SandboxApproval from "./SandboxApproval";
 
 // ═══════════════════════════════════════════════════════
 //  ZeniPay — The Financial Core of Zeniva Travel
@@ -1280,6 +1281,35 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const INFLUENCERS: { id?: string; name: string; code: string; refs: number; revenue: number; commission: number; pending: number; rate: string; handle?: string; platform?: string; tier?: string; status?: string; referrals?: number }[] = [];
   const INVOICES = isZeniva ? ZENIVA_INVOICES : [];
   const PAYOUTS = isZeniva ? ZENIVA_PAYOUTS : [];
+
+  // Sandbox approval gate — non-Zeniva merchants in sandbox must complete the questionnaire
+  const [sandboxApproved, setSandboxApproved] = useState(() => {
+    if (isZeniva) return true; // Zeniva is always approved
+    if (MMODE !== "sandbox") return true; // Live mode = no gate
+    if (typeof window === "undefined") return false;
+    try {
+      const stored = JSON.parse(localStorage.getItem(`zp_approval_${BEMAIL}`) || "{}");
+      return stored.approved === true;
+    } catch { return false; }
+  });
+
+  if (!sandboxApproved) {
+    return (
+      <SandboxApproval
+        email={BEMAIL}
+        businessName={BNAME}
+        sandboxKey=""
+        sandboxSecret=""
+        onApproved={() => {
+          try {
+            const d = JSON.parse(localStorage.getItem(`zp_approval_${BEMAIL}`) || "{}");
+            localStorage.setItem(`zp_approval_${BEMAIL}`, JSON.stringify({ ...d, approved: true }));
+          } catch {}
+          setSandboxApproved(true);
+        }}
+      />
+    );
+  }
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [txSearch, setTxSearch] = useState("");
