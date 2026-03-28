@@ -1085,6 +1085,263 @@ function PayoutsPanel({ agents, platformBalance }: { agents: AgentType[]; platfo
   );
 }
 
+// ── DISPUTES PANEL ───────────────────────────────────
+function DisputesPanel({ merchantId, transactions }: { merchantId: string; transactions: { id: string; customer: string; amount: number; date: string; status: string }[] }) {
+  const [disputes, setDisputes] = React.useState<Array<Record<string, unknown>>>([]);
+  const [stats, setStats] = React.useState({ total: 0, open: 0, won: 0, lost: 0, total_amount: 0 });
+  const [showNew, setShowNew] = React.useState(false);
+  const [newForm, setNewForm] = React.useState({ payment_id: "", customer_name: "", customer_email: "", amount: "", reason: "unrecognized_charge", card_network: "VISA", card_last4: "" });
+  const [creating, setCreating] = React.useState(false);
+  const [respondId, setRespondId] = React.useState<string | null>(null);
+  const [response, setResponse] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+  const fmtC = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const load = React.useCallback(() => {
+    fetch(`/api/zenipay/disputes?merchant_id=${encodeURIComponent(merchantId)}`)
+      .then(r => r.json())
+      .then(d => { setDisputes(d.disputes || []); setStats(d.stats || stats); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [merchantId]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const REASONS: Record<string, string> = {
+    unrecognized_charge: "Unrecognized Charge",
+    duplicate: "Duplicate Transaction",
+    product_not_received: "Product/Service Not Received",
+    not_as_described: "Not As Described",
+    cancelled: "Subscription Cancelled",
+    fraud: "Fraud / Unauthorized",
+    other: "Other",
+  };
+
+  const STATUS_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+    open: { label: "Open", bg: "#fef2f2", color: "#DC2626" },
+    under_review: { label: "Under Review", bg: "#fffbeb", color: "#D97706" },
+    won: { label: "Won", bg: "#f0fdf4", color: "#16A34A" },
+    lost: { label: "Lost", bg: "#fef2f2", color: "#991b1b" },
+    refunded: { label: "Refunded", bg: "#eff6ff", color: "#1d4ed8" },
+  };
+
+  const createDispute = async () => {
+    setCreating(true);
+    await fetch("/api/zenipay/disputes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "create", merchant_id: merchantId, ...newForm, amount: Number(newForm.amount) }),
+    });
+    setCreating(false); setShowNew(false);
+    setNewForm({ payment_id: "", customer_name: "", customer_email: "", amount: "", reason: "unrecognized_charge", card_network: "VISA", card_last4: "" });
+    load();
+  };
+
+  const submitResponse = async (id: string) => {
+    setSending(true);
+    await fetch("/api/zenipay/disputes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "respond", id, merchant_response: response }),
+    });
+    setSending(false); setRespondId(null); setResponse(""); load();
+  };
+
+  const resolve = async (id: string, status: string) => {
+    await fetch("/api/zenipay/disputes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "resolve", id, status, resolution: status === "won" ? "Evidence accepted" : status === "refunded" ? "Refund issued" : "Dispute lost" }),
+    });
+    load();
+  };
+
+  const chargebackRate = stats.total > 0 && transactions.length > 0 ? ((stats.total / transactions.length) * 100).toFixed(2) : "0.00";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* KPI Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 14 }}>
+        {[
+          { l: "Open Disputes", v: String(stats.open), co: "#DC2626", icon: "🔴" },
+          { l: "Won", v: String(stats.won), co: "#16A34A", icon: "✅" },
+          { l: "Lost", v: String(stats.lost), co: "#991b1b", icon: "❌" },
+          { l: "Total Disputed", v: fmtC(stats.total_amount), co: "#7B4FBF", icon: "💰" },
+          { l: "Chargeback Rate", v: `${chargebackRate}%`, co: Number(chargebackRate) > 1 ? "#DC2626" : "#16A34A", icon: Number(chargebackRate) > 1 ? "⚠️" : "🛡️" },
+        ].map(k => (
+          <div key={k.l} style={{ background: "white", borderRadius: 16, padding: "18px 20px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", borderTop: `3px solid ${k.co}` }}>
+            <div style={{ fontSize: 14, marginBottom: 6 }}>{k.icon}</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: k.co }}>{k.v}</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{k.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Alert banner if rate > 1% */}
+      {Number(chargebackRate) > 1 && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 24 }}>⚠️</span>
+          <div>
+            <p style={{ margin: 0, fontWeight: 700, color: "#991b1b", fontSize: 14 }}>High Chargeback Rate ({chargebackRate}%)</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#DC2626" }}>Visa/Mastercard threshold is 1%. Risk of account suspension if not addressed.</p>
+          </div>
+        </div>
+      )}
+
+      {/* New Dispute + Table */}
+      <div style={{ background: "white", borderRadius: 16, padding: 28, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontWeight: 800, fontSize: 18, color: "#0f172a" }}>⚖️ Dispute Cases</h3>
+          <button onClick={() => setShowNew(!showNew)} style={{ background: "linear-gradient(135deg, #DC2626, #991b1b)", border: "none", color: "white", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            + New Dispute
+          </button>
+        </div>
+
+        {/* New Dispute Form */}
+        {showNew && (
+          <div style={{ background: "#fef2f2", borderRadius: 12, padding: 20, marginBottom: 20, border: "1px solid #fca5a5" }}>
+            <h4 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "#991b1b" }}>Register New Chargeback / Dispute</h4>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>CUSTOMER NAME</label>
+                <input value={newForm.customer_name} onChange={e => setNewForm(p => ({ ...p, customer_name: e.target.value }))} placeholder="John Doe" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>CUSTOMER EMAIL</label>
+                <input value={newForm.customer_email} onChange={e => setNewForm(p => ({ ...p, customer_email: e.target.value }))} placeholder="john@email.com" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>AMOUNT DISPUTED</label>
+                <input type="number" value={newForm.amount} onChange={e => setNewForm(p => ({ ...p, amount: e.target.value }))} placeholder="1500.00" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>ORIGINAL PAYMENT ID</label>
+                <input value={newForm.payment_id} onChange={e => setNewForm(p => ({ ...p, payment_id: e.target.value }))} placeholder="ZNV-..." style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>REASON</label>
+                <select value={newForm.reason} onChange={e => setNewForm(p => ({ ...p, reason: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box" }}>
+                  {Object.entries(REASONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>CARD NETWORK</label>
+                <select value={newForm.card_network} onChange={e => setNewForm(p => ({ ...p, card_network: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box" }}>
+                  {["VISA", "MASTERCARD", "AMEX", "DISCOVER"].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              <button onClick={createDispute} disabled={creating || !newForm.amount || !newForm.customer_name} style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "#DC2626", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                {creating ? "Creating..." : "Create Dispute"}
+              </button>
+              <button onClick={() => setShowNew(false)} style={{ padding: "10px 20px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* Disputes Table */}
+        {disputes.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🛡️</div>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>No disputes</p>
+            <p style={{ margin: "4px 0 0", fontSize: 13 }}>Client chargebacks and disputes will appear here</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                  {["ID", "Customer", "Amount", "Reason", "Card", "Status", "Deadline", "Actions"].map(h => (
+                    <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {disputes.map(d => {
+                  const sb = STATUS_BADGE[String(d.status)] || STATUS_BADGE.open;
+                  const deadline = d.deadline ? new Date(String(d.deadline)) : null;
+                  const daysLeft = deadline ? Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 86400000)) : null;
+                  return (
+                    <React.Fragment key={String(d.id)}>
+                      <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px", fontFamily: "monospace", fontSize: 11 }}>{String(d.id).slice(0, 12)}</td>
+                        <td style={{ padding: "12px" }}>
+                          <div style={{ fontWeight: 600 }}>{String(d.customer_name)}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{String(d.customer_email)}</div>
+                        </td>
+                        <td style={{ padding: "12px", fontWeight: 800, color: "#DC2626" }}>{fmtC(Number(d.amount))}</td>
+                        <td style={{ padding: "12px", fontSize: 12 }}>{REASONS[String(d.reason)] || String(d.reason)}</td>
+                        <td style={{ padding: "12px", fontSize: 12 }}>{String(d.card_network)} {d.card_last4 ? `••••${d.card_last4}` : ""}</td>
+                        <td style={{ padding: "12px" }}>
+                          <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: sb.bg, color: sb.color }}>{sb.label}</span>
+                        </td>
+                        <td style={{ padding: "12px", fontSize: 12 }}>
+                          {daysLeft !== null ? (
+                            <span style={{ color: daysLeft < 7 ? "#DC2626" : "#64748b", fontWeight: daysLeft < 7 ? 700 : 400 }}>{daysLeft}d left</span>
+                          ) : "—"}
+                        </td>
+                        <td style={{ padding: "12px" }}>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            {d.status === "open" && (
+                              <button onClick={() => { setRespondId(String(d.id)); setResponse(String(d.merchant_response || "")); }} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Respond</button>
+                            )}
+                            {(d.status === "open" || d.status === "under_review") && (
+                              <>
+                                <button onClick={() => resolve(String(d.id), "won")} style={{ padding: "5px 10px", borderRadius: 6, border: "none", background: "#f0fdf4", color: "#16A34A", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Won</button>
+                                <button onClick={() => resolve(String(d.id), "lost")} style={{ padding: "5px 10px", borderRadius: 6, border: "none", background: "#fef2f2", color: "#DC2626", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Lost</button>
+                                <button onClick={() => resolve(String(d.id), "refunded")} style={{ padding: "5px 10px", borderRadius: 6, border: "none", background: "#eff6ff", color: "#1d4ed8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Refund</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {respondId === String(d.id) && (
+                        <tr>
+                          <td colSpan={8} style={{ padding: "12px 12px 16px", background: "#f8fafc" }}>
+                            <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#374151" }}>Merchant Response — Submit evidence to dispute the chargeback</p>
+                            <textarea value={response} onChange={e => setResponse(e.target.value)} placeholder="Describe why this charge is legitimate. Include booking confirmations, signed agreements, delivery proof, customer communication..." rows={4} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box", resize: "vertical" }} />
+                            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                              <button onClick={() => submitResponse(String(d.id))} disabled={sending || !response} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#2DBE60", color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{sending ? "Sending..." : "Submit Response"}</button>
+                              <button onClick={() => setRespondId(null)} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* How Chargebacks Work */}
+      <div style={{ background: "white", borderRadius: 16, padding: 28, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+        <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0f172a" }}>📖 How Chargebacks Work</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
+          {[
+            { step: "1", title: "Client Disputes", desc: "Client contacts their bank (Visa/MC) claiming a charge is unauthorized or incorrect", icon: "🏦" },
+            { step: "2", title: "Bank Notifies You", desc: "You receive the dispute with a 30-day deadline to respond with evidence", icon: "📩" },
+            { step: "3", title: "Submit Evidence", desc: "Upload proof: booking confirmation, signed agreement, delivery receipt, emails", icon: "📎" },
+            { step: "4", title: "Resolution", desc: "Bank reviews evidence. Won = you keep the money. Lost = refund + $15-25 fee", icon: "⚖️" },
+          ].map(s => (
+            <div key={s.step} style={{ background: "#f8fafc", borderRadius: 12, padding: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 22 }}>{s.icon}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#7B4FBF", letterSpacing: "0.06em" }}>STEP {s.step}</span>
+              </div>
+              <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{s.title}</p>
+              <p style={{ margin: 0, fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── COMPLIANCE PANEL ─────────────────────────────────
 function CompliancePanel({ merchantId, merchantEmail }: { merchantId: string; merchantEmail: string }) {
   const [data, setData] = React.useState<Record<string, unknown> | null>(null);
@@ -1290,7 +1547,7 @@ const TABS = [
   { id: "analytics", icon: "📈", label: "Analytics" },
   { id: "ai", icon: "🤖", label: "Ben AI" },
   { id: "accounting", icon: "📚", label: "Accounting" },
-  { id: "cashback", icon: "💰", label: "Cashback" },
+  { id: "disputes", icon: "⚖️", label: "Disputes" },
   { id: "compliance", icon: "🛡️", label: "Compliance" },
   { id: "settings", icon: "⚙️", label: "Settings" },
 ];
@@ -3623,32 +3880,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
 
         {/* ════ SETTINGS ════ */}
 
-        {tab === "cashback" && (() => {
-          const s = (cashbackData as Record<string,unknown>)?.summary as Record<string,unknown> | undefined;
-          const txF = ((cashbackData as Record<string,unknown>)?.transaction_fees || []) as Array<Record<string,unknown>>;
-          const setts = ((cashbackData as Record<string,unknown>)?.settlements || []) as Array<Record<string,unknown>>;
-          const fmtC = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          return (<div style={{ display: "grid", gap: 16 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Finix Cashback — 90% Markup Return</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
-              {[{l:"Total Volume",v:s?fmtC(Number(s.total_volume||0)):"...",co:"#2DBE60"},{l:"Platform Fees",v:s?fmtC(Number(s.total_platform_fees||0)):"...",co:"#15B8C9"},{l:"Cashback (90%)",v:s?fmtC(Number(s.total_cashback_payouts||0)):"...",co:"#7B4FBF"},{l:"Settlements",v:s?String(s.settlements_count):"...",co:"#E5247B"}].map(k=>(<div key={k.l} style={{ background:"white",borderRadius:16,padding:"18px 20px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)",borderTop:`3px solid ${k.co}` }}><div style={{ fontSize:24,fontWeight:900,color:k.co }}>{k.v}</div><div style={{ fontSize:11,color:"#64748b",marginTop:4 }}>{k.l}</div></div>))}
-            </div>
-            <div style={{ background:"white",borderRadius:16,padding:24,boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ margin:"0 0 16px",fontWeight:700 }}>Per-Transaction Breakdown</h3>
-              <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
-                <thead><tr style={{ borderBottom:"2px solid #e2e8f0" }}>{["Transaction","Amount","Gross Fee","Cashback 90%","Net Fee"].map(h=><th key={h} style={{ padding:"10px 12px",textAlign:"left",fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase" }}>{h}</th>)}</tr></thead>
-                <tbody>{txF.length===0?<tr><td colSpan={5} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Loading...</td></tr>:txF.map(t=>(<tr key={String(t.transfer_id)} style={{ borderBottom:"1px solid #f1f5f9" }}><td style={{ padding:"10px 12px",fontFamily:"monospace",fontSize:11 }}>{String(t.transfer_id).slice(0,16)}</td><td style={{ padding:"10px 12px",fontWeight:700 }}>{fmtC(Number(t.amount))}</td><td style={{ padding:"10px 12px",color:"#DC2626" }}>-{fmtC(Number(t.gross_fee))}</td><td style={{ padding:"10px 12px",color:"#2DBE60",fontWeight:700 }}>+{fmtC(Number(t.cashback_90pct))}</td><td style={{ padding:"10px 12px",fontWeight:800 }}>-{fmtC(Number(t.net_fee_merchant))}</td></tr>))}</tbody>
-              </table>
-            </div>
-            <div style={{ background:"white",borderRadius:16,padding:24,boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ margin:"0 0 16px",fontWeight:700 }}>Settlement History</h3>
-              <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
-                <thead><tr style={{ borderBottom:"2px solid #e2e8f0" }}>{["Period","Volume","Fees","Cashback","Net","Status"].map(h=><th key={h} style={{ padding:"10px 12px",textAlign:"left",fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase" }}>{h}</th>)}</tr></thead>
-                <tbody>{setts.length===0?<tr><td colSpan={6} style={{ padding:24,textAlign:"center",color:"#94a3b8" }}>Loading...</td></tr>:setts.map(st=>(<tr key={String(st.id)} style={{ borderBottom:"1px solid #f1f5f9" }}><td style={{ padding:"10px 12px",fontSize:11,color:"#94a3b8" }}>{String(st.period_start||"*").slice(0,10)} → {String(st.period_end||"*").slice(0,10)}</td><td style={{ padding:"10px 12px",fontWeight:700 }}>{fmtC(Number(st.total_amount))}</td><td style={{ padding:"10px 12px",color:"#DC2626" }}>-{fmtC(Number(st.total_fees))}</td><td style={{ padding:"10px 12px",color:"#2DBE60",fontWeight:700 }}>+{fmtC(Number(st.cashback_to_platform))}</td><td style={{ padding:"10px 12px",fontWeight:800 }}>{fmtC(Number(st.net_amount))}</td><td style={{ padding:"10px 12px" }}><span style={{ padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:String(st.status)==="APPROVED"?"rgba(22,163,74,0.08)":"rgba(217,119,6,0.08)",color:String(st.status)==="APPROVED"?"#16A34A":"#D97706" }}>{String(st.status)}</span></td></tr>))}</tbody>
-              </table>
-            </div>
-          </div>);
-        })()}
+        {tab === "disputes" && <DisputesPanel merchantId={MID} transactions={TRANSACTIONS} />}
 
                 {tab === "settings" && (
           <div style={{ display: "grid", gap: 16 }}>
