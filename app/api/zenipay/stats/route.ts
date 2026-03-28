@@ -34,8 +34,10 @@ export async function GET(req: NextRequest) {
         .limit(500) as {
           data: Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string; merchant_id: string }> | null
         };
+      // Filter by merchant_id in JS — include rows where merchant_id matches OR is missing
+      // (PostgREST schema cache may not return merchant_id column — PGRST204 bug)
       const tablePays = merchant_id
-        ? (allPays || []).filter(p => p.merchant_id === merchant_id)
+        ? (allPays || []).filter(p => p.merchant_id === merchant_id || !p.merchant_id)
         : allPays;
 
       // ── Read from merchant_data.transactions (ZeniPay /pay/[id] payments) ─
