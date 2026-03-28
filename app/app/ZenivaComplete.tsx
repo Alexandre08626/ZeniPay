@@ -1085,6 +1085,199 @@ function PayoutsPanel({ agents, platformBalance }: { agents: AgentType[]; platfo
   );
 }
 
+// ── COMPLIANCE PANEL ─────────────────────────────────
+function CompliancePanel({ merchantId, merchantEmail }: { merchantId: string; merchantEmail: string }) {
+  const [data, setData] = React.useState<Record<string, unknown> | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+  const [saqForm, setSaqForm] = React.useState({ online_only: "", store_cards: "", certified_solution: "" });
+  const [refundDays, setRefundDays] = React.useState("30");
+  const [cbThreshold, setCbThreshold] = React.useState("1.0");
+  const [cbEmail, setCbEmail] = React.useState("");
+
+  React.useEffect(() => {
+    fetch(`/api/zenipay/compliance?merchant_id=${encodeURIComponent(merchantId)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.compliance) {
+          setData(d.compliance);
+          setRefundDays(String(d.compliance.refund_policy_days || 30));
+          setCbThreshold(String(d.compliance.chargeback_alert_threshold || 1.0));
+          setCbEmail(d.compliance.chargeback_alert_email || merchantEmail);
+          const sa = d.compliance.saq_answers || {};
+          setSaqForm({ online_only: sa.online_only || "", store_cards: sa.store_cards || "", certified_solution: sa.certified_solution || "" });
+        }
+      }).catch(() => {});
+  }, [merchantId, merchantEmail]);
+
+  const save = async (updates: Record<string, unknown>) => {
+    setSaving(true); setSaved(false);
+    await fetch("/api/zenipay/compliance", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ merchant_id: merchantId, ...updates }),
+    });
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const DOCS = [
+    { key: "id_document", label: "Government ID (Passport or License)", icon: "🪪" },
+    { key: "incorporation", label: "Certificate of Incorporation", icon: "📜" },
+    { key: "bank_statement", label: "Bank Statement (last 3 months)", icon: "🏦" },
+    { key: "proof_of_address", label: "Proof of Address", icon: "🏠" },
+  ];
+  const docs = (data?.documents || []) as { key: string; status: string; uploaded_at?: string }[];
+  const docStatus = (key: string) => docs.find(d => d.key === key)?.status || "missing";
+
+  const kycBadge = (s: string) => s === "verified" ? { label: "Verified ✅", bg: "#f0fdf4", border: "#86efac", color: "#166534" } : s === "rejected" ? { label: "Rejected ❌", bg: "#fef2f2", border: "#fca5a5", color: "#991b1b" } : { label: "Pending ⏳", bg: "#fffbeb", border: "#fde68a", color: "#92400e" };
+  const pciBadge = (s: string) => s === "compliant" ? { label: "Compliant ✅", bg: "#f0fdf4", border: "#86efac", color: "#166534" } : { label: "Non-Compliant ❌", bg: "#fef2f2", border: "#fca5a5", color: "#991b1b" };
+  const finixBadge = (s: string) => s === "APPROVED" ? { label: "APPROVED ✅", bg: "#f0fdf4", border: "#86efac", color: "#166534" } : s === "UPDATE_REQUESTED" ? { label: "UPDATE REQUESTED ⚠️", bg: "#fffbeb", border: "#fde68a", color: "#92400e" } : { label: "PROVISIONING ⏳", bg: "#eff6ff", border: "#bfdbfe", color: "#1d4ed8" };
+
+  const Badge = ({ b }: { b: { label: string; bg: string; border: string; color: string } }) => (
+    <span style={{ background: b.bg, border: `1px solid ${b.border}`, color: b.color, fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "5px 14px" }}>{b.label}</span>
+  );
+
+  const kyc = kycBadge(String(data?.kyc_status || "pending"));
+  const pci = pciBadge(String(data?.pci_status || "non_compliant"));
+  const finix = finixBadge(String(data?.finix_onboarding || "PROVISIONING"));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* SECTION 1 — Compliance Status */}
+      <div style={{ background: "white", borderRadius: 16, padding: 28, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+        <h3 style={{ margin: "0 0 20px", fontWeight: 800, fontSize: 18, color: "#0f172a" }}>🛡️ Compliance Status</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16 }}>
+          <div style={{ background: "#f8fafc", borderRadius: 12, padding: 18 }}>
+            <p style={{ margin: "0 0 8px", fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>PCI DSS</p>
+            <Badge b={pci} />
+          </div>
+          <div style={{ background: "#f8fafc", borderRadius: 12, padding: 18 }}>
+            <p style={{ margin: "0 0 8px", fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>KYC Verification</p>
+            <Badge b={kyc} />
+          </div>
+          <div style={{ background: "#f8fafc", borderRadius: 12, padding: 18 }}>
+            <p style={{ margin: "0 0 8px", fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Finix Onboarding</p>
+            <Badge b={finix} />
+          </div>
+        </div>
+        {data?.last_verified_at ? (
+          <p style={{ margin: "16px 0 0", fontSize: 11, color: "#94a3b8" }}>Last verified: {new Date(String(data.last_verified_at)).toLocaleDateString()}</p>
+        ) : null}
+      </div>
+
+      {/* SECTION 2 — Documents */}
+      <div style={{ background: "white", borderRadius: 16, padding: 28, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+        <h3 style={{ margin: "0 0 20px", fontWeight: 800, fontSize: 18, color: "#0f172a" }}>📄 Documents</h3>
+        <div style={{ display: "grid", gap: 12 }}>
+          {DOCS.map(doc => {
+            const st = docStatus(doc.key);
+            const stLabel = st === "uploaded" ? "Uploaded ✅" : st === "expired" ? "Expired ⚠️" : "Missing ❌";
+            const stColor = st === "uploaded" ? "#166534" : st === "expired" ? "#92400e" : "#991b1b";
+            const stBg = st === "uploaded" ? "#f0fdf4" : st === "expired" ? "#fffbeb" : "#fef2f2";
+            return (
+              <div key={doc.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 22 }}>{doc.icon}</span>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: "#0f172a" }}>{doc.label}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: stColor, fontWeight: 700 }}>{stLabel}</p>
+                  </div>
+                </div>
+                <button onClick={() => {
+                  const newDocs = [...docs.filter(d => d.key !== doc.key), { key: doc.key, status: "uploaded", uploaded_at: new Date().toISOString() }];
+                  save({ documents: newDocs }).then(() => setData(prev => prev ? { ...prev, documents: newDocs } : prev));
+                }} style={{ background: st === "uploaded" ? "#e2e8f0" : "linear-gradient(135deg, #2DBE60, #15B8C9)", border: "none", color: st === "uploaded" ? "#64748b" : "white", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  {st === "uploaded" ? "Re-upload" : "Upload"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* SECTION 3 — SAQ (PCI DSS) */}
+      <div style={{ background: "white", borderRadius: 16, padding: 28, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+        <h3 style={{ margin: "0 0 6px", fontWeight: 800, fontSize: 18, color: "#0f172a" }}>📋 PCI DSS Self-Assessment (SAQ)</h3>
+        <p style={{ margin: "0 0 20px", fontSize: 13, color: "#64748b" }}>Annual simplified questionnaire — required for payment processing</p>
+        {data?.saq_completed ? (
+          <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 12, padding: 18, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 24 }}>✅</span>
+            <div>
+              <p style={{ margin: 0, fontWeight: 700, color: "#166534", fontSize: 14 }}>SAQ Completed & Signed</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748b" }}>Signed on {data.saq_signed_at ? new Date(String(data.saq_signed_at)).toLocaleDateString() : "—"}</p>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 16 }}>
+            {[
+              { key: "online_only", q: "Do you accept payments exclusively online?" },
+              { key: "store_cards", q: "Do you store credit card data on your servers?" },
+              { key: "certified_solution", q: "Do you use a PCI-certified payment solution (e.g. ZeniPay/Finix)?" },
+            ].map(item => (
+              <div key={item.key} style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 18px" }}>
+                <p style={{ margin: "0 0 10px", fontWeight: 600, fontSize: 14, color: "#0f172a" }}>{item.q}</p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {["yes", "no"].map(v => (
+                    <button key={v} onClick={() => setSaqForm(p => ({ ...p, [item.key]: v }))}
+                      style={{ padding: "8px 20px", borderRadius: 8, border: saqForm[item.key as keyof typeof saqForm] === v ? "2px solid #15B8C9" : "1px solid #e2e8f0", background: saqForm[item.key as keyof typeof saqForm] === v ? "#eff6ff" : "white", color: saqForm[item.key as keyof typeof saqForm] === v ? "#1d4ed8" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                      {v === "yes" ? "Yes" : "No"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button onClick={() => {
+              const allAnswered = saqForm.online_only && saqForm.store_cards && saqForm.certified_solution;
+              if (!allAnswered) { alert("Please answer all questions"); return; }
+              save({ saq_completed: true, saq_signed_at: new Date().toISOString(), saq_answers: saqForm, pci_status: "compliant" })
+                .then(() => setData(prev => prev ? { ...prev, saq_completed: true, saq_signed_at: new Date().toISOString(), pci_status: "compliant" } : prev));
+            }} disabled={saving} style={{ padding: "14px 28px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #2DBE60, #15B8C9, #7B4FBF)", color: "white", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
+              {saving ? "Submitting..." : "Sign & Submit SAQ"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 4 — Chargeback/Dispute Policy */}
+      <div style={{ background: "white", borderRadius: 16, padding: 28, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+        <h3 style={{ margin: "0 0 20px", fontWeight: 800, fontSize: 18, color: "#0f172a" }}>⚖️ Chargeback & Refund Policy</h3>
+        <div style={{ display: "grid", gap: 16 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Refund Policy</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {["14", "30", "60", "90"].map(d => (
+                <button key={d} onClick={() => setRefundDays(d)}
+                  style={{ padding: "10px 18px", borderRadius: 10, border: refundDays === d ? "2px solid #15B8C9" : "1px solid #e2e8f0", background: refundDays === d ? "#eff6ff" : "white", color: refundDays === d ? "#1d4ed8" : "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  {d} days
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Chargeback Alert Threshold</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, color: "#64748b" }}>Alert if chargeback rate exceeds</span>
+              <input type="number" step="0.1" min="0.1" max="10" value={cbThreshold} onChange={e => setCbThreshold(e.target.value)}
+                style={{ width: 70, padding: "10px 12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, fontWeight: 700, textAlign: "center" }} />
+              <span style={{ fontSize: 13, color: "#64748b" }}>%</span>
+            </div>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Dispute Notification Email</label>
+            <input type="email" value={cbEmail} onChange={e => setCbEmail(e.target.value)} placeholder="disputes@yourbusiness.com"
+              style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} />
+          </div>
+          <button onClick={() => save({ refund_policy_days: Number(refundDays), chargeback_alert_threshold: Number(cbThreshold), chargeback_alert_email: cbEmail })}
+            disabled={saving} style={{ padding: "14px 28px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #2DBE60, #15B8C9)", color: "white", fontSize: 15, fontWeight: 800, cursor: "pointer", width: "fit-content" }}>
+            {saving ? "Saving..." : saved ? "Saved ✅" : "Save Policy"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── TABS ─────────────────────────────────────────────
 const TABS = [
   { id: "overview", icon: "📊", label: "Overview" },
@@ -1098,6 +1291,7 @@ const TABS = [
   { id: "ai", icon: "🤖", label: "Ben AI" },
   { id: "accounting", icon: "📚", label: "Accounting" },
   { id: "cashback", icon: "💰", label: "Cashback" },
+  { id: "compliance", icon: "🛡️", label: "Compliance" },
   { id: "settings", icon: "⚙️", label: "Settings" },
 ];
 
@@ -3524,6 +3718,9 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             </div>
           </div>
         )}
+
+        {/* ════ COMPLIANCE ════ */}
+        {tab === "compliance" && <CompliancePanel merchantId={MID} merchantEmail={BEMAIL} />}
 
         {/* ════ SETUP (Sandbox) ════ */}
         {tab === "setup" && (
