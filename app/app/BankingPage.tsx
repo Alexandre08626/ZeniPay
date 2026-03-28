@@ -112,7 +112,7 @@ const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: 
 type Toast = { id: number; message: string; type: "success" | "error" };
 
 export default function BankingPage(props: BankingProps) {
-  const { platformBalance, grossRevenue, zenipayFees, paidOut, pending, transactions, merchantId } = props;
+  const { platformBalance, grossRevenue, zenipayFees, paidOut, pending, transactions, merchantId, businessName, onTabChange } = props;
   const [section, setSection] = useState<Section>("Overview");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -137,7 +137,7 @@ export default function BankingPage(props: BankingProps) {
       if (d.transfers) setTransfers(d.transfers);
       if (d.cards) setCards(d.cards);
       if (d.contacts) setContacts(d.contacts);
-      if (d.notifications) setNotifs(d.notifications);
+      if (d.notifications && Object.keys(d.notifications).length > 0) setNotifs({ payment_received: true, payout_completed: true, card_transaction: true, weekly_summary: false, large_transaction_threshold: 1000, low_balance_threshold: 500, ...d.notifications });
     } catch (e) { console.error("Banking fetch error", e); }
   }, [merchantId]);
 
@@ -162,7 +162,7 @@ export default function BankingPage(props: BankingProps) {
     } finally { setLoading(false); }
   };
 
-  const netBalance = grossRevenue - zenipayFees;
+  const netBalance = platformBalance;
 
   /* === TOAST SYSTEM === */
   const ToastContainer = () => (
