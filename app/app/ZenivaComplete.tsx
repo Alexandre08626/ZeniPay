@@ -1462,12 +1462,13 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const platformBalance = merchantBalance > 0 ? merchantBalance : (WALLETS.platform.available + WALLETS.agent.available + WALLETS.influencer.available + WALLETS.supplier.available);
   const successRate = TRANSACTIONS.length > 0 ? Math.round(TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length / TRANSACTIONS.length * 100) : 0;
   const isLive = MMODE === "live";
-  // In sandbox mode, add Setup & Onboarding Status tabs
+  // In sandbox mode, add Setup & Go Live tabs just above Settings
   const activeTabs = MMODE === "sandbox" && !isZeniva
     ? [
+        ...TABS.filter(t => t.id !== "settings"),
         { id: "setup", icon: "🚀", label: "Setup" },
         { id: "onboarding-status", icon: "✅", label: "Go Live" },
-        ...TABS,
+        ...TABS.filter(t => t.id === "settings"),
       ]
     : TABS;
 
