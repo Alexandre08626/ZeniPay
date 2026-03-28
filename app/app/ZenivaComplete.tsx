@@ -1573,10 +1573,10 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
           <div style={{ position:"absolute", top:-60, right:-40, width:180, height:180, borderRadius:"50%", background:"radial-gradient(circle,rgba(45,190,96,0.15) 0%,transparent 70%)", pointerEvents:"none" }} />
           <div style={{ position:"absolute", bottom:-40, left:-20, width:140, height:140, borderRadius:"50%", background:"radial-gradient(circle,rgba(123,79,191,0.12) 0%,transparent 70%)", pointerEvents:"none" }} />
           <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:6 }}>Merchant Revenue</div>
-          <div style={{ fontSize:42, fontWeight:900, letterSpacing:"-1.5px", lineHeight:1 }}>{fmt(STATS.totalRevenue||0)}</div>
+          <div style={{ fontSize:42, fontWeight:900, letterSpacing:"-1.5px", lineHeight:1 }}>{fmt(totalRevenue)}</div>
           <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:4 }}>USD · Real-time · {STATS.env==="production"?"🟢 Live":"🟡 Sandbox"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:1, marginTop:18, background:"rgba(255,255,255,0.05)", borderRadius:16, overflow:"hidden" }}>
-            {[{label:"Total Revenue",value:fmt(STATS.totalRevenue||0),color:"#2DBE60"},{label:"ZeniPay Fees",value:fmt(zenipayFees),color:"#F5A623"},{label:"Net Revenue",value:fmt((STATS.totalRevenue||0)-zenipayFees),color:"#2A8FE0"}].map((s,i)=>(
+            {[{label:"Total Revenue",value:fmt(totalRevenue),color:"#2DBE60"},{label:"ZeniPay Fees",value:fmt(zenipayFees),color:"#F5A623"},{label:"Net Revenue",value:fmt((totalRevenue)-zenipayFees),color:"#2A8FE0"}].map((s,i)=>(
               <div key={i} style={{ padding:"11px 6px", textAlign:"center", borderRight:i<2?"1px solid rgba(255,255,255,0.07)":"none" }}>
                 <div style={{ fontSize:14, fontWeight:800, color:s.color }}>{s.value}</div>
                 <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", marginTop:3, letterSpacing:"0.08em" }}>{s.label}</div>
@@ -1668,7 +1668,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         <div style={{ margin:"0 16px 20px", display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
           {[
             { icon:"💳", label:"Transactions", value:String(STATS.totalTransactions||0), color:"#2A8FE0" },
-            { icon:"💰", label:"Revenue", value:fmt(STATS.totalRevenue||0), color:"#2DBE60" },
+            { icon:"💰", label:"Revenue", value:fmt(totalRevenue), color:"#2DBE60" },
             { icon:"✅", label:"Success Rate", value:`${STATS.successRate||0}%`, color:"#7B4FBF" },
           ].map((s,i)=>(
             <div key={i} style={{ background:"rgba(255,255,255,0.04)", border:`1px solid ${s.color}22`, borderRadius:18, padding:"14px 10px", textAlign:"center" }}>
