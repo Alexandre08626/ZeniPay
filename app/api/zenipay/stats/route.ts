@@ -34,10 +34,13 @@ export async function GET(req: NextRequest) {
         .limit(500) as {
           data: Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string; merchant_id: string }> | null
         };
-      // Filter by merchant_id in JS — include rows where merchant_id matches OR is missing
-      // (PostgREST schema cache may not return merchant_id column — PGRST204 bug)
+      // Filter by merchant_id in JS (PostgREST schema cache may not return column — PGRST204)
+      // For zeniva-001: also include rows with missing/default merchant_id (legacy data)
       const tablePays = merchant_id
-        ? (allPays || []).filter(p => p.merchant_id === merchant_id || !p.merchant_id)
+        ? (allPays || []).filter(p =>
+            p.merchant_id === merchant_id ||
+            (merchant_id === "zeniva-001" && (!p.merchant_id || p.merchant_id === "default_merchant" || p.merchant_id === "unknown"))
+          )
         : allPays;
 
       // ── Read from merchant_data.transactions (ZeniPay /pay/[id] payments) ─
