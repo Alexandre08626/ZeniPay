@@ -1,22 +1,22 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 const BLUE = "#15B8C9";
 const GREEN = "#2DBE60";
 const PURPLE = "#7B4FBF";
 const GOLD = "#F5A623";
-const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+const fmt = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
-type Account = { id: string; merchant_id: string; account_type: string; account_name: string; account_number: string; routing_number: string; balance: number; status: string; is_primary: boolean };
+type Account = { id: string; merchant_id: string; account_type: string; account_name: string; account_number: string; routing_number: string; balance: number; status: string; is_primary: boolean; currency?: string; goal_amount?: number; goal_deadline?: string };
 type Transfer = { id: string; transfer_type: string; recipient_name: string; amount: number; fee: number; status: string; memo: string; created_at: string };
-type Card = { id: string; card_type: string; last4: string; expiry: string; status: string; is_virtual: boolean; is_physical: boolean; spending_limit: number; daily_limit: number };
+type CardDB = { id: string; card_type: string; last4: string; expiry: string; status: string; is_virtual: boolean; is_physical: boolean; spending_limit: number; daily_limit: number; spent_this_month?: number };
+type Contact = { id: string; name: string; routing_number?: string; account_number?: string; bank_name?: string; swift_code?: string };
+type Notification = { payment_received: boolean; payout_completed: boolean; card_transaction: boolean; weekly_summary: boolean; large_transaction_threshold: number; low_balance_threshold: number };
 
 interface BankingProps {
-  platformBalance: number;
-  grossRevenue: number;
-  zenipayFees: number;
-  paidOut: number;
-  pending: number;
+  platformBalance: number; grossRevenue: number; zenipayFees: number;
+  paidOut: number; pending: number;
   transactions: { id: string; customer: string; amount: number; status: string; date: string; description?: string; booking?: string; card_brand?: string; card_last4?: string; currency?: string; method?: string; gateway?: string }[];
   unitCards: { id: string; last4?: string; expiry?: string; status?: string; attributes: { last4Digits?: string; expirationDate?: string; status?: string } }[];
   onTabChange: (tab: string) => void;
@@ -24,472 +24,639 @@ interface BankingProps {
   merchantId: string;
 }
 
-export default function BankingPage({ platformBalance, grossRevenue, zenipayFees, paidOut, pending, transactions, onTabChange, businessName, merchantId }: BankingProps) {
+const SECTIONS = ["Overview", "Accounts", "Cards", "Send Money", "Transactions", "Fee Schedule", "Money Flow", "Settings"] as const;
+type Section = typeof SECTIONS[number];
+
+const ACCT_TYPES = ["business_checking", "business_savings", "personal_checking", "personal_savings", "goal", "multi_currency"] as const;
+const ACCT_GRADIENTS: Record<string, string> = {
+  business_checking: "linear-gradient(135deg, #15B8C9, #2A8FE0)",
+  business_savings: "linear-gradient(135deg, #2DBE60, #15B8C9)",
+  personal_checking: "linear-gradient(135deg, #7B4FBF, #4F46E5)",
+  personal_savings: "linear-gradient(135deg, #FF6B6B, #FF8C42)",
+  goal: "linear-gradient(135deg, #E5247B, #FF6B6B)",
+  multi_currency: "linear-gradient(135deg, #F5A623, #FF8C42)",
+};
+const ACCT_COLORS: Record<string, string> = {
+  business_checking: "#15B8C9",
+  business_savings: "#2DBE60",
+  personal_checking: "#7B4FBF",
+  personal_savings: "#FF6B6B",
+  goal: "#E5247B",
+  multi_currency: "#F5A623",
+};
+const CARD_OPTIONS = [
+  { value: "visa_debit_virtual", label: "Visa Debit \u2014 Virtual", fee: 0 },
+  { value: "visa_debit_physical", label: "Visa Debit \u2014 Physical ($10)", fee: 10 },
+  { value: "mc_debit_virtual", label: "Mastercard Debit \u2014 Virtual", fee: 0 },
+  { value: "mc_credit_review", label: "Mastercard Credit \u2014 Requires Review", fee: 0 },
+];
+const FEES_DATA = [
+  ["Card Processing (Domestic)", "2.9% + $0.30"],
+  ["Card Processing (Intl)", "3.9% + $0.30"],
+  ["ACH Transfer", "Free"],
+  ["Domestic Wire", "$15.00"],
+  ["International Wire", "$30.00"],
+  ["Physical Card Issuance", "$10.00"],
+  ["Virtual Card Issuance", "Free"],
+  ["Monthly Platform Fee", "$0.00"],
+  ["Chargeback Fee", "$15.00"],
+  ["Refund Processing", "Free"],
+];
+
+const SECTION_ICONS: Record<string, string> = {
+  Overview: "\u{1F3E0}",
+  Accounts: "\u{1F4CA}",
+  Cards: "\u{1F4B3}",
+  "Send Money": "\u{1F4E8}",
+  Transactions: "\u{1F4C4}",
+  "Fee Schedule": "\u{1F4B0}",
+  "Money Flow": "\u{1F504}",
+  Settings: "\u2699\uFE0F",
+};
+
+const CSS_ANIMATIONS = `
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(40px); }
+}
+`;
+
+const badge = (text: string, color: string): React.CSSProperties => ({
+  display: "inline-block", padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: color + "14", color, textTransform: "capitalize" as const, letterSpacing: "0.03em",
+});
+const btnPrimary = (small = false): React.CSSProperties => ({
+  padding: small ? "8px 16px" : "12px 24px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #15B8C9, #7B4FBF)", color: "#fff", fontWeight: 700, fontSize: small ? 13 : 14, cursor: "pointer", transition: "all 0.2s ease", letterSpacing: "0.01em",
+});
+const btnSecondary = (small = false): React.CSSProperties => ({
+  padding: small ? "8px 16px" : "12px 24px", borderRadius: 12, border: "1px solid #E2E8F0", background: "#fff", color: "#0F172A", fontWeight: 600, fontSize: small ? 13 : 14, cursor: "pointer", transition: "all 0.2s ease",
+});
+const btnAccent = (color: string, small = false): React.CSSProperties => ({
+  padding: small ? "8px 16px" : "12px 24px", borderRadius: 12, border: "none", background: color, color: "#fff", fontWeight: 700, fontSize: small ? 13 : 14, cursor: "pointer", transition: "all 0.2s ease",
+});
+const cardStyle: React.CSSProperties = { background: "#fff", borderRadius: 20, padding: 28, boxShadow: "0 4px 24px rgba(0,0,0,0.06)", transition: "all 0.3s ease" };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "12px 16px", height: 48, borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 14, boxSizing: "border-box", background: "#FAFBFC", color: "#0F172A", transition: "border-color 0.2s ease", outline: "none" };
+const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: "#64748B", marginBottom: 6, display: "block", textTransform: "uppercase" as const, letterSpacing: "0.05em" };
+
+type Toast = { id: number; message: string; type: "success" | "error" };
+
+export default function BankingPage(props: BankingProps) {
+  const { platformBalance, grossRevenue, zenipayFees, paidOut, pending, transactions, merchantId } = props;
+  const [section, setSection] = useState<Section>("Overview");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
-  const [cards, setCards] = useState<Card[]>([]);
-  const [section, setSection] = useState<string | null>(null);
-  const [sendType, setSendType] = useState("ach");
-  const [sendForm, setSendForm] = useState<Record<string, string>>({});
-  const [sending, setSending] = useState(false);
-  const [sendMsg, setSendMsg] = useState("");
-  const [newAcctType, setNewAcctType] = useState("");
-  const [newAcctName, setNewAcctName] = useState("");
-  const [creatingAcct, setCreatingAcct] = useState(false);
-  const [cardType, setCardType] = useState("visa_debit");
-  const [cardPhysical, setCardPhysical] = useState(false);
-  const [cardAddr, setCardAddr] = useState("");
-  const [applyingCard, setApplyingCard] = useState(false);
-  const [txFilter, setTxFilter] = useState("all");
-  const [txSearch, setTxSearch] = useState("");
+  const [cards, setCards] = useState<CardDB[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [notifs, setNotifs] = useState<Notification>({ payment_received: true, payout_completed: true, card_transaction: true, weekly_summary: false, large_transaction_threshold: 1000, low_balance_threshold: 500 });
+  const [loading, setLoading] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastIdRef = useRef(0);
 
-  const load = useCallback(() => {
-    fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(merchantId)}`)
-      .then(r => r.json())
-      .then(d => {
-        setAccounts(d.accounts || []);
-        setTransfers(d.transfers || []);
-        setCards(d.cards || []);
-      }).catch(() => {});
+  const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
+    const id = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/zenipay/banking-ops?merchant_id=${merchantId}`);
+      const d = await r.json();
+      if (d.accounts) setAccounts(d.accounts);
+      if (d.transfers) setTransfers(d.transfers);
+      if (d.cards) setCards(d.cards);
+      if (d.contacts) setContacts(d.contacts);
+      if (d.notifications) setNotifs(d.notifications);
+    } catch (e) { console.error("Banking fetch error", e); }
   }, [merchantId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const primaryAcct = accounts.find(a => a.is_primary) || accounts[0];
-
-  const api = async (body: Record<string, unknown>) => {
-    const r = await fetch("/api/zenipay/banking-ops", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ merchant_id: merchantId, ...body }) });
-    return r.json();
+  const post = async (action: string, data: Record<string, unknown>) => {
+    setLoading(true);
+    try {
+      await fetch("/api/zenipay/banking-ops", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, merchant_id: merchantId, ...data }) });
+      await fetchData();
+      const messages: Record<string, string> = {
+        create_account: "Account created successfully",
+        create_card: "Card application submitted",
+        send_transfer: "Transfer sent successfully",
+        toggle_card: "Card status updated",
+        update_notifications: "Settings saved successfully",
+      };
+      if (messages[action]) showToast(messages[action]);
+    } catch (e) {
+      console.error("Banking action error", e);
+      showToast("Action failed. Please try again.", "error");
+    } finally { setLoading(false); }
   };
 
-  const handleCreateAccount = async () => {
-    if (!newAcctType) return;
-    setCreatingAcct(true);
-    await api({ action: "create_account", account_type: newAcctType, account_name: newAcctName || undefined });
-    setCreatingAcct(false); setSection(null); setNewAcctType(""); setNewAcctName("");
-    load();
-  };
+  const netBalance = grossRevenue - zenipayFees;
 
-  const handleSend = async () => {
-    setSending(true); setSendMsg("");
-    const fee = sendType === "wire" ? (sendForm.swift ? 30 : 15) : sendType === "instant" ? Math.max(0.50, Number(sendForm.amount || 0) * 0.015) : 0;
-    const res = await api({
-      action: "send_transfer",
-      from_account_id: primaryAcct?.id,
-      transfer_type: sendType,
-      recipient_name: sendForm.recipient || "",
-      recipient_routing: sendForm.routing || "",
-      recipient_account: sendForm.account || "",
-      recipient_bank: sendForm.bank || "",
-      recipient_swift: sendForm.swift || "",
-      amount: Number(sendForm.amount || 0),
-      memo: sendForm.memo || "",
-      to_account_id: sendForm.to_account || "",
-      scheduled_date: sendForm.date || null,
-      recurrence: sendForm.recurrence || "one_time",
-    });
-    setSending(false);
-    if (res.ok) { setSendMsg(`Sent ${fmt(Number(sendForm.amount))}${res.fee > 0 ? ` (fee: ${fmt(res.fee)})` : ""}`); setSendForm({}); load(); }
-    else setSendMsg(res.error || "Failed");
-  };
-
-  const handleApplyCard = async () => {
-    setApplyingCard(true);
-    await api({ action: "apply_card", card_type: cardType, is_physical: cardPhysical, account_id: primaryAcct?.id, shipping_address: cardPhysical ? { address: cardAddr } : {} });
-    setApplyingCard(false); setSection(null);
-    load();
-  };
-
-  // Banking-style transaction ledger
-  const bankTxns = transactions.map(t => {
-    const fee = Number(t.amount) * 0.029 + 0.30;
-    return [
-      { id: `${t.id}-in`, date: t.date, desc: `Payment from ${t.customer}`, type: "Payment Received", amount: Number(t.amount), positive: true, card: t.card_brand ? `${t.card_brand} ••••${t.card_last4}` : "" },
-      { id: `${t.id}-fee`, date: t.date, desc: `ZeniPay fee — ${t.id}`, type: "Fee", amount: fee, positive: false, card: "" },
-    ];
-  }).flat().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  // Add transfers to ledger
-  for (const tr of transfers) {
-    bankTxns.push({ id: tr.id, date: tr.created_at, desc: `${tr.transfer_type.toUpperCase()} to ${tr.recipient_name}`, type: "Transfer", amount: Number(tr.amount) + Number(tr.fee), positive: false, card: "" });
-  }
-  bankTxns.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  let runBal = platformBalance;
-  for (const tx of bankTxns) { (tx as Record<string, unknown>).balance = runBal; runBal += tx.positive ? -tx.amount : tx.amount; }
-
-  const filteredTxns = bankTxns.filter(tx => {
-    if (txFilter === "income" && !tx.positive) return false;
-    if (txFilter === "expenses" && tx.positive) return false;
-    if (txSearch && !tx.desc.toLowerCase().includes(txSearch.toLowerCase())) return false;
-    return true;
-  });
-
-  const ACCT_TYPES = [
-    { id: "business_checking", name: "Business Checking", sub: "$0/month", icon: "🏦" },
-    { id: "business_savings", name: "Business Savings", sub: "0.5% APY", icon: "💰" },
-    { id: "personal_checking", name: "Personal Checking", sub: "$0/month", icon: "👤" },
-    { id: "personal_savings", name: "Personal Savings", sub: "0.5% APY", icon: "🐷" },
-  ];
-
-  const SEND_TYPES = [
-    { id: "ach", label: "🏦 ACH", sub: "1-3 days · Free" },
-    { id: "wire", label: "⚡ Wire", sub: "Same day · $15-30" },
-    { id: "internal", label: "↔️ Internal", sub: "Instant · Free" },
-    { id: "bill_pay", label: "📄 Bill Pay", sub: "Scheduled" },
-  ];
-
-  const StatusBadge = ({ s }: { s: string }) => {
-    const m: Record<string, { bg: string; co: string }> = { active: { bg: "#f0fdf4", co: GREEN }, processing: { bg: "#fffbeb", co: "#D97706" }, completed: { bg: "#f0fdf4", co: GREEN }, pending: { bg: "#fffbeb", co: "#D97706" }, scheduled: { bg: "#eff6ff", co: BLUE }, failed: { bg: "#fef2f2", co: "#DC2626" }, frozen: { bg: "#fef2f2", co: "#DC2626" }, applied: { bg: "#eff6ff", co: BLUE }, shipped: { bg: "#fffbeb", co: GOLD } };
-    const st = m[s] || m.pending;
-    return <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 6, padding: "3px 8px", background: st.bg, color: st.co, textTransform: "capitalize" }}>{s}</span>;
-  };
-
-  const Input = ({ label, value, onChange, placeholder, type }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) => (
-    <div>
-      <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 5, letterSpacing: "0.04em" }}>{label}</label>
-      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} type={type || "text"} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} />
+  /* === TOAST SYSTEM === */
+  const ToastContainer = () => (
+    <div style={{ position: "fixed", top: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10 }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{
+          background: "#fff", borderRadius: 12, padding: "14px 20px", boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          borderLeft: `4px solid ${t.type === "success" ? GREEN : "#e74c3c"}`,
+          animation: "toastIn 0.3s ease forwards", minWidth: 260, maxWidth: 360,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{ fontSize: 18 }}>{t.type === "success" ? "\u2705" : "\u274C"}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{t.message}</span>
+        </div>
+      ))}
     </div>
   );
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-      {/* ═══ 1. ACCOUNT OVERVIEW ═══ */}
-      <div style={{ background: "linear-gradient(135deg, #0d1633 0%, #1a2a5e 50%, #0f2040 100%)", borderRadius: 24, padding: "32px 36px", color: "white", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -60, right: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle,rgba(45,190,96,0.12) 0%,transparent 70%)" }} />
-        <p style={{ margin: "0 0 4px", fontSize: 11, opacity: 0.5, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700 }}>{businessName} — Available Balance</p>
-        <p style={{ margin: 0, fontWeight: 900, fontSize: 48, letterSpacing: "-2px", lineHeight: 1 }}>{fmt(platformBalance)}</p>
-        <div style={{ display: "flex", gap: 16, marginTop: 12 }}>
-          <span style={{ fontSize: 12, opacity: 0.5 }}>Pending <span style={{ color: GOLD, fontWeight: 700 }}>{fmt(pending)}</span></span>
-          <span style={{ fontSize: 12, opacity: 0.5 }}>Paid Out <span style={{ color: PURPLE, fontWeight: 700 }}>{fmt(paidOut)}</span></span>
+  /* === SUB-COMPONENTS === */
+  const Overview = () => (
+    <div style={{ animation: "slideUp 0.3s ease forwards" }}>
+      <div style={{ background: "linear-gradient(135deg, #15B8C9 0%, #7B4FBF 50%, #E5247B 100%)", borderRadius: 24, padding: 40, color: "#fff", marginBottom: 24 }}>
+        <div style={{ ...labelStyle, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>NET BALANCE</div>
+        <div style={{ fontSize: 48, fontWeight: 900, marginBottom: 24, letterSpacing: "-0.02em" }}>{fmt(netBalance)}</div>
+        <div style={{ display: "flex", gap: 36, flexWrap: "wrap", marginBottom: 32 }}>
+          <div>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7, marginBottom: 4 }}>Pending</div>
+            <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.02em", color: "#FFD86B" }}>{fmt(pending)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7, marginBottom: 4 }}>Paid Out</div>
+            <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.02em", color: "#7BFFB0" }}>{fmt(paidOut)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7, marginBottom: 4 }}>Platform Balance</div>
+            <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.02em", color: "#B8F0FF" }}>{fmt(platformBalance)}</div>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
-          {[
-            { label: "💸 Send Money", act: "send" }, { label: "📥 Request Money", act: "request" },
-            { label: "💳 Cards", act: "cards" }, { label: "📄 Statements", act: "statements" },
-          ].map(b => (
-            <button key={b.act} onClick={() => setSection(section === b.act ? null : b.act)} style={{ background: section === b.act ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 10, padding: "10px 18px", color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{b.label}</button>
-          ))}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Send Money")}>Send Money</button>
+          <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Cards")}>Cards</button>
+          <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Transactions")}>Statements</button>
         </div>
-        <div style={{ display: "flex", gap: 1, marginTop: 18, background: "rgba(255,255,255,0.05)", borderRadius: 14, overflow: "hidden" }}>
-          {[{ l: "Gross Revenue", v: fmt(grossRevenue), c: GREEN }, { l: "ZeniPay Fees", v: `- ${fmt(zenipayFees)}`, c: GOLD }, { l: "Net Available", v: fmt(platformBalance), c: BLUE }].map((s, i) => (
-            <div key={s.l} style={{ flex: 1, padding: "11px 14px", textAlign: "center", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: s.c }}>{s.v}</div>
-              <div style={{ fontSize: 9, opacity: 0.4, marginTop: 3 }}>{s.l}</div>
+      </div>
+      <div style={cardStyle}>
+        <div style={{ fontWeight: 800, fontSize: 18, color: "#0F172A", marginBottom: 20 }}>Revenue Breakdown</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {([["Gross Revenue", grossRevenue, GREEN], ["ZeniPay Fees", -zenipayFees, "#e74c3c"], ["Net Revenue", netBalance, BLUE]] as [string, number, string][]).map(([lbl, val, clr]) => (
+            <div key={lbl} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", borderBottom: "1px solid #F1F5F9" }}>
+              <span style={{ fontWeight: 600, color: "#0F172A", fontSize: 15 }}>{lbl}</span>
+              <span style={{ fontWeight: 900, color: clr, fontSize: 20, letterSpacing: "-0.02em" }}>{fmt(val)}</span>
             </div>
           ))}
         </div>
       </div>
+    </div>
+  );
 
-      {/* ═══ 2. ACCOUNTS ═══ */}
-      <div style={{ background: "white", borderRadius: 20, padding: 28, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h3 style={{ margin: 0, fontWeight: 800, fontSize: 17 }}>🏦 Accounts</h3>
-          <button onClick={() => setSection(section === "new_account" ? null : "new_account")} style={{ background: `${BLUE}12`, border: `1px solid ${BLUE}30`, borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, color: BLUE, cursor: "pointer" }}>+ Open New Account</button>
+  const AccountsSection = () => {
+    const [showForm, setShowForm] = useState(false);
+    const [form, setForm] = useState({ account_type: "business_checking" as string, account_name: "", currency: "USD", goal_amount: "", goal_deadline: "" });
+    const submit = async () => {
+      if (!form.account_name) return;
+      await post("create_account", { account_type: form.account_type, account_name: form.account_name, ...(form.account_type === "multi_currency" ? { currency: form.currency } : {}), ...(form.account_type === "goal" ? { goal_amount: Number(form.goal_amount), goal_deadline: form.goal_deadline } : {}) });
+      setShowForm(false);
+      setForm({ account_type: "business_checking", account_name: "", currency: "USD", goal_amount: "", goal_deadline: "" });
+    };
+    return (
+      <div style={{ animation: "slideUp 0.3s ease forwards" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Your Accounts</h3>
+          <button style={btnPrimary()} onClick={() => setShowForm(!showForm)}>+ Open New Account</button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
-          {accounts.map(a => (
-            <div key={a.id} style={{ borderRadius: 16, padding: "20px 22px", border: a.is_primary ? `2px solid ${BLUE}40` : "1px solid #e2e8f0", background: a.is_primary ? `${BLUE}06` : "#fafafa" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <div>
-                  <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{a.account_name}</p>
-                  <p style={{ margin: 0, fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>••••{a.account_number.slice(-4)} · {a.routing_number}</p>
-                </div>
-                <StatusBadge s={a.status} />
-              </div>
-              <p style={{ margin: 0, fontWeight: 900, fontSize: 26, color: "#0f172a" }}>{fmt(Number(a.balance))}</p>
+        {showForm && (
+          <div style={{ ...cardStyle, marginBottom: 24, border: "2px solid #15B8C920" }}>
+            <div style={{ fontWeight: 800, marginBottom: 18, fontSize: 16, color: "#0F172A" }}>Open New Account</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+              <div><label style={labelStyle}>Account Type</label><select style={inputStyle} value={form.account_type} onChange={e => setForm({ ...form, account_type: e.target.value })}>{ACCT_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}</select></div>
+              <div><label style={labelStyle}>Account Name</label><input style={inputStyle} placeholder="e.g. Main Business Account" value={form.account_name} onChange={e => setForm({ ...form, account_name: e.target.value })} /></div>
+              {form.account_type === "multi_currency" && <div><label style={labelStyle}>Currency</label><select style={inputStyle} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}>{["USD", "EUR", "GBP", "CAD", "AUD", "JPY"].map(c => <option key={c} value={c}>{c}</option>)}</select></div>}
+              {form.account_type === "goal" && <><div><label style={labelStyle}>Goal Amount</label><input style={inputStyle} type="number" placeholder="5000" value={form.goal_amount} onChange={e => setForm({ ...form, goal_amount: e.target.value })} /></div><div><label style={labelStyle}>Deadline</label><input style={inputStyle} type="date" value={form.goal_deadline} onChange={e => setForm({ ...form, goal_deadline: e.target.value })} /></div></>}
             </div>
-          ))}
-          {accounts.length === 0 && <p style={{ color: "#94a3b8", fontSize: 13 }}>No accounts yet. Click &quot;+ Open New Account&quot; to get started.</p>}
-        </div>
-        {/* New Account Modal */}
-        {section === "new_account" && (
-          <div style={{ marginTop: 18, background: "#f8fafc", borderRadius: 16, padding: 24, border: "1px solid #e2e8f0" }}>
-            <h4 style={{ margin: "0 0 14px", fontWeight: 800, fontSize: 15 }}>Open New Account</h4>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, marginBottom: 14 }}>
-              {ACCT_TYPES.filter(at => !accounts.some(a => a.account_type === at.id)).map(at => (
-                <button key={at.id} onClick={() => { setNewAcctType(at.id); setNewAcctName(at.name); }}
-                  style={{ padding: "16px 18px", borderRadius: 12, border: newAcctType === at.id ? `2px solid ${BLUE}` : "1px solid #e2e8f0", background: newAcctType === at.id ? `${BLUE}08` : "white", cursor: "pointer", textAlign: "left" }}>
-                  <span style={{ fontSize: 22 }}>{at.icon}</span>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginTop: 6, color: newAcctType === at.id ? BLUE : "#0f172a" }}>{at.name}</div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>{at.sub}</div>
-                </button>
-              ))}
-            </div>
-            {newAcctType && (
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-                <div style={{ flex: 1 }}>
-                  <Input label="ACCOUNT NAME (optional)" value={newAcctName} onChange={setNewAcctName} placeholder="My Savings" />
-                </div>
-                <button onClick={handleCreateAccount} disabled={creatingAcct} style={{ padding: "12px 24px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${GREEN}, ${BLUE})`, color: "white", fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap", height: 44 }}>
-                  {creatingAcct ? "Creating..." : "Open Account"}
-                </button>
-              </div>
-            )}
+            <button style={{ ...btnAccent(GREEN), marginTop: 18 }} disabled={loading} onClick={submit}>{loading ? "Creating..." : "Create Account"}</button>
           </div>
         )}
-      </div>
-
-      {/* ═══ 3. SEND MONEY ═══ */}
-      {section === "send" && (
-        <div style={{ background: "white", borderRadius: 20, padding: 28, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, fontSize: 17 }}>💸 Send Money</h3>
-            <button onClick={() => setSection(null)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>✕</button>
-          </div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-            {SEND_TYPES.map(m => (
-              <button key={m.id} onClick={() => { setSendType(m.id); setSendForm({}); setSendMsg(""); }}
-                style={{ flex: 1, padding: "14px 12px", borderRadius: 12, border: sendType === m.id ? `2px solid ${BLUE}` : "1px solid #e2e8f0", background: sendType === m.id ? `${BLUE}08` : "white", cursor: "pointer", textAlign: "left" }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: sendType === m.id ? BLUE : "#374151" }}>{m.label}</div>
-                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{m.sub}</div>
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {sendType === "ach" && <>
-              <Input label="RECIPIENT NAME" value={sendForm.recipient || ""} onChange={v => setSendForm(p => ({ ...p, recipient: v }))} placeholder="John Smith" />
-              <Input label="AMOUNT" value={sendForm.amount || ""} onChange={v => setSendForm(p => ({ ...p, amount: v }))} placeholder="0.00" type="number" />
-              <Input label="ROUTING NUMBER" value={sendForm.routing || ""} onChange={v => setSendForm(p => ({ ...p, routing: v }))} placeholder="021000021" />
-              <Input label="ACCOUNT NUMBER" value={sendForm.account || ""} onChange={v => setSendForm(p => ({ ...p, account: v }))} placeholder="1234567890" />
-            </>}
-            {sendType === "wire" && <>
-              <Input label="RECIPIENT NAME" value={sendForm.recipient || ""} onChange={v => setSendForm(p => ({ ...p, recipient: v }))} placeholder="John Smith" />
-              <Input label="BANK NAME" value={sendForm.bank || ""} onChange={v => setSendForm(p => ({ ...p, bank: v }))} placeholder="Chase Bank" />
-              <Input label="ROUTING (ABA)" value={sendForm.routing || ""} onChange={v => setSendForm(p => ({ ...p, routing: v }))} placeholder="021000021" />
-              <Input label="ACCOUNT NUMBER" value={sendForm.account || ""} onChange={v => setSendForm(p => ({ ...p, account: v }))} placeholder="1234567890" />
-              <Input label="SWIFT (international)" value={sendForm.swift || ""} onChange={v => setSendForm(p => ({ ...p, swift: v }))} placeholder="Optional" />
-              <Input label="AMOUNT" value={sendForm.amount || ""} onChange={v => setSendForm(p => ({ ...p, amount: v }))} placeholder="0.00" type="number" />
-            </>}
-            {sendType === "internal" && <>
-              <div>
-                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 5 }}>FROM ACCOUNT</label>
-                <select value={sendForm.from_account || primaryAcct?.id || ""} onChange={e => setSendForm(p => ({ ...p, from_account: e.target.value }))} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }}>
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.account_name} ({fmt(Number(a.balance))})</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 5 }}>TO ACCOUNT</label>
-                <select value={sendForm.to_account || ""} onChange={e => setSendForm(p => ({ ...p, to_account: e.target.value }))} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }}>
-                  <option value="">Select account</option>
-                  {accounts.filter(a => a.id !== (sendForm.from_account || primaryAcct?.id)).map(a => <option key={a.id} value={a.id}>{a.account_name}</option>)}
-                </select>
-              </div>
-              <Input label="AMOUNT" value={sendForm.amount || ""} onChange={v => setSendForm(p => ({ ...p, amount: v }))} placeholder="0.00" type="number" />
-            </>}
-            {sendType === "bill_pay" && <>
-              <Input label="PAYEE NAME" value={sendForm.recipient || ""} onChange={v => setSendForm(p => ({ ...p, recipient: v }))} placeholder="Electric Company" />
-              <Input label="ACCOUNT NUMBER" value={sendForm.account || ""} onChange={v => setSendForm(p => ({ ...p, account: v }))} placeholder="Payee acct #" />
-              <Input label="AMOUNT" value={sendForm.amount || ""} onChange={v => setSendForm(p => ({ ...p, amount: v }))} placeholder="0.00" type="number" />
-              <div>
-                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 5 }}>PAYMENT DATE</label>
-                <input type="date" value={sendForm.date || ""} onChange={e => setSendForm(p => ({ ...p, date: e.target.value }))} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 5 }}>RECURRENCE</label>
-                <select value={sendForm.recurrence || "one_time"} onChange={e => setSendForm(p => ({ ...p, recurrence: e.target.value }))} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }}>
-                  {["one_time", "weekly", "bi_weekly", "monthly"].map(r => <option key={r} value={r}>{r.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}
-                </select>
-              </div>
-            </>}
-            <div style={{ gridColumn: "span 2" }}>
-              <Input label="MEMO" value={sendForm.memo || ""} onChange={v => setSendForm(p => ({ ...p, memo: v }))} placeholder="Payment for..." />
-            </div>
-          </div>
-          {sendType === "wire" && sendForm.amount && (
-            <div style={{ marginTop: 12, padding: "10px 14px", background: "#fffbeb", borderRadius: 8, border: "1px solid #fde68a", fontSize: 12, color: "#92400e" }}>
-              Wire fee: {sendForm.swift ? "$30 (international)" : "$15 (domestic)"} · Total debit: {fmt(Number(sendForm.amount) + (sendForm.swift ? 30 : 15))}
-            </div>
-          )}
-          {sendMsg && <div style={{ marginTop: 12, padding: "10px 14px", background: sendMsg.includes("Sent") ? "#f0fdf4" : "#fef2f2", borderRadius: 8, fontSize: 13, fontWeight: 700, color: sendMsg.includes("Sent") ? GREEN : "#DC2626" }}>{sendMsg}</div>}
-          <button onClick={handleSend} disabled={sending || !sendForm.amount} style={{ marginTop: 14, padding: "14px 32px", borderRadius: 12, border: "none", background: sending || !sendForm.amount ? "#e2e8f0" : `linear-gradient(135deg, ${GREEN}, ${BLUE})`, color: "white", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-            {sending ? "Sending..." : `Send ${sendForm.amount ? fmt(Number(sendForm.amount)) : ""}`}
-          </button>
-        </div>
-      )}
-
-      {/* ═══ 4. REQUEST MONEY ═══ */}
-      {section === "request" && (
-        <div style={{ background: "white", borderRadius: 20, padding: 28, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, fontSize: 17 }}>📥 Request Money</h3>
-            <button onClick={() => setSection(null)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>✕</button>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
-            {[
-              { icon: "🔗", title: "Payment Link", desc: "Send a link to collect money instantly", act: () => onTabChange("paylinks") },
-              { icon: "📄", title: "Invoice", desc: "Create and send a professional invoice", act: () => onTabChange("invoices") },
-              { icon: "📱", title: "QR Code", desc: "Generate QR for in-person payments", act: () => onTabChange("paylinks") },
-            ].map(o => (
-              <button key={o.title} onClick={o.act} style={{ padding: 24, borderRadius: 16, border: "1px solid #e2e8f0", background: "white", cursor: "pointer", textAlign: "left" }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>{o.icon}</div>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 4 }}>{o.title}</div>
-                <div style={{ fontSize: 12, color: "#64748b" }}>{o.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ═══ 5. CARDS ═══ */}
-      {section === "cards" && (
-        <div style={{ background: "white", borderRadius: 20, padding: 28, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, fontSize: 17 }}>💳 Cards</h3>
-            <button onClick={() => setSection(null)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>✕</button>
-          </div>
-          {/* Existing cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14, marginBottom: 18 }}>
-            {cards.map(c => (
-              <div key={c.id} style={{ borderRadius: 16, padding: "18px 20px", border: "1px solid #e2e8f0", background: "#fafafa" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>{c.card_type.replace(/_/g, " ").toUpperCase()}</span>
-                  <StatusBadge s={c.status} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 }}>
+          {accounts.map((a, i) => {
+            const typeColor = ACCT_COLORS[a.account_type] || BLUE;
+            return (
+              <div key={a.id} style={{ ...cardStyle, position: "relative", animation: `slideUp 0.3s ease forwards`, animationDelay: `${i * 0.05}s`, opacity: 0 }}>
+                <div style={{ position: "absolute", top: 20, left: 20, width: 8, height: 8, borderRadius: "50%", background: ACCT_GRADIENTS[a.account_type] || BLUE }} />
+                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "flex-start", marginBottom: 8 }}>
+                  <span style={badge(a.status, a.status === "active" ? GREEN : GOLD)}>{a.status}</span>
                 </div>
-                <p style={{ margin: "0 0 4px", fontFamily: "monospace", fontSize: 16, fontWeight: 700 }}>•••• •••• •••• {c.last4}</p>
-                <p style={{ margin: 0, fontSize: 11, color: "#94a3b8" }}>Exp {c.expiry} · {c.is_virtual ? "Virtual" : "Physical"} · Limit {fmt(c.spending_limit)}</p>
-                {c.status === "active" && (
-                  <button onClick={async () => { await api({ action: "toggle_card", card_id: c.id, freeze: true }); load(); }} style={{ marginTop: 10, padding: "8px 14px", borderRadius: 8, border: "none", background: "#fef2f2", color: "#DC2626", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🔒 Freeze Card</button>
-                )}
-                {c.status === "frozen" && (
-                  <button onClick={async () => { await api({ action: "toggle_card", card_id: c.id, freeze: false }); load(); }} style={{ marginTop: 10, padding: "8px 14px", borderRadius: 8, border: "none", background: "#f0fdf4", color: GREEN, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🔓 Unfreeze</button>
-                )}
+                <div style={{ fontWeight: 700, fontSize: 16, color: "#0F172A", marginTop: 4, paddingLeft: 20 }}>{a.account_name}</div>
+                <div style={{ fontSize: 12, color: "#64748B", marginTop: 4, paddingLeft: 20, textTransform: "capitalize" }}>{a.account_type.replace(/_/g, " ")}</div>
+                <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 8, fontFamily: "'SF Mono', 'Fira Code', monospace", letterSpacing: "0.05em", paddingLeft: 20 }}>****{a.account_number?.slice(-4) || "0000"}</div>
+                <div style={{ fontSize: 28, fontWeight: 900, marginTop: 14, color: typeColor, letterSpacing: "-0.02em", paddingLeft: 20 }}>{fmt(a.balance || 0)}</div>
               </div>
-            ))}
-          </div>
-          {/* Apply for new card */}
-          <div style={{ background: "#f8fafc", borderRadius: 14, padding: 20, border: "1px solid #e2e8f0" }}>
-            <h4 style={{ margin: "0 0 12px", fontWeight: 800, fontSize: 14 }}>Apply for New Card</h4>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              {["visa_debit", "visa_credit", "mc_debit"].map(t => (
-                <button key={t} onClick={() => setCardType(t)} style={{ flex: 1, padding: "12px", borderRadius: 10, border: cardType === t ? `2px solid ${BLUE}` : "1px solid #e2e8f0", background: cardType === t ? `${BLUE}08` : "white", cursor: "pointer", fontSize: 13, fontWeight: 700, color: cardType === t ? BLUE : "#374151" }}>
-                  {t === "visa_debit" ? "Visa Debit" : t === "visa_credit" ? "Visa Credit" : "Mastercard Debit"}
-                </button>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                <input type="checkbox" checked={cardPhysical} onChange={e => setCardPhysical(e.target.checked)} /> Physical card ($10 fee)
-              </label>
-            </div>
-            {cardPhysical && (
-              <div style={{ marginBottom: 12 }}>
-                <Input label="SHIPPING ADDRESS" value={cardAddr} onChange={setCardAddr} placeholder="123 Main St, Toronto, ON M5V 1A1" />
-              </div>
-            )}
-            <button onClick={handleApplyCard} disabled={applyingCard} style={{ padding: "12px 24px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${GREEN}, ${BLUE})`, color: "white", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>
-              {applyingCard ? "Applying..." : `Apply for ${cardType === "visa_debit" ? "Visa Debit" : cardType === "visa_credit" ? "Visa Credit" : "MC Debit"}`}
-            </button>
-          </div>
+            );
+          })}
+          {accounts.length === 0 && <div style={{ ...cardStyle, color: "#94A3B8", textAlign: "center", fontSize: 15 }}>No accounts yet. Open your first account above.</div>}
         </div>
-      )}
+      </div>
+    );
+  };
 
-      {/* ═══ 6. STATEMENTS ═══ */}
-      {section === "statements" && (
-        <div style={{ background: "white", borderRadius: 20, padding: 28, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, fontSize: 17 }}>📄 Statements & Documents</h3>
-            <button onClick={() => setSection(null)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>✕</button>
+  const CardsSection = () => {
+    const [showForm, setShowForm] = useState(false);
+    const [form, setForm] = useState({ card_type: "visa_debit_virtual", daily_limit: 5000, address: "" });
+    const isPhysical = form.card_type.includes("physical");
+    const submit = async () => {
+      await post("create_card", { card_type: form.card_type, daily_limit: form.daily_limit, ...(isPhysical ? { shipping_address: form.address } : {}) });
+      setShowForm(false);
+      setForm({ card_type: "visa_debit_virtual", daily_limit: 5000, address: "" });
+    };
+    const toggle = (c: CardDB) => post("toggle_card", { card_id: c.id, action: c.status === "active" ? "freeze" : "unfreeze" });
+    const cardGradient = (c: CardDB) => c.card_type?.includes("mc") ? "linear-gradient(135deg, #F5A623 0%, #E5247B 50%, #7B4FBF 100%)" : "linear-gradient(135deg, #2DBE60 0%, #15B8C9 50%, #2A8FE0 100%)";
+    return (
+      <div style={{ animation: "slideUp 0.3s ease forwards" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Your Cards</h3>
+          <button style={btnPrimary()} onClick={() => setShowForm(!showForm)}>Apply for New Card</button>
+        </div>
+        {showForm && (
+          <div style={{ ...cardStyle, marginBottom: 24, border: "2px solid #7B4FBF20" }}>
+            <div style={{ fontWeight: 800, marginBottom: 18, fontSize: 16, color: "#0F172A" }}>Apply for New Card</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+              <div><label style={labelStyle}>Card Type</label><select style={inputStyle} value={form.card_type} onChange={e => setForm({ ...form, card_type: e.target.value })}>{CARD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+              <div><label style={labelStyle}>Daily Limit: {fmt(form.daily_limit)}</label><input type="range" min={500} max={50000} step={500} value={form.daily_limit} onChange={e => setForm({ ...form, daily_limit: Number(e.target.value) })} style={{ width: "100%", marginTop: 12, accentColor: PURPLE }} /></div>
+              {isPhysical && <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Shipping Address</label><input style={inputStyle} placeholder="123 Main St, City, State, ZIP" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>}
+            </div>
+            {CARD_OPTIONS.find(o => o.value === form.card_type)?.fee ? <div style={{ marginTop: 12, fontSize: 13, color: GOLD, fontWeight: 600 }}>Issuance fee: $10.00</div> : null}
+            <button style={{ ...btnAccent(PURPLE), marginTop: 18 }} disabled={loading} onClick={submit}>{loading ? "Applying..." : "Apply"}</button>
           </div>
-          <div style={{ display: "grid", gap: 10 }}>
-            {["March 2026", "February 2026", "January 2026"].map(m => (
-              <div key={m} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderRadius: 12, border: "1px solid #e2e8f0" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 18 }}>📄</span>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{m} Statement</div>
-                    <div style={{ fontSize: 11, color: "#94a3b8" }}>Monthly · PDF</div>
+        )}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 24 }}>
+          {cards.map((c, i) => {
+            const pct = c.spending_limit ? Math.min(100, ((c.spent_this_month || 0) / c.spending_limit) * 100) : 0;
+            const isFrozen = c.status === "frozen";
+            return (
+              <div key={c.id} style={{ ...cardStyle, animation: `slideUp 0.3s ease forwards`, animationDelay: `${i * 0.05}s`, opacity: 0 }}>
+                {/* Realistic credit card */}
+                <div style={{
+                  width: 340, maxWidth: "100%", aspectRatio: "1.586", borderRadius: 16, padding: "24px 28px",
+                  color: "#fff", marginBottom: 18, position: "relative", overflow: "hidden",
+                  background: cardGradient(c),
+                  filter: isFrozen ? "grayscale(0.8)" : "none",
+                  transition: "transform 0.4s ease, box-shadow 0.4s ease",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                  display: "flex", flexDirection: "column", justifyContent: "space-between",
+                  cursor: "default",
+                }}>
+                  {/* Top row: ZeniPay + virtual/physical */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: "0.05em" }}>ZeniPay</div>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.8, fontWeight: 700 }}>{c.is_virtual ? "VIRTUAL" : "PHYSICAL"}</div>
                   </div>
+                  {/* Chip */}
+                  <div style={{ width: 44, height: 32, borderRadius: 6, background: "linear-gradient(135deg, #D4AF37, #F5D060)", marginTop: 8, position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: 6, left: 4, right: 4, height: 1, background: "rgba(0,0,0,0.15)" }} />
+                    <div style={{ position: "absolute", top: 12, left: 4, right: 4, height: 1, background: "rgba(0,0,0,0.15)" }} />
+                    <div style={{ position: "absolute", top: 18, left: 4, right: 4, height: 1, background: "rgba(0,0,0,0.15)" }} />
+                    <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", width: 1, background: "rgba(0,0,0,0.1)" }} />
+                  </div>
+                  {/* Card number */}
+                  <div style={{ fontFamily: "'SF Mono', 'Fira Code', monospace", fontSize: 18, letterSpacing: 3, marginTop: 12, fontWeight: 500 }}>
+                    {"\u2022\u2022\u2022\u2022"} {"\u2022\u2022\u2022\u2022"} {"\u2022\u2022\u2022\u2022"} {c.last4 || "0000"}
+                  </div>
+                  {/* Bottom row */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.7 }}>VALID THRU</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: "0.05em" }}>{c.expiry || "\u2014"}</div>
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: "0.05em", opacity: 0.9 }}>
+                      {c.card_type?.includes("mc") ? "MASTERCARD" : "VISA"}
+                    </div>
+                  </div>
+                  {/* Frozen overlay */}
+                  {isFrozen && (
+                    <div style={{
+                      position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex",
+                      alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)",
+                    }}>
+                      <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "0.15em", textTransform: "uppercase", color: "#fff", textShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>FROZEN</div>
+                    </div>
+                  )}
                 </div>
-                <button style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", fontSize: 12, fontWeight: 600, cursor: "pointer", color: BLUE }}>📥 Download</button>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <span style={badge(c.status, c.status === "active" ? GREEN : c.status === "frozen" ? BLUE : "#94A3B8")}>{c.status}</span>
+                  <span style={{ fontSize: 13, color: "#64748B", fontWeight: 600 }}>Limit: {fmt(c.daily_limit || 0)}/day</span>
+                </div>
+                {c.spending_limit > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, color: "#64748B", marginBottom: 6, fontWeight: 600 }}>Spent this month: {fmt(c.spent_this_month || 0)} / {fmt(c.spending_limit)}</div>
+                    <div style={{ height: 6, background: "#F1F5F9", borderRadius: 3 }}><div style={{ height: 6, borderRadius: 3, width: `${pct}%`, background: pct > 80 ? "#e74c3c" : "linear-gradient(90deg, #15B8C9, #2DBE60)", transition: "width 0.5s ease" }} /></div>
+                  </div>
+                )}
+                <button style={c.status === "active" ? btnAccent(GOLD, true) : btnAccent(GREEN, true)} onClick={() => toggle(c)} disabled={loading}>{c.status === "active" ? "Freeze" : "Unfreeze"}</button>
               </div>
-            ))}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderRadius: 12, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 18 }}>🧾</span>
-                <div><div style={{ fontWeight: 600, fontSize: 14 }}>2025 Tax Document (1099-K)</div><div style={{ fontSize: 11, color: "#94a3b8" }}>Annual · PDF</div></div>
-              </div>
-              <button style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", fontSize: 12, fontWeight: 600, cursor: "pointer", color: BLUE }}>📥 Download</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══ 7. FEE SCHEDULE ═══ */}
-      <div style={{ background: "white", borderRadius: 20, padding: 28, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-        <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 15 }}>💰 ZeniPay Fee Schedule</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          {[
-            { l: "Account Maintenance", v: "FREE", g: true }, { l: "ACH Transfer", v: "FREE", g: true },
-            { l: "Domestic Wire", v: "$15.00" }, { l: "International Wire", v: "$30.00" },
-            { l: "Instant Payout", v: "1.5% (min $0.50)" }, { l: "Physical Card", v: "$10.00 one-time" },
-            { l: "Card Replacement", v: "$5.00" }, { l: "Returned Payment", v: "$25.00" },
-          ].map(f => (
-            <div key={f.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderRadius: 8, background: "#f8fafc" }}>
-              <span style={{ fontSize: 13, color: "#374151" }}>{f.l}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: (f as { g?: boolean }).g ? GREEN : "#374151" }}>{f.v}</span>
-            </div>
-          ))}
+            );
+          })}
+          {cards.length === 0 && <div style={{ ...cardStyle, color: "#94A3B8", textAlign: "center", fontSize: 15 }}>No cards yet. Apply for your first card above.</div>}
         </div>
       </div>
+    );
+  };
 
-      {/* ═══ 8. MONEY FLOW ═══ */}
-      <div style={{ background: "white", borderRadius: 20, padding: 28, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-        <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 15 }}>⚡ How Payments Flow</h3>
-        <div style={{ display: "flex", alignItems: "center", gap: 0, overflowX: "auto", paddingBottom: 4 }}>
-          {[
-            { icon: "👤", label: "Customer Pays", sub: "Credit/Debit", color: "#6366f1" }, null,
-            { icon: "🔄", label: "Card Network", sub: "Visa / MC", color: BLUE }, null,
-            { icon: "💳", label: "Finix", sub: "Gateway", color: PURPLE }, null,
-            { icon: "📊", label: "ZeniPay Fees", sub: "2.9% + $0.30", color: GOLD }, null,
-            { icon: "🏦", label: "Your Account", sub: "Net deposited", color: GREEN },
-          ].map((s, i) => s === null ? (
-            <div key={i} style={{ fontSize: 18, color: "#cbd5e1", flexShrink: 0, padding: "0 6px" }}>→</div>
-          ) : (
-            <div key={i} style={{ flexShrink: 0, textAlign: "center", minWidth: 85 }}>
-              <div style={{ width: 40, height: 40, background: `${s.color}12`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, margin: "0 auto 5px", border: `1px solid ${s.color}20` }}>{s.icon}</div>
-              <p style={{ margin: "0 0 1px", fontWeight: 700, fontSize: 10, color: "#374151" }}>{s.label}</p>
-              <p style={{ margin: 0, fontSize: 8, color: "#94a3b8" }}>{s.sub}</p>
-            </div>
+  const SendMoney = () => {
+    const [tab, setTab] = useState<"ACH" | "Wire" | "Internal" | "Bill Pay">("ACH");
+    const [f, setF] = useState<Record<string, string>>({});
+    const [saveContact, setSaveContact] = useState(false);
+    const update = (k: string, v: string) => setF(p => ({ ...p, [k]: v }));
+    const contactSelect = (
+      <div style={{ marginBottom: 18 }}>
+        <label style={labelStyle}>Saved Contacts</label>
+        <select style={inputStyle} onChange={e => { const c = contacts.find(x => x.id === e.target.value); if (c) setF(p => ({ ...p, recipient: c.name, routing_number: c.routing_number || "", account_number: c.account_number || "", bank_name: c.bank_name || "", swift_code: c.swift_code || "" })); }}>
+          <option value="">Select a contact...</option>
+          {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+    );
+    const wireFee = tab === "Wire" ? (f.swift_code ? 30 : 15) : 0;
+    const submit = async () => {
+      await post("send_transfer", { transfer_type: tab.toLowerCase().replace(" ", "_"), recipient_name: f.recipient || f.payee || "", amount: Number(f.amount), routing_number: f.routing_number, account_number: f.account_number, bank_name: f.bank_name, swift_code: f.swift_code, from_account: f.from_account, to_account: f.to_account, memo: f.memo, recurrence: f.recurrence, due_date: f.due_date, save_contact: saveContact });
+      setF({});
+    };
+    const tabs: ("ACH" | "Wire" | "Internal" | "Bill Pay")[] = ["ACH", "Wire", "Internal", "Bill Pay"];
+    return (
+      <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
+        <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "2px solid #F1F5F9" }}>
+          {tabs.map(t => (
+            <button key={t} onClick={() => { setTab(t); setF({}); }} style={{
+              padding: "12px 24px", border: "none", background: "none", cursor: "pointer", fontWeight: 700, fontSize: 14,
+              color: tab === t ? "#15B8C9" : "#94A3B8",
+              borderBottom: tab === t ? "3px solid #15B8C9" : "3px solid transparent",
+              marginBottom: -2, transition: "all 0.2s ease", letterSpacing: "0.01em",
+            }}>{t}</button>
           ))}
+        </div>
+        {contactSelect}
+        {tab === "ACH" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div><label style={labelStyle}>Recipient</label><input style={inputStyle} value={f.recipient || ""} onChange={e => update("recipient", e.target.value)} /></div>
+          <div><label style={labelStyle}>Routing Number</label><input style={inputStyle} value={f.routing_number || ""} onChange={e => update("routing_number", e.target.value)} /></div>
+          <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={f.account_number || ""} onChange={e => update("account_number", e.target.value)} /></div>
+          <div><label style={labelStyle}>Amount</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Memo</label><input style={inputStyle} value={f.memo || ""} onChange={e => update("memo", e.target.value)} /></div>
+        </div>)}
+        {tab === "Wire" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div><label style={labelStyle}>Recipient</label><input style={inputStyle} value={f.recipient || ""} onChange={e => update("recipient", e.target.value)} /></div>
+          <div><label style={labelStyle}>Bank Name</label><input style={inputStyle} value={f.bank_name || ""} onChange={e => update("bank_name", e.target.value)} /></div>
+          <div><label style={labelStyle}>Routing Number</label><input style={inputStyle} value={f.routing_number || ""} onChange={e => update("routing_number", e.target.value)} /></div>
+          <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={f.account_number || ""} onChange={e => update("account_number", e.target.value)} /></div>
+          <div><label style={labelStyle}>SWIFT Code (Intl)</label><input style={inputStyle} value={f.swift_code || ""} onChange={e => update("swift_code", e.target.value)} placeholder="Leave blank for domestic" /></div>
+          <div><label style={labelStyle}>Amount</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Memo</label><input style={inputStyle} value={f.memo || ""} onChange={e => update("memo", e.target.value)} /></div>
+        </div>)}
+        {tab === "Internal" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div><label style={labelStyle}>From Account</label><select style={inputStyle} value={f.from_account || ""} onChange={e => update("from_account", e.target.value)}><option value="">Select...</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.account_name} ({fmt(a.balance)})</option>)}</select></div>
+          <div><label style={labelStyle}>To Account</label><select style={inputStyle} value={f.to_account || ""} onChange={e => update("to_account", e.target.value)}><option value="">Select...</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.account_name} ({fmt(a.balance)})</option>)}</select></div>
+          <div><label style={labelStyle}>Amount</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
+        </div>)}
+        {tab === "Bill Pay" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div><label style={labelStyle}>Payee</label><input style={inputStyle} value={f.payee || ""} onChange={e => update("payee", e.target.value)} /></div>
+          <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={f.account_number || ""} onChange={e => update("account_number", e.target.value)} /></div>
+          <div><label style={labelStyle}>Amount</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
+          <div><label style={labelStyle}>Due Date</label><input style={inputStyle} type="date" value={f.due_date || ""} onChange={e => update("due_date", e.target.value)} /></div>
+          <div><label style={labelStyle}>Recurrence</label><select style={inputStyle} value={f.recurrence || "once"} onChange={e => update("recurrence", e.target.value)}><option value="once">One-time</option><option value="weekly">Weekly</option><option value="biweekly">Bi-weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select></div>
+        </div>)}
+        <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {tab !== "Internal" && <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, color: "#64748B", fontWeight: 600 }}><input type="checkbox" checked={saveContact} onChange={e => setSaveContact(e.target.checked)} style={{ accentColor: BLUE }} /> Save recipient</label>}
+            {wireFee > 0 && <span style={{ fontSize: 14, fontWeight: 700, color: GOLD }}>Wire fee: {fmt(wireFee)}</span>}
+            {tab === "ACH" && <span style={{ fontSize: 13, color: GREEN, fontWeight: 700 }}>Free transfer</span>}
+          </div>
+          <button style={btnPrimary()} onClick={submit} disabled={loading || !f.amount}>{loading ? "Sending..." : `Send ${f.amount ? fmt(Number(f.amount)) : "Money"}`}</button>
         </div>
       </div>
+    );
+  };
 
-      {/* ═══ 9. TRANSACTION LEDGER ═══ */}
-      <div style={{ background: "white", borderRadius: 20, padding: 28, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontWeight: 800, fontSize: 17 }}>📋 Transaction History</h3>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", color: "#64748b" }}>📥 CSV</button>
-            <button style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", color: "#64748b" }}>📄 PDF</button>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 12, alignItems: "center" }}>
-          {["all", "income", "expenses"].map(f => (
-            <button key={f} onClick={() => setTxFilter(f)} style={{ padding: "6px 14px", borderRadius: 8, border: txFilter === f ? `1px solid ${BLUE}` : "1px solid #e2e8f0", background: txFilter === f ? `${BLUE}10` : "white", color: txFilter === f ? BLUE : "#64748b", fontSize: 12, fontWeight: 700, cursor: "pointer", textTransform: "capitalize" }}>{f}</button>
-          ))}
-          <input value={txSearch} onChange={e => setTxSearch(e.target.value)} placeholder="Search..." style={{ marginLeft: "auto", padding: "7px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, width: 180 }} />
+  const TransactionsSection = () => {
+    const [filter, setFilter] = useState("All");
+    const [search, setSearch] = useState("");
+    const filters = ["All", "Income", "Expenses", "Transfers", "Fees"];
+    const typeFor = (t: { status?: string; description?: string; amount?: number; transfer_type?: string }) => {
+      if ("transfer_type" in t) return t.transfer_type === "wire" ? "Wire" : "Transfer";
+      const d = (t.description || "").toLowerCase();
+      if (d.includes("fee")) return "Fee";
+      return (t.amount || 0) >= 0 ? "Payment Received" : "Expense";
+    };
+    const typeColor: Record<string, string> = { "Payment Received": GREEN, Fee: "#e74c3c", Transfer: BLUE, Wire: PURPLE, Expense: "#e74c3c" };
+    const iconBg: Record<string, string> = { "Payment Received": "#ECFDF5", Fee: "#FEF2F2", Transfer: "#EFF6FF", Wire: "#F3E8FF", Expense: "#FEF2F2" };
+    const iconColor: Record<string, string> = { "Payment Received": GREEN, Fee: "#e74c3c", Transfer: BLUE, Wire: PURPLE, Expense: "#e74c3c" };
+    const iconSymbol: Record<string, string> = { "Payment Received": "\u2193", Fee: "\u25CB", Transfer: "\u21C4", Wire: "\u21C4", Expense: "\u2191" };
+    const merged = [
+      ...transactions.map(t => ({ id: t.id, date: t.date, description: t.description || t.customer, type: typeFor(t), amount: t.amount })),
+      ...transfers.map(t => ({ id: t.id, date: t.created_at, description: `${t.transfer_type?.toUpperCase()} to ${t.recipient_name}${t.fee ? ` (fee: ${fmt(t.fee)})` : ""}`, type: typeFor(t), amount: -t.amount })),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const filtered = merged.filter(t => {
+      if (filter === "Income") return t.amount >= 0 && t.type === "Payment Received";
+      if (filter === "Expenses") return t.amount < 0 && t.type !== "Fee" && t.type !== "Transfer" && t.type !== "Wire";
+      if (filter === "Transfers") return t.type === "Transfer" || t.type === "Wire";
+      if (filter === "Fees") return t.type === "Fee";
+      return true;
+    }).filter(t => !search || t.description?.toLowerCase().includes(search.toLowerCase()));
+    let running = netBalance;
+    const rows = filtered.slice(0, 50).map(t => { const bal = running; running -= t.amount; return { ...t, balance: bal }; });
+    return (
+      <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 14 }}>
+          <div style={{ display: "flex", gap: 6 }}>{filters.map(fl => (
+            <button key={fl} onClick={() => setFilter(fl)} style={{
+              padding: "8px 18px", border: "none", borderRadius: 20, cursor: "pointer", fontWeight: 700, fontSize: 12,
+              background: filter === fl ? "linear-gradient(135deg, #15B8C9, #7B4FBF)" : "#F1F5F9",
+              color: filter === fl ? "#fff" : "#64748B",
+              transition: "all 0.2s ease", letterSpacing: "0.02em",
+            }}>{fl}</button>
+          ))}</div>
+          <input style={{ ...inputStyle, width: 260, height: 42 }} placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead><tr style={{ borderBottom: "2px solid #f1f5f9" }}>
-              {["Date", "Description", "Type", "Amount", "Balance"].map(h => <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>{h}</th>)}
-            </tr></thead>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #F1F5F9" }}>
+                {["", "Date", "Description", "Type", "Amount", "Balance"].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontWeight: 700, color: "#94A3B8", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
             <tbody>
-              {filteredTxns.slice(0, 40).map(tx => (
-                <tr key={tx.id} style={{ borderBottom: "1px solid #f8fafc" }}>
-                  <td style={{ padding: "10px", fontSize: 12, color: "#64748b", whiteSpace: "nowrap" }}>{new Date(tx.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
-                  <td style={{ padding: "10px" }}><div style={{ fontWeight: 600, color: "#0f172a", fontSize: 13 }}>{tx.desc}</div>{tx.card && <div style={{ fontSize: 10, color: "#94a3b8" }}>{tx.card}</div>}</td>
-                  <td style={{ padding: "10px" }}><span style={{ fontSize: 10, fontWeight: 700, borderRadius: 5, padding: "2px 7px", background: tx.positive ? `${GREEN}12` : "#fef2f2", color: tx.positive ? GREEN : "#DC2626" }}>{tx.type}</span></td>
-                  <td style={{ padding: "10px", fontWeight: 700, color: tx.positive ? GREEN : "#DC2626", fontFamily: "monospace" }}>{tx.positive ? "+" : "-"}{fmt(tx.amount)}</td>
-                  <td style={{ padding: "10px", fontSize: 12, color: "#94a3b8", fontFamily: "monospace" }}>{fmt((tx as Record<string, unknown>).balance as number)}</td>
+              {rows.map((r, i) => (
+                <tr key={r.id} style={{ borderBottom: "1px solid #F8FAFC", background: i % 2 === 0 ? "#fff" : "#FAFBFC", height: 56, transition: "background 0.15s ease" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
+                  onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? "#fff" : "#FAFBFC")}
+                >
+                  <td style={{ padding: "10px 14px", width: 50 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: "50%",
+                      background: iconBg[r.type] || "#F1F5F9",
+                      color: iconColor[r.type] || "#64748B",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 16, fontWeight: 900,
+                    }}>{iconSymbol[r.type] || "\u25CB"}</div>
+                  </td>
+                  <td style={{ padding: "10px 14px", whiteSpace: "nowrap", color: "#0F172A", fontWeight: 500 }}>{new Date(r.date).toLocaleDateString()}</td>
+                  <td style={{ padding: "10px 14px", maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", color: "#0F172A" }}>{r.description}</td>
+                  <td style={{ padding: "10px 14px" }}><span style={badge(r.type, typeColor[r.type] || "#94A3B8")}>{r.type}</span></td>
+                  <td style={{ padding: "10px 14px", fontWeight: 900, color: r.amount >= 0 ? GREEN : "#e74c3c", letterSpacing: "-0.02em", fontSize: 15 }}>{r.amount >= 0 ? "+" : ""}{fmt(r.amount)}</td>
+                  <td style={{ padding: "10px 14px", color: "#94A3B8", fontFamily: "'SF Mono', 'Fira Code', monospace", fontSize: 13 }}>{fmt(r.balance)}</td>
                 </tr>
               ))}
+              {rows.length === 0 && <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#94A3B8", fontSize: 15 }}>No transactions found.</td></tr>}
             </tbody>
           </table>
-          {filteredTxns.length === 0 && <p style={{ textAlign: "center", padding: "24px 0", color: "#94a3b8", fontSize: 13 }}>No transactions found</p>}
         </div>
+      </div>
+    );
+  };
+
+  const FeeSchedule = () => (
+    <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
+      <h3 style={{ margin: "0 0 22px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Fee Schedule</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+        {FEES_DATA.map(([name, amount], i) => (
+          <div key={name} style={{
+            display: "flex", justifyContent: "space-between", padding: "16px 20px",
+            background: i % 2 === 0 ? "#FAFBFC" : "#fff", borderBottom: "1px solid #F1F5F9",
+            borderRadius: i === 0 ? "10px 0 0 0" : i === 1 ? "0 10px 0 0" : 0,
+          }}>
+            <span style={{ fontWeight: 600, color: "#0F172A", fontSize: 14 }}>{name}</span>
+            <span style={{ fontWeight: 900, color: amount === "Free" ? GREEN : "#0F172A", letterSpacing: "-0.02em" }}>{amount}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const MoneyFlow = () => (
+    <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
+      <h3 style={{ margin: "0 0 28px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Money Flow</h3>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, flexWrap: "wrap", padding: "24px 0" }}>
+        {[
+          { label: "Customer", sub: "Payment initiated", color: PURPLE, icon: "\uD83D\uDC64" },
+          { label: "Card Network", sub: "Visa / Mastercard", color: GOLD, icon: "\uD83D\uDCB3" },
+          { label: "Finix", sub: "Payment processor", color: BLUE, icon: "\u26A1" },
+          { label: "ZeniPay Fees", sub: `${fmt(zenipayFees)} collected`, color: "#e74c3c", icon: "\uD83D\uDCCA" },
+          { label: "Your Account", sub: fmt(netBalance), color: GREEN, icon: "\uD83C\uDFE6" },
+        ].map((step, i, arr) => (
+          <React.Fragment key={step.label}>
+            <div style={{ textAlign: "center", padding: "18px 24px", minWidth: 130, animation: `slideUp 0.3s ease forwards`, animationDelay: `${i * 0.1}s`, opacity: 0 }}>
+              <div style={{
+                width: 60, height: 60, borderRadius: "50%",
+                background: step.color + "14",
+                border: `2px solid ${step.color}30`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 12px", fontSize: 28,
+                transition: "transform 0.2s ease",
+              }}>{step.icon}</div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: "#0F172A" }}>{step.label}</div>
+              <div style={{ fontSize: 12, color: "#64748B", marginTop: 4, fontWeight: 500 }}>{step.sub}</div>
+            </div>
+            {i < arr.length - 1 && (
+              <div style={{ fontSize: 20, color: "#CBD5E1", padding: "0 4px" }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+
+  const Settings = () => {
+    const [n, setN] = useState(notifs);
+    const save = () => post("update_notifications", n);
+    const Toggle = ({ k, label: lbl }: { k: keyof Notification; label: string }) => (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 0", borderBottom: "1px solid #F1F5F9" }}>
+        <span style={{ fontWeight: 600, color: "#0F172A", fontSize: 15 }}>{lbl}</span>
+        <div onClick={() => setN(p => ({ ...p, [k]: !p[k] }))} style={{
+          width: 52, height: 28, borderRadius: 14,
+          background: n[k] ? "linear-gradient(135deg, #15B8C9, #2DBE60)" : "#E2E8F0",
+          cursor: "pointer", position: "relative", transition: "background 0.3s ease",
+          boxShadow: n[k] ? "0 2px 8px rgba(21,184,201,0.3)" : "none",
+        }}>
+          <div style={{
+            width: 24, height: 24, borderRadius: 12, background: "#fff", position: "absolute", top: 2,
+            left: n[k] ? 26 : 2, transition: "left 0.3s ease",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+          }} />
+        </div>
+      </div>
+    );
+    return (
+      <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
+        <h3 style={{ margin: "0 0 22px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Notification Settings</h3>
+        <Toggle k="payment_received" label="Payment Received" />
+        <Toggle k="payout_completed" label="Payout Completed" />
+        <Toggle k="card_transaction" label="Card Transaction" />
+        <Toggle k="weekly_summary" label="Weekly Summary" />
+        <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div><label style={labelStyle}>Large Transaction Threshold</label><input style={inputStyle} type="number" value={n.large_transaction_threshold} onChange={e => setN(p => ({ ...p, large_transaction_threshold: Number(e.target.value) }))} /></div>
+          <div><label style={labelStyle}>Low Balance Threshold</label><input style={inputStyle} type="number" value={n.low_balance_threshold} onChange={e => setN(p => ({ ...p, low_balance_threshold: Number(e.target.value) }))} /></div>
+        </div>
+        <button style={{ ...btnPrimary(), marginTop: 22 }} onClick={save} disabled={loading}>{loading ? "Saving..." : "Save Settings"}</button>
+      </div>
+    );
+  };
+
+  const renderSection = () => {
+    switch (section) {
+      case "Overview": return <Overview />;
+      case "Accounts": return <AccountsSection />;
+      case "Cards": return <CardsSection />;
+      case "Send Money": return <SendMoney />;
+      case "Transactions": return <TransactionsSection />;
+      case "Fee Schedule": return <FeeSchedule />;
+      case "Money Flow": return <MoneyFlow />;
+      case "Settings": return <Settings />;
+    }
+  };
+
+  return (
+    <div style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", minHeight: "100vh", background: "#FAFBFC" }}>
+      <style>{CSS_ANIMATIONS}</style>
+      <ToastContainer />
+      {/* Header with ZeniPay signature gradient */}
+      <div style={{
+        background: "linear-gradient(135deg, #15B8C9 0%, #7B4FBF 50%, #E5247B 100%)",
+        padding: "0", position: "relative",
+      }}>
+        <div style={{
+          display: "flex", gap: 4, padding: "14px 28px", overflowX: "auto",
+          maxWidth: 1200, margin: "0 auto",
+        }}>
+          {SECTIONS.map(s => (
+            <button key={s} onClick={() => setSection(s)} style={{
+              padding: "10px 20px", borderRadius: 12, border: "none", cursor: "pointer",
+              fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", letterSpacing: "0.01em",
+              background: section === s ? "rgba(255,255,255,0.25)" : "transparent",
+              color: "#fff",
+              transition: "all 0.2s ease",
+              backdropFilter: section === s ? "blur(8px)" : "none",
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
+              <span style={{ fontSize: 15 }}>{SECTION_ICONS[s]}</span>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: 28, maxWidth: 1140, margin: "0 auto" }}>
+        {renderSection()}
       </div>
     </div>
   );
