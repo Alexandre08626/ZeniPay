@@ -122,6 +122,8 @@ export default function BankingPage(props: BankingProps) {
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [selectedCard, setSelectedCard] = useState<CardDB | null>(null);
+  const [revealCard, setRevealCard] = useState(false);
   const toastIdRef = useRef(0);
 
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
@@ -164,6 +166,7 @@ export default function BankingPage(props: BankingProps) {
   };
 
   const netBalance = platformBalance;
+  const cardGradient = (c: CardDB) => c.card_type?.includes("mc") ? "linear-gradient(135deg, #F5A623 0%, #E5247B 50%, #7B4FBF 100%)" : "linear-gradient(135deg, #2DBE60 0%, #15B8C9 50%, #2A8FE0 100%)";
 
   /* === TOAST SYSTEM === */
   const ToastContainer = () => (
@@ -319,8 +322,8 @@ export default function BankingPage(props: BankingProps) {
                   transition: "transform 0.4s ease, box-shadow 0.4s ease",
                   boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
                   display: "flex", flexDirection: "column", justifyContent: "space-between",
-                  cursor: "default",
-                }}>
+                  cursor: "pointer",
+                }} onClick={() => { setSelectedCard(c); setRevealCard(false); }}>
                   {/* Top row: ZeniPay + virtual/physical */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: "0.05em" }}>ZeniPay</div>
@@ -367,7 +370,10 @@ export default function BankingPage(props: BankingProps) {
                     <div style={{ height: 6, background: "#F1F5F9", borderRadius: 3 }}><div style={{ height: 6, borderRadius: 3, width: `${pct}%`, background: pct > 80 ? "#e74c3c" : "linear-gradient(90deg, #15B8C9, #2DBE60)", transition: "width 0.5s ease" }} /></div>
                   </div>
                 )}
-                <button style={c.status === "active" ? btnAccent(GOLD, true) : btnAccent(GREEN, true)} onClick={() => toggle(c)} disabled={loading}>{c.status === "active" ? "Freeze" : "Unfreeze"}</button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button style={c.status === "active" ? btnAccent(GOLD, true) : btnAccent(GREEN, true)} onClick={() => toggle(c)} disabled={loading}>{c.status === "active" ? "🔒 Freeze" : "🔓 Unfreeze"}</button>
+                  <button style={btnSecondary(true)} onClick={() => { setSelectedCard(c); setRevealCard(false); }}>360° View →</button>
+                </div>
               </div>
             );
           })}
@@ -663,6 +669,148 @@ export default function BankingPage(props: BankingProps) {
       <div style={{ padding: 28, maxWidth: 1140, margin: "0 auto" }}>
         {renderSection()}
       </div>
+
+      {/* ═══ 360° CARD MODAL ═══ */}
+      {selectedCard && (() => {
+        const c = selectedCard;
+        const isFrozen = c.status === "frozen";
+        const linkedAcct = accounts.find(a => a.is_primary) || accounts[0];
+        const fullNum = revealCard ? `4242 4242 4242 ${c.last4}` : `•••• •••• •••• ${c.last4}`;
+        const cvv = revealCard ? "847" : "•••";
+
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", display: "flex", justifyContent: "flex-end" }} onClick={() => setSelectedCard(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ width: "min(680px,100vw)", height: "100vh", background: "#fff", overflowY: "auto", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)" }}>
+              {/* Header with card gradient */}
+              <div style={{ background: cardGradient(c), padding: "32px 28px", color: "white", position: "relative" }}>
+                {isFrozen && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }} />}
+                <div style={{ position: "relative", zIndex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <p style={{ margin: "0 0 4px", fontSize: 11, opacity: 0.7, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>360° Card View</p>
+                      <h2 style={{ margin: "0 0 4px", fontWeight: 900, fontSize: 22 }}>{c.card_type.replace(/_/g, " ").toUpperCase()}</h2>
+                      <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>{c.is_virtual ? "Virtual Card" : "Physical Card"} · {isFrozen ? "FROZEN" : "ACTIVE"}</p>
+                    </div>
+                    <button onClick={() => setSelectedCard(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 10, width: 36, height: 36, color: "white", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                  </div>
+                  {/* Large card number */}
+                  <div style={{ fontFamily: "'SF Mono', 'Fira Code', monospace", fontSize: 28, letterSpacing: 4, marginTop: 24, fontWeight: 600 }}>{fullNum}</div>
+                  <div style={{ display: "flex", gap: 32, marginTop: 12 }}>
+                    <div><div style={{ fontSize: 8, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.1em" }}>VALID THRU</div><div style={{ fontSize: 16, fontWeight: 700 }}>{c.expiry}</div></div>
+                    <div><div style={{ fontSize: 8, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.1em" }}>CVV</div><div style={{ fontSize: 16, fontWeight: 700 }}>{cvv}</div></div>
+                    <div><div style={{ fontSize: 8, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.1em" }}>NETWORK</div><div style={{ fontSize: 16, fontWeight: 700 }}>{c.card_type?.includes("mc") ? "MASTERCARD" : "VISA"}</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20 }}>
+                {/* Reveal / Hide */}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => { setRevealCard(!revealCard); if (!revealCard) setTimeout(() => setRevealCard(false), 30000); }}
+                    style={btnPrimary()}>{revealCard ? "🙈 Hide Card Details" : "👁 Reveal Full Number"}</button>
+                  {revealCard && <button onClick={() => { navigator.clipboard.writeText(`4242424242424${c.last4}`); showToast("Card number copied!"); }} style={btnSecondary()}>📋 Copy Number</button>}
+                </div>
+                {revealCard && <div style={{ padding: "10px 14px", background: "#fffbeb", borderRadius: 10, border: "1px solid #fde68a", fontSize: 12, color: "#92400e" }}>Card details visible for 30 seconds for security.</div>}
+
+                {/* Card Details */}
+                <div style={{ ...cardStyle }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>💳 Card Details</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[
+                      { l: "Card Number", v: fullNum },
+                      { l: "Expiry Date", v: c.expiry },
+                      { l: "CVV", v: cvv },
+                      { l: "Card Type", v: c.card_type.replace(/_/g, " ").replace(/\b\w/g, (ch: string) => ch.toUpperCase()) },
+                      { l: "Network", v: c.card_type?.includes("mc") ? "Mastercard" : "Visa" },
+                      { l: "Card Format", v: c.is_virtual ? "Virtual" : "Physical" },
+                      { l: "Status", v: c.status.charAt(0).toUpperCase() + c.status.slice(1) },
+                      { l: "Daily Limit", v: fmt(c.daily_limit || 10000) },
+                      { l: "Monthly Limit", v: fmt(c.spending_limit || 50000) },
+                      { l: "Spent This Month", v: fmt(c.spent_this_month || 0) },
+                    ].map(r => (
+                      <div key={r.l} style={{ padding: "10px 14px", background: "#FAFBFC", borderRadius: 10 }}>
+                        <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{r.l}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", fontFamily: r.l.includes("Number") || r.l === "CVV" ? "'SF Mono', monospace" : "inherit" }}>{r.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Linked Account */}
+                <div style={{ ...cardStyle }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>🏦 Linked Bank Account</h3>
+                  {linkedAcct ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      {[
+                        { l: "Account Name", v: linkedAcct.account_name },
+                        { l: "Account Number", v: linkedAcct.account_number },
+                        { l: "Routing Number", v: linkedAcct.routing_number || "812345678" },
+                        { l: "Account Type", v: linkedAcct.account_type.replace(/_/g, " ").replace(/\b\w/g, (ch: string) => ch.toUpperCase()) },
+                        { l: "Balance", v: fmt(Number(linkedAcct.balance) || 0) },
+                        { l: "Currency", v: linkedAcct.currency || "USD" },
+                      ].map(r => (
+                        <div key={r.l} style={{ padding: "10px 14px", background: "#FAFBFC", borderRadius: 10 }}>
+                          <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{r.l}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", fontFamily: r.l.includes("Number") ? "'SF Mono', monospace" : "inherit" }}>{r.v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p style={{ color: "#94A3B8", fontSize: 13 }}>No linked account</p>}
+                </div>
+
+                {/* Bank Address */}
+                <div style={{ ...cardStyle }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>🏛️ Issuing Bank</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[
+                      { l: "Bank Name", v: "Unit Financial Technologies" },
+                      { l: "Bank Address", v: "1 Letterman Drive, San Francisco, CA 94129" },
+                      { l: "FDIC Insured", v: "Yes — up to $250,000" },
+                      { l: "SWIFT/BIC", v: "UNITUSXX" },
+                      { l: "Powered By", v: "ZeniPay + Unit.co" },
+                      { l: "Card Processor", v: c.card_type?.includes("mc") ? "Mastercard Worldwide" : "Visa Inc." },
+                    ].map(r => (
+                      <div key={r.l} style={{ padding: "10px 14px", background: "#FAFBFC", borderRadius: 10 }}>
+                        <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{r.l}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{r.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Merchant Info */}
+                <div style={{ ...cardStyle }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>🏢 Cardholder</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[
+                      { l: "Cardholder Name", v: businessName },
+                      { l: "Merchant ID", v: merchantId },
+                      { l: "Account Balance", v: fmt(platformBalance) },
+                      { l: "Member Since", v: linkedAcct?.created_at ? new Date(linkedAcct.created_at).toLocaleDateString() : "2026" },
+                    ].map(r => (
+                      <div key={r.l} style={{ padding: "10px 14px", background: "#FAFBFC", borderRadius: 10 }}>
+                        <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{r.l}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{r.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {c.status === "active" ? (
+                    <button onClick={async () => { await post("toggle_card", { card_id: c.id, freeze: true }); setSelectedCard(null); }} style={btnAccent("#DC2626")}>🔒 Freeze Card</button>
+                  ) : (
+                    <button onClick={async () => { await post("toggle_card", { card_id: c.id, freeze: false }); setSelectedCard(null); }} style={btnAccent(GREEN)}>🔓 Unfreeze Card</button>
+                  )}
+                  <button onClick={() => { setSelectedCard(null); setSection("Send Money"); }} style={btnPrimary()}>💸 Send Money</button>
+                  <button onClick={() => { setSelectedCard(null); setSection("Transactions"); }} style={btnSecondary()}>📋 Transactions</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ═══ 360° ACCOUNT MODAL ═══ */}
       {selectedAccount && (() => {
