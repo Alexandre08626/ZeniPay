@@ -1501,7 +1501,7 @@ export default function ZenivaCompleteApp() {
   // ── MOBILE ZeniPay ─────────────────────────────────────
   if (isMobile) {
     const zpGrad = "linear-gradient(90deg,#2DBE60 0%,#15B8C9 45%,#7B4FBF 100%)";
-    const cardBalance = unitAccounts[0] ? (unitAccounts[0].availableCents / 100) : 0;
+    const cardBalance = unitAccounts[0]?.availableCents > 0 ? (unitAccounts[0].availableCents / 100) : (merchantBalance || 0);
     const debitCard = unitCards[0];
     const goTab = (t: string) => { setTab(t); setIsMobile(false); };
     return (
@@ -2319,7 +2319,7 @@ export default function ZenivaCompleteApp() {
                     </div>
                     <span style={{ marginLeft: 8, background: "#4ade8030", border: "1px solid #4ade8060", borderRadius: 9999, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "#4ade80" }}>ADMIN</span>
                   </div>
-                  <p style={{ margin: 0, fontWeight: 900, fontSize: 40, letterSpacing: "-1px" }}>{fmt(WALLETS.platform.available, true)}</p>
+                  <p style={{ margin: 0, fontWeight: 900, fontSize: 40, letterSpacing: "-1px" }}>{fmt(merchantBalance > 0 ? merchantBalance : WALLETS.platform.available, true)}</p>
                   <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.5 }}>Available for distribution</p>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -2327,7 +2327,7 @@ export default function ZenivaCompleteApp() {
                     { l: "Pending", v: fmt(WALLETS.platform.pending, true), c: GOLD },
                     { l: "Paid Out", v: fmt(WALLETS.platform.paid, true), c: "#94a3b8" },
                     { l: "Processor", v: "Finix", c: "#60a5fa" },
-                    { l: "Mode", v: "Sandbox", c: GOLD },
+                    { l: "Mode", v: isLive ? "Live" : "Sandbox", c: isLive ? "#4ade80" : GOLD },
                   ].map(s => (
                     <div key={s.l} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px", backdropFilter: "blur(4px)" }}>
                       <p style={{ margin: "0 0 2px", fontSize: 9, opacity: 0.55, fontWeight: 700, textTransform: "uppercase" as const }}>{s.l}</p>
@@ -2474,7 +2474,7 @@ export default function ZenivaCompleteApp() {
                           </span>
                         </div>
                         <p style={{ margin: "0 0 10px", fontWeight: 900, fontSize: 26, letterSpacing: "-0.8px" }}>
-                          ${(acc.availableCents / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          ${((acc.availableCents > 0 ? acc.availableCents / 100 : merchantBalance) || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </p>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
                           <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: 7, padding: "6px 8px" }}>
@@ -3504,8 +3504,8 @@ export default function ZenivaCompleteApp() {
             {unitAccounts[0] && (() => { const a = unitAccounts[0]; return (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
                 {[
-                  { label: "Balance", value: `$${(a.balanceCents/100).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#2DBE60" },
-                  { label: "Available", value: `$${(a.availableCents/100).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#15B8C9" },
+                  { label: "Balance", value: `$${(a.balanceCents > 0 ? a.balanceCents/100 : merchantBalance).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#2DBE60" },
+                  { label: "Available", value: `$${(a.availableCents > 0 ? a.availableCents/100 : merchantBalance).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#15B8C9" },
                   { label: "Routing #", value: a.routingNumber || "812345678", color: "#F5A623" },
                   { label: "Account #", value: a.accountNumber || "1009825847", color: "#E5247B" },
                 ].map(s => (
