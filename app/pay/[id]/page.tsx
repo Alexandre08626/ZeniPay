@@ -39,6 +39,7 @@ function PayLinkContent() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error,   setError]   = useState("");
+  const [paymentResult, setPaymentResult] = useState<{ paymentId?: string; transferId?: string; card?: { brand?: string; last4?: string }; state?: string } | null>(null);
   const [linkMerchantId, setLinkMerchantId] = useState<string | null>(null);
   const [particles, setParticles] = useState<{ x: number; y: number; c: string; r: number; vx: number; vy: number; a: number }[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -125,8 +126,9 @@ function PayLinkContent() {
         return;
       }
 
-      // Payment succeeded or pending
+      // Payment succeeded or pending — store result for confirmation screen
       if (data.state === "SUCCEEDED" || data.state === "PENDING") {
+        setPaymentResult(data);
         setSuccess(true);
       } else {
         setError("Payment could not be processed. Please try again.");
@@ -140,17 +142,36 @@ function PayLinkContent() {
   };
 
   if (success) {
+    const pr = paymentResult;
     return (
       <div style={{ minHeight: "100vh", background: ZP_DARK, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
         <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 10 }} />
-        <div style={{ textAlign: "center", color: "#fff", padding: 32 }}>
+        <div style={{ textAlign: "center", color: "#fff", padding: 32, maxWidth: 480 }}>
           <div style={{ fontSize: 72, marginBottom: 16 }}>✅</div>
           <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>Payment Confirmed!</h1>
-          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, margin: "0 0 8px" }}>{fmtMoney(amount)} — {desc || "Payment"}</p>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>Ref: {id}</p>
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, margin: "0 0 16px" }}>{fmtMoney(amount)} — {desc || "Payment"}</p>
+
+          {/* Payment details */}
+          <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: "20px 24px", textAlign: "left" }}>
+            {[
+              { label: "Transaction ID", value: pr?.paymentId || "—" },
+              { label: "Status", value: pr?.state === "SUCCEEDED" ? "Succeeded" : pr?.state || "Confirmed" },
+              { label: "Amount", value: fmtMoney(amount) },
+              { label: "Card", value: pr?.card ? `${pr.card.brand || "Card"} ••••${pr.card.last4 || ""}` : "—" },
+              { label: "Description", value: desc || "—" },
+              { label: "Pay Link", value: id },
+              { label: "Date", value: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) },
+            ].map(r => (
+              <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{r.label}</span>
+                <span style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>{r.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 16 }}>A receipt has been sent to your email. Powered by ZeniPay.</p>
         </div>
       </div>
-
     );
   }
 
