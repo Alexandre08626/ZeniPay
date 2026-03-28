@@ -1271,6 +1271,7 @@ export default function ZenivaCompleteApp() {
   const [WALLETS, setWALLETS] = useState(DEFAULT_WALLETS);
   const [TRANSACTIONS, setTRANSACTIONS] = useState<{ id: string; customer: string; booking: string; amount: number; currency: string; method: string; gateway: string; status: string; date: string }[]>([]);
   const [STATS, setSTATS] = useState<{ totalTransactions: number; totalRevenue: number; successRate: number; env: string }>({ totalTransactions: 0, totalRevenue: 0, successRate: 0, env: "sandbox" });
+  const [merchantBalance, setMerchantBalance] = useState<number>(0);
   const [accountingSummary, setAccountingSummary] = useState<{ totalRevenue: number; totalExpenses: number; netProfit: number; platformFees: number; zenipayFees?: number; agentCommissions: number; journalEntries: unknown[]; chartOfAccounts: {code:string;name:string;balance:number;type:string}[] } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [openWallet, setOpenWallet] = useState<{name:string;data:typeof DEFAULT_WALLETS.platform;icon:string;color:string}|null>(null);
@@ -1340,6 +1341,9 @@ export default function ZenivaCompleteApp() {
             successRate: data.stats.success_rate || 0,
             env: data.env || "sandbox",
           });
+        }
+        if (data.merchant_balance != null) {
+          setMerchantBalance(Number(data.merchant_balance) || 0);
         }
       } catch {
         // API not reachable — stay at $0
@@ -1422,7 +1426,9 @@ export default function ZenivaCompleteApp() {
   const succeededCount = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length;
   // ZeniPay charges merchants 2.9% + $0.30/tx
   const zenipayFees = totalRevenue * 0.029 + succeededCount * 0.30;
-  const platformBalance = WALLETS.platform.available + WALLETS.agent.available + WALLETS.influencer.available + WALLETS.supplier.available;
+  // Business Checking = merchant balance from zenipay_merchants (source of truth)
+  // Falls back to wallet sum if merchant_balance not yet loaded
+  const platformBalance = merchantBalance > 0 ? merchantBalance : (WALLETS.platform.available + WALLETS.agent.available + WALLETS.influencer.available + WALLETS.supplier.available);
   const successRate = TRANSACTIONS.length > 0 ? Math.round(TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length / TRANSACTIONS.length * 100) : 0;
   const isLive = true; // Zeniva Travel is always live
 
@@ -2090,7 +2096,7 @@ export default function ZenivaCompleteApp() {
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#0ea5b0", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Merchant Revenue</span>
                     </div>
                     <BankCard
-                      balance={WALLETS.platform.available}
+                      balance={merchantBalance > 0 ? merchantBalance : WALLETS.platform.available}
                       cardholder="ZENIVA TRAVEL LLC"
                       subtitle="Revenue Account"
                       last4="0002"

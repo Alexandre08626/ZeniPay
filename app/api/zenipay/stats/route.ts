@@ -78,6 +78,17 @@ export async function GET(req: NextRequest) {
           .map(p => ({ id: p.id, customer: p.customer_name, amount: p.amount, currency: p.currency, status: p.status, description: p.description, date: p.created_at, gateway: "ZeniPay" }));
       }
 
+      // ── Read merchant balance (source of truth for Business Checking) ──
+      let merchantBalance = 0;
+      if (merchant_id) {
+        const { data: mRow } = await supabase
+          .from("zenipay_merchants")
+          .select("balance")
+          .eq("id", merchant_id)
+          .single();
+        if (mRow) merchantBalance = Number(mRow.balance) || 0;
+      }
+
       // Payouts — also filter in JS to avoid PGRST204
       const { data: allPayouts } = await supabase.from("zenipay_payouts").select("*").order("created_at", { ascending: false }).limit(50);
       const payouts = merchant_id
@@ -97,6 +108,7 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({
         wallets, stats,
+        merchant_balance: merchantBalance,
         recent_transactions: recentTransactions,
         recent_payouts: payouts || [],
         recent_invoices: allInvoices,
