@@ -1337,7 +1337,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch("/api/zenipay/stats?merchant_id=${encodeURIComponent(MID)}");
+        const res = await fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(MID)}`);
         if (!res.ok) return;
         const data = await res.json();
 
@@ -1384,7 +1384,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
 
     async function fetchAccountingSummary() {
       try {
-        const res = await fetch("/api/zenipay/accounting/summary?merchant_id=${encodeURIComponent(MID)}");
+        const res = await fetch(`/api/zenipay/accounting/summary?merchant_id=${encodeURIComponent(MID)}`);
         if (!res.ok) return;
         const data = await res.json();
         setAccountingSummary(data);
@@ -1405,7 +1405,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     async function fetchZpInvoices() {
       try {
         // Use stats API which already returns invoices (avoids NEXT_PUBLIC_SUPABASE_URL mismatch)
-        const r = await fetch("/api/zenipay/stats?merchant_id=${encodeURIComponent(MID)}");
+        const r = await fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(MID)}`);
         if (!r.ok) return;
         const d = await r.json();
         if (Array.isArray(d.recent_invoices)) {
