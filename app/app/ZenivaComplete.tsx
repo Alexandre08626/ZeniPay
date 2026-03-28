@@ -1910,9 +1910,9 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const succeededCount = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length || STATS.totalTransactions || 0;
   // ZeniPay charges merchants 2.9% + $0.30/tx
   const zenipayFees = totalRevenue * 0.029 + succeededCount * 0.30;
-  // Business Checking = merchant balance from zenipay_merchants (source of truth)
-  // Falls back to wallet sum if merchant_balance not yet loaded
-  const platformBalance = merchantBalance > 0 ? merchantBalance : (WALLETS.platform.available + WALLETS.agent.available + WALLETS.influencer.available + WALLETS.supplier.available);
+  // Available Balance = Net Revenue (gross - ZeniPay fees)
+  const grossBalance = merchantBalance > 0 ? merchantBalance : (WALLETS.platform.available + WALLETS.agent.available + WALLETS.influencer.available + WALLETS.supplier.available);
+  const platformBalance = grossBalance - zenipayFees;
   const successRate = TRANSACTIONS.length > 0 ? Math.round(TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length / TRANSACTIONS.length * 100) : 0;
   const isLive = MMODE === "live";
   // In sandbox mode, add Setup & Go Live tabs just above Settings
@@ -1994,7 +1994,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   // ── MOBILE ZeniPay ─────────────────────────────────────
   if (isMobile) {
     const zpGrad = "linear-gradient(90deg,#2DBE60 0%,#15B8C9 45%,#7B4FBF 100%)";
-    const cardBalance = unitAccounts[0]?.availableCents > 0 ? (unitAccounts[0].availableCents / 100) : (merchantBalance || 0);
+    const cardBalance = unitAccounts[0]?.availableCents > 0 ? (unitAccounts[0].availableCents / 100) : (platformBalance || 0);
     const debitCard = unitCards[0];
     const goTab = (t: string) => { setTab(t); setIsMobile(false); };
     return (
@@ -2589,7 +2589,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#0ea5b0", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Merchant Revenue</span>
                     </div>
                     <BankCard
-                      balance={merchantBalance > 0 ? merchantBalance : WALLETS.platform.available}
+                      balance={platformBalance}
                       cardholder="ZENIVA TRAVEL LLC"
                       subtitle="Revenue Account"
                       last4="0002"
@@ -2847,64 +2847,68 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               ))}
             </div>
 
-            {/* MONEY FLOW */}
+            {/* BALANCE SUMMARY */}
             <div style={{ background: "white", borderRadius: 20, padding: 28, boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
-              <h3 style={{ margin: "0 0 20px", fontWeight: 800, fontSize: 16, color: "#0f172a" }}>💰 Money Flow — How ZeniPay Distributes Funds</h3>
-              <div style={{ display: "flex", alignItems: "center", gap: 0, overflowX: "auto", paddingBottom: 8 }}>
+              <h3 style={{ margin: "0 0 20px", fontWeight: 800, fontSize: 16, color: "#0f172a" }}>💰 Balance Breakdown</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
                 {[
-                  { icon: "👤", label: "Client Pays", sub: "ZeniPay Checkout", color: "#6366f1" },
-                  { arrow: true },
-                  { icon: "🔄", label: "Finix Processes", sub: "Card Network", color: BLUE },
-                  { arrow: true },
-                  { icon: "🏛️", label: "Platform Wallet", sub: "100% lands here", color: BLUE },
-                  { arrow: true },
-                  { icon: "⚙️", label: "Admin Splits", sub: "Manual or auto", color: GOLD },
-                  { arrow: true },
-                  { icon: "💸", label: "Pays Out", sub: "Agents · Suppliers", color: GREEN },
-                ].map((s, i) => s.arrow ? (
-                  <div key={i} style={{ fontSize: 20, color: "#cbd5e1", flexShrink: 0, padding: "0 8px" }}>→</div>
-                ) : (
-                  <div key={i} style={{ flexShrink: 0, textAlign: "center" as const, minWidth: 90 }}>
-                    <div style={{ width: 48, height: 48, background: `${s.color}15`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, margin: "0 auto 6px", border: `1px solid ${s.color}25` }}>{s.icon}</div>
-                    <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 11, color: "#374151" }}>{s.label}</p>
-                    <p style={{ margin: 0, fontSize: 9, color: "#94a3b8" }}>{s.sub}</p>
+                  { l: "Gross Revenue", v: fmt(totalRevenue), co: "#2DBE60", icon: "📊" },
+                  { l: "ZeniPay Fees (2.9% + $0.30)", v: `- ${fmt(zenipayFees)}`, co: "#F59E0B", icon: "💳" },
+                  { l: "Net Revenue (Available)", v: fmt(platformBalance), co: BLUE, icon: "✅" },
+                  { l: "Paid Out", v: fmt(WALLETS.platform.paid), co: "#8B5CF6", icon: "📤" },
+                ].map(k => (
+                  <div key={k.l} style={{ background: "#f8fafc", borderRadius: 14, padding: "16px 18px", borderLeft: `3px solid ${k.co}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 18 }}>{k.icon}</span>
+                      <span style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>{k.l}</span>
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: k.co }}>{k.v}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* PAYOUT RULES */}
+            {/* PAYOUT SETTINGS + HISTORY */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
               <div style={{ background: "white", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
-                <h4 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 14, color: "#0f172a" }}>📋 Commission Structure</h4>
-                {[
-                  { role: "✈️ Travel Agent", pct: "70%", color: PURPLE },
-                  { role: "⭐ Influencer", pct: "5% net", color: GOLD },
-                  { role: "🏛️ Zeniva Platform", pct: "30%", color: BLUE },
-                  { role: "⛵ ZeniYacht", pct: "100% Zeniva", color: GREEN },
-                ].map(r => (
-                  <div key={r.role} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f8fafc", alignItems: "center" }}>
-                    <span style={{ fontSize: 13, color: "#374151" }}>{r.role}</span>
-                    <span style={{ fontWeight: 800, fontSize: 13, color: r.color, background: `${r.color}12`, borderRadius: 6, padding: "2px 8px" }}>{r.pct}</span>
-                  </div>
-                ))}
-                <p style={{ margin: "12px 0 0", fontSize: 11, color: "#94a3b8" }}>Lina books alone: Zeniva 70% · Agent 30% (reversed)</p>
+                <h4 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 14, color: "#0f172a" }}>🏦 Payout Settings</h4>
+                <div style={{ display: "grid", gap: 10 }}>
+                  {[
+                    { label: "Payout Method", value: "ACH Direct Deposit", status: "active" },
+                    { label: "Payout Frequency", value: "On-demand", status: "active" },
+                    { label: "Minimum Payout", value: "$25.00", status: null },
+                    { label: "Bank Account", value: "••••1847", status: "active" },
+                  ].map(r => (
+                    <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f1f5f9", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, color: "#374151" }}>{r.label}</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: r.status === "active" ? GREEN : "#64748b" }}>{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setTab("settings")} style={{ marginTop: 14, width: "100%", background: `${BLUE}12`, border: `1px solid ${BLUE}25`, borderRadius: 10, padding: "10px", fontWeight: 700, fontSize: 12, cursor: "pointer", color: BLUE }}>
+                  ⚙️ Edit Payout Settings
+                </button>
               </div>
               <div style={{ background: "white", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
-                <h4 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 14, color: "#0f172a" }}>🏦 Payout Schedule</h4>
-                {[
-                  { label: "Platform (You)", freq: "Instant / On-demand", color: BLUE },
-                  { label: "Agents", freq: "Every Friday", color: PURPLE },
-                  { label: "Influencers", freq: "1st of month", color: GOLD },
-                  { label: "Suppliers", freq: "Net-30 / On invoice", color: GREEN },
-                ].map(r => (
-                  <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f8fafc", alignItems: "center" }}>
-                    <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{r.label}</span>
-                    <span style={{ fontSize: 12, color: r.color, fontWeight: 700 }}>{r.freq}</span>
-                  </div>
-                ))}
-                <button style={{ marginTop: 14, width: "100%", background: `${BLUE}12`, border: `1px solid ${BLUE}25`, borderRadius: 10, padding: "10px", fontWeight: 700, fontSize: 12, cursor: "pointer", color: BLUE }}>
-                  ⚙️ Configure Payout Rules
+                <h4 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 14, color: "#0f172a" }}>📋 Pending Payouts</h4>
+                <div style={{ textAlign: "center", padding: "20px 0" }}>
+                  <div style={{ fontSize: 32, fontWeight: 900, color: BLUE }}>{fmt(platformBalance)}</div>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>Available for withdrawal</p>
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {[
+                    { label: "Gross Revenue", value: fmt(totalRevenue), color: "#374151" },
+                    { label: "ZeniPay Fees", value: `- ${fmt(zenipayFees)}`, color: "#F59E0B" },
+                    { label: "Previously Paid Out", value: `- ${fmt(WALLETS.platform.paid)}`, color: "#8B5CF6" },
+                  ].map(r => (
+                    <div key={r.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                      <span style={{ color: "#64748b" }}>{r.label}</span>
+                      <span style={{ fontWeight: 700, color: r.color }}>{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setTab("payouts")} style={{ marginTop: 14, width: "100%", background: `linear-gradient(135deg, ${GREEN}, ${BLUE})`, border: "none", borderRadius: 10, padding: "12px", fontWeight: 800, fontSize: 13, cursor: "pointer", color: "white" }}>
+                  💸 Withdraw Funds
                 </button>
               </div>
             </div>
@@ -3905,17 +3909,17 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               </div>
             </div>
 
-            {/* Commission Structure */}
+            {/* Fee Structure */}
             <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>💸 Commission Structure</h3>
-              <p style={{ margin: "0 0 14px", fontSize: 12, color: "#64748b" }}>All splits calculated on net profit (after supplier costs)</p>
+              <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>💸 ZeniPay Fee Structure</h3>
+              <p style={{ margin: "0 0 14px", fontSize: 12, color: "#64748b" }}>Fees deducted automatically from each transaction</p>
               <div style={{ display: "grid", gap: 10 }}>
                 {[
-                  { label: "Direct Booking", value: "100% Zeniva Travel", status: "active" },
-                  { label: "Lina AI Only", value: "70% Zeniva / 30% Agent", status: "active" },
-                  { label: "Human Agent", value: "70% Agent / 30% Zeniva", status: "active" },
-                  { label: "ZeniYacht", value: "100% Zeniva Travel", status: "active" },
-                  { label: "+ Influencer", value: "+5% from Zeniva share (influencer)", status: "active" },
+                  { label: "Processing Fee", value: "2.9% per transaction", status: "active" },
+                  { label: "Per-Transaction Fee", value: "$0.30 per transaction", status: "active" },
+                  { label: "Payout Fee (ACH)", value: "Free", status: "active" },
+                  { label: "Payout Fee (Wire)", value: "$25.00", status: "active" },
+                  { label: "Chargeback Fee", value: "$15.00 per dispute", status: "active" },
                 ].map(item => (
                   <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
                     <span style={{ fontSize: 13, color: "#374151" }}>{item.label}</span>
