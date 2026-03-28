@@ -16,44 +16,36 @@ export async function GET(req: NextRequest) {
     const merchant_id = req.nextUrl.searchParams.get("merchant_id");
     const wallets = await getWalletBalances(merchant_id || undefined);
 
-    // ─── 1. Read merchant balance + tx_count (source of truth) ──────────
+    // ─── 1. Read merchant balance via RPC (bypasses PostgREST cache) ────
     let merchantBalance = 0;
     let merchantTxCount = 0;
     if (merchant_id) {
-      const { data: mRow } = await supabase
-        .from("zenipay_merchants")
-        .select("balance, tx_count")
-        .eq("id", merchant_id)
-        .single();
-      if (mRow) {
-        merchantBalance = Number(mRow.balance) || 0;
-        merchantTxCount = Number(mRow.tx_count) || 0;
+      const { data: mData } = await supabase.rpc("get_merchant_balance", { mid: merchant_id });
+      if (mData && mData[0]) {
+        merchantBalance = Number(mData[0].balance) || 0;
+        merchantTxCount = Number(mData[0].tx_count) || 0;
       }
     }
 
-    // ─── 2. Read ALL payments (no filter in PostgREST, filter in JS) ────
-    const { data: allPays } = await supabase
-      .from("zenipay_payments")
-      .select("id, amount, status, created_at, customer_name, currency, description, merchant_id, card_brand, card_last4")
-      .order("created_at", { ascending: false })
-      .limit(500);
+    // ─── 2. Read ALL payments via RPC (SECURITY DEFINER — sees all rows) ─
+    const { data: allPays } = await supabase.rpc("get_all_payments");
 
-    // Filter by merchant_id — for zeniva-001 also include orphan rows
+    // Filter by merchant_id in JS
     const tablePays = merchant_id
-      ? (allPays || []).filter(p =>
+      ? (allPays || []).filter((p: { merchant_id: string }) =>
           p.merchant_id === merchant_id ||
           (merchant_id === "zeniva-001" && (!p.merchant_id || p.merchant_id === "default_merchant" || p.merchant_id === "unknown"))
         )
       : allPays || [];
 
     // ─── 3. Compute stats from REAL payment data ────────────────────────
-    const succeeded = tablePays.filter(p => p.status === "succeeded");
-    const failed = tablePays.filter(p => p.status === "failed");
-    const pending = tablePays.filter(p => p.status === "pending");
-    const refunded = tablePays.filter(p => p.status === "refunded");
-    const paymentRevenue = succeeded.reduce((s, p) => s + Number(p.amount), 0);
+    const succeeded = tablePays.filter((p: { status: string }) => p.status === "succeeded");
+    const failed = tablePays.filter((p: { status: string }) => p.status === "failed");
+    const pending = tablePays.filter((p: { status: string }) => p.status === "pending");
+    const refunded = tablePays.filter((p: { status: string }) => p.status === "refunded");
+    const paymentRevenue = succeeded.reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0);
 
-    // Use merchantBalance if higher (includes edge function inserts not visible to PostgREST)
+    // Use the higher of merchantBalance or payment sum (handles edge cases)
     const totalRevenue = Math.max(merchantBalance, paymentRevenue);
     const totalPayments = Math.max(merchantTxCount, tablePays.length);
 
@@ -67,27 +59,26 @@ export async function GET(req: NextRequest) {
       success_rate: totalPayments > 0 ? Math.round((Math.max(succeeded.length, merchantTxCount) / totalPayments) * 100) : 0,
     };
 
-    // ─── 4. Build recent_transactions from payment table ────────────────
+    // ─── 4. Build recent_transactions ───────────────────────────────────
     const recentTransactions = tablePays
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .sort((a: { created_at: string }, b: { created_at: string }) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 50)
-      .map(p => ({
+      .map((p: { id: string; customer_name: string; amount: number; currency: string; status: string; description: string; created_at: string; card_brand: string; card_last4: string }) => ({
         id: p.id, customer: p.customer_name || "—", amount: Number(p.amount),
         currency: p.currency || "USD", status: p.status,
         description: p.description || "", date: p.created_at,
         gateway: "ZeniPay", card_brand: p.card_brand || "", card_last4: p.card_last4 || "",
       }));
 
-    // ─── 5. Payouts ─────────────────────────────────────────────────────
+    // ─── 5. Payouts via RPC-safe read ───────────────────────────────────
     const { data: allPayouts } = await supabase.from("zenipay_payouts")
       .select("*").order("created_at", { ascending: false }).limit(50);
     const payouts = merchant_id
       ? (allPayouts || []).filter((p: { merchant_id?: string }) => p.merchant_id === merchant_id).slice(0, 10)
       : (allPayouts || []).slice(0, 10);
 
-    // ─── 6. Invoices ────────────────────────────────────────────────────
-    const { data: allInvoices } = await supabase.from("zenipay_invoices")
-      .select("*").order("created_at", { ascending: false }).limit(100);
+    // ─── 6. Invoices via RPC (SECURITY DEFINER) ─────────────────────────
+    const { data: allInvoices } = await supabase.rpc("get_all_invoices");
     const invoices = merchant_id
       ? (allInvoices || []).filter((inv: { merchant_id?: string }) => inv.merchant_id === merchant_id).slice(0, 20)
       : (allInvoices || []).slice(0, 20);
