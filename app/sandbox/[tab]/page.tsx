@@ -1,6 +1,6 @@
 "use client";
 import AppRouter from "../../app/page";
 
-export default function SandboxMerchantPage() {
+export default function SandboxTabPage() {
   return <AppRouter />;
 }

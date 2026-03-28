@@ -63,15 +63,7 @@ export default function AppRouter() {
     const isSandboxUrl = path.startsWith("/sandbox");
     const urlMode = isSandboxUrl ? "sandbox" : storedMode;
 
-    // Detect merchantId from URL: /app/{merchantId}/... or /sandbox/{merchantId}/...
-    const urlParts = path.split("/").filter(Boolean);
-    const urlMerchantId = urlParts.length >= 2 ? urlParts[1] : null;
-    // If we have a merchantId from URL, use it
-    if (urlMerchantId && !email && !clientId) {
-      sessionStorage.setItem("zp_client", urlMerchantId);
-    }
-
-    if (!email && !clientId && !urlMerchantId) { router.replace("/login"); return; }
+    if (!email && !clientId) { router.replace("/login"); return; }
 
     setMode(urlMode);
     if (urlMode !== storedMode) sessionStorage.setItem("zp_client_mode", urlMode);

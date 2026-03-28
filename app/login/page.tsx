@@ -36,9 +36,8 @@ export default function LoginPage() {
         sessionStorage.setItem("zp_client_mode", mode);
         sessionStorage.setItem("zp_client_sandbox_key", m.sandboxKey || "");
         sessionStorage.setItem("zp_client_bname", m.businessName || "My Business");
-        // Route to merchant-specific URL: /app/{id} or /sandbox/{id}
-        const base = mode === "sandbox" ? `/sandbox/${m.id}` : `/app/${m.id}`;
-        router.replace(`${base}/overview`);
+        // Sandbox accounts → /sandbox/overview, Live → /app/overview
+        router.replace(mode === "sandbox" ? "/sandbox/overview" : "/app/overview");
         return;
       }
     } catch {}

@@ -35,15 +35,14 @@ const DEFAULT_WALLETS = {
 };
 // WALLETS and TRANSACTIONS are now component state — fetched from /api/zenipay/stats
 
-const AGENTS: { id?: string; name: string; code: string; bookings: number; revenue: number; commission: number; pending: number; rate: string; role?: string; avatar?: string; badge?: string }[] = [
+// Zeniva-specific data — only shown for zeniva-001
+const ZENIVA_AGENTS: { id?: string; name: string; code: string; bookings: number; revenue: number; commission: number; pending: number; rate: string; role?: string; avatar?: string; badge?: string }[] = [
   { id: "ag-001", name: "Louis",     code: "LOUIS", bookings: 48, revenue: 142600, commission: 99820, pending: 2840, rate: "70%", role: "Senior Travel Agent", badge: "🥇" },
   { id: "ag-002", name: "Jason",     code: "JASON", bookings: 31, revenue: 89400,  commission: 62580, pending: 1420, rate: "70%", role: "Travel Agent",        badge: "🥈" },
   { id: "ag-003", name: "Luca",      code: "LUCA",  bookings: 22, revenue: 52750,  commission: 36925, pending: 980,  rate: "70%", role: "Travel Agent",        badge: "🥉" },
 ];
 
-const INFLUENCERS: { id?: string; name: string; code: string; refs: number; revenue: number; commission: number; pending: number; rate: string; handle?: string; platform?: string; tier?: string; status?: string; referrals?: number }[] = [];
-
-const INVOICES: { id: string; client: string; booking?: string; amount: number; status: string; date: string }[] = [
+const ZENIVA_INVOICES: { id: string; client: string; booking?: string; amount: number; status: string; date: string }[] = [
   { id: "INV-2026-041", client: "Martin Tremblay",   booking: "ZNV-1041", amount: 7677,  status: "paid",    date: "2026-03-18" },
   { id: "INV-2026-040", client: "Sarah Chen",        booking: "ZNV-1040", amount: 4290,  status: "paid",    date: "2026-03-16" },
   { id: "INV-2026-039", client: "Famille Gagnon",    booking: "ZNV-1039", amount: 12450, status: "pending", date: "2026-03-14" },
@@ -51,7 +50,7 @@ const INVOICES: { id: string; client: string; booking?: string; amount: number; 
   { id: "INV-2026-037", client: "Emily Watson",      booking: "ZNV-1037", amount: 8920,  status: "paid",    date: "2026-03-10" },
 ];
 
-const PAYOUTS: { id?: string; recipient: string; type: string; amount: number; status: string; date: string; method?: string }[] = [
+const ZENIVA_PAYOUTS: { id?: string; recipient: string; type: string; amount: number; status: string; date: string; method?: string }[] = [
   { id: "PO-2026-018", recipient: "Louis",          type: "agent",    amount: 2840,  status: "pending",  date: "2026-03-19", method: "e-Transfer" },
   { id: "PO-2026-017", recipient: "Jason",          type: "agent",    amount: 1420,  status: "pending",  date: "2026-03-19", method: "e-Transfer" },
   { id: "PO-2026-016", recipient: "Sunwing Airlines", type: "supplier", amount: 8940, status: "scheduled", date: "2026-03-20", method: "Wire" },
@@ -1264,20 +1263,24 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const BOWNER = props.ownerName || "";
   const MMODE = props.mode || (typeof window !== "undefined" ? sessionStorage.getItem("zp_client_mode") as "sandbox" | "live" : null) || "live";
   const router = useRouter();
-  // Detect base path: /sandbox/{mid}/ or /app/{mid}/ or /app/
-  const basePath = typeof window !== "undefined"
-    ? (window.location.pathname.match(/^\/(sandbox|app)\/[^/]+/) || ["/app"])[0]
-    : "/app";
+  // Detect base path: /sandbox/ or /app/
+  const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/sandbox") ? "/sandbox" : "/app";
   const [tab, setTabState] = useState(() => {
     if (typeof window === "undefined") return "overview";
     const path = window.location.pathname;
-    // Try /sandbox/{mid}/{tab} or /app/{mid}/{tab}
+    // /sandbox/{tab} or /app/{tab}
     const parts = path.split("/").filter(Boolean);
-    if (parts.length >= 3) return parts[2] || "overview";
-    // Fallback: /app/{tab}
-    return path.split("/app/")[1] || "overview";
+    return parts[1] || "overview";
   });
   const setTab = (id: string) => { setTabState(id); router.push(`${basePath}/${id}`); };
+
+  // Merchant-specific data: only Zeniva sees their agents/invoices/payouts
+  const isZeniva = MID === "zeniva-001";
+  const AGENTS = isZeniva ? ZENIVA_AGENTS : [];
+  const INFLUENCERS: { id?: string; name: string; code: string; refs: number; revenue: number; commission: number; pending: number; rate: string; handle?: string; platform?: string; tier?: string; status?: string; referrals?: number }[] = [];
+  const INVOICES = isZeniva ? ZENIVA_INVOICES : [];
+  const PAYOUTS = isZeniva ? ZENIVA_PAYOUTS : [];
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [txSearch, setTxSearch] = useState("");
   const [txFilter, setTxFilter] = useState("all");
