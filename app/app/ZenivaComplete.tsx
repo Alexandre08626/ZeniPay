@@ -2559,6 +2559,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             unitCards={unitCards}
             onTabChange={setTab}
             businessName={BNAME}
+            merchantId={MID}
           />
         )}
 
