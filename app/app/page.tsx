@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
-// Dynamic imports to keep bundle size sane
-const MerchantApp       = dynamic(() => import("./MerchantApp"),    { ssr: false });
+// Dynamic import — all merchants use ZenivaComplete
 const ZenivaCompleteApp = dynamic(() => import("./ZenivaComplete"), { ssr: false });
 
 interface Account {
@@ -15,8 +14,7 @@ interface Account {
   createdAt: string; volume: number; txCount: number; balance: number; notes: string;
 }
 
-const ZP_GRAD = "linear-gradient(135deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
-const DARK    = "#0A0F1E";
+const DARK = "#0A0F1E";
 
 function Loader() {
   return (
@@ -32,7 +30,7 @@ export default function AppRouter() {
   const [ready,    setReady]    = useState(false);
   const [account,  setAccount]  = useState<Account | null>(null);
   const [mode,     setMode]     = useState<"sandbox" | "live">("sandbox");
-  const [approved, setApproved] = useState(false);
+  const [, setApproved] = useState(false);
 
   // Fetch real stats and update account with live numbers (filtered by merchant)
   useEffect(() => {
@@ -60,9 +58,23 @@ export default function AppRouter() {
     const clientId   = sessionStorage.getItem("zp_client");
     const storedMode = (sessionStorage.getItem("zp_client_mode") as "sandbox" | "live") || "sandbox";
 
-    if (!email && !clientId) { router.replace("/login"); return; }
+    // Detect mode from URL: /sandbox/... = sandbox mode
+    const path = typeof window !== "undefined" ? window.location.pathname : "";
+    const isSandboxUrl = path.startsWith("/sandbox");
+    const urlMode = isSandboxUrl ? "sandbox" : storedMode;
 
-    setMode(storedMode);
+    // Detect merchantId from URL: /app/{merchantId}/... or /sandbox/{merchantId}/...
+    const urlParts = path.split("/").filter(Boolean);
+    const urlMerchantId = urlParts.length >= 2 ? urlParts[1] : null;
+    // If we have a merchantId from URL, use it
+    if (urlMerchantId && !email && !clientId) {
+      sessionStorage.setItem("zp_client", urlMerchantId);
+    }
+
+    if (!email && !clientId && !urlMerchantId) { router.replace("/login"); return; }
+
+    setMode(urlMode);
+    if (urlMode !== storedMode) sessionStorage.setItem("zp_client_mode", urlMode);
 
     // Load merchant from Supabase via merchant-info API (reads merchant_data JSONB — PostgREST safe)
     const lookupEmail = email || "";
@@ -131,29 +143,20 @@ export default function AppRouter() {
 
   if (!ready || !account) return <Loader />;
 
-  const isZeniva  = account.plan === "Complete" || account.id === "zeniva-001";
-  // mode is driven solely by the user's selection — account.status does not block live mode
-  const isSandbox = mode === "sandbox";
-
-  const handleModeChange = (newMode: "sandbox" | "live") => {
-    sessionStorage.setItem("zp_client_mode", newMode);
-    setMode(newMode);
-  };
-
-  // ── Routing logic ─────────────────────────────────────────
-  // Zeniva Travel → Complete dashboard
-  if (isZeniva) {
-    return <ZenivaCompleteApp />;
+  // All merchants use the same ZenivaComplete dashboard
+  // Store business name in sessionStorage for ZenivaComplete to read
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem("zp_client_bname", account.businessName || "My Business");
   }
 
-  // Standard or Business → MerchantApp (sandbox et live même dashboard)
   return (
-    <MerchantApp
-      account={account}
-      mode={isSandbox ? "sandbox" : "live"}
+    <ZenivaCompleteApp
+      merchantId={account.id}
+      businessName={account.businessName}
+      ownerName={account.ownerName}
+      email={account.email}
+      mode={mode}
       onSignOut={signOut}
-      onApproved={handleApproved}
-      onModeChange={handleModeChange}
     />
   );
 }

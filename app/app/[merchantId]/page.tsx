@@ -1,6 +1,6 @@
 "use client";
 import AppRouter from "../page";
 
-export default function TabPage() {
+export default function MerchantPage() {
   return <AppRouter />;
 }
