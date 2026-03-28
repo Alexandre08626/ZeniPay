@@ -1667,7 +1667,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         {/* ── STATS ROW ── */}
         <div style={{ margin:"0 16px 20px", display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
           {[
-            { icon:"💳", label:"Transactions", value:String(STATS.totalTransactions||0), color:"#2A8FE0" },
+            { icon:"💳", label:"Transactions", value:String(STATS.totalTransactions||succeededCount), color:"#2A8FE0" },
             { icon:"💰", label:"Revenue", value:fmt(totalRevenue), color:"#2DBE60" },
             { icon:"✅", label:"Success Rate", value:`${STATS.successRate||0}%`, color:"#7B4FBF" },
           ].map((s,i)=>(

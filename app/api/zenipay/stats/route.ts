@@ -78,15 +78,26 @@ export async function GET(req: NextRequest) {
           .map(p => ({ id: p.id, customer: p.customer_name, amount: p.amount, currency: p.currency, status: p.status, description: p.description, date: p.created_at, gateway: "ZeniPay" }));
       }
 
-      // ── Read merchant balance (source of truth for Business Checking) ──
+      // ── Read merchant balance + tx_count (source of truth) ──
       let merchantBalance = 0;
+      let merchantTxCount = 0;
       if (merchant_id) {
         const { data: mRow } = await supabase
           .from("zenipay_merchants")
-          .select("balance")
+          .select("balance, tx_count")
           .eq("id", merchant_id)
           .single();
-        if (mRow) merchantBalance = Number(mRow.balance) || 0;
+        if (mRow) {
+          merchantBalance = Number(mRow.balance) || 0;
+          merchantTxCount = Number(mRow.tx_count) || 0;
+        }
+      }
+      // Override stats with merchant DB values (source of truth)
+      if (merchantBalance > 0) stats.total_revenue = merchantBalance;
+      if (merchantTxCount > 0) {
+        stats.total_payments = merchantTxCount;
+        stats.succeeded_payments = merchantTxCount;
+        stats.success_rate = 100;
       }
 
       // Payouts — also filter in JS to avoid PGRST204
