@@ -1453,8 +1453,10 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     };
   });
 
-  const totalRevenue = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").reduce((a, t) => a + t.amount, 0);
-  const succeededCount = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length;
+  // Use merchant balance (DB source of truth) for revenue, fallback to STATS or TRANSACTIONS sum
+  const txRevenue = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").reduce((a, t) => a + t.amount, 0);
+  const totalRevenue = merchantBalance > 0 ? merchantBalance : (STATS.totalRevenue > 0 ? STATS.totalRevenue : txRevenue);
+  const succeededCount = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length || STATS.totalTransactions || 0;
   // ZeniPay charges merchants 2.9% + $0.30/tx
   const zenipayFees = totalRevenue * 0.029 + succeededCount * 0.30;
   // Business Checking = merchant balance from zenipay_merchants (source of truth)
