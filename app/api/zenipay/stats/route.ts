@@ -23,25 +23,9 @@ export async function GET(req: NextRequest) {
     let recentTransactions: unknown[] = [];
 
     if (supabase) {
-      // ── Read from zenipay_payments table ───
-      // NOTE: Do NOT filter by merchant_id via PostgREST .eq() — the column was
-      // added via ALTER TABLE and PostgREST schema cache may not see it (PGRST204).
-      // Instead, fetch all and filter in JS.
-      const { data: allPays } = await supabase
-        .from("zenipay_payments")
-        .select("id, amount, status, created_at, customer_name, currency, description, merchant_id")
-        .order("created_at", { ascending: false })
-        .limit(500) as {
-          data: Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string; merchant_id: string }> | null
-        };
-      // Filter by merchant_id in JS (PostgREST schema cache may not return column — PGRST204)
-      // For zeniva-001: also include rows with missing/default merchant_id (legacy data)
-      const tablePays = merchant_id
-        ? (allPays || []).filter(p =>
-            p.merchant_id === merchant_id ||
-            (merchant_id === "zeniva-001" && (!p.merchant_id || p.merchant_id === "default_merchant" || p.merchant_id === "unknown"))
-          )
-        : allPays;
+      // ── Read payments via RPC function (bypasses PostgREST cache completely) ──
+      const { data: rpcPays } = await supabase.rpc("get_merchant_payments", { mid: merchant_id || "zeniva-001" });
+      const tablePays = (rpcPays || []) as Array<{ id: string; amount: number; status: string; created_at: string; customer_name: string; currency: string; description: string; merchant_id: string; card_brand: string; card_last4: string }>;
 
       // ── Read from merchant_data.transactions (ZeniPay /pay/[id] payments) ─
       let mdQuery = supabase.from("zenipay_merchants").select("merchant_data");
