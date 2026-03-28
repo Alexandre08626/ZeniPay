@@ -173,18 +173,30 @@ export async function POST(req: NextRequest) {
       updated_at: now,
     });
 
-    if (!payResult.ok) {
-      console.error("[DB] Payment insert failed:", JSON.stringify(payResult));
-      return NextResponse.json({
-        success: true,
-        warning: "Payment succeeded but database record failed",
-        paymentId,
-        transferId: finixResult.transferId,
-        state: finixResult.state,
+    // Also insert via Supabase JS client (so PostgREST can see the row immediately)
+    if (supabase) {
+      await supabase.from("zenipay_payments").upsert({
+        id: paymentId,
+        payment_link_id: pay_link_id,
+        merchant_id: merchantId || "unknown",
         amount: amountNum,
         currency,
-        dbError: payResult.error || "unknown",
-      });
+        description: description || "",
+        customer_name: customer_name || "",
+        customer_email: customer_email || "",
+        status: finixResult.state === "SUCCEEDED" ? "succeeded" : "pending",
+        gateway: "finix",
+        gateway_transfer_id: finixResult.transferId || "",
+        gateway_instrument_id: finixResult.instrumentId || "",
+        card_brand: finixResult.brand || "",
+        card_last4: finixResult.last4 || "",
+        created_at: now,
+        updated_at: now,
+      }, { onConflict: "id" });
+    }
+
+    if (!payResult.ok) {
+      console.error("[DB] Payment insert failed via edge:", JSON.stringify(payResult));
     }
 
     console.log("[DB] Payment recorded:", paymentId);
@@ -224,6 +236,25 @@ export async function POST(req: NextRequest) {
         updated_at: now,
       });
 
+      // Also insert invoice via Supabase JS client
+      if (supabase) {
+        await supabase.from("zenipay_invoices").upsert({
+          id: invoiceId,
+          invoice_number: invoiceNumber,
+          payment_id: paymentId,
+          merchant_id: merchantId || "unknown",
+          booking_id: `BK-${paymentId}`,
+          customer_name: customer_name || "Client",
+          customer_email: customer_email || "",
+          items: JSON.stringify([{ description: description || pay_link_id, qty: 1, unit_price: amountNum, total: amountNum }]),
+          subtotal: amountNum, tax: 0, total: amountNum, currency,
+          status: "paid", paid_at: now,
+          merchant_name: merchantName || "", merchant_email: merchantEmail || "",
+          notes: `ZeniPay Payment ${paymentId} | Finix: ${finixResult.transferId}`,
+          created_at: now, updated_at: now,
+        }, { onConflict: "id" });
+      }
+
       if (!invResult.ok) {
         console.error("[DB] Invoice insert failed:", invResult.error);
       } else {
@@ -257,6 +288,16 @@ export async function POST(req: NextRequest) {
           tx_count: (merchant?.tx_count || 0) + 1,
           updated_at: now,
         });
+        // Also update via Supabase JS client
+        if (supabase) {
+          await supabase.from("zenipay_merchants").update({
+            merchant_data: { ...md, transactions: [txn, ...(md.transactions || [])] },
+            balance: (merchant?.balance || 0) + amountNum,
+            volume: (merchant?.volume || 0) + amountNum,
+            tx_count: (merchant?.tx_count || 0) + 1,
+            updated_at: now,
+          }).eq("id", merchantId);
+        }
       } catch (e) {
         console.error("[DB] Merchant update failed:", e);
       }
