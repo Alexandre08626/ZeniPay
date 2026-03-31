@@ -5,7 +5,9 @@ import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase"
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
+    const body = await req.json();
+    const email = (body.email || "").trim().toLowerCase();
+    const password = body.password || "";
     if (!email || !password) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
     }
@@ -23,8 +25,8 @@ export async function POST(req: NextRequest) {
     // Find merchant by email in merchant_data JSONB OR top-level email column
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const found = merchants.find((m: any) => {
-      if (m.merchant_data?.email === email) return true;
-      if (m.email === email) return true;
+      if ((m.merchant_data?.email || "").toLowerCase() === email) return true;
+      if ((m.email || "").toLowerCase() === email) return true;
       return false;
     });
 

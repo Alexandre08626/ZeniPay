@@ -19,7 +19,7 @@ export default function LoginPage() {
     setLoading(true); setError("");
 
     // Also accept info@zenivatravel.com as alias for info@zeniva.ca
-    const lookupEmail = email === "info@zenivatravel.com" ? "info@zeniva.ca" : email;
+    const lookupEmail = (email === "info@zenivatravel.com" ? "info@zeniva.ca" : email).trim().toLowerCase();
 
     // Authenticate via /api/zenipay/login
     try {
