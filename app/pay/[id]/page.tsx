@@ -284,8 +284,8 @@ function PayLinkContent() {
           )}
 
           <button
-            type="submit" disabled={loading || SANDBOX_MODE}
-            style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading || SANDBOX_MODE ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading || SANDBOX_MODE ? "not-allowed" : "pointer", letterSpacing: "0.02em", opacity: SANDBOX_MODE ? 0.6 : 1 }}
+            type="submit" disabled={loading}
+            style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading ? "not-allowed" : "pointer", letterSpacing: "0.02em" }}
           >
             {SANDBOX_MODE ? "🔒 Payment Disabled" : loading ? "Processing…" : `Pay ${fmtMoney(amount)}`}
           </button>
