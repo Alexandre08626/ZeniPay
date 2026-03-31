@@ -2438,72 +2438,102 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
-              {/* Live Feed */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              {/* Live Payment Activity */}
               <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", padding: 24 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a" }}>⚡ Live Payment Activity</h3>
+                  <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a" }}>⚡ Recent Payments</h3>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: GREEN, fontWeight: 600 }}>
                     <div style={{ width: 6, height: 6, background: GREEN, borderRadius: "50%", boxShadow: `0 0 6px ${GREEN}`, animation: "pulse 1.5s infinite" }} />
-                    Real-time
+                    Live
                     <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {liveActivity.length === 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {TRANSACTIONS.length === 0 ? (
                     <div style={{ textAlign: "center" as const, padding: "28px 0" }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>⚡</div>
-                      <p style={{ margin: 0, color: "#94a3b8", fontSize: 13 }}>Awaiting first payment…</p>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>💳</div>
+                      <p style={{ margin: 0, color: "#94a3b8", fontSize: 13 }}>No payments yet</p>
                     </div>
-                  ) : liveActivity.map(a => (
-                    <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: a.type === "alert" ? "#fff1f2" : "#f0fdf4", borderRadius: 10, padding: "10px 14px" }}>
-                      <span style={{ fontSize: 13, color: a.type === "alert" ? RED : "#065f46", fontWeight: 500 }}>{a.text}</span>
-                      <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" as const, marginLeft: 12 }}>{a.time}</span>
+                  ) : TRANSACTIONS.slice(0, 8).map(t => (
+                    <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: t.status === "failed" ? "#fff1f2" : "#f0fdf4", borderRadius: 10, padding: "10px 14px" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: 13, color: t.status === "failed" ? RED : "#065f46", fontWeight: 600 }}>{t.status === "succeeded" ? "✅" : t.status === "failed" ? "❌" : "⏳"} {fmt(t.amount)}</span>
+                        <span style={{ fontSize: 11, color: "#64748b", marginLeft: 8 }}>{t.customer}</span>
+                      </div>
+                      <div style={{ textAlign: "right" as const, flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{t.card_brand ? `${t.card_brand} ••${t.card_last4}` : ""}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {TRANSACTIONS.length > 8 && <button onClick={() => setTab("transactions")} style={{ background: "none", border: "none", color: BLUE, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "8px 0" }}>View all {TRANSACTIONS.length} transactions →</button>}
+                </div>
+              </div>
+
+              {/* Revenue Chart + Quick Stats */}
+              <div style={{ display: "grid", gap: 20 }}>
+                {/* Revenue by day mini chart */}
+                <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", padding: 24 }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 700, fontSize: 15, color: "#0f172a" }}>📊 Revenue (Last 7 Days)</h3>
+                  {(() => {
+                    const days: Record<string, number> = {};
+                    const now = Date.now();
+                    for (let i = 6; i >= 0; i--) { const d = new Date(now - i * 86400000); days[d.toISOString().slice(0, 10)] = 0; }
+                    TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").forEach(t => { const d = (t.date || "").slice(0, 10); if (days[d] !== undefined) days[d] += t.amount; });
+                    const entries = Object.entries(days);
+                    const maxVal = Math.max(...entries.map(([, v]) => v), 1);
+                    return (
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
+                        {entries.map(([date, val]) => (
+                          <div key={date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                            <div style={{ width: "100%", background: `linear-gradient(${BLUE}, #60a5fa)`, borderRadius: "4px 4px 0 0", height: `${Math.max(4, (val / maxVal) * 100)}%`, minHeight: 4, transition: "height 0.3s" }} title={`${date}: ${fmt(val)}`} />
+                            <span style={{ fontSize: 9, color: "#94a3b8" }}>{new Date(date + "T12:00:00").toLocaleDateString("en", { weekday: "short" })}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Recent Invoices */}
+                <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", padding: 24 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a" }}>📄 Recent Invoices</h3>
+                    <button onClick={() => setTab("invoices")} style={{ background: "none", border: "none", color: BLUE, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>View All →</button>
+                  </div>
+                  {zpInvoices.length === 0 ? (
+                    <p style={{ margin: 0, color: "#94a3b8", fontSize: 13, textAlign: "center" as const, padding: "16px 0" }}>No invoices yet</p>
+                  ) : zpInvoices.slice(0, 4).map(inv => (
+                    <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{inv.invoice_number || inv.id}</span>
+                        <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 8 }}>{inv.customer_name}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{fmt(inv.total)}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: inv.status === "paid" ? "#d1fae5" : "#fef3c7", color: inv.status === "paid" ? "#065f46" : "#92400e" }}>{inv.status}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-
-              {/* Commission Split */}
-              <RevenueSplitWidget />
             </div>
 
-            {/* ── Recent Bookings Panel ── */}
-            <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", overflow: "hidden", marginTop: 20 }}>
-              <div style={{ padding: "16px 20px", borderBottom: `1px solid ${GLASS_BORDER}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a" }}>✈️ Recent Bookings</h3>
-                <a href="#" style={{ fontSize: 12, color: BLUE, fontWeight: 700, textDecoration: "none" }}>View All →</a>
-              </div>
-              {recentBookings.length === 0 ? (
-                <div style={{ padding: 32, textAlign: "center" as const }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>✈️</div>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#64748b" }}>No bookings yet</p>
-                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "#94a3b8" }}>Bookings appear after payment is received</p>
-                </div>
-              ) : (
-                <div>
-                  {recentBookings.map((b, i) => {
-                    const statusColor = b.status === "confirmed" ? GREEN : b.status === "pending_payment" ? GOLD : "rgba(255,255,255,0.3)";
-                    const statusLabel = b.status === "confirmed" ? "✓ Confirmed" : b.status === "pending_payment" ? "⏳ Pending" : b.status;
-                    return (
-                      <div key={b.id} style={{ display: "flex", alignItems: "center", padding: "12px 20px", borderTop: i > 0 ? `1px solid ${GLASS_BORDER}` : "none", gap: 12 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(21,184,201,0.08)", border: `1px solid ${BLUE}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>✈️</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#374151" }}>{b.client_name}</p>
-                          <p style={{ margin: 0, fontSize: 11, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{b.destination}</p>
-                        </div>
-                        <div style={{ textAlign: "right" as const, flexShrink: 0 }}>
-                          <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: GREEN }}>${(b.total_price || 0).toLocaleString()}</p>
-                          <p style={{ margin: 0, fontSize: 10, color: statusColor, fontWeight: 600 }}>{statusLabel}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div style={{ padding: "12px 20px", borderTop: `1px solid rgba(255,255,255,0.15)`, textAlign: "center" as const }}>
-                    <a href="#" style={{ fontSize: 12, color: BLUE, fontWeight: 700, textDecoration: "none" }}>View All Bookings →</a>
-                  </div>
-                </div>
-              )}
+            {/* Quick Actions */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginTop: 20 }}>
+              {[
+                { label: "Create Pay Link", icon: "🔗", tab: "paylinks", color: BLUE },
+                { label: "View Banking", icon: "🏦", tab: "wallets", color: GREEN },
+                { label: "Send Payout", icon: "💸", tab: "payouts", color: PURPLE },
+                { label: "View Analytics", icon: "📈", tab: "analytics", color: GOLD },
+                { label: "API Keys", icon: "🔑", tab: "keys", color: BLUE2 },
+                { label: "Settings", icon: "⚙️", tab: "settings", color: "#64748b" },
+              ].map(a => (
+                <button key={a.label} onClick={() => setTab(a.tab)} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", transition: "all 0.15s", textAlign: "left" as const }}>
+                  <span style={{ fontSize: 20 }}>{a.icon}</span>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>{a.label}</span>
+                </button>
+              ))}
             </div>
           </div>
         )}
