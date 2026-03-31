@@ -2,26 +2,22 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getWalletBalances } from "../../../../modules/zenipay/services/ledger";
-import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { pgrest } from "../../../../modules/zenipay/services/supabase";
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
     const merchant_id = req.nextUrl.searchParams.get("merchant_id");
     const wallets = await getWalletBalances(merchant_id || undefined);
 
-    // ─── 1. Read merchant balance + keys directly ──────────────────────────────
+    // ─── 1. Read merchant balance + keys directly (no cache) ─────────────
     let merchantBalance = 0;
     let merchantTxCount = 0;
     let sandboxKey = "";
     let sandboxSecret = "";
     let liveKey = "";
     if (merchant_id) {
-      const { data: mData } = await supabase
-        .from("zenipay_merchants")
-        .select("balance,tx_count,sandbox_key,sandbox_secret,live_key")
-        .eq("id", merchant_id);
-      if (mData && mData[0]) {
+      const mData = await pgrest(`zenipay_merchants?id=eq.${encodeURIComponent(merchant_id)}&select=balance,tx_count,sandbox_key,sandbox_secret,live_key`) as { balance: number; tx_count: number; sandbox_key?: string; sandbox_secret?: string; live_key?: string }[];
+      if (mData[0]) {
         merchantBalance = Number(mData[0].balance) || 0;
         merchantTxCount = Number(mData[0].tx_count) || 0;
         sandboxKey = mData[0].sandbox_key || "";
@@ -30,14 +26,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ─── 2. Read ALL payments ──────────────────────────────────────────
-    const { data: allPays } = await supabase
-      .from("zenipay_payments")
-      .select("id,amount,status,created_at,customer_name,customer_email,currency,description,merchant_id,card_brand,card_last4,gateway,payment_link_id")
-      .order("created_at", { ascending: false })
-      .limit(500);
-
-    const paysList = (allPays || []) as {
+    // ─── 2. Read ALL payments directly (no cache) ────────────────────────
+    const allPays = await pgrest(`zenipay_payments?select=id,amount,status,created_at,customer_name,customer_email,currency,description,merchant_id,card_brand,card_last4,gateway,payment_link_id&order=created_at.desc&limit=500`) as {
       id: string; amount: number; status: string; created_at: string;
       customer_name: string; customer_email: string; currency: string;
       description: string; merchant_id: string; card_brand: string;
@@ -46,11 +36,11 @@ export async function GET(req: NextRequest) {
 
     // Filter by merchant_id in JS
     const tablePays = merchant_id
-      ? paysList.filter(p =>
+      ? allPays.filter(p =>
           p.merchant_id === merchant_id ||
           (merchant_id === "zeniva-001" && (!p.merchant_id || p.merchant_id === "default_merchant" || p.merchant_id === "unknown"))
         )
-      : paysList;
+      : allPays;
 
     // ─── 3. Compute stats from REAL data ────────────────────────────────
     const succeeded = tablePays.filter(p => p.status === "succeeded");
@@ -77,23 +67,13 @@ export async function GET(req: NextRequest) {
     }));
 
     // ─── 5. Payouts ─────────────────────────────────────────────────────
-    const { data: allPayoutsRaw } = await supabase
-      .from("zenipay_payouts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    const allPayouts = (allPayoutsRaw || []) as { merchant_id?: string }[];
+    const allPayouts = await pgrest(`zenipay_payouts?order=created_at.desc&limit=50`) as { merchant_id?: string }[];
     const payouts = merchant_id
       ? allPayouts.filter(p => p.merchant_id === merchant_id).slice(0, 10)
       : allPayouts.slice(0, 10);
 
     // ─── 6. Invoices ────────────────────────────────────────────────────
-    const { data: allInvoicesRaw } = await supabase
-      .from("zenipay_invoices")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    const allInvoices = (allInvoicesRaw || []) as { merchant_id?: string }[];
+    const allInvoices = await pgrest(`zenipay_invoices?order=created_at.desc&limit=100`) as { merchant_id?: string }[];
     const invoices = merchant_id
       ? allInvoices.filter(inv => inv.merchant_id === merchant_id).slice(0, 20)
       : allInvoices.slice(0, 20);
