@@ -529,7 +529,7 @@ function WalletModal({ name, data, icon, color, onClose, businessName = "ZeniPay
                     {[
                       { label: "💸 Distribute Funds", action: () => setTab("distribute"), highlight: true },
                       { label: "🏦 Add Bank Account", action: () => setTab("bank") },
-                      { label: "📊 Export Statement", action: () => {} },
+                      { label: "📊 View Transactions", action: () => setTab("history") },
                       { label: "⚡ Instant Payout", action: () => setTab("distribute") },
                     ].map(a => (
                       <button key={a.label} onClick={a.action} style={{
@@ -723,8 +723,8 @@ function WalletModal({ name, data, icon, color, onClose, businessName = "ZeniPay
                 <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#374151" }}>No transactions yet</p>
                 <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>Transactions will appear here once Finix live payments are active</p>
               </div>
-              <button style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px", fontWeight: 700, fontSize: 13, cursor: "pointer", color: "#374151", marginTop: 8 }}>
-                📥 Download Full Statement
+              <button onClick={() => setTab("history")} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px", fontWeight: 700, fontSize: 13, cursor: "pointer", color: "#374151", marginTop: 8 }}>
+                📥 View Full Statement
               </button>
             </div>
           )}
@@ -1486,7 +1486,7 @@ function CompliancePanel({ merchantId, merchantEmail }: { merchantId: string; me
             ))}
             <button onClick={() => {
               const allAnswered = saqForm.online_only && saqForm.store_cards && saqForm.certified_solution;
-              if (!allAnswered) { alert("Please answer all questions"); return; }
+              if (!allAnswered) { return; }
               save({ saq_completed: true, saq_signed_at: new Date().toISOString(), saq_answers: saqForm, pci_status: "compliant" })
                 .then(() => setData(prev => prev ? { ...prev, saq_completed: true, saq_signed_at: new Date().toISOString(), pci_status: "compliant" } : prev));
             }} disabled={saving} style={{ padding: "14px 28px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #2DBE60, #15B8C9, #7B4FBF)", color: "white", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
@@ -3472,7 +3472,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                   </div>
                 ))}
               </div>
-              <button onClick={()=>alert(`${bankAction} coming in production`)} style={{ marginTop:16, background:"linear-gradient(90deg,#7B4FBF,#E5247B)", color:"white", border:"none", borderRadius:10, padding:"12px 28px", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+              <button onClick={async ()=>{ try { const res = await fetch("/api/zenipay/banking-ops", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ action:"send_transfer", merchant_id:MID, transfer_type:bankAction, ...bankActionForm }) }); const d = await res.json(); if (d.success) { setBankAction(null); setBankActionForm({}); } } catch {} }} style={{ marginTop:16, background:"linear-gradient(90deg,#7B4FBF,#E5247B)", color:"white", border:"none", borderRadius:10, padding:"12px 28px", fontWeight:800, fontSize:13, cursor:"pointer" }}>
                 Submit →
               </button>
             </div>
