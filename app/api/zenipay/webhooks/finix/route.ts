@@ -1,16 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { createHmac } from "crypto";
-import { createClient } from "@supabase/supabase-js";
-
-function getSupabase() {
-  const url = "https://mjkvkibdfteonvlahtag.supabase.co";
-  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
-  if (!url || !key) return null;
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
+import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 
 function verifySignature(body: string, signature: string, secret: string): boolean {
   if (!secret || !signature) return false;
@@ -44,24 +35,18 @@ export async function POST(request: Request) {
   }
 
   const eventType = (payload.type as string) || (payload.event_type as string) || "unknown";
-  const supabase = getSupabase();
+  const supabase = getSupabaseAdmin();
 
   // Log webhook event
-  if (supabase) {
-    await supabase.from("zenipay_webhook_logs").insert({
-      id: `wh_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      event_type: eventType,
-      event_id: (payload.id as string) || "",
-      source: "finix",
-      payload,
-      status: "received",
-      created_at: new Date().toISOString(),
-    });
-  }
-
-  if (!supabase) {
-    return Response.json({ received: true, warning: "No database connection" });
-  }
+  await supabase.from("zenipay_webhook_logs").insert({
+    id: `wh_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    event_type: eventType,
+    event_id: (payload.id as string) || "",
+    source: "finix",
+    payload,
+    status: "received",
+    created_at: new Date().toISOString(),
+  });
 
   try {
     const data = (payload.data || payload) as Record<string, unknown>;

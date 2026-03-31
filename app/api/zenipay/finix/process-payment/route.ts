@@ -1,14 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { processFinixPayment } from "@/modules/zenipay/gateways/finix";
-
-function getSupabase() {
-  const url = "https://mjkvkibdfteonvlahtag.supabase.co";
-  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
-  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-}
+import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 
 /**
  * Finix Payment Processing — ALL writes via Supabase JS client (no edge function)
@@ -27,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     const now = new Date().toISOString();
     const paymentId = `ZNV-${Date.now().toString(36).toUpperCase()}`;
     const amountNum = parseFloat(String(amount));

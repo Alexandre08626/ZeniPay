@@ -172,25 +172,21 @@ export async function POST() {
 
     // ── Step 5: Persist to Supabase (non-fatal) ───────────────────
     try {
-      const sbUrl = "https://mjkvkibdfteonvlahtag.supabase.co";
-      const sbKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
-      if (sbUrl && sbKey) {
-        const { createClient: sbCreate } = await import("@supabase/supabase-js");
-        const sb = sbCreate(sbUrl, sbKey);
-        await sb.from("zenipay_unit_accounts").upsert({
-          id: accountId, customer_id: customerId, account_type: "depositAccount",
-          routing_number: routingNumber, account_number: accountNumber,
-          balance_cents: balance, available_cents: balance,
-          status: account?.attributes?.status || "Open", currency: "USD",
+      const { getSupabaseAdmin } = await import("../../../../modules/zenipay/services/supabase");
+      const sb = getSupabaseAdmin();
+      await sb.from("zenipay_unit_accounts").upsert({
+        id: accountId, customer_id: customerId, account_type: "depositAccount",
+        routing_number: routingNumber, account_number: accountNumber,
+        balance_cents: balance, available_cents: balance,
+        status: account?.attributes?.status || "Open", currency: "USD",
+        created_at: new Date().toISOString(),
+      }, { onConflict: "id" });
+      if (cardId) {
+        await sb.from("zenipay_unit_cards").upsert({
+          id: cardId, account_id: accountId, card_type: "businessVirtualDebitCard",
+          last4, expiry_date: expiry, status: card?.attributes?.status || "Active",
           created_at: new Date().toISOString(),
         }, { onConflict: "id" });
-        if (cardId) {
-          await sb.from("zenipay_unit_cards").upsert({
-            id: cardId, account_id: accountId, card_type: "businessVirtualDebitCard",
-            last4, expiry_date: expiry, status: card?.attributes?.status || "Active",
-            created_at: new Date().toISOString(),
-          }, { onConflict: "id" });
-        }
       }
     } catch (dbErr) {
       console.warn("[provision] Supabase persist failed (non-fatal):", dbErr);

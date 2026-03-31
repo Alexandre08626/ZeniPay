@@ -7,20 +7,11 @@ export const dynamic = "force-dynamic";
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getSupabase(): any {
-  const url = "https://mjkvkibdfteonvlahtag.supabase.co";
-  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 
 export async function GET() {
   try {
-    const supabase = getSupabase();
-    if (!supabase) return NextResponse.json({ links: [] });
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("zenipay_pay_links")
       .select("*")
@@ -42,7 +33,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     const id = `LINK-${Date.now().toString(36).toUpperCase()}`;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zenipay.ca";
     const merchantParam = merchant ? `&m=${encodeURIComponent(merchant)}` : "";
@@ -51,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     // ── Look up merchant by API key or use direct merchant_id ────────
     let merchantId: string | null = directMerchantId || null;
-    if (!merchantId && supabase && api_key) {
+    if (!merchantId && api_key) {
       const { data: merchants } = await supabase
         .from("zenipay_merchants")
         .select("id, merchant_data")
@@ -71,15 +62,13 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Save pay link to zenipay_pay_links table ─────────────────────────
-    if (supabase) {
-      await supabase.from("zenipay_pay_links").insert({
-        id, url, amount: parseFloat(String(amount)), currency,
-        description: description || "", merchant_id: merchantId,
-        status: "active", uses: 0,
-        expires_at: expiry ? new Date(expiry).toISOString() : null,
-        created_at: now, updated_at: now,
-      });
-    }
+    await supabase.from("zenipay_pay_links").insert({
+      id, url, amount: parseFloat(String(amount)), currency,
+      description: description || "", merchant_id: merchantId,
+      status: "active", uses: 0,
+      expires_at: expiry ? new Date(expiry).toISOString() : null,
+      created_at: now, updated_at: now,
+    });
 
     return NextResponse.json({
       success: true, id, url,
@@ -98,8 +87,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-    const supabase = getSupabase();
-    if (!supabase) return NextResponse.json({ error: "No DB" }, { status: 500 });
+    const supabase = getSupabaseAdmin();
     const { error } = await supabase.from("zenipay_pay_links").delete().eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ deleted: true, id });

@@ -1,21 +1,11 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-function getSupabase() {
-  const url = "https://mjkvkibdfteonvlahtag.supabase.co";
-  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 
 export async function GET() {
   try {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return NextResponse.json({ balance: 0, error: "No DB" });
-    }
+    const supabase = getSupabaseAdmin();
 
     // Credits (incoming payments)
     const { data: credits } = await supabase

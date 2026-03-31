@@ -2,26 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getWalletBalances } from "../../../../modules/zenipay/services/ledger";
-
-const SUPABASE_URL = "https://mjkvkibdfteonvlahtag.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
-
-/** Direct HTTP fetch to PostgREST with no-cache headers */
-async function pgrest(path: string): Promise<unknown[]> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
-      Prefer: "count=exact",
-    },
-    cache: "no-store",
-    next: { revalidate: 0 },
-  });
-  const text = await res.text();
-  try { return JSON.parse(text); } catch { return []; }
-}
+import { pgrest } from "../../../../modules/zenipay/services/supabase";
 
 export async function GET(req: NextRequest) {
   try {

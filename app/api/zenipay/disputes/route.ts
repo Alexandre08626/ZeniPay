@@ -1,21 +1,14 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-function getSupabase() {
-  return createClient(
-    "https://mjkvkibdfteonvlahtag.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4"
-  );
-}
+import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 
 // GET — list disputes for a merchant
 export async function GET(req: NextRequest) {
   const merchant_id = req.nextUrl.searchParams.get("merchant_id");
   if (!merchant_id) return NextResponse.json({ disputes: [] });
 
-  const supabase = getSupabase();
+  const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("zenipay_disputes")
     .select("*")
@@ -40,7 +33,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action, ...payload } = body;
-  const supabase = getSupabase();
+  const supabase = getSupabaseAdmin();
 
   if (action === "create") {
     const { merchant_id, payment_id, customer_name, customer_email, amount, currency, reason, card_network, card_last4 } = payload;

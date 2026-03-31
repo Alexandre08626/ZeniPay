@@ -1,9 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 const FINIX_BASE = process.env.FINIX_ENV === "production" ? "https://finix.live-payments-api.com" : "https://finix.sandbox-payments-api.com";
 function finixAuth() { return "Basic " + Buffer.from((process.env.FINIX_API_USERNAME||"")+":"+(process.env.FINIX_API_PASSWORD||"")).toString("base64"); }
-function getSupabase() { return createClient("https://mjkvkibdfteonvlahtag.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4"); }
 async function finixPost(path: string, body: object) { const r = await fetch(FINIX_BASE+path, { method: "POST", headers: { Authorization: finixAuth(), "Content-Type": "application/json", "Finix-Version": "2022-02-01" }, body: JSON.stringify(body) }); return { status: r.status, data: await r.json() }; }
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
     const onboardingState = (merchant.data.onboarding_state || "PROVISIONING").toLowerCase();
     let bankInstrumentId = null;
     if (bank?.account_number && bank?.routing_number) { const b = await finixPost("/payment_instruments", { identity: identityId, type: "BANK_ACCOUNT", account_number: bank.account_number, bank_code: bank.routing_number, account_type: (bank.account_type||"CHECKING").toUpperCase(), name: business.business_name, country: business.country||"USA", currency: "USD" }); if (b.data?.id) bankInstrumentId = b.data.id; }
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     await supabase.from("zenipay_merchants").update({ finix_identity_id: identityId, finix_merchant_id: finixMerchantId, onboarding_state: onboardingState, updated_at: new Date().toISOString() }).eq("id", merchant_id);
     return NextResponse.json({ success: true, identity_id: identityId, finix_merchant_id: finixMerchantId, bank_instrument_id: bankInstrumentId, onboarding_state: onboardingState });
   } catch (err: unknown) { return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 }); }

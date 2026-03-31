@@ -7,22 +7,13 @@ export const dynamic = "force-dynamic";
  * POST — execute a payout (validates balance, creates ledger entry, records in DB)
  */
 
-import { createClient } from "@supabase/supabase-js";
 import { getWalletBalances, recordPayoutExecution, writeAuditLog, checkIdempotency, saveIdempotency } from "../../../../modules/zenipay/services/ledger";
 import type { WalletType } from "../../../../modules/zenipay/database/schema";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getSupabase(): any {
-  const url = "https://mjkvkibdfteonvlahtag.supabase.co";
-  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 
 // ── GET: list payouts ──────────────────────────────────────────────────────
 export async function GET() {
-  const supabase = getSupabase();
-  if (!supabase) return Response.json({ payouts: [] });
+  const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase
     .from("zenipay_payouts")
@@ -68,17 +59,15 @@ export async function POST(request: Request) {
 
     // ── Balance check — CRITICAL: cannot payout more than available ────────
     // Use merchant balance as source of truth (stays in sync with payments + payouts)
-    const supabaseCheck = getSupabase();
+    const supabaseCheck = getSupabaseAdmin();
     const merchant_id_check = body.merchant_id || "zeniva-001";
     let availableBalance = 0;
-    if (supabaseCheck) {
-      const { data: mCheck } = await supabaseCheck
-        .from("zenipay_merchants")
-        .select("balance")
-        .eq("id", merchant_id_check)
-        .single();
-      availableBalance = Number(mCheck?.balance) || 0;
-    }
+    const { data: mCheck } = await supabaseCheck
+      .from("zenipay_merchants")
+      .select("balance")
+      .eq("id", merchant_id_check)
+      .single();
+    availableBalance = Number(mCheck?.balance) || 0;
     // Fallback to ledger if merchant balance is 0
     if (availableBalance === 0) {
       const wallets = await getWalletBalances();
@@ -95,25 +84,23 @@ export async function POST(request: Request) {
 
     // ── Create payout record ─────────────────────────────────────────────
     const payoutId = `PAY-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
 
-    if (supabase) {
-      await supabase.from("zenipay_payouts").insert({
-        id: payoutId,
-        idempotency_key: idemKey,
-        recipient_type: recipient_type || "other",
-        recipient_id: recipient_id,
-        recipient_name,
-        from_wallet,
-        amount: parsedAmount,
-        currency,
-        method,
-        status: "processing",
-        reference,
-        note,
-        created_at: new Date().toISOString(),
-      });
-    }
+    await supabase.from("zenipay_payouts").insert({
+      id: payoutId,
+      idempotency_key: idemKey,
+      recipient_type: recipient_type || "other",
+      recipient_id: recipient_id,
+      recipient_name,
+      from_wallet,
+      amount: parsedAmount,
+      currency,
+      method,
+      status: "processing",
+      reference,
+      note,
+      created_at: new Date().toISOString(),
+    });
 
     // ── Write ledger debit (reduces Platform Wallet) ──────────────────────
     await recordPayoutExecution({
@@ -126,25 +113,23 @@ export async function POST(request: Request) {
     });
 
     // ── Mark payout as paid ───────────────────────────────────────────────
-    if (supabase) {
-      await supabase.from("zenipay_payouts").update({
-        status: "paid",
-        executed_at: new Date().toISOString(),
-      }).eq("id", payoutId);
+    await supabase.from("zenipay_payouts").update({
+      status: "paid",
+      executed_at: new Date().toISOString(),
+    }).eq("id", payoutId);
 
-      // ── Decrement merchant balance to stay in sync ────────────────────
-      const merchant_id = body.merchant_id || "zeniva-001";
-      const { data: merchant } = await supabase
-        .from("zenipay_merchants")
-        .select("balance")
-        .eq("id", merchant_id)
-        .single();
-      if (merchant) {
-        await supabase.from("zenipay_merchants").update({
-          balance: Math.max(0, (Number(merchant.balance) || 0) - parsedAmount),
-          updated_at: new Date().toISOString(),
-        }).eq("id", merchant_id);
-      }
+    // ── Decrement merchant balance to stay in sync ────────────────────
+    const merchant_id = body.merchant_id || "zeniva-001";
+    const { data: merchant } = await supabase
+      .from("zenipay_merchants")
+      .select("balance")
+      .eq("id", merchant_id)
+      .single();
+    if (merchant) {
+      await supabase.from("zenipay_merchants").update({
+        balance: Math.max(0, (Number(merchant.balance) || 0) - parsedAmount),
+        updated_at: new Date().toISOString(),
+      }).eq("id", merchant_id);
     }
 
     // ── Audit log ────────────────────────────────────────────────────────

@@ -1,21 +1,14 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-function db() {
-  return createClient(
-    "https://mjkvkibdfteonvlahtag.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4"
-  );
-}
+import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 
 const FEES: Record<string, number> = { ach: 0, wire_domestic: 15, wire_international: 30, physical_card: 10, card_replacement: 5, returned: 25, conversion: 0.005 };
 
 export async function GET(req: NextRequest) {
   const mid = req.nextUrl.searchParams.get("merchant_id");
   if (!mid) return NextResponse.json({ error: "Missing merchant_id" }, { status: 400 });
-  const s = db();
+  const s = getSupabaseAdmin();
   const [accounts, transfers, cards, contacts, notifs] = await Promise.all([
     s.from("zenipay_accounts").select("*").eq("merchant_id", mid).order("is_primary", { ascending: false }),
     s.from("zenipay_transfers").select("*").eq("merchant_id", mid).order("created_at", { ascending: false }).limit(100),
@@ -30,7 +23,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action, merchant_id } = body;
   if (!action || !merchant_id) return NextResponse.json({ error: "Missing action/merchant_id" }, { status: 400 });
-  const s = db();
+  const s = getSupabaseAdmin();
   const now = new Date().toISOString();
 
   if (action === "create_account") {

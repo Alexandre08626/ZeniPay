@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 
 const FINIX_BASE = "https://finix.sandbox-payments-api.com";
 
@@ -8,15 +8,6 @@ function finixAuth() {
   const user = process.env.FINIX_API_USERNAME || "";
   const pass = process.env.FINIX_API_PASSWORD || "";
   return "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
-}
-
-function getSupabase() {
-  const url = "https://mjkvkibdfteonvlahtag.supabase.co";
-  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
-  if (!url || !key) return null;
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
 }
 
 export async function POST(request: NextRequest) {
@@ -57,8 +48,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to Supabase
-    const supabase = getSupabase();
-    if (supabase && merchant_id_internal) {
+    const supabase = getSupabaseAdmin();
+    if (merchant_id_internal) {
       await supabase
         .from("zenipay_merchants")
         .update({
