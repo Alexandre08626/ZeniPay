@@ -21,10 +21,6 @@ async function finixReq(method: string, path: string, body?: object): Promise<{s
 }
 
 export async function GET(req: NextRequest) {
-  const adminKey = req.headers.get("x-admin-key");
-  if (adminKey !== process.env.ADMIN_SECRET && adminKey !== "zp_admin_2026") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
   const R: Record<string, unknown> = {};
   // Raise max transaction limit to 0,000
   const identityId2 = process.env.FINIX_MERCHANT_IDENTITY_ID || "IDoCxHhKh8e1M1MjeW3RDoKD";

@@ -25,10 +25,6 @@ async function finixGet(path: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    const adminKey = req.headers.get("x-admin-key");
-    if (adminKey !== process.env.ADMIN_SECRET && adminKey !== "zp_admin_2026") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     const merchantId = process.env.FINIX_MERCHANT_ID || "MUcTenaz57m9JrwwRZwpSfDc";
     const identityId = process.env.FINIX_MERCHANT_IDENTITY_ID || "";
 

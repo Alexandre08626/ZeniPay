@@ -6,10 +6,6 @@ import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supaba
 /* ── GET — list all billing invoices ── */
 export async function GET(req: NextRequest) {
   try {
-    const adminKey = req.headers.get("x-admin-key");
-    if (adminKey !== process.env.ADMIN_SECRET && adminKey !== "zp_admin_2026") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("zenipay_billing")
@@ -31,10 +27,6 @@ export async function GET(req: NextRequest) {
 /* ── POST — generate a new billing invoice ── */
 export async function POST(req: NextRequest) {
   try {
-    const adminKey = req.headers.get("x-admin-key");
-    if (adminKey !== process.env.ADMIN_SECRET && adminKey !== "zp_admin_2026") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     const body = await req.json();
     const { merchant_id, merchant_name, period_start, period_end } = body;
 
@@ -145,10 +137,6 @@ export async function POST(req: NextRequest) {
 /* ── PATCH — update billing invoice status ── */
 export async function PATCH(req: NextRequest) {
   try {
-    const adminKey = req.headers.get("x-admin-key");
-    if (adminKey !== process.env.ADMIN_SECRET && adminKey !== "zp_admin_2026") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     const { id, status } = await req.json();
     if (!id || !status) {
       return NextResponse.json({ error: "id and status are required" }, { status: 400 });

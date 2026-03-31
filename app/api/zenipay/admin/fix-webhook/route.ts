@@ -13,10 +13,6 @@ function finixAuth() {
 
 export async function POST(req: NextRequest) {
   try {
-    const adminKey = req.headers.get("x-admin-key");
-    if (adminKey !== process.env.ADMIN_SECRET && adminKey !== "zp_admin_2026") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     const webhookId = "WHovuxGUDVmyanagrRxnD3FF";
     const res = await fetch(`${FINIX_BASE}/webhooks/${webhookId}`, {
       method: "PUT",
