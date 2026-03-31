@@ -1,8 +1,11 @@
 "use client";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
-import { SetupWizard } from "./SetupWizard";
+import { SetupWizard, OnboardingStatus } from "./SetupWizard";
 import BankingPage from "./BankingPage";
+import SettingsPanel from "./SettingsPanel";
+import KeysPanel from "./KeysPanel";
+import SandboxPanel from "./SandboxPanel";
 
 // ═══════════════════════════════════════════════════════
 //  ZeniPay — The Financial Core of Zeniva Travel
@@ -1550,6 +1553,7 @@ const TABS = [
   { id: "accounting", icon: "📚", label: "Accounting" },
   { id: "disputes", icon: "⚖️", label: "Disputes" },
   { id: "compliance", icon: "🛡️", label: "Compliance" },
+  { id: "keys", icon: "🔑", label: "Keys" },
   { id: "settings", icon: "⚙️", label: "Settings" },
 ];
 
@@ -1753,7 +1757,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   // Live data from API
   const [WALLETS, setWALLETS] = useState(DEFAULT_WALLETS);
   const [TRANSACTIONS, setTRANSACTIONS] = useState<{ id: string; customer: string; booking: string; amount: number; currency: string; method: string; gateway: string; status: string; date: string }[]>([]);
-  const [STATS, setSTATS] = useState<{ totalTransactions: number; totalRevenue: number; successRate: number; env: string }>({ totalTransactions: 0, totalRevenue: 0, successRate: 0, env: "sandbox" });
+  const [STATS, setSTATS] = useState<{ totalTransactions: number; totalRevenue: number; successRate: number; env: string; sandboxKey?: string; sandboxSecret?: string; liveKey?: string }>({ totalTransactions: 0, totalRevenue: 0, successRate: 0, env: "sandbox" });
   const [merchantBalance, setMerchantBalance] = useState<number>(0);
   const [accountingSummary, setAccountingSummary] = useState<{ totalRevenue: number; totalExpenses: number; netProfit: number; platformFees: number; zenipayFees?: number; agentCommissions: number; journalEntries: unknown[]; chartOfAccounts: {code:string;name:string;balance:number;type:string}[] } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -1823,6 +1827,9 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             totalRevenue: data.stats.total_revenue || 0,
             successRate: data.stats.success_rate || 0,
             env: data.env || "sandbox",
+            sandboxKey: data.sandboxKey || "",
+            sandboxSecret: data.sandboxSecret || "",
+            liveKey: data.liveKey || "",
           });
         }
         if (data.merchant_balance != null) {
@@ -1919,7 +1926,9 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   // In sandbox mode, add Setup & Go Live tabs just above Settings
   const activeTabs = MMODE === "sandbox" && !isZeniva
     ? [
-        ...TABS.filter(t => t.id !== "settings"),
+        ...TABS.filter(t => t.id !== "settings" && t.id !== "keys"),
+        { id: "sandbox-test", icon: "🧪", label: "Sandbox" },
+        { id: "keys", icon: "🔑", label: "Keys" },
         { id: "setup", icon: "🚀", label: "Setup" },
         { id: "onboarding-status", icon: "✅", label: "Go Live" },
         ...TABS.filter(t => t.id === "settings"),
@@ -3307,76 +3316,21 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         {tab === "disputes" && <DisputesPanel merchantId={MID} transactions={TRANSACTIONS} />}
 
                 {tab === "settings" && (
-          <div style={{ display: "grid", gap: 16 }}>
-            {/* Payment Gateway */}
-            <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>🏦 Payment Gateway</h3>
-              <div style={{ display: "grid", gap: 10 }}>
-                {[
-                  { label: "Primary Gateway", value: "Finix ✅", status: "active" },
-                  { label: "Environment", value: STATS.env === "production" ? "Live" : "Sandbox · Test Mode", status: STATS.env === "production" ? "active" : "pending" },
-                  { label: "Webhook Endpoint", value: "/api/zenipay/webhooks/finix", status: null },
-                  { label: "Merchant ID", value: "●●●●●●●●●●●●", status: null },
-                ].map(item => (
-                  <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
-                    <span style={{ fontSize: 13, color: "#374151" }}>{item.label}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "white" }}>{item.value}</span>
-                      {item.status && <StatusBadge status={item.status} />}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Fee Structure */}
-            <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>💸 ZeniPay Fee Structure</h3>
-              <p style={{ margin: "0 0 14px", fontSize: 12, color: "#64748b" }}>Fees deducted automatically from each transaction</p>
-              <div style={{ display: "grid", gap: 10 }}>
-                {[
-                  { label: "Processing Fee", value: "2.9% per transaction", status: "active" },
-                  { label: "Per-Transaction Fee", value: "$0.30 per transaction", status: "active" },
-                  { label: "Payout Fee (ACH)", value: "Free", status: "active" },
-                  { label: "Payout Fee (Wire)", value: "$25.00", status: "active" },
-                  { label: "Chargeback Fee", value: "$15.00 per dispute", status: "active" },
-                ].map(item => (
-                  <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
-                    <span style={{ fontSize: 13, color: "#374151" }}>{item.label}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "white" }}>{item.value}</span>
-                      {item.status && <StatusBadge status={item.status} />}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Security & Compliance */}
-            <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>🔒 Security & Compliance</h3>
-              <div style={{ display: "grid", gap: 10 }}>
-                {[
-                  { label: "PCI Compliance", value: "Tokenization via Finix ✅", status: "active" },
-                  { label: "Card Storage", value: "Never stored — Finix tokens only", status: "active" },
-                  { label: "Encryption", value: "TLS 1.3 · AES-256", status: "active" },
-                  { label: "Fraud Detection", value: "Ben AI · Real-time monitoring", status: "active" },
-                ].map(item => (
-                  <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
-                    <span style={{ fontSize: 13, color: "#374151" }}>{item.label}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "white" }}>{item.value}</span>
-                      {item.status && <StatusBadge status={item.status} />}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <SettingsPanel merchantId={MID} merchantEmail={BEMAIL} businessName={BNAME} mode={MMODE as "sandbox" | "live"} />
         )}
 
         {/* ════ COMPLIANCE ════ */}
         {tab === "compliance" && <CompliancePanel merchantId={MID} merchantEmail={BEMAIL} />}
+
+        {/* ════ KEYS ════ */}
+        {tab === "keys" && (
+          <KeysPanel merchantId={MID} mode={MMODE as "sandbox" | "live"} sandboxKey={STATS.sandboxKey} sandboxSecret={STATS.sandboxSecret} liveKey={STATS.liveKey} />
+        )}
+
+        {/* ════ SANDBOX TEST ENVIRONMENT ════ */}
+        {tab === "sandbox-test" && (
+          <SandboxPanel merchantId={MID} sandboxKey={STATS.sandboxKey} />
+        )}
 
         {/* ════ SETUP (Sandbox) ════ */}
         {tab === "setup" && (
@@ -3385,27 +3339,12 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
 
         {/* ════ GO LIVE / ONBOARDING STATUS (Sandbox) ════ */}
         {tab === "onboarding-status" && (
-          <div style={{ background: "white", borderRadius: 16, padding: 32, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-            <h2 style={{ margin: "0 0 8px", fontWeight: 900, fontSize: 22 }}>🚀 Go Live — Onboarding Status</h2>
-            <p style={{ margin: "0 0 24px", fontSize: 13, color: "#64748b" }}>Complete your setup to activate live payments for {BNAME}</p>
-            <div style={{ display: "grid", gap: 12 }}>
-              {[
-                { label: "Business Verification", done: true },
-                { label: "Owner KYC", done: true },
-                { label: "Bank Account", done: true },
-                { label: "Sandbox Tests", done: true },
-                { label: "Finix Approval", done: false },
-              ].map(s => (
-                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: s.done ? "#f0fdf4" : "#f8fafc", borderRadius: 12, border: `1px solid ${s.done ? "#86efac" : "#e2e8f0"}` }}>
-                  <span style={{ fontSize: 18 }}>{s.done ? "✅" : "⏳"}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: s.done ? "#166534" : "#64748b" }}>{s.label}</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setTab("overview")} style={{ marginTop: 24, padding: "14px 32px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #2DBE60, #15B8C9, #7B4FBF)", color: "white", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-              Switch to Live Mode →
-            </button>
-          </div>
+          <OnboardingStatus accountId={MID} onGoLive={() => {
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("zp_client_mode", "live");
+              window.location.href = "/app/overview";
+            }
+          }} />
         )}
 
       </div>

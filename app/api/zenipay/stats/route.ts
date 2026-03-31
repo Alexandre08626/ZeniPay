@@ -9,14 +9,20 @@ export async function GET(req: NextRequest) {
     const merchant_id = req.nextUrl.searchParams.get("merchant_id");
     const wallets = await getWalletBalances(merchant_id || undefined);
 
-    // ─── 1. Read merchant balance directly ──────────────────────────────
+    // ─── 1. Read merchant balance + keys directly ──────────────────────────────
     let merchantBalance = 0;
     let merchantTxCount = 0;
+    let sandboxKey = "";
+    let sandboxSecret = "";
+    let liveKey = "";
     if (merchant_id) {
-      const mData = await pgrest(`zenipay_merchants?id=eq.${encodeURIComponent(merchant_id)}&select=balance,tx_count`) as { balance: number; tx_count: number }[];
+      const mData = await pgrest(`zenipay_merchants?id=eq.${encodeURIComponent(merchant_id)}&select=balance,tx_count,sandbox_key,sandbox_secret,live_key`) as { balance: number; tx_count: number; sandbox_key?: string; sandbox_secret?: string; live_key?: string }[];
       if (mData[0]) {
         merchantBalance = Number(mData[0].balance) || 0;
         merchantTxCount = Number(mData[0].tx_count) || 0;
+        sandboxKey = mData[0].sandbox_key || "";
+        sandboxSecret = mData[0].sandbox_secret || "";
+        liveKey = mData[0].live_key || "";
       }
     }
 
@@ -80,6 +86,7 @@ export async function GET(req: NextRequest) {
       recent_invoices: invoices,
       mode: "live", gateway: "ZeniPay",
       env: process.env.FINIX_ENV || "sandbox",
+      sandboxKey, sandboxSecret, liveKey,
     });
 
   } catch (err) {

@@ -61,6 +61,17 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // ── Roll sandbox keys action ──
+    if (body.action === "roll_sandbox_keys" && body.merchant_id) {
+      const supabase = getSupabaseAdmin();
+      const genKey = (prefix: string) => `${prefix}_${Array.from({ length: 24 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 62)]).join("")}`;
+      const newKey = genKey("zpk_sb");
+      const newSecret = genKey("zps_sb");
+      const { error } = await supabase.from("zenipay_merchants").update({ sandbox_key: newKey, sandbox_secret: newSecret, updated_at: new Date().toISOString() }).eq("id", body.merchant_id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, sandboxKey: newKey, sandboxSecret: newSecret });
+    }
+
     const {
       id, businessName, ownerName, email, phone, website,
       businessType, country, monthlyVolume, status, plan,
