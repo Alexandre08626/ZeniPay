@@ -41,8 +41,23 @@ export async function POST(req: NextRequest) {
     }
 
     const md = found.merchant_data;
-    // Validate password
-    if (!(await verifyPassword(password, md.password || ""))) {
+    // Validate password — support both legacy plaintext and hashed
+    const storedPwd = md.password || "";
+    let passwordValid = false;
+    if (!storedPwd) {
+      passwordValid = false;
+    } else if (storedPwd.includes(":")) {
+      // Hashed password (scrypt)
+      try {
+        passwordValid = await verifyPassword(password, storedPwd);
+      } catch {
+        passwordValid = false;
+      }
+    } else {
+      // Legacy plaintext
+      passwordValid = password === storedPwd;
+    }
+    if (!passwordValid) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
