@@ -169,7 +169,13 @@ export default function BankingPage(props: BankingProps) {
   const post = async (action: string, data: Record<string, unknown>) => {
     setLoading(true);
     try {
-      await fetch("/api/zenipay/banking-ops", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, merchant_id: merchantId, ...data }) });
+      const res = await fetch("/api/zenipay/banking-ops", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, merchant_id: merchantId, ...data }) });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        showToast(json.error || "Action failed", "error");
+        setLoading(false);
+        return;
+      }
       await fetchData();
       const messages: Record<string, string> = {
         create_account: "Account created successfully",
@@ -180,7 +186,7 @@ export default function BankingPage(props: BankingProps) {
       };
       if (messages[action]) showToast(messages[action]);
     } catch (e) {
-      console.error("Banking action error", e);
+      showToast("Network error. Please try again.", "error");
       showToast("Action failed. Please try again.", "error");
     } finally { setLoading(false); }
   };
@@ -249,8 +255,8 @@ export default function BankingPage(props: BankingProps) {
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ account_type: "business_checking" as string, account_name: "", currency: "USD", goal_amount: "", goal_deadline: "" });
     const submit = async () => {
-      if (!form.account_name) return;
-      await post("create_account", { account_type: form.account_type, account_name: form.account_name, ...(form.account_type === "multi_currency" ? { currency: form.currency } : {}), ...(form.account_type === "goal" ? { goal_amount: Number(form.goal_amount), goal_deadline: form.goal_deadline } : {}) });
+      const name = form.account_name || form.account_type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      await post("create_account", { account_type: form.account_type, account_name: name, ...(form.account_type === "multi_currency" ? { currency: form.currency } : {}), ...(form.account_type === "goal" ? { goal_amount: Number(form.goal_amount), goal_deadline: form.goal_deadline } : {}) });
       setShowForm(false);
       setForm({ account_type: "business_checking", account_name: "", currency: "USD", goal_amount: "", goal_deadline: "" });
     };
