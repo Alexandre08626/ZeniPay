@@ -21,29 +21,33 @@ export default function LoginPage() {
     // Also accept info@zenivatravel.com as alias for info@zeniva.ca
     const lookupEmail = email === "info@zenivatravel.com" ? "info@zeniva.ca" : email;
 
-    // Authenticate via /api/zenipay/login (reads merchant_data JSONB — PostgREST safe)
+    // Authenticate via /api/zenipay/login
     try {
       const res = await fetch("/api/zenipay/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: lookupEmail, password: pw }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { setLoading(false); setError("Server error. Please try again."); return; }
+
       if (data.success && data.merchant) {
         const m = data.merchant;
         sessionStorage.setItem("zp_client", m.id);
-        sessionStorage.setItem("zp_client_email", m.email);
+        sessionStorage.setItem("zp_client_email", m.email || lookupEmail);
         sessionStorage.setItem("zp_client_mode", mode);
         sessionStorage.setItem("zp_client_sandbox_key", m.sandboxKey || "");
         sessionStorage.setItem("zp_client_bname", m.businessName || "My Business");
-        // Sandbox accounts → /sandbox/overview, Live → /app/overview
-        router.replace(mode === "sandbox" ? "/sandbox/overview" : "/app/overview");
+        window.location.href = mode === "sandbox" ? "/sandbox/overview" : "/app/overview";
         return;
       }
-    } catch {}
-
-    setLoading(false);
-    setError("Invalid email or password.");
+      setLoading(false);
+      setError(data.error || "Invalid email or password.");
+    } catch {
+      setLoading(false);
+      setError("Connection error. Please try again.");
+    }
   };
 
   return (
