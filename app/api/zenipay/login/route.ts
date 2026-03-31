@@ -22,27 +22,27 @@ export async function POST(req: NextRequest) {
     // Query ALL merchants and check merchant_data JSONB (visible to PostgREST)
     const { data: merchants } = await supabase
       .from("zenipay_merchants")
-      .select("id, merchant_data, sandbox_key, live_key");
+      .select("id, email, password, merchant_data, sandbox_key, live_key");
 
     if (!merchants || merchants.length === 0) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Find merchant by email in merchant_data JSONB
+    // Find merchant by email in merchant_data JSONB OR top-level email column
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const found = merchants.find((m: any) => {
-      const md = m.merchant_data;
-      if (!md) return false;
-      return md.email === email;
+      if (m.merchant_data?.email === email) return true;
+      if (m.email === email) return true;
+      return false;
     });
 
     if (!found) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    const md = found.merchant_data;
-    // Validate password — support both legacy plaintext and hashed
-    const storedPwd = md.password || "";
+    const md = found.merchant_data || {};
+    // Validate password — check merchant_data.password first, then top-level password column
+    const storedPwd = md.password || found.password || "";
     let passwordValid = false;
     if (!storedPwd) {
       passwordValid = false;
