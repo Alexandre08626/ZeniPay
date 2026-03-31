@@ -1,21 +1,21 @@
 import { ImageResponse } from "next/og";
-export const runtime = "edge";
-export const alt = "ZeniPay Payments — Accept every card, everywhere";
+import { readFile } from "fs/promises";
+import { join } from "path";
+export const runtime = "nodejs";
+export const alt = "ZeniPay Payments";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export default function Image() {
+export default async function Image() {
+  const logoData = await readFile(join(process.cwd(), "public", "zenipay-logo-nobg.png"));
+  const logo = `data:image/png;base64,${logoData.toString("base64")}`;
   return new ImageResponse(
-    (<div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0d1633 0%, #1a2a5e 50%, #2DBE60 100%)", fontFamily: "system-ui" }}>
-      <div style={{ fontSize: 48, marginBottom: 20 }}>💳</div>
-      <div style={{ fontSize: 64, fontWeight: 900, color: "#fff", letterSpacing: "-2px", marginBottom: 12 }}>Accept Every Payment</div>
-      <div style={{ fontSize: 28, color: "rgba(255,255,255,0.7)", marginBottom: 32 }}>Visa · Mastercard · Amex · Discover · 135+ currencies</div>
-      <div style={{ display: "flex", gap: 16 }}>
-        <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: "10px 20px", color: "#fff", fontSize: 18, fontWeight: 600 }}>2.9% + $0.30</div>
-        <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: "10px 20px", color: "#fff", fontSize: 18, fontWeight: 600 }}>PCI DSS Level 1</div>
-        <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: "10px 20px", color: "#fff", fontSize: 18, fontWeight: 600 }}>3D Secure</div>
+    (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0A0F1E 0%, #0d1633 40%, #1a2a5e 100%)", fontFamily: "system-ui" }}>
+      <img src={logo} width={280} height={420} style={{ objectFit: "contain", marginRight: 40 }} />
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ fontSize: 52, fontWeight: 900, color: "#fff", marginBottom: 12 }}>Accept Every Payment</div>
+        <div style={{ fontSize: 24, color: "rgba(255,255,255,0.6)", marginBottom: 24 }}>Visa · Mastercard · Amex · 135+ currencies</div>
+        <div style={{ fontSize: 18, color: "#2DBE60", fontWeight: 700 }}>zenipay.ca/payments</div>
       </div>
-      <div style={{ position: "absolute", bottom: 24, fontSize: 18, color: "rgba(255,255,255,0.4)" }}>zenipay.ca/payments</div>
-    </div>),
-    { ...size }
+    </div>), { ...size }
   );
 }
