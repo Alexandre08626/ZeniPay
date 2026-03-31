@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useParams } from "next/navigation";
 import ZeniPayLogo from "@/components/ZeniPayLogo";
+import { useT, LangToggle } from "../../../modules/zenipay/i18n";
 
 const ZP_GRAD = "linear-gradient(135deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
 const ZP_DARK = "linear-gradient(150deg, #0d1633 0%, #1a2a5e 50%, #0f2040 100%)";
@@ -19,6 +20,7 @@ function cardType(v: string) {
 
 function PayLinkContent() {
   const SANDBOX_MODE = true; // Maintenance — contact info@zeniva.ca
+  const { t } = useT();
 
   const params   = useSearchParams();
   const { id }   = useParams<{ id: string }>();
@@ -92,7 +94,7 @@ function PayLinkContent() {
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cardNum.replace(/\s/g, "") || !name || !expiry || !cvc) {
-      setError("Please fill in all card details."); return;
+      setError(t("checkout.fillAllFields")); return;
     }
     setError(""); setLoading(true);
 
@@ -122,7 +124,7 @@ function PayLinkContent() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setError(data.message || data.error || "Payment declined. Please check your card details.");
+        setError(data.message || data.error || t("checkout.paymentDeclined"));
         return;
       }
 
@@ -137,11 +139,11 @@ function PayLinkContent() {
         setPaymentResult(data);
         setSuccess(true);
       } else {
-        setError("Payment could not be processed. Please try again.");
+        setError(t("checkout.paymentCouldNotProcess"));
       }
     } catch (err) {
       console.error("Payment error:", err);
-      setError("Payment failed. Please try again.");
+      setError(t("checkout.paymentFailed"));
     } finally {
       setLoading(false);
     }
@@ -154,19 +156,19 @@ function PayLinkContent() {
         <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 10 }} />
         <div style={{ textAlign: "center", color: "#fff", padding: 32, maxWidth: 480 }}>
           <div style={{ fontSize: 72, marginBottom: 16 }}>✅</div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>Payment Confirmed!</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>{t("checkout.paymentConfirmed")}</h1>
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, margin: "0 0 16px" }}>{fmtMoney(amount)} — {desc || "Payment"}</p>
 
           {/* Payment details */}
           <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: "20px 24px", textAlign: "left" }}>
             {[
-              { label: "Transaction ID", value: pr?.paymentId || "—" },
-              { label: "Status", value: pr?.state === "SUCCEEDED" ? "Succeeded" : pr?.state || "Confirmed" },
-              { label: "Amount", value: fmtMoney(amount) },
-              { label: "Card", value: pr?.card ? `${pr.card.brand || "Card"} ••••${pr.card.last4 || ""}` : "—" },
-              { label: "Description", value: desc || "—" },
-              { label: "Pay Link", value: id },
-              { label: "Date", value: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) },
+              { label: t("checkout.transactionId"), value: pr?.paymentId || "—" },
+              { label: t("checkout.status"), value: pr?.state === "SUCCEEDED" ? "Succeeded" : pr?.state || "Confirmed" },
+              { label: t("checkout.amount"), value: fmtMoney(amount) },
+              { label: t("checkout.card"), value: pr?.card ? `${pr.card.brand || "Card"} ••••${pr.card.last4 || ""}` : "—" },
+              { label: t("checkout.description"), value: desc || "—" },
+              { label: t("checkout.payLink"), value: id },
+              { label: t("checkout.date"), value: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) },
             ].map(r => (
               <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{r.label}</span>
@@ -175,7 +177,7 @@ function PayLinkContent() {
             ))}
           </div>
 
-          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 16 }}>A receipt has been sent to your email. Powered by ZeniPay.</p>
+          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 16 }}>{t("checkout.receiptSent")}</p>
         </div>
       </div>
     );
@@ -185,13 +187,14 @@ function PayLinkContent() {
     <div style={{ minHeight: "100vh", background: ZP_DARK, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div style={{ width: "100%", maxWidth: 440 }}>
         {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div style={{ textAlign: "center", marginBottom: 24, position: "relative" }}>
           <ZeniPayLogo size={180} showWordmark />
+          <div style={{ position: "absolute", top: 0, right: 0 }}><LangToggle /></div>
         </div>
 
         {/* Amount card */}
         <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "20px 24px", marginBottom: 20, textAlign: "center" }}>
-          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 6 }}>AMOUNT DUE</div>
+          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 6 }}>{t("checkout.amountDue")}</div>
           <div style={{ fontSize: 42, fontWeight: 900, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "-1px" }}>
             {fmtMoney(amount)}
           </div>
@@ -201,11 +204,11 @@ function PayLinkContent() {
 
         {/* Payment form */}
         <form onSubmit={handlePay} style={{ background: "#fff", borderRadius: 20, padding: "28px 28px 24px", boxShadow: "0 8px 48px rgba(0,0,0,0.3)" }}>
-          <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 20px", color: "#0D1B3A" }}>Card Details</h2>
+          <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 20px", color: "#0D1B3A" }}>{t("checkout.cardDetails")}</h2>
 
           {/* Card number */}
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>CARD NUMBER</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.cardNumber")}</label>
             <input
               value={cardNum} onChange={e => setCardNum(formatCard(e.target.value))}
               placeholder="1234 5678 9012 3456" maxLength={19}
@@ -217,7 +220,7 @@ function PayLinkContent() {
 
           {/* Name */}
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>CARDHOLDER NAME</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.cardholderName")}</label>
             <input
               value={name} onChange={e => setName(e.target.value)}
               placeholder="Jane Smith"
@@ -228,7 +231,7 @@ function PayLinkContent() {
 
           {/* Email */}
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>EMAIL (for receipt)</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.emailReceipt")}</label>
             <input
               value={email} onChange={e => setEmail(e.target.value)}
               placeholder="you@email.com" type="email"
@@ -240,7 +243,7 @@ function PayLinkContent() {
           {/* Expiry + CVC */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>EXPIRY</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.expiry")}</label>
               <input
                 value={expiry}
                 onChange={e => {
@@ -254,7 +257,7 @@ function PayLinkContent() {
               />
             </div>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>CVC</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.cvc")}</label>
               <input
                 value={cvc} onChange={e => setCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
                 placeholder="123" maxLength={4}
@@ -270,10 +273,10 @@ function PayLinkContent() {
           {SANDBOX_MODE && (
             <div style={{ padding: 14, borderRadius: 12, background: "#FEF3C7", border: "1px solid #FBBF24", marginBottom: 14 }}>
               <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#92400E", fontSize: 14 }}>
-                ⚠️ Payment system temporarily unavailable
+                ⚠️ {t("checkout.maintenanceTitle")}
               </p>
               <p style={{ margin: "0 0 12px", color: "#78350F", fontSize: 13, lineHeight: 1.5 }}>
-                Please contact us directly to complete your booking.
+                {t("checkout.maintenanceDesc")}
               </p>
               <button
                 type="button"
@@ -284,7 +287,7 @@ function PayLinkContent() {
                   fontWeight: 700, fontSize: 13, cursor: "pointer"
                 }}
               >
-                📧 Email info@zeniva.ca
+                📧 {t("checkout.maintenanceEmail")}
               </button>
             </div>
           )}
@@ -293,11 +296,11 @@ function PayLinkContent() {
             type="submit" disabled={loading || SANDBOX_MODE}
             style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading || SANDBOX_MODE ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading || SANDBOX_MODE ? "not-allowed" : "pointer", letterSpacing: "0.02em", opacity: SANDBOX_MODE ? 0.6 : 1 }}
           >
-            {SANDBOX_MODE ? "🔒 Payment Disabled" : loading ? "Processing…" : `Pay ${fmtMoney(amount)}`}
+            {SANDBOX_MODE ? `🔒 ${t("checkout.paymentDisabled")}` : loading ? t("checkout.processing") : `Pay ${fmtMoney(amount)}`}
           </button>
 
           <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "#94A3B8", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            🔒 Secured by ZeniPay | <a href="/terms" style={{color:"rgba(255,255,255,0.4)",textDecoration:"none"}}>Terms</a> | <a href="/privacy" style={{color:"rgba(255,255,255,0.4)",textDecoration:"none"}}>Privacy</a> · {id}
+            🔒 {t("checkout.securedByZeniPay")} | <a href="/terms" style={{color:"rgba(255,255,255,0.4)",textDecoration:"none"}}>{t("checkout.terms")}</a> | <a href="/privacy" style={{color:"rgba(255,255,255,0.4)",textDecoration:"none"}}>{t("checkout.privacy")}</a> · {id}
           </div>
         </form>
       </div>

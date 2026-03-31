@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
+import { useT } from "../../modules/zenipay/i18n";
 
 // ─── Brand / Theme ──────────────────────────────────────
 const ZP_GREEN  = "#2DBE60";
@@ -448,6 +449,7 @@ function QuickStartGuide({ publishableKey }: { publishableKey: string }) {
 
 // ─── Main Component ─────────────────────────────────────
 export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, sandboxSecret: propSbSecret, liveKey: propLiveKey }: KeysPanelProps) {
+  const { t } = useT();
   const [sbKey, setSbKey] = useState(propSbKey || "");
   const [sbSecret, setSbSecret] = useState(propSbSecret || "");
   const [liveKey, setLiveKey] = useState(propLiveKey || "");
@@ -593,11 +595,11 @@ export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, san
             </div>
           }
         >
-          Sandbox API Keys
+          {t("keys.sandboxApiKeys")}
         </SectionTitle>
 
-        <KeyRow label="Publishable Key" value={sbKey || "zpk_sb_..."} revealable />
-        <KeyRow label="Secret Key" value={sbSecret || "zps_sb_..."} revealable />
+        <KeyRow label={t("keys.publishableKey")} value={sbKey || "zpk_sb_..."} revealable />
+        <KeyRow label={t("keys.secretKey")} value={sbSecret || "zps_sb_..."} revealable />
 
         <div style={{ marginTop: 8 }}>
           <button
@@ -629,7 +631,7 @@ export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, san
               <polyline points="1 4 1 10 7 10" />
               <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
             </svg>
-            Roll Keys
+            {t("keys.rollKeys")}
           </button>
         </div>
       </div>
@@ -657,12 +659,12 @@ export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, san
               </div>
             }
           >
-            Live API Keys
+            {t("keys.liveApiKeys")}
           </SectionTitle>
 
-          <KeyRow label="Publishable Key" value={liveKey || "zpk_live_..."} revealable />
+          <KeyRow label={t("keys.publishableKey")} value={liveKey || "zpk_live_..."} revealable />
           <KeyRow
-            label="Secret Key"
+            label={t("keys.secretKey")}
             value={liveSecret || "zps_live_••••••••••••"}
             alwaysMaskedExceptLast4
           />
@@ -707,10 +709,10 @@ export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, san
               </svg>
             </div>
             <h4 style={{ fontSize: 16, fontWeight: 800, color: TEXT, margin: "0 0 8px" }}>
-              Live API Keys
+              {t("keys.liveApiKeys")}
             </h4>
             <p style={{ fontSize: 14, color: MUTED, margin: "0 0 20px", lineHeight: 1.6, maxWidth: 340 }}>
-              Complete onboarding to access live keys. Go live to accept real payments from your customers.
+              {t("keys.lockedMessage")}
             </p>
             <a
               href="/app/go-live"
@@ -730,7 +732,7 @@ export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, san
                 boxShadow: "0 4px 14px rgba(45,190,96,0.3)",
               }}
             >
-              Go Live
+              {t("nav.goLive")}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
@@ -761,14 +763,14 @@ export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, san
             </div>
           }
         >
-          Webhook Signing Secret
+          {t("keys.webhookSigningSecret")}
         </SectionTitle>
 
         <p style={{ fontSize: 13, color: MUTED, margin: "0 0 14px", lineHeight: 1.6 }}>
-          Use this secret to verify incoming webhook payloads from ZeniPay. Never expose this value client-side.
+          {t("keys.webhookSigningDesc")}
         </p>
 
-        <KeyRow label="Signing Secret" value={webhookSecret || "whsec_..."} revealable />
+        <KeyRow label={t("keys.signingSecret")} value={webhookSecret || "whsec_..."} revealable />
       </div>
 
       {/* ═══ Section 4: Quick Start Guide ═════════════ */}
@@ -793,7 +795,7 @@ export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, san
             </div>
           }
         >
-          Quick Start Guide
+          {t("keys.quickStartGuide")}
         </SectionTitle>
 
         <QuickStartGuide publishableKey={activeKey || "zpk_sb_your_key_here"} />
@@ -802,8 +804,8 @@ export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, san
       {/* ─── Roll Keys Confirm Dialog ─────────────────── */}
       {showRollConfirm && (
         <ConfirmDialog
-          title="Roll Sandbox Keys"
-          message="This will invalidate your current sandbox API keys and generate new ones. Any integrations using the old keys will stop working immediately. This action cannot be undone."
+          title={t("keys.rollSandboxKeys")}
+          message={t("keys.rollKeysMessage")}
           onConfirm={rollSandboxKeys}
           onCancel={() => setShowRollConfirm(false)}
           loading={rolling}

@@ -1,7 +1,9 @@
 "use client";
+import { useT, LangToggleLight } from "../../modules/zenipay/i18n";
 
 export default function PrivacyPage() {
   const gradient = "linear-gradient(135deg, #2DBE60 0%, #15B8C9 50%, #7B4FBF 100%)";
+  const { t } = useT();
 
   return (
     <div style={{ backgroundColor: "#ffffff", minHeight: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif" }}>
@@ -13,20 +15,23 @@ export default function PrivacyPage() {
               ZeniPay
             </span>
           </a>
-          <a href="/" style={{ color: "#6B7280", textDecoration: "none", fontSize: 14 }}>Back to Home</a>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <LangToggleLight />
+            <a href="/" style={{ color: "#6B7280", textDecoration: "none", fontSize: 14 }}>{t("common.backToHome")}</a>
+          </div>
         </div>
       </header>
 
       {/* Content */}
       <main style={{ maxWidth: 800, margin: "0 auto", padding: "48px 24px 80px" }}>
         <h1 style={{ fontSize: 36, fontWeight: 800, background: gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", marginBottom: 8 }}>
-          Privacy Policy
+          {t("privacy.title")}
         </h1>
-        <p style={{ color: "#6B7280", fontSize: 14, marginBottom: 40 }}>Effective Date: March 27, 2026</p>
+        <p style={{ color: "#6B7280", fontSize: 14, marginBottom: 40 }}>{t("common.effectiveDate")}</p>
 
         {/* Section 1 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>1. Introduction</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section1")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             International Luxury Management Inc., operating as &quot;ZeniPay&quot; (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;), respects your privacy and is committed to protecting the personal information you share with us. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use the ZeniPay platform, website, APIs, and related services (collectively, the &quot;Services&quot;). By using our Services, you consent to the practices described in this policy. We encourage you to read this Privacy Policy carefully and contact us if you have any questions.
           </p>
@@ -34,7 +39,7 @@ export default function PrivacyPage() {
 
         {/* Section 2 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>2. Information We Collect</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section2")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             We collect the following types of information to provide and improve our Services:
           </p>
@@ -49,7 +54,7 @@ export default function PrivacyPage() {
 
         {/* Section 3 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>3. How We Use Your Information</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section3")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             We use the information we collect for the following purposes:
           </p>
@@ -64,7 +69,7 @@ export default function PrivacyPage() {
 
         {/* Section 4 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>4. Information Sharing</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section4")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             We share your information only with trusted third parties necessary to provide our Services:
           </p>
@@ -80,7 +85,7 @@ export default function PrivacyPage() {
 
         {/* Section 5 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>5. Payment Data &amp; PCI DSS</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section5")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             Protecting payment card data is a top priority. ZeniPay maintains PCI DSS (Payment Card Industry Data Security Standard) compliance through the following measures:
           </p>
@@ -94,7 +99,7 @@ export default function PrivacyPage() {
 
         {/* Section 6 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>6. Data Retention</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section6")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             We retain your personal and business information for as long as your account remains active and as necessary to provide our Services. After account termination, we may retain certain information as required by applicable laws and regulations, including tax and financial reporting requirements, fraud prevention, and dispute resolution purposes. Transaction records are typically retained for a minimum of seven (7) years in accordance with Canadian financial regulations. You may request deletion of your data subject to our legal retention obligations.
           </p>
@@ -102,7 +107,7 @@ export default function PrivacyPage() {
 
         {/* Section 7 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>7. Your Rights (PIPEDA, Canada)</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section7")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             Under the Personal Information Protection and Electronic Documents Act (PIPEDA) and applicable Canadian privacy laws, you have the following rights:
           </p>
@@ -118,7 +123,7 @@ export default function PrivacyPage() {
 
         {/* Section 8 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>8. Cookies Policy</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section8")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             ZeniPay uses cookies and similar tracking technologies to enhance your experience on our platform:
           </p>
@@ -133,7 +138,7 @@ export default function PrivacyPage() {
 
         {/* Section 9 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>9. Security</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section9")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             We take the security of your information seriously and implement robust measures to protect it:
           </p>
@@ -149,7 +154,7 @@ export default function PrivacyPage() {
 
         {/* Section 10 */}
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>10. Contact</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 12 }}>{t("privacy.section10")}</h2>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15 }}>
             If you have any questions about this Privacy Policy or our data practices, please contact us:
           </p>
@@ -165,10 +170,10 @@ export default function PrivacyPage() {
       {/* Footer */}
       <footer style={{ borderTop: "1px solid #E5E7EB", padding: "32px 0", backgroundColor: "#F9FAFB" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 24px", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 14, color: "#6B7280" }}>&copy; 2026 International Luxury Management Inc. All rights reserved.</span>
+          <span style={{ fontSize: 14, color: "#6B7280" }}>{t("common.copyrightFull")}</span>
           <div style={{ display: "flex", gap: 24, marginTop: 8 }}>
-            <a href="/terms" style={{ fontSize: 14, color: "#6B7280", textDecoration: "none" }}>Terms &amp; Conditions</a>
-            <a href="/privacy" style={{ fontSize: 14, color: "#6B7280", textDecoration: "none" }}>Privacy Policy</a>
+            <a href="/terms" style={{ fontSize: 14, color: "#6B7280", textDecoration: "none" }}>{t("common.termsAndConditions")}</a>
+            <a href="/privacy" style={{ fontSize: 14, color: "#6B7280", textDecoration: "none" }}>{t("common.privacyPolicy")}</a>
             <a href="https://zenipay.ca" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#6B7280", textDecoration: "none" }}>zenipay.ca</a>
           </div>
         </div>

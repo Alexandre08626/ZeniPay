@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { useT, LangToggleLight } from "../../modules/zenipay/i18n";
 
 const ZP_GRAD = "linear-gradient(90deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
 const ZP_GREEN = "#2DBE60";
@@ -31,6 +32,7 @@ const labelStyle: React.CSSProperties = {
 
 export default function SignupPage() {
   const router = useRouter();
+  const { t } = useT();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -62,8 +64,8 @@ export default function SignupPage() {
   const handleStep2 = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwError("");
-    if (password.length < 8) return setPwError("Password must be at least 8 characters.");
-    if (password !== confirm) return setPwError("Passwords do not match.");
+    if (password.length < 8) return setPwError(t("signup.pwMinLength"));
+    if (password !== confirm) return setPwError(t("signup.pwMismatch"));
 
     setLoading(true);
 
@@ -118,9 +120,9 @@ export default function SignupPage() {
   const goToDashboard = () => router.push("/app");
 
   const steps = [
-    { num: 1, label: "Your business" },
-    { num: 2, label: "Secure account" },
-    { num: 3, label: "Sandbox access" },
+    { num: 1, label: t("signup.step1Label") },
+    { num: 2, label: t("signup.step2Label") },
+    { num: 3, label: t("signup.step3Label") },
   ];
 
   return (
@@ -133,6 +135,8 @@ export default function SignupPage() {
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", backgroundImage: "radial-gradient(circle, rgba(21,184,201,0.05) 1px, transparent 1px)", backgroundSize: "36px 36px" }} />
 
       <div style={{ width: "100%", maxWidth: 480, position: "relative" }}>
+        {/* Lang toggle */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}><LangToggleLight /></div>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <Link href="/" style={{ display: "inline-block" }}>
@@ -168,8 +172,8 @@ export default function SignupPage() {
           {/* ── STEP 1 ── */}
           {step === 1 && (
             <form onSubmit={handleStep1}>
-              <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#0D1B3A", letterSpacing: "-0.5px" }}>Create your account</h2>
-              <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 24px" }}>Get instant access to the ZeniPay sandbox — no credit card required.</p>
+              <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#0D1B3A", letterSpacing: "-0.5px" }}>{t("signup.createTitle")}</h2>
+              <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 24px" }}>{t("signup.createDesc")}</p>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
@@ -229,11 +233,11 @@ export default function SignupPage() {
               </div>
 
               <button type="submit" style={{ width: "100%", padding: 14, borderRadius: 12, background: ZP_GRAD, color: "#fff", border: "none", fontSize: 15, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 20px rgba(21,184,201,0.25)" }}>
-                Continue →
+                {t("signup.continueBtn")}
               </button>
 
               <p style={{ textAlign: "center", fontSize: 12, color: "#94A3B8", marginTop: 16, marginBottom: 0 }}>
-                Already have an account?{" "}<Link href="/login" style={{ color: ZP_CYAN, fontWeight: 700, textDecoration: "none" }}>Sign in</Link>
+                {t("common.alreadyHaveAccount")}{" "}<Link href="/login" style={{ color: ZP_CYAN, fontWeight: 700, textDecoration: "none" }}>{t("signup.signIn")}</Link>
               </p>
             </form>
           )}
@@ -241,8 +245,8 @@ export default function SignupPage() {
           {/* ── STEP 2 ── */}
           {step === 2 && (
             <form onSubmit={handleStep2}>
-              <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#0D1B3A", letterSpacing: "-0.5px" }}>Secure your account</h2>
-              <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 24px" }}>Create a strong password for <strong>{email}</strong></p>
+              <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#0D1B3A", letterSpacing: "-0.5px" }}>{t("signup.secureTitle")}</h2>
+              <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 24px" }}>{t("signup.secureDesc")} <strong>{email}</strong></p>
 
               <div style={{ marginBottom: 16 }}>
                 <label style={labelStyle}>PASSWORD</label>
@@ -261,7 +265,7 @@ export default function SignupPage() {
                       <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: password.length >= i * 3 ? (password.length >= 12 ? ZP_GREEN : ZP_CYAN) : "#E2E8F0" }} />
                     ))}
                     <span style={{ fontSize: 11, color: "#94A3B8", whiteSpace: "nowrap", marginLeft: 8 }}>
-                      {password.length < 6 ? "Weak" : password.length < 10 ? "Fair" : password.length < 14 ? "Good" : "Strong"}
+                      {password.length < 6 ? t("signup.strengthWeak") : password.length < 10 ? t("signup.strengthFair") : password.length < 14 ? t("signup.strengthGood") : t("signup.strengthStrong")}
                     </span>
                   </div>
                 )}
@@ -282,22 +286,22 @@ export default function SignupPage() {
 
               {/* ToS */}
               <p style={{ fontSize: 12, color: "#94A3B8", marginBottom: 20 }}>
-                By creating an account you agree to ZeniPay&apos;s{" "}
-                <Link href="/" style={{ color: ZP_CYAN, textDecoration: "none" }}>Terms of Service</Link> and{" "}
-                <Link href="/" style={{ color: ZP_CYAN, textDecoration: "none" }}>Privacy Policy</Link>.
+                {t("signup.tosLine")}{" "}
+                <Link href="/terms" style={{ color: ZP_CYAN, textDecoration: "none" }}>{t("signup.tosTerms")}</Link> {t("signup.tosAnd")}{" "}
+                <Link href="/privacy" style={{ color: ZP_CYAN, textDecoration: "none" }}>{t("signup.tosPrivacy")}</Link>.
               </p>
 
               <button type="submit" disabled={loading} style={{ width: "100%", padding: 14, borderRadius: 12, background: loading ? "#E2E8F0" : ZP_GRAD, color: loading ? "#94A3B8" : "#fff", border: "none", fontSize: 15, fontWeight: 800, cursor: loading ? "not-allowed" : "pointer", boxShadow: loading ? "none" : "0 4px 20px rgba(21,184,201,0.25)" }}>
                 {loading
                   ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                       <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #94A3B8", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                      Creating your account…
+                      {t("signup.creatingAccount")}
                     </span>
-                  : "Create account & get sandbox access →"}
+                  : t("signup.createAccountBtn")}
               </button>
 
               <button type="button" onClick={() => setStep(1)} style={{ width: "100%", marginTop: 10, padding: "10px", background: "none", border: "none", color: "#94A3B8", fontSize: 13, cursor: "pointer" }}>
-                ← Back
+                {t("signup.backBtn")}
               </button>
             </form>
           )}
@@ -307,16 +311,16 @@ export default function SignupPage() {
             <div>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
                 <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
-                <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#0D1B3A" }}>Sandbox is ready!</h2>
-                <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>Welcome, <strong>{businessName}</strong>. Your sandbox credentials are below.</p>
+                <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#0D1B3A" }}>{t("signup.sandboxReady")}</h2>
+                <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>{t("signup.welcomePrefix")} <strong>{businessName}</strong>{t("signup.welcomeSuffix")}</p>
               </div>
 
               {/* Sandbox keys */}
               <div style={{ background: "#F8FAFC", border: "1.5px solid #E2E8F0", borderRadius: 14, padding: "18px 20px", marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", marginBottom: 12 }}>SANDBOX API KEYS</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", marginBottom: 12 }}>{t("signup.sandboxApiKeysLabel")}</div>
                 {[
-                  { label: "Publishable Key", value: sandboxKey, hint: "Use in your frontend" },
-                  { label: "Secret Key", value: sandboxSecret, hint: "Use server-side only — keep it secret!" },
+                  { label: t("signup.publishableKey"), value: sandboxKey, hint: t("signup.publishableHint") },
+                  { label: t("signup.secretKey"), value: sandboxSecret, hint: t("signup.secretHint") },
                 ].map(k => (
                   <div key={k.label} style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", marginBottom: 4 }}>{k.label} <span style={{ color: "#94A3B8", fontWeight: 400 }}>— {k.hint}</span></div>
@@ -331,10 +335,10 @@ export default function SignupPage() {
               {/* Checklist */}
               <div style={{ marginBottom: 24 }}>
                 {[
-                  { done: true, text: "Sandbox account created" },
-                  { done: true, text: "API keys generated" },
-                  { done: false, text: "Make your first test payment (use card 4242 4242 4242 4242)" },
-                  { done: false, text: "Apply for live access when ready" },
+                  { done: true, text: t("signup.checkSandboxCreated") },
+                  { done: true, text: t("signup.checkKeysGenerated") },
+                  { done: false, text: t("signup.checkFirstPayment") },
+                  { done: false, text: t("signup.checkApplyLive") },
                 ].map(item => (
                   <div key={item.text} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid #F1F5F9" }}>
                     <span style={{ fontSize: 16 }}>{item.done ? "✅" : "⬜"}</span>
@@ -344,11 +348,11 @@ export default function SignupPage() {
               </div>
 
               <button onClick={goToDashboard} style={{ width: "100%", padding: 14, borderRadius: 12, background: ZP_GRAD, color: "#fff", border: "none", fontSize: 15, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 20px rgba(21,184,201,0.25)" }}>
-                Go to sandbox dashboard →
+                {t("signup.goToDashboard")}
               </button>
 
               <p style={{ textAlign: "center", fontSize: 12, color: "#94A3B8", marginTop: 12, marginBottom: 0 }}>
-                Need help?{" "}<a href="mailto:info@zenipay.ca" style={{ color: ZP_CYAN, fontWeight: 700, textDecoration: "none" }}>Contact support</a>
+                {t("common.needHelp")}{" "}<a href="mailto:info@zenipay.ca" style={{ color: ZP_CYAN, fontWeight: 700, textDecoration: "none" }}>{t("common.contactSupport")}</a>
               </p>
             </div>
           )}

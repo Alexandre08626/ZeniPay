@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ZeniPayLogo from "@/components/ZeniPayLogo";
+import { useT, LangToggle } from "../../modules/zenipay/i18n";
 
 const ZP_GREEN  = "#2DBE60";
 const ZP_CYAN   = "#15B8C9";
@@ -59,6 +60,7 @@ type TabKey = typeof NAV[number]["key"];
 
 export default function AdminPage() {
   const router = useRouter();
+  const { t } = useT();
   const [tab, setTab]               = useState<TabKey>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [copiedKey, setCopiedKey]   = useState("");
@@ -212,10 +214,10 @@ export default function AdminPage() {
         loadMerchants();
         loadStats();
       } else {
-        showToast(data.error || "Action failed", "error");
+        showToast(data.error || t("admin.actionFailed"), "error");
       }
     } catch {
-      showToast("Network error", "error");
+      showToast(t("admin.networkError"), "error");
     } finally {
       setActionLoading(null);
       setPlanDropdown(null);
@@ -383,7 +385,7 @@ export default function AdminPage() {
             {sidebarOpen && (
               <div>
                 <div style={{ fontWeight: 900, fontSize: 15, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "-0.3px" }}>ZeniPay</div>
-                <div style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>Admin Console</div>
+                <div style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>{t("admin.console")}</div>
               </div>
             )}
           </div>
@@ -392,7 +394,7 @@ export default function AdminPage() {
         {sidebarOpen && (
           <div style={{ margin: "12px 10px 4px", padding: "6px 10px", borderRadius: 10, background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.2)", display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706" }} />
-            <div style={{ fontSize: 10, color: "#D97706", fontWeight: 700 }}>Sandbox · Finix Active</div>
+            <div style={{ fontSize: 10, color: "#D97706", fontWeight: 700 }}>{t("admin.sandboxFinixActive")}</div>
           </div>
         )}
 
@@ -413,22 +415,23 @@ export default function AdminPage() {
                 marginBottom: 2,
               }}>
                 <div style={{ width: 28, height: 28, borderRadius: 8, background: active ? color + "20" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, color: active ? color : MUTED, transition: "all 0.15s" }}>{icon}</div>
-                {sidebarOpen && <span>{label}</span>}
+                {sidebarOpen && <span>{t("admin.nav." + key)}</span>}
               </button>
             );
           })}
         </nav>
 
         <div style={{ padding: "8px 8px 12px", borderTop: `1px solid ${BORDER}` }}>
+          {sidebarOpen && <div style={{ marginBottom: 6, display: "flex", justifyContent: "center" }}><LangToggle style={{ background: "rgba(0,0,0,0.05)", color: MUTED, border: `1px solid ${BORDER}` }} /></div>}
           <button onClick={() => setSidebarOpen(v => !v)} style={{ width: "100%", padding: "8px 0", border: "none", background: "transparent", cursor: "pointer", color: MUTED, fontSize: 16, borderRadius: 8 }} title="Toggle sidebar">
             {sidebarOpen ? "⟵" : "⟶"}
           </button>
           {sidebarOpen ? (
             <button onClick={logout} style={{ width: "100%", padding: "9px 12px", borderRadius: 10, background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)", color: "#DC2626", cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-              <span>⏻</span> Sign Out
+              <span>⏻</span> {t("admin.signOut")}
             </button>
           ) : (
-            <button onClick={logout} style={{ width: "100%", padding: "8px 0", border: "none", background: "transparent", cursor: "pointer", color: "#DC2626", fontSize: 16 }} title="Sign Out">⏻</button>
+            <button onClick={logout} style={{ width: "100%", padding: "8px 0", border: "none", background: "transparent", cursor: "pointer", color: "#DC2626", fontSize: 16 }} title={t("admin.signOut")}>⏻</button>
           )}
         </div>
       </div>
@@ -439,13 +442,13 @@ export default function AdminPage() {
         <div style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "0 28px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 1px 0 rgba(0,0,0,0.04)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: currentTab.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: currentTab.color }}>{currentTab.icon}</div>
-            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 800, letterSpacing: "-0.3px" }}>{currentTab.label}</h1>
+            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 800, letterSpacing: "-0.3px" }}>{t("admin.nav." + currentTab.key)}</h1>
             <span style={{ color: BORDER, fontSize: 16 }}>·</span>
             <span style={{ fontSize: 12, color: MUTED }}>ZeniPay Platform</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ padding: "5px 14px", borderRadius: 8, background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.18)", fontSize: 11, fontWeight: 700, color: "#D97706", display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706", display: "inline-block" }} /> Sandbox Mode
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706", display: "inline-block" }} /> {t("admin.sandboxMode")}
             </div>
             <div style={{ width: 34, height: 34, borderRadius: 10, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 14 }}>A</div>
           </div>
@@ -460,19 +463,19 @@ export default function AdminPage() {
               <div style={{ marginBottom: 20, padding: "12px 18px", borderRadius: 12, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.2)", display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ fontSize: 20 }}>⚠️</div>
                 <div style={{ flex: 1 }}>
-                  <span style={{ fontWeight: 700, color: "#B45309", fontSize: 13 }}>Finix Gateway — Sandbox Mode</span>
-                  <span style={{ color: "#92400E", fontSize: 13, marginLeft: 8 }}>— Live migration in progress. Sandbox payments active.</span>
+                  <span style={{ fontWeight: 700, color: "#B45309", fontSize: 13 }}>{t("admin.overview.alertTitle")}</span>
+                  <span style={{ color: "#92400E", fontSize: 13, marginLeft: 8 }}>{t("admin.overview.alertSub")}</span>
                 </div>
-                <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ padding: "6px 16px", borderRadius: 8, background: "#D97706", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>Finix Dashboard →</a>
+                <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ padding: "6px 16px", borderRadius: 8, background: "#D97706", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>{t("admin.overview.finixDashboard")}</a>
               </div>
 
               {/* KPI row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 20 }}>
-                <MetricCard label="Total Volume"        value={fmt(adminStats?.stats?.total_revenue ?? 0)}  sub={`${adminStats?.stats?.total_payments ?? 0} total transactions`}  accent={ZP_GREEN}  icon="💰" />
-                <MetricCard label="Fees Collected"      value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.029 + (adminStats?.stats?.total_payments ?? 0) * 0.30)}  sub="2.9% + $0.30/tx" accent={ZP_CYAN} icon="🏦" />
-                <MetricCard label="Active Clients"      value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
-                <MetricCard label="Success Rate"        value={`${adminStats?.stats?.success_rate ?? 0}%`}  sub={`${adminStats?.stats?.succeeded_payments ?? 0} succeeded`}            accent="#D97706"   icon="⏳" />
-                <MetricCard label="Avg Transaction"     value={fmt((adminStats?.stats?.total_revenue ?? 0) / Math.max(adminStats?.stats?.total_payments ?? 1, 1))} sub="per transaction" accent={ZP_BLUE} icon="📊" />
+                <MetricCard label={t("admin.overview.totalVolume")}    value={fmt(adminStats?.stats?.total_revenue ?? 0)}  sub={`${adminStats?.stats?.total_payments ?? 0} ${t("admin.overview.totalTransactions")}`}  accent={ZP_GREEN}  icon="💰" />
+                <MetricCard label={t("admin.overview.feesCollected")}  value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.029 + (adminStats?.stats?.total_payments ?? 0) * 0.30)}  sub="2.9% + $0.30/tx" accent={ZP_CYAN} icon="🏦" />
+                <MetricCard label={t("admin.overview.activeClients")}  value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
+                <MetricCard label={t("admin.overview.successRate")}    value={`${adminStats?.stats?.success_rate ?? 0}%`}  sub={`${adminStats?.stats?.succeeded_payments ?? 0} ${t("admin.overview.succeeded")}`}            accent="#D97706"   icon="⏳" />
+                <MetricCard label={t("admin.overview.avgTransaction")} value={fmt((adminStats?.stats?.total_revenue ?? 0) / Math.max(adminStats?.stats?.total_payments ?? 1, 1))} sub={t("admin.overview.perTransaction")} accent={ZP_BLUE} icon="📊" />
               </div>
 
               {/* Revenue chart + Top 5 clients */}
@@ -481,8 +484,8 @@ export default function AdminPage() {
                 <div style={{ ...card({ padding: "22px" }) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <div>
-                      <div style={{ fontWeight: 800, fontSize: 15 }}>Revenue — Daily</div>
-                      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Processed volume by day</div>
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>{t("admin.overview.revenueDaily")}</div>
+                      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{t("admin.overview.processedVolumeByDay")}</div>
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       {[{ label: "7d", val: 7 }, { label: "14d", val: 14 }, { label: "30d", val: 30 }, { label: "90d", val: 90 }].map(r => (
@@ -519,11 +522,11 @@ export default function AdminPage() {
                 {/* Top 5 clients by volume */}
                 <div style={{ ...card({ padding: "22px" }) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <div style={{ fontWeight: 800, fontSize: 15 }}>Top Clients</div>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>{t("admin.overview.topClients")}</div>
                     <button onClick={() => setTab("clients")} style={{ fontSize: 12, color: ZP_GREEN, background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>All →</button>
                   </div>
                   {top5Clients.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "24px 0", color: MUTED, fontSize: 13 }}>No clients yet</div>
+                    <div style={{ textAlign: "center", padding: "24px 0", color: MUTED, fontSize: 13 }}>{t("admin.overview.noClientsYet")}</div>
                   ) : top5Clients.map(c => (
                     <div key={c.id} style={{ marginBottom: 14 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
@@ -543,9 +546,9 @@ export default function AdminPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 {/* Recent activity */}
                 <div style={{ ...card({ padding: "22px" }) }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>Recent Activity</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>{t("admin.overview.recentActivity")}</div>
                   {getActivityFeed().length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "24px 0", color: MUTED, fontSize: 13 }}>No recent activity</div>
+                    <div style={{ textAlign: "center", padding: "24px 0", color: MUTED, fontSize: 13 }}>{t("admin.overview.noRecentActivity")}</div>
                   ) : getActivityFeed().map((item, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: i > 0 ? `1px solid ${BORDER}` : "none" }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: item.color, flexShrink: 0 }} />
@@ -561,21 +564,21 @@ export default function AdminPage() {
                 {/* System status */}
                 <div style={{ ...card({ padding: "22px" }) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <div style={{ fontWeight: 800, fontSize: 15 }}>System Status</div>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>{t("admin.overview.systemStatus")}</div>
                     <button
                       onClick={async () => {
                         setTestingConnection(true);
                         try {
                           const res = await fetch("/api/zenipay/stats");
-                          if (res.ok) showToast("Connection OK — all systems operational", "success");
-                          else showToast("Connection failed — " + res.status, "error");
-                        } catch { showToast("Connection failed — network error", "error"); }
+                          if (res.ok) showToast(t("admin.overview.connectionOk"), "success");
+                          else showToast(t("admin.overview.connectionFailed") + " — " + res.status, "error");
+                        } catch { showToast(t("admin.overview.connectionFailed") + " — network error", "error"); }
                         finally { setTestingConnection(false); }
                       }}
                       style={{ padding: "5px 14px", borderRadius: 8, border: `1px solid ${ZP_GREEN}33`, background: ZP_GREEN + "0D", fontSize: 11, fontWeight: 700, color: ZP_GREEN, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
                     >
                       {testingConnection ? <Spinner size={12} color={ZP_GREEN} /> : null}
-                      Test Connection
+                      {t("admin.overview.testConnection")}
                     </button>
                   </div>
                   {[
@@ -605,7 +608,7 @@ export default function AdminPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, flexWrap: "wrap" }}>
                   <input
                     type="text"
-                    placeholder="Search clients..."
+                    placeholder={t("admin.clients.searchPlaceholder")}
                     value={clientSearch}
                     onChange={e => setClientSearch(e.target.value)}
                     style={{ ...inputStyle, width: 220 }}
@@ -616,10 +619,10 @@ export default function AdminPage() {
                     ))}
                   </div>
                   <select value={clientSort} onChange={e => setClientSort(e.target.value as any)} style={{ ...inputStyle, fontSize: 12 }}>
-                    <option value="volume">Sort: Volume</option>
-                    <option value="balance">Sort: Balance</option>
-                    <option value="recent">Sort: Recent</option>
-                    <option value="name">Sort: Name</option>
+                    <option value="volume">{t("admin.clients.sortVolume")}</option>
+                    <option value="balance">{t("admin.clients.sortBalance")}</option>
+                    <option value="recent">{t("admin.clients.sortRecent")}</option>
+                    <option value="name">{t("admin.clients.sortName")}</option>
                   </select>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -628,23 +631,23 @@ export default function AdminPage() {
                       const headers = ["ID", "Name", "Email", "Status", "Plan", "Volume", "Balance", "Transactions", "Since"];
                       const rows = CLIENTS.map(c => [c.id, c.name, c.contact, c.status, c.plan, String(c.volume), String(c.balance), String(c.txCount), c.since]);
                       downloadCSV("zenipay-clients.csv", headers, rows);
-                      showToast("Clients exported to CSV");
+                      showToast(t("admin.clients.clientsExported"));
                     }}
                     style={{ padding: "9px 18px", borderRadius: 10, border: `1px solid ${BORDER}`, background: SURFACE, fontSize: 12, fontWeight: 700, cursor: "pointer", color: TEXT }}
                   >
-                    Export CSV
+                    {t("admin.clients.exportCsv")}
                   </button>
-                  <button style={{ padding: "9px 20px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(45,190,96,0.25)" }}>+ New Client</button>
+                  <button style={{ padding: "9px 20px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(45,190,96,0.25)" }}>{t("admin.clients.newClient")}</button>
                 </div>
               </div>
 
               {/* Summary row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
                 {[
-                  { label: "Total Clients",   value: `${CLIENTS.length}`,                                              accent: ZP_PURPLE },
-                  { label: "Live",            value: `${CLIENTS.filter(c => c.status === "active" || c.status === "live").length}`,           accent: ZP_GREEN  },
-                  { label: "Sandbox",         value: `${CLIENTS.filter(c => c.status === "sandbox").length}`,          accent: "#D97706" },
-                  { label: "Total Volume",    value: fmt(CLIENTS.reduce((a, c) => a + c.volume, 0)),                   accent: ZP_CYAN   },
+                  { label: t("admin.clients.totalClients"), value: `${CLIENTS.length}`,                                              accent: ZP_PURPLE },
+                  { label: t("admin.clients.live"),         value: `${CLIENTS.filter(c => c.status === "active" || c.status === "live").length}`,           accent: ZP_GREEN  },
+                  { label: t("admin.clients.sandbox"),      value: `${CLIENTS.filter(c => c.status === "sandbox").length}`,          accent: "#D97706" },
+                  { label: t("admin.clients.totalVolume"),  value: fmt(CLIENTS.reduce((a, c) => a + c.volume, 0)),                   accent: ZP_CYAN   },
                 ].map(s => (
                   <div key={s.label} style={{ ...card({ padding: "14px 16px" }), borderTop: `3px solid ${s.accent}` }}>
                     <div style={{ fontSize: 20, fontWeight: 900, color: s.accent }}>{s.value}</div>
@@ -669,10 +672,10 @@ export default function AdminPage() {
                         <div style={{ fontSize: 12, color: MUTED, fontStyle: "italic", marginBottom: 12 }}>{c.description}</div>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           {[
-                            { k: "Volume",       v: fmt(c.volume),  accent: ZP_GREEN  },
-                            { k: "Balance",      v: fmt(c.balance), accent: ZP_CYAN   },
-                            { k: "Transactions", v: `${c.txCount}`, accent: ZP_BLUE   },
-                            { k: "Gateway",      v: c.gateway,      accent: ZP_PURPLE },
+                            { k: t("admin.clients.volume"),       v: fmt(c.volume),  accent: ZP_GREEN  },
+                            { k: t("admin.clients.balance"),      v: fmt(c.balance), accent: ZP_CYAN   },
+                            { k: t("admin.clients.transactions"), v: `${c.txCount}`, accent: ZP_BLUE   },
+                            { k: t("admin.clients.gateway"),      v: c.gateway,      accent: ZP_PURPLE },
                           ].map(s => (
                             <div key={s.k} style={{ padding: "5px 12px", borderRadius: 8, background: s.accent + "0D", border: `1px solid ${s.accent}22`, fontSize: 12 }}>
                               <span style={{ color: MUTED }}>{s.k}: </span>
@@ -692,7 +695,7 @@ export default function AdminPage() {
                               disabled={actionLoading === c.id}
                               style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.06)", fontSize: 11, fontWeight: 700, cursor: "pointer", color: "#DC2626", display: "flex", alignItems: "center", gap: 4 }}
                             >
-                              {actionLoading === c.id ? <Spinner size={10} color="#DC2626" /> : null} Suspend
+                              {actionLoading === c.id ? <Spinner size={10} color="#DC2626" /> : null} {t("admin.clients.suspend")}
                             </button>
                           ) : (
                             <button
@@ -700,7 +703,7 @@ export default function AdminPage() {
                               disabled={actionLoading === c.id}
                               style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${ZP_GREEN}44`, background: ZP_GREEN + "0D", fontSize: 11, fontWeight: 700, cursor: "pointer", color: ZP_GREEN, display: "flex", alignItems: "center", gap: 4 }}
                             >
-                              {actionLoading === c.id ? <Spinner size={10} color={ZP_GREEN} /> : null} Activate
+                              {actionLoading === c.id ? <Spinner size={10} color={ZP_GREEN} /> : null} {t("admin.clients.activate")}
                             </button>
                           )}
                           <div style={{ position: "relative" }}>
@@ -708,7 +711,7 @@ export default function AdminPage() {
                               onClick={() => setPlanDropdown(planDropdown === c.id ? null : c.id)}
                               style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${ZP_PURPLE}33`, background: ZP_PURPLE + "0D", fontSize: 11, fontWeight: 700, cursor: "pointer", color: ZP_PURPLE }}
                             >
-                              Upgrade Plan ▾
+                              {t("admin.clients.upgradePlan")}
                             </button>
                             {planDropdown === c.id && (
                               <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}`, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20, overflow: "hidden", minWidth: 140 }}>
@@ -718,14 +721,14 @@ export default function AdminPage() {
                                     onClick={() => adminAction({ action: "upgrade_plan", merchant_id: c.id, plan }, `${c.name} upgraded to ${plan}`)}
                                     style={{ display: "block", width: "100%", padding: "10px 16px", border: "none", background: c.plan === plan ? ZP_PURPLE + "12" : "transparent", fontSize: 12, fontWeight: c.plan === plan ? 800 : 600, cursor: "pointer", color: c.plan === plan ? ZP_PURPLE : TEXT, textAlign: "left" }}
                                   >
-                                    {plan} {c.plan === plan ? "(current)" : ""}
+                                    {plan} {c.plan === plan ? t("admin.clients.current") : ""}
                                   </button>
                                 ))}
                               </div>
                             )}
                           </div>
                           <button onClick={() => setClientView(clientView === c.id ? null : c.id)} style={{ padding: "6px 16px", borderRadius: 8, background: clientView === c.id ? ZP_GRAD : LIGHT, border: `1px solid ${clientView === c.id ? "transparent" : BORDER}`, fontSize: 11, fontWeight: 700, cursor: "pointer", color: clientView === c.id ? "#fff" : TEXT }}>
-                            {clientView === c.id ? "Close ▲" : "Details ▼"}
+                            {clientView === c.id ? t("admin.clients.close") : t("admin.clients.details")}
                           </button>
                         </div>
                       </div>
@@ -737,16 +740,16 @@ export default function AdminPage() {
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 16 }}>
 
                         <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
-                          <div style={{ fontWeight: 700, fontSize: 11, color: ZP_GREEN, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Business Info</div>
+                          <div style={{ fontWeight: 700, fontSize: 11, color: ZP_GREEN, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>{t("admin.clients.businessInfo")}</div>
                           {[
-                            { k: "Business",  v: c.name },
-                            { k: "Owner",     v: (c as any).ownerName || "—" },
-                            { k: "Email",     v: c.contact },
-                            { k: "Phone",     v: (c as any).phone || "—" },
-                            { k: "Website",   v: c.domain },
-                            { k: "Country",   v: (c as any).country || "—" },
-                            { k: "Type",      v: c.description },
-                            { k: "Est. Volume", v: (c as any).monthlyVolume || "—" },
+                            { k: t("admin.clients.business"),  v: c.name },
+                            { k: t("admin.clients.owner"),     v: (c as any).ownerName || "—" },
+                            { k: t("admin.clients.email"),     v: c.contact },
+                            { k: t("admin.clients.phone"),     v: (c as any).phone || "—" },
+                            { k: t("admin.clients.website"),   v: c.domain },
+                            { k: t("admin.clients.country"),   v: (c as any).country || "—" },
+                            { k: t("admin.clients.type"),      v: c.description },
+                            { k: t("admin.clients.estVolume"), v: (c as any).monthlyVolume || "—" },
                           ].map(s => (
                             <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
                               <span style={{ color: MUTED }}>{s.k}</span>
@@ -756,14 +759,14 @@ export default function AdminPage() {
                         </div>
 
                         <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
-                          <div style={{ fontWeight: 700, fontSize: 11, color: "#10B981", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Cashback (Finix 90%)</div>
+                          <div style={{ fontWeight: 700, fontSize: 11, color: "#10B981", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>{t("admin.clients.cashbackFinix")}</div>
                           {(() => {
                             const vol = c.volume || 0;
                             const txs = c.txCount || 0;
                             const grossFees = vol * 0.029 + txs * 0.30;
                             const cashback90 = grossFees * 0.90;
                             const netFees = grossFees - cashback90;
-                            return [{k:"Gross Fees (2.9%+$0.30)",v:fmt(grossFees),co:"#DC2626"},{k:"Cashback to ZeniPay (90%)",v:fmt(cashback90),co:ZP_GREEN},{k:"Net Fee (Merchant pays)",v:fmt(netFees),co:ZP_PURPLE},{k:"Effective Rate",v:`${(vol>0?((netFees/vol)*100):0).toFixed(3)}%`,co:ZP_CYAN}].map(s=>(
+                            return [{k:t("admin.clients.grossFees"),v:fmt(grossFees),co:"#DC2626"},{k:t("admin.clients.cashbackToZeniPay"),v:fmt(cashback90),co:ZP_GREEN},{k:t("admin.clients.netFeeMerchant"),v:fmt(netFees),co:ZP_PURPLE},{k:t("admin.clients.effectiveRate"),v:`${(vol>0?((netFees/vol)*100):0).toFixed(3)}%`,co:ZP_CYAN}].map(s=>(
                               <div key={s.k} style={{ display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:12 }}>
                                 <span style={{ color:MUTED }}>{s.k}</span>
                                 <span style={{ fontWeight:700,color:s.co }}>{s.v}</span>
@@ -771,12 +774,12 @@ export default function AdminPage() {
                             ));
                           })()}
                           <div style={{ marginTop:12,padding:10,background:"rgba(16,185,129,0.06)",borderRadius:8,border:"1px solid rgba(16,185,129,0.15)",fontSize:11,color:"#166534",lineHeight:1.6 }}>
-                            Finix returns 90% of the interchange markup to ZeniPay on every transaction.
+                            {t("admin.clients.finixReturns90")}
                           </div>
                         </div>
 
                         <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
-                          <div style={{ fontWeight: 700, fontSize: 11, color: ZP_CYAN, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>API Keys</div>
+                          <div style={{ fontWeight: 700, fontSize: 11, color: ZP_CYAN, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>{t("admin.clients.apiKeys")}</div>
                           {[
                             { label: "Live Key",    value: c.apiKey,     color: ZP_GREEN  },
                             { label: "Sandbox Key", value: c.sandboxKey, color: "#D97706" },
@@ -786,19 +789,19 @@ export default function AdminPage() {
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <code style={{ fontSize: 11, flex: 1, color: TEXT, wordBreak: "break-all" }}>{k.value}</code>
                                 <button onClick={() => copyKey(k.value)} style={{ padding: "3px 9px", borderRadius: 6, border: `1px solid ${BORDER}`, background: copiedKey === k.value ? "rgba(22,163,74,0.1)" : SURFACE, color: copiedKey === k.value ? "#16A34A" : MUTED, fontSize: 10, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                                  {copiedKey === k.value ? "✓" : "Copy"}
+                                  {copiedKey === k.value ? t("admin.clients.copied") : t("admin.clients.copy")}
                                 </button>
                               </div>
                             </div>
                           ))}
                           <div style={{ marginTop: 12 }}>
-                            <div style={{ fontWeight: 700, fontSize: 11, color: ZP_PURPLE, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Account</div>
+                            <div style={{ fontWeight: 700, fontSize: 11, color: ZP_PURPLE, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>{t("admin.clients.account")}</div>
                             {[
-                              { k: "ID",         v: c.id },
-                              { k: "Plan",       v: c.plan },
-                              { k: "Since",      v: fmtDate(c.since) },
-                              { k: "Status",     v: c.status },
-                              { k: "Processor",  v: c.gateway },
+                              { k: t("admin.clients.id"),        v: c.id },
+                              { k: t("admin.clients.plan"),      v: c.plan },
+                              { k: t("admin.clients.since"),     v: fmtDate(c.since) },
+                              { k: t("admin.clients.status"),    v: c.status },
+                              { k: t("admin.clients.processor"), v: c.gateway },
                             ].map(s => (
                               <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
                                 <span style={{ color: MUTED }}>{s.k}</span>
@@ -815,15 +818,15 @@ export default function AdminPage() {
 
               {getFilteredClients().length === 0 && (
                 <div style={{ ...card({ padding: "40px 20px", textAlign: "center" }) }}>
-                  <div style={{ fontSize: 13, color: MUTED }}>No clients match your search/filter.</div>
+                  <div style={{ fontSize: 13, color: MUTED }}>{t("admin.clients.noClientsMatch")}</div>
                 </div>
               )}
 
               <div style={{ ...card({ padding: "28px", textAlign: "center", borderStyle: "dashed", borderColor: "rgba(45,190,96,0.25)", background: "rgba(45,190,96,0.02)" }) }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, margin: "0 auto 12px", color: "#fff" }}>+</div>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>Onboard a new client</div>
-                <div style={{ fontSize: 13, color: MUTED, marginBottom: 16, maxWidth: 360, margin: "0 auto 16px" }}>Each client gets a ZeniCard account, dedicated API keys, and a full dashboard.</div>
-                <button style={{ padding: "10px 28px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(45,190,96,0.25)" }}>+ New Client</button>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>{t("admin.clients.onboardTitle")}</div>
+                <div style={{ fontSize: 13, color: MUTED, marginBottom: 16, maxWidth: 360, margin: "0 auto 16px" }}>{t("admin.clients.onboardDesc")}</div>
+                <button style={{ padding: "10px 28px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(45,190,96,0.25)" }}>{t("admin.clients.newClient")}</button>
               </div>
             </div>
           )}
@@ -835,11 +838,11 @@ export default function AdminPage() {
               <div style={{ display: "flex", gap: 14, marginBottom: 16, flexWrap: "wrap" }}>
                 <div style={{ ...card({ padding: "14px 20px" }), borderTop: `3px solid ${ZP_GREEN}`, flex: 1, minWidth: 140 }}>
                   <div style={{ fontSize: 20, fontWeight: 900, color: ZP_GREEN }}>{filteredTxs.length}</div>
-                  <div style={{ fontSize: 11, color: MUTED }}>Transactions</div>
+                  <div style={{ fontSize: 11, color: MUTED }}>{t("admin.clients.transactions")}</div>
                 </div>
                 <div style={{ ...card({ padding: "14px 20px" }), borderTop: `3px solid ${ZP_CYAN}`, flex: 1, minWidth: 140 }}>
                   <div style={{ fontSize: 20, fontWeight: 900, color: ZP_CYAN }}>{fmt(txTotalVolume)}</div>
-                  <div style={{ fontSize: 11, color: MUTED }}>Total Volume</div>
+                  <div style={{ fontSize: 11, color: MUTED }}>{t("admin.transactions.totalVolume")}</div>
                 </div>
               </div>
 
@@ -847,20 +850,20 @@ export default function AdminPage() {
               <div style={{ ...card({ padding: "14px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const }) }}>
                 <input
                   type="text"
-                  placeholder="Search ID, name, email, amount..."
+                  placeholder={t("admin.transactions.searchPlaceholder")}
                   value={txSearch}
                   onChange={e => setTxSearch(e.target.value)}
                   style={{ ...inputStyle, width: 240 }}
                 />
                 <select value={txStatusFilter} onChange={e => setTxStatusFilter(e.target.value)} style={inputStyle}>
-                  <option value="all">All Statuses</option>
-                  <option value="succeeded">Succeeded</option>
-                  <option value="failed">Failed</option>
-                  <option value="pending">Pending</option>
-                  <option value="refunded">Refunded</option>
+                  <option value="all">{t("admin.transactions.allStatuses")}</option>
+                  <option value="succeeded">{t("admin.transactions.succeeded")}</option>
+                  <option value="failed">{t("admin.transactions.failed")}</option>
+                  <option value="pending">{t("admin.transactions.pending")}</option>
+                  <option value="refunded">{t("admin.transactions.refunded")}</option>
                 </select>
                 <select value={txMerchantFilter} onChange={e => setTxMerchantFilter(e.target.value)} style={inputStyle}>
-                  <option value="all">All Merchants</option>
+                  <option value="all">{t("admin.transactions.allMerchants")}</option>
                   {CLIENTS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <div style={{ display: "flex", gap: 4 }}>
@@ -874,18 +877,18 @@ export default function AdminPage() {
                       const headers = ["ID", "Customer", "Email", "Merchant", "Amount", "Status", "Card", "Date", "Description"];
                       const rows = filteredTxs.map((t: any) => [t.id, t.customer || "", t.email || "", t.merchant || t.merchant_id || "", String(t.amount), t.status, `${t.card_brand || ""} ${t.card_last4 || ""}`, t.date || "", t.description || ""]);
                       downloadCSV("zenipay-transactions.csv", headers, rows);
-                      showToast("Transactions exported to CSV");
+                      showToast(t("admin.transactions.transactionsExported"));
                     }}
                     style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${BORDER}`, background: SURFACE, fontSize: 11, fontWeight: 700, cursor: "pointer", color: TEXT }}
                   >
-                    Export CSV
+                    {t("admin.transactions.exportCsv")}
                   </button>
                 </div>
               </div>
 
               {/* Table header */}
               <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1fr", gap: 8, padding: "8px 16px", marginBottom: 4 }}>
-                {["ID","Customer","Merchant","Amount","Card","Status","Date"].map(h => (
+                {[t("admin.transactions.id"),t("admin.transactions.customer"),t("admin.transactions.merchant"),t("admin.transactions.amount"),t("admin.transactions.card"),t("admin.transactions.status"),t("admin.transactions.date")].map(h => (
                   <div key={h} style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</div>
                 ))}
               </div>
@@ -893,8 +896,8 @@ export default function AdminPage() {
               {filteredTxs.length === 0 ? (
                 <div style={{ ...card({ padding: "60px 20px", textAlign: "center" }) }}>
                   <div style={{ width: 64, height: 64, borderRadius: 18, background: "rgba(45,190,96,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>↕</div>
-                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>No transactions found</div>
-                  <div style={{ fontSize: 13, color: MUTED, maxWidth: 380, margin: "0 auto 24px" }}>Adjust your filters or wait for new transactions.</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>{t("admin.transactions.noTransactionsFound")}</div>
+                  <div style={{ fontSize: 13, color: MUTED, maxWidth: 380, margin: "0 auto 24px" }}>{t("admin.transactions.adjustFilters")}</div>
                 </div>
               ) : (
                 <div style={{ ...card({ overflow: "hidden" }) }}>
@@ -921,14 +924,14 @@ export default function AdminPage() {
                         <div style={{ padding: "16px 24px", background: ZP_BLUE + "06", borderTop: `1px solid ${ZP_BLUE}22` }}>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 12 }}>
                             {[
-                              { k: "Transaction ID", v: t.id },
-                              { k: "Description", v: t.description || "—" },
-                              { k: "Card Brand", v: t.card_brand || "—" },
-                              { k: "Card Last 4", v: t.card_last4 || "—" },
-                              { k: "Gateway Transfer", v: t.transfer_id || t.gateway_id || "—" },
-                              { k: "Payment Link", v: t.payment_link_id || "—" },
-                              { k: "Date", v: t.date || "—" },
-                              { k: "Gateway", v: t.gateway || "ZeniPay" },
+                              { k: t("admin.transactions.transactionId"), v: t.id },
+                              { k: t("admin.transactions.description"), v: t.description || "—" },
+                              { k: t("admin.transactions.cardBrand"), v: t.card_brand || "—" },
+                              { k: t("admin.transactions.cardLast4"), v: t.card_last4 || "—" },
+                              { k: t("admin.transactions.gatewayTransfer"), v: t.transfer_id || t.gateway_id || "—" },
+                              { k: t("admin.transactions.paymentLink"), v: t.payment_link_id || "—" },
+                              { k: t("admin.transactions.date"), v: t.date || "—" },
+                              { k: t("admin.clients.gateway"), v: t.gateway || "ZeniPay" },
                             ].map(s => (
                               <div key={s.k}>
                                 <div style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: "uppercase", marginBottom: 4 }}>{s.k}</div>
@@ -948,20 +951,20 @@ export default function AdminPage() {
                                     body: JSON.stringify({ payment_id: t.id, merchant_id: t.merchant_id || t.merchant }),
                                   });
                                   if (res.ok) {
-                                    showToast("Refund processed successfully");
+                                    showToast(t("admin.transactions.refundSuccess"));
                                     loadStats();
                                   } else {
                                     const data = await res.json();
-                                    showToast(data.error || "Refund failed", "error");
+                                    showToast(data.error || t("admin.transactions.refundFailed"), "error");
                                   }
-                                } catch { showToast("Refund failed — network error", "error"); }
+                                } catch { showToast(t("admin.transactions.refundNetworkError"), "error"); }
                                 finally { setRefundLoading(null); }
                               }}
                               disabled={refundLoading === t.id}
                               style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.06)", fontSize: 12, fontWeight: 700, cursor: "pointer", color: "#DC2626", display: "flex", alignItems: "center", gap: 6 }}
                             >
                               {refundLoading === t.id ? <Spinner size={12} color="#DC2626" /> : null}
-                              Refund Transaction
+                              {t("admin.transactions.refundTransaction")}
                             </button>
                           )}
                         </div>
@@ -979,10 +982,10 @@ export default function AdminPage() {
               {/* Summary cards */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 20 }}>
                 {[
-                  { label: "Total Paid Out",    value: fmt(adminStats?.recent_payouts?.reduce((a: number, p: any) => a + Number(p.amount || 0), 0) ?? 0), accent: ZP_GREEN  },
-                  { label: "Pending",            value: fmt(adminStats?.recent_payouts?.filter((p: any) => p.status === "pending").reduce((a: number, p: any) => a + Number(p.amount || 0), 0) ?? 0), accent: "#D97706" },
-                  { label: "Available Balance",  value: fmt(CLIENTS.reduce((a, c) => a + c.balance, 0)), accent: ZP_PURPLE },
-                  { label: "Payouts This Month", value: `${adminStats?.recent_payouts?.length ?? 0}`,    accent: ZP_CYAN   },
+                  { label: t("admin.payouts.totalPaidOut"),    value: fmt(adminStats?.recent_payouts?.reduce((a: number, p: any) => a + Number(p.amount || 0), 0) ?? 0), accent: ZP_GREEN  },
+                  { label: t("admin.payouts.pending"),        value: fmt(adminStats?.recent_payouts?.filter((p: any) => p.status === "pending").reduce((a: number, p: any) => a + Number(p.amount || 0), 0) ?? 0), accent: "#D97706" },
+                  { label: t("admin.payouts.availableBalance"), value: fmt(CLIENTS.reduce((a, c) => a + c.balance, 0)), accent: ZP_PURPLE },
+                  { label: t("admin.payouts.payoutsThisMonth"), value: `${adminStats?.recent_payouts?.length ?? 0}`,    accent: ZP_CYAN   },
                 ].map(s => (
                   <div key={s.label} style={{ ...card({ padding: "18px" }), borderTop: `3px solid ${s.accent}` }}>
                     <div style={{ fontSize: 22, fontWeight: 900, color: s.accent }}>{s.value}</div>
@@ -993,33 +996,33 @@ export default function AdminPage() {
 
               {/* Send Payout form */}
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_PURPLE}` }}>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: ZP_PURPLE }}>Send Payout</div>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: ZP_PURPLE }}>{t("admin.payouts.sendPayout")}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Merchant</label>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("admin.payouts.merchant")}</label>
                     <select value={payoutForm.merchant_id} onChange={e => setPayoutForm(f => ({ ...f, merchant_id: e.target.value }))} style={{ ...inputStyle, width: "100%" }}>
-                      <option value="">Select merchant...</option>
+                      <option value="">{t("admin.payouts.selectMerchant")}</option>
                       {CLIENTS.map(c => <option key={c.id} value={c.id}>{c.name} ({fmt(c.balance)} avail)</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Amount ($)</label>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("admin.payouts.amount")}</label>
                     <input type="number" min="0" step="0.01" placeholder="0.00" value={payoutForm.amount} onChange={e => setPayoutForm(f => ({ ...f, amount: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Method</label>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("admin.payouts.method")}</label>
                     <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                      {([["ach", "ACH (Free)"], ["wire", "Wire ($25)"]] as const).map(([val, label]) => (
+                      {([["ach" as const, t("admin.payouts.achFree")], ["wire" as const, t("admin.payouts.wire25")]]).map(([val, label]) => (
                         <label key={val} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
-                          <input type="radio" name="payout_method" checked={payoutForm.method === val} onChange={() => setPayoutForm(f => ({ ...f, method: val }))} />
+                          <input type="radio" name="payout_method" checked={payoutForm.method === val} onChange={() => setPayoutForm(f => ({ ...f, method: val as "ach" | "wire" }))} />
                           {label}
                         </label>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Note</label>
-                    <input type="text" placeholder="Optional note..." value={payoutForm.note} onChange={e => setPayoutForm(f => ({ ...f, note: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("admin.payouts.note")}</label>
+                    <input type="text" placeholder={t("admin.payouts.optionalNote")} value={payoutForm.note} onChange={e => setPayoutForm(f => ({ ...f, note: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
                   </div>
                 </div>
                 <button
@@ -1039,15 +1042,15 @@ export default function AdminPage() {
                         }),
                       });
                       if (res.ok) {
-                        showToast(`Payout of ${fmt(Number(payoutForm.amount))} sent successfully`);
+                        showToast(`${fmt(Number(payoutForm.amount))} ${t("admin.payouts.payoutSent")}`);
                         setPayoutForm({ merchant_id: "", amount: "", method: "ach", note: "" });
                         loadMerchants();
                         loadStats();
                       } else {
                         const data = await res.json();
-                        showToast(data.error || "Payout failed", "error");
+                        showToast(data.error || t("admin.payouts.payoutFailed"), "error");
                       }
-                    } catch { showToast("Payout failed — network error", "error"); }
+                    } catch { showToast(t("admin.payouts.payoutNetworkError"), "error"); }
                     finally { setPayoutLoading(false); }
                   }}
                   style={{
@@ -1058,13 +1061,13 @@ export default function AdminPage() {
                   }}
                 >
                   {payoutLoading ? <Spinner size={14} /> : null}
-                  Send Payout
+                  {t("admin.payouts.sendPayout")}
                 </button>
               </div>
 
               {/* Payout history */}
               <div style={{ ...card({ overflow: "hidden", marginBottom: 16 }) }}>
-                <div style={{ padding: "14px 18px", fontWeight: 800, fontSize: 15, borderBottom: `1px solid ${BORDER}` }}>Payout History</div>
+                <div style={{ padding: "14px 18px", fontWeight: 800, fontSize: 15, borderBottom: `1px solid ${BORDER}` }}>{t("admin.payouts.payoutHistory")}</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>
@@ -1075,7 +1078,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {(!adminStats?.recent_payouts || adminStats.recent_payouts.length === 0) ? (
-                      <tr><td colSpan={6} style={{ padding: 32, textAlign: "center", color: MUTED }}>No payouts yet</td></tr>
+                      <tr><td colSpan={6} style={{ padding: 32, textAlign: "center", color: MUTED }}>{t("admin.payouts.noPayoutsYet")}</td></tr>
                     ) : adminStats.recent_payouts.map((p: any, i: number) => (
                       <tr key={p.id || i} style={{ borderBottom: `1px solid ${BORDER}`, background: i % 2 === 0 ? LIGHT : SURFACE }}>
                         <td style={{ padding: "10px 14px", fontFamily: "monospace", fontSize: 11 }}>{(p.id || "").slice(0, 16)}</td>
@@ -1093,20 +1096,20 @@ export default function AdminPage() {
               {/* Per-merchant balances */}
               <div style={{ ...card({ padding: "22px" }) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <div style={{ fontWeight: 800, fontSize: 15 }}>Client Balances</div>
-                  <div style={{ fontSize: 12, color: MUTED }}>Real-time</div>
+                  <div style={{ fontWeight: 800, fontSize: 15 }}>{t("admin.payouts.clientBalances")}</div>
+                  <div style={{ fontSize: 12, color: MUTED }}>{t("admin.payouts.realTime")}</div>
                 </div>
 
                 {/* Platform account */}
                 <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 12px", background: ZP_CYAN + "06", borderRadius: 10, marginBottom: 8 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 12, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, color: "#fff", flexShrink: 0 }}>Z</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: 14 }}>ZeniPay Platform <span style={{ fontSize: 10, fontWeight: 700, color: ZP_CYAN, background: ZP_CYAN + "15", border: `1px solid ${ZP_CYAN}33`, borderRadius: 6, padding: "1px 7px", marginLeft: 4 }}>PLATFORM</span></div>
-                    <div style={{ fontSize: 11, color: MUTED }}>Auto-commission account · {PLATFORM_ACCOUNT.account}</div>
+                    <div style={{ fontWeight: 800, fontSize: 14 }}>ZeniPay Platform <span style={{ fontSize: 10, fontWeight: 700, color: ZP_CYAN, background: ZP_CYAN + "15", border: `1px solid ${ZP_CYAN}33`, borderRadius: 6, padding: "1px 7px", marginLeft: 4 }}>{t("admin.payouts.platform")}</span></div>
+                    <div style={{ fontSize: 11, color: MUTED }}>{t("admin.payouts.autoCommission")} · {PLATFORM_ACCOUNT.account}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 20, fontWeight: 900, color: ZP_CYAN }}>{fmt(adminStats?.wallets?.platform?.available ?? PLATFORM_ACCOUNT.balance)}</div>
-                    <div style={{ fontSize: 11, color: MUTED }}>Fees collected</div>
+                    <div style={{ fontSize: 11, color: MUTED }}>{t("admin.payouts.feesCollected")}</div>
                   </div>
                 </div>
 
@@ -1119,13 +1122,13 @@ export default function AdminPage() {
                     </div>
                     <div style={{ textAlign: "right", marginRight: 12 }}>
                       <div style={{ fontSize: 20, fontWeight: 900, color: ZP_GREEN }}>{fmt(c.balance)}</div>
-                      <div style={{ fontSize: 11, color: MUTED }}>Available</div>
+                      <div style={{ fontSize: 11, color: MUTED }}>{t("admin.payouts.available")}</div>
                     </div>
                     <button
                       onClick={() => { setPayoutForm(f => ({ ...f, merchant_id: c.id })); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                       style={{ padding: "7px 16px", borderRadius: 8, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 3px 8px rgba(45,190,96,0.2)" }}
                     >
-                      Payout →
+                      {t("admin.payouts.payoutBtn")}
                     </button>
                   </div>
                 ))}
@@ -1141,8 +1144,8 @@ export default function AdminPage() {
                 <div style={{ ...card({ padding: "24px" }) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                     <div>
-                      <div style={{ fontWeight: 800, fontSize: 15 }}>ZeniCard — Unit.co</div>
-                      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Business bank account</div>
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>{t("admin.bank.zenicardUnit")}</div>
+                      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{t("admin.bank.businessBankAccount")}</div>
                     </div>
                     <div style={{ ...badge("active") }}><span style={{ fontSize: 7 }}>●</span> Active</div>
                   </div>
@@ -1160,11 +1163,11 @@ export default function AdminPage() {
                       <span style={{ fontWeight: 700, color: s.color }}>{s.v}</span>
                     </div>
                   ))}
-                  <button style={{ marginTop: 16, width: "100%", padding: "10px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(45,190,96,0.2)" }}>Open Unit.co →</button>
+                  <button style={{ marginTop: 16, width: "100%", padding: "10px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(45,190,96,0.2)" }}>{t("admin.bank.openUnit")}</button>
                 </div>
 
                 <div style={{ ...card({ padding: "24px" }) }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 20 }}>ZeniCard Debit</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 20 }}>{t("admin.bank.zenicardDebit")}</div>
                   <div style={{ borderRadius: 18, padding: "22px 24px", marginBottom: 20, background: ZP_GRAD, position: "relative", overflow: "hidden", boxShadow: "0 12px 40px rgba(45,190,96,0.25)", minHeight: 140 }}>
                     <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
                     <div style={{ position: "absolute", bottom: -40, left: -10, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
@@ -1198,8 +1201,8 @@ export default function AdminPage() {
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_CYAN}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 15 }}>ZeniPay Platform Revenue Account</div>
-                    <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Commissions automatically deposited here on every transaction</div>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>{t("admin.bank.platformRevenueAccount")}</div>
+                    <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{t("admin.bank.commissionsDeposited")}</div>
                   </div>
                   <div style={{ ...badge("active") }}><span style={{ fontSize: 7 }}>●</span> Active</div>
                 </div>
@@ -1222,7 +1225,7 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Finix Fee Breakdown (per $100 transaction)</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>{t("admin.bank.feeBreakdown")}</div>
                     {[
                       { label: "Client pays",                sub: "$100.00 (2.90% + $0.30 = $3.20 fee)",  color: ZP_GREEN,  icon: "💳" },
                       { label: "Interchange cost",           sub: "1.75% = $1.75",                          color: "#D97706", icon: "🏧" },
@@ -1243,16 +1246,16 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Commission Rules by Plan</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>{t("admin.bank.commissionRulesByPlan")}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                   {COMMISSION_RULES.map(r => (
                     <div key={r.plan} style={{ padding: "12px 14px", borderRadius: 12, background: r.color + "08", border: `1px solid ${r.color}22` }}>
                       <div style={{ fontWeight: 800, fontSize: 13, color: r.color, marginBottom: 8 }}>{r.plan}</div>
                       {[
-                        { k: "Charged to merchant", v: r.charged },
-                        { k: "Finix total cost",    v: r.finixCost },
-                        { k: "ZeniPay markup",      v: r.zeniMargin },
-                        { k: "Finix pays back 90%", v: r.finixPaysBack, bold: true },
+                        { k: t("admin.bank.chargedToMerchant"), v: r.charged },
+                        { k: t("admin.bank.finixTotalCost"),    v: r.finixCost },
+                        { k: t("admin.bank.zenipayMarkup"),     v: r.zeniMargin },
+                        { k: t("admin.bank.finixPaysBack90"),   v: r.finixPaysBack, bold: true },
                       ].map(s => (
                         <div key={s.k} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0", borderBottom: `1px solid ${r.color}18` }}>
                           <span style={{ color: MUTED }}>{s.k}</span>
@@ -1267,13 +1270,13 @@ export default function AdminPage() {
               <div style={{ ...card({ padding: "24px" }) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 15 }}>Payment Processor — Finix</div>
-                    <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Incoming payment gateway · Visa, Mastercard, Amex, Discover</div>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>{t("admin.bank.paymentProcessor")}</div>
+                    <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{t("admin.bank.incomingGateway")}</div>
                   </div>
                   <div style={{ ...badge("sandbox") }}><span style={{ fontSize: 7 }}>◎</span> Sandbox</div>
                 </div>
                 <div style={{ padding: "10px 16px", borderRadius: 10, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.2)", marginBottom: 16, fontSize: 13, color: "#92400E", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>⚠️</span> Finix is in sandbox — complete live onboarding to accept real card payments.
+                  <span>⚠️</span> {t("admin.bank.finixSandboxWarning")}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 16 }}>
                   {[
@@ -1293,7 +1296,7 @@ export default function AdminPage() {
                   ))}
                 </div>
                 <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "10px 24px", borderRadius: 10, background: ZP_GRAD, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 12px rgba(45,190,96,0.25)" }}>
-                  Complete Finix Live Onboarding →
+                  {t("admin.bank.completeLiveOnboarding")}
                 </a>
               </div>
             </div>
@@ -1303,7 +1306,7 @@ export default function AdminPage() {
           {tab === "api" && (
             <div>
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }) }}>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 20 }}>Client API Keys</div>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 20 }}>{t("admin.api.clientApiKeys")}</div>
                 {CLIENTS.map(c => (
                   <div key={c.id} style={{ padding: "16px 0", borderTop: `1px solid ${BORDER}` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -1322,7 +1325,7 @@ export default function AdminPage() {
                           <span style={{ fontSize: 10, fontWeight: 800, color: k.color, letterSpacing: "0.05em", minWidth: 80 }}>{k.label}</span>
                           <code style={{ flex: 1, fontSize: 13, color: TEXT }}>{k.value}</code>
                           <button onClick={() => copyKey(k.value)} style={{ padding: "4px 12px", borderRadius: 6, background: copiedKey === k.value ? "rgba(22,163,74,0.1)" : SURFACE, border: `1px solid ${BORDER}`, color: copiedKey === k.value ? "#16A34A" : MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                            {copiedKey === k.value ? "✓ Copied" : "Copy"}
+                            {copiedKey === k.value ? t("admin.clients.copiedFull") : t("admin.clients.copy")}
                           </button>
                         </div>
                       ))}
@@ -1332,7 +1335,7 @@ export default function AdminPage() {
               </div>
 
               <div style={{ ...card({ padding: "24px" }) }}>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>ZeniPay REST API</div>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>{t("admin.api.zenipayRestApi")}</div>
                 <div style={{ fontSize: 13, color: MUTED, marginBottom: 20 }}>
                   Base URL: <code style={{ background: ZP_PURPLE + "12", color: ZP_PURPLE, padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>https://zenipay.ca/api/v1</code>
                 </div>
@@ -1372,12 +1375,12 @@ export default function AdminPage() {
             const txF = ((cashbackData as Record<string,unknown>)?.transaction_fees || []) as Array<Record<string,unknown>>;
             const setts = ((cashbackData as Record<string,unknown>)?.settlements || []) as Array<Record<string,unknown>>;
             return (<div>
-              <div style={{ marginBottom: 20 }}><div style={{ fontWeight: 800, fontSize: 16 }}>Finix Cashback &mdash; Platform Revenue (90% Markup)</div><div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>ZeniPay receives 90% of the interchange markup on every transaction</div></div>
+              <div style={{ marginBottom: 20 }}><div style={{ fontWeight: 800, fontSize: 16 }}>{t("admin.cashback.title")}</div><div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{t("admin.cashback.subtitle")}</div></div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
-                {[{l:"Total Volume",v:s?fmt(Number(s.total_volume||0)):"...",a:ZP_GREEN},{l:"Fees Collected",v:s?fmt(Number(s.total_platform_fees||0)):"...",a:ZP_CYAN},{l:"Cashback (90%)",v:s?fmt(Number(s.total_cashback_payouts||0)):"...",a:ZP_PURPLE},{l:"Transactions",v:s?String(s.transactions_count):"...",a:"#E5247B"}].map(c=>(<div key={c.l} style={{ ...card({ padding: "14px 16px" }), borderTop: `3px solid ${c.a}` }}><div style={{ fontSize: 20, fontWeight: 900, color: c.a }}>{c.v}</div><div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>{c.l}</div></div>))}
+                {[{l:t("admin.cashback.totalVolume"),v:s?fmt(Number(s.total_volume||0)):"...",a:ZP_GREEN},{l:t("admin.cashback.feesCollected"),v:s?fmt(Number(s.total_platform_fees||0)):"...",a:ZP_CYAN},{l:t("admin.cashback.cashback90"),v:s?fmt(Number(s.total_cashback_payouts||0)):"...",a:ZP_PURPLE},{l:t("admin.clients.transactions"),v:s?String(s.transactions_count):"...",a:"#E5247B"}].map(c=>(<div key={c.l} style={{ ...card({ padding: "14px 16px" }), borderTop: `3px solid ${c.a}` }}><div style={{ fontSize: 20, fontWeight: 900, color: c.a }}>{c.v}</div><div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>{c.l}</div></div>))}
               </div>
               <div style={{ ...card({ overflow: "hidden" }), marginBottom: 20 }}>
-                <div style={{ padding: "14px 16px", fontWeight: 700, borderBottom: `1px solid ${BORDER}` }}>Per-Transaction Cashback</div>
+                <div style={{ padding: "14px 16px", fontWeight: 700, borderBottom: `1px solid ${BORDER}` }}>{t("admin.cashback.perTxCashback")}</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead><tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>{["Transfer","Amount","Gross Fee","Cashback 90%","Net Fee"].map(h=><th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{h}</th>)}</tr></thead>
                   <tbody>{txF.length===0?<tr><td colSpan={5} style={{ padding:32,textAlign:"center",color:MUTED }}>Loading...</td></tr>:txF.map((t:Record<string,unknown>)=>(<tr key={String(t.transfer_id)} style={{ borderBottom:`1px solid ${BORDER}` }}><td style={{ padding:"10px 14px",fontFamily:"monospace",fontSize:11 }}>{String(t.transfer_id).slice(0,18)}</td><td style={{ padding:"10px 14px",fontWeight:700 }}>{fmt(Number(t.amount))}</td><td style={{ padding:"10px 14px",color:"#DC2626" }}>-{fmt(Number(t.gross_fee))}</td><td style={{ padding:"10px 14px",color:ZP_GREEN,fontWeight:700 }}>+{fmt(Number(t.cashback_90pct))}</td><td style={{ padding:"10px 14px",fontWeight:800 }}>{fmt(Number(t.net_fee_merchant))}</td></tr>))}</tbody>
@@ -1398,24 +1401,24 @@ export default function AdminPage() {
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 16 }}>ZeniPay &rarr; Merchant Billing</div>
-                  <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Invoice merchants for processing fees</div>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>{t("admin.billing.title")}</div>
+                  <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{t("admin.billing.subtitle")}</div>
                 </div>
                 <button
                   onClick={() => setBillingForm(f => ({ ...f, open: !f.open }))}
                   style={{ padding: "9px 20px", borderRadius: 10, background: "linear-gradient(135deg, #E5247B 0%, #7B4FBF 100%)", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(229,36,123,0.25)" }}
                 >
-                  {billingForm.open ? "Cancel" : "+ Generate Monthly Invoice"}
+                  {billingForm.open ? t("admin.billing.cancel") : t("admin.billing.generateMonthlyInvoice")}
                 </button>
               </div>
 
               {/* Generate Invoice Form */}
               {billingForm.open && (
                 <div style={{ ...card({ padding: "24px", marginBottom: 20 }), borderTop: "3px solid #E5247B" }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: "#E5247B" }}>Generate New Invoice</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: "#E5247B" }}>{t("admin.billing.generateNewInvoice")}</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
                     <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Merchant</label>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>{t("admin.payouts.merchant")}</label>
                       <select
                         value={billingForm.merchant_id}
                         onChange={e => {
@@ -1431,7 +1434,7 @@ export default function AdminPage() {
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Period Start</label>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>{t("admin.billing.periodStart")}</label>
                       <input
                         type="date"
                         value={billingForm.period_start}
@@ -1440,7 +1443,7 @@ export default function AdminPage() {
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Period End</label>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>{t("admin.billing.periodEnd")}</label>
                       <input
                         type="date"
                         value={billingForm.period_end}
@@ -1468,12 +1471,12 @@ export default function AdminPage() {
                         if (data.invoice) {
                           setBillingInvoices(prev => [data.invoice, ...prev]);
                           setBillingForm({ open: false, merchant_id: "", merchant_name: "", period_start: "", period_end: "" });
-                          showToast("Invoice generated successfully");
+                          showToast(t("admin.billing.invoiceGenerated"));
                         } else {
-                          showToast(data.error || "Failed to generate invoice", "error");
+                          showToast(data.error || t("admin.billing.invoiceFailed"), "error");
                         }
                       } catch {
-                        showToast("Failed to generate invoice", "error");
+                        showToast(t("admin.billing.invoiceFailed"), "error");
                       } finally {
                         setBillingLoading(false);
                       }
@@ -1484,7 +1487,7 @@ export default function AdminPage() {
                       color: "#fff", boxShadow: "0 4px 12px rgba(229,36,123,0.18)", opacity: billingLoading ? 0.6 : 1,
                     }}
                   >
-                    {billingLoading ? "Generating..." : "Generate Invoice"}
+                    {billingLoading ? t("admin.billing.generating") : t("admin.billing.generateInvoice")}
                   </button>
                 </div>
               )}
@@ -1493,16 +1496,16 @@ export default function AdminPage() {
               <div style={{ ...card({ padding: "12px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const }) }}>
                 <input
                   type="text"
-                  placeholder="Search invoices..."
+                  placeholder={t("admin.billing.searchPlaceholder")}
                   value={billingSearch}
                   onChange={e => setBillingSearch(e.target.value)}
                   style={{ ...inputStyle, width: 220 }}
                 />
                 <select value={billingStatusFilter} onChange={e => setBillingStatusFilter(e.target.value)} style={inputStyle}>
-                  <option value="all">All Statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
+                  <option value="all">{t("admin.billing.allStatuses")}</option>
+                  <option value="pending">{t("admin.payouts.pending")}</option>
+                  <option value="paid">{t("admin.billing.paid")}</option>
+                  <option value="overdue">{t("admin.billing.overdue")}</option>
                 </select>
                 <div style={{ marginLeft: "auto", fontSize: 12, color: MUTED }}>{getFilteredInvoices().length} invoice(s)</div>
               </div>
@@ -1510,11 +1513,11 @@ export default function AdminPage() {
               {/* Summary cards */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
                 {[
-                  { label: "Total Invoices", value: `${billingInvoices.length}`, accent: "#E5247B" },
-                  { label: "Pending", value: `${billingInvoices.filter(i => i.status === "pending").length}`, accent: "#D97706" },
-                  { label: "Paid", value: `${billingInvoices.filter(i => i.status === "paid").length}`, accent: ZP_GREEN },
-                  { label: "Overdue", value: `${billingInvoices.filter(i => i.status === "overdue").length}`, accent: "#DC2626" },
-                  { label: "Total Billed", value: fmt(billingInvoices.reduce((a: number, i: any) => a + Number(i.total_fees ?? 0), 0)), accent: ZP_PURPLE },
+                  { label: t("admin.billing.totalInvoices"), value: `${billingInvoices.length}`, accent: "#E5247B" },
+                  { label: t("admin.payouts.pending"), value: `${billingInvoices.filter(i => i.status === "pending").length}`, accent: "#D97706" },
+                  { label: t("admin.billing.paid"), value: `${billingInvoices.filter(i => i.status === "paid").length}`, accent: ZP_GREEN },
+                  { label: t("admin.billing.overdue"), value: `${billingInvoices.filter(i => i.status === "overdue").length}`, accent: "#DC2626" },
+                  { label: t("admin.billing.totalBilled"), value: fmt(billingInvoices.reduce((a: number, i: any) => a + Number(i.total_fees ?? 0), 0)), accent: ZP_PURPLE },
                 ].map(s => (
                   <div key={s.label} style={{ ...card({ padding: "14px 16px" }), borderTop: `3px solid ${s.accent}` }}>
                     <div style={{ fontSize: 20, fontWeight: 900, color: s.accent }}>{s.value}</div>
@@ -1536,7 +1539,7 @@ export default function AdminPage() {
                     </thead>
                     <tbody>
                       {getFilteredInvoices().length === 0 ? (
-                        <tr><td colSpan={10} style={{ padding: "32px 14px", textAlign: "center", color: MUTED }}>No invoices match your search.</td></tr>
+                        <tr><td colSpan={10} style={{ padding: "32px 14px", textAlign: "center", color: MUTED }}>{t("admin.billing.noInvoicesMatch")}</td></tr>
                       ) : getFilteredInvoices().map((inv: any, idx: number) => {
                         const statusColors: Record<string, { bg: string; fg: string; border: string }> = {
                           pending: { bg: "rgba(217,119,6,0.08)", fg: "#D97706", border: "#D9770633" },
@@ -1606,10 +1609,10 @@ export default function AdminPage() {
                                 }}
                                 style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, background: SURFACE, fontSize: 11, fontWeight: 700, color: MUTED, cursor: "pointer" }}
                               >
-                                Print
+                                {t("admin.billing.print")}
                               </button>
                               <button
-                                onClick={() => showToast(`Invoice emailed to ${inv.merchant_name}`)}
+                                onClick={() => showToast(`${t("admin.billing.invoiceEmailed")} ${inv.merchant_name}`)}
                                 style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${ZP_BLUE}33`, background: ZP_BLUE + "0D", fontSize: 11, fontWeight: 700, color: ZP_BLUE, cursor: "pointer", marginLeft: 6 }}
                               >
                                 Email
@@ -1619,11 +1622,11 @@ export default function AdminPage() {
                                   onClick={async () => {
                                     const res = await fetch("/api/zenipay/admin/billing", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: inv.id, status: "paid" }) });
                                     const data = await res.json();
-                                    if (data.invoice) { setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x)); showToast("Invoice marked as paid"); }
+                                    if (data.invoice) { setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x)); showToast(t("admin.billing.markedAsPaid")); }
                                   }}
                                   style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(22,163,74,0.3)", background: "rgba(22,163,74,0.08)", fontSize: 11, fontWeight: 700, color: "#16A34A", cursor: "pointer", marginLeft: 6 }}
                                 >
-                                  Paid
+                                  {t("admin.billing.paid")}
                                 </button>
                               )}
                               {inv.status === "pending" && (
@@ -1631,11 +1634,11 @@ export default function AdminPage() {
                                   onClick={async () => {
                                     const res = await fetch("/api/zenipay/admin/billing", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: inv.id, status: "overdue" }) });
                                     const data = await res.json();
-                                    if (data.invoice) { setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x)); showToast("Invoice marked as overdue", "error"); }
+                                    if (data.invoice) { setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x)); showToast(t("admin.billing.markedAsOverdue"), "error"); }
                                   }}
                                   style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.08)", fontSize: 11, fontWeight: 700, color: "#DC2626", cursor: "pointer", marginLeft: 6 }}
                                 >
-                                  Overdue
+                                  {t("admin.billing.overdue")}
                                 </button>
                               )}
                             </td>
@@ -1654,18 +1657,18 @@ export default function AdminPage() {
             <div>
               {/* Platform Settings — editable */}
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_GREEN}` }}>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_GREEN }}>Platform Settings</div>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_GREEN }}>{t("admin.settings.platformSettings")}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Platform Name</label>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("admin.settings.platformName")}</label>
                     <input type="text" value={settings.platformName} onChange={e => setSettings(s => ({ ...s, platformName: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Admin Email</label>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("admin.settings.adminEmail")}</label>
                     <input type="email" value={settings.adminEmail} onChange={e => setSettings(s => ({ ...s, adminEmail: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Support URL</label>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("admin.settings.supportUrl")}</label>
                     <input type="text" value={settings.supportUrl} onChange={e => setSettings(s => ({ ...s, supportUrl: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
                   </div>
                 </div>
@@ -1673,11 +1676,11 @@ export default function AdminPage() {
 
               {/* Fee Schedule — editable */}
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_CYAN}` }}>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_CYAN }}>Fee Schedule</div>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_CYAN }}>{t("admin.settings.feeSchedule")}</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                      {["Plan", "Rate (%)", "Per Transaction ($)"].map(h => (
+                      {[t("admin.clients.plan"), t("admin.settings.rate"), t("admin.settings.perTransaction")].map(h => (
                         <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{h}</th>
                       ))}
                     </tr>
@@ -1724,26 +1727,26 @@ export default function AdminPage() {
                           },
                         }),
                       });
-                      if (res.ok) showToast("Settings saved successfully");
-                      else { const data = await res.json(); showToast(data.error || "Save failed", "error"); }
-                    } catch { showToast("Save failed — network error", "error"); }
+                      if (res.ok) showToast(t("admin.settings.settingsSaved"));
+                      else { const data = await res.json(); showToast(data.error || t("admin.settings.saveFailed"), "error"); }
+                    } catch { showToast(t("admin.settings.saveNetworkError"), "error"); }
                     finally { setSettingsLoading(false); }
                   }}
                   style={{ marginTop: 16, padding: "10px 28px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(45,190,96,0.18)", opacity: settingsLoading ? 0.6 : 1, display: "flex", alignItems: "center", gap: 8 }}
                 >
                   {settingsLoading ? <Spinner size={14} /> : null}
-                  Save Settings
+                  {t("admin.settings.saveSettings")}
                 </button>
               </div>
 
               {/* Finix — read-only with test */}
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_PURPLE}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: ZP_PURPLE }}>Finix Processor</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: ZP_PURPLE }}>{t("admin.settings.finixProcessor")}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     {finixTestResult && (
                       <span style={{ fontSize: 12, fontWeight: 700, color: finixTestResult === "success" ? ZP_GREEN : "#DC2626" }}>
-                        {finixTestResult === "success" ? "Connected" : "Failed"}
+                        {finixTestResult === "success" ? t("admin.settings.connected") : t("admin.transactions.failed")}
                       </span>
                     )}
                     <button
@@ -1756,7 +1759,7 @@ export default function AdminPage() {
                       }}
                       style={{ padding: "6px 16px", borderRadius: 8, border: `1px solid ${ZP_PURPLE}33`, background: ZP_PURPLE + "0D", fontSize: 11, fontWeight: 700, color: ZP_PURPLE, cursor: "pointer" }}
                     >
-                      Test Connection
+                      {t("admin.overview.testConnection")}
                     </button>
                     <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ padding: "6px 16px", borderRadius: 8, background: ZP_GRAD, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>Finix Portal →</a>
                   </div>
@@ -1778,7 +1781,7 @@ export default function AdminPage() {
               {/* Other read-only sections */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
                 <div style={{ ...card({ padding: "24px" }), borderTop: `3px solid ${ZP_BLUE}` }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_BLUE }}>Unit.co Banking</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_BLUE }}>{t("admin.settings.unitBanking")}</div>
                   {[
                     { k: "Routing",     v: "812345678" },
                     { k: "Account",     v: "••••5847" },
@@ -1794,7 +1797,7 @@ export default function AdminPage() {
                 </div>
 
                 <div style={{ ...card({ padding: "24px" }), borderTop: `3px solid #D97706` }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: "#D97706" }}>Chart of Accounts</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: "#D97706" }}>{t("admin.settings.chartOfAccounts")}</div>
                   {[
                     { k: "1000", v: "Platform Wallet · Asset" },
                     { k: "2000", v: "Commissions Payable · Liability" },
@@ -1812,8 +1815,8 @@ export default function AdminPage() {
 
               {/* Danger Zone */}
               <div style={{ ...card({ padding: "24px" }), borderTop: "3px solid #DC2626" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 12, color: "#DC2626" }}>Danger Zone</div>
-                <div style={{ fontSize: 13, color: MUTED, marginBottom: 16 }}>These actions are destructive and cannot be undone.</div>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 12, color: "#DC2626" }}>{t("admin.settings.dangerZone")}</div>
+                <div style={{ fontSize: 13, color: MUTED, marginBottom: 16 }}>{t("admin.settings.dangerDesc")}</div>
                 <button
                   onClick={async () => {
                     if (!confirm("Are you sure you want to clear all test/sandbox data? This cannot be undone.")) return;
@@ -1824,13 +1827,13 @@ export default function AdminPage() {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ action: "clear_test_data", merchant_id: "zeniva-001" }),
                       });
-                      if (res.ok) { showToast("Test data cleared"); loadMerchants(); loadStats(); }
-                      else { const data = await res.json(); showToast(data.error || "Failed to clear data", "error"); }
-                    } catch { showToast("Failed to clear data", "error"); }
+                      if (res.ok) { showToast(t("admin.settings.testDataCleared")); loadMerchants(); loadStats(); }
+                      else { const data = await res.json(); showToast(data.error || t("admin.settings.clearDataFailed"), "error"); }
+                    } catch { showToast(t("admin.settings.clearDataFailed"), "error"); }
                   }}
                   style={{ padding: "10px 24px", borderRadius: 10, border: "2px solid #DC2626", background: "rgba(220,38,38,0.06)", color: "#DC2626", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                 >
-                  Clear Test Data
+                  {t("admin.settings.clearTestData")}
                 </button>
               </div>
             </div>

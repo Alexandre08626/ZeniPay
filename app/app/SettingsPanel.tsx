@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useT } from "../../modules/zenipay/i18n";
 
 // ═══════════════════════════════════════════════════════
 //  ZeniPay — Settings Panel
@@ -200,6 +201,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 // ── Main Component ──────────────────────────────────────
 
 export default function SettingsPanel({ merchantId, merchantEmail, businessName, mode }: SettingsPanelProps) {
+  const { t } = useT();
   // Toast state
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastCounter = useRef(0);
@@ -379,9 +381,9 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Settings</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{t("settings.title")}</h1>
           <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", margin: 0 }}>
-            Manage your ZeniPay merchant account
+            {t("settings.subtitle")}
             <span
               style={{
                 display: "inline-block",
@@ -404,12 +406,12 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             Section 1: Business Information
            ════════════════════════════════════════════════ */}
         <div style={styles.card}>
-          <div style={styles.sectionTitle}>Business Information</div>
-          <div style={styles.sectionSub}>Update your business details and contact information</div>
+          <div style={styles.sectionTitle}>{t("settings.businessInfo")}</div>
+          <div style={styles.sectionSub}>{t("settings.businessInfoSub")}</div>
 
           <div style={styles.fieldGroup}>
             <div>
-              <label style={styles.label}>Business Name</label>
+              <label style={styles.label}>{t("settings.businessName")}</label>
               <input
                 style={styles.input}
                 value={business.businessName}
@@ -418,7 +420,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
               />
             </div>
             <div>
-              <label style={styles.label}>DBA (Doing Business As)</label>
+              <label style={styles.label}>{t("settings.dba")}</label>
               <input
                 style={styles.input}
                 value={business.dba}
@@ -430,7 +432,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
 
           <div style={styles.fieldGroup}>
             <div>
-              <label style={styles.label}>Email</label>
+              <label style={styles.label}>{t("settings.email")}</label>
               <input
                 style={styles.input}
                 type="email"
@@ -440,7 +442,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
               />
             </div>
             <div>
-              <label style={styles.label}>Phone</label>
+              <label style={styles.label}>{t("settings.phone")}</label>
               <input
                 style={styles.input}
                 type="tel"
@@ -452,7 +454,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={styles.label}>Website</label>
+            <label style={styles.label}>{t("settings.website")}</label>
             <input
               style={styles.input}
               type="url"
@@ -464,7 +466,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
 
           <div style={styles.fieldGroup}>
             <div>
-              <label style={styles.label}>Business Type</label>
+              <label style={styles.label}>{t("settings.businessType")}</label>
               <select
                 style={{ ...styles.input, cursor: "pointer" }}
                 value={business.businessType}
@@ -478,7 +480,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
               </select>
             </div>
             <div>
-              <label style={styles.label}>Country</label>
+              <label style={styles.label}>{t("settings.country")}</label>
               <select
                 style={{ ...styles.input, cursor: "pointer" }}
                 value={business.country}
@@ -503,7 +505,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
               disabled={saving === "settings_business"}
               onClick={() => saveSection("settings_business", business as unknown as Record<string, unknown>)}
             >
-              {saving === "settings_business" ? "Saving..." : "Save Changes"}
+              {saving === "settings_business" ? t("common.saving") : t("common.saveChanges")}
             </button>
           </div>
         </div>
@@ -512,11 +514,11 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             Section 2: Payment Configuration
            ════════════════════════════════════════════════ */}
         <div style={styles.card}>
-          <div style={styles.sectionTitle}>Payment Configuration</div>
-          <div style={styles.sectionSub}>Configure webhook endpoints, redirects, and statement descriptors</div>
+          <div style={styles.sectionTitle}>{t("settings.paymentConfig")}</div>
+          <div style={styles.sectionSub}>{t("settings.paymentConfigSub")}</div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={styles.label}>Webhook URL</label>
+            <label style={styles.label}>{t("settings.webhookUrl")}</label>
             <input
               style={styles.input}
               value={payment.webhookUrl}
@@ -530,7 +532,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
 
           <div style={styles.fieldGroup}>
             <div>
-              <label style={styles.label}>Success Redirect URL</label>
+              <label style={styles.label}>{t("settings.successRedirect")}</label>
               <input
                 style={styles.input}
                 value={payment.successRedirectUrl}
@@ -539,7 +541,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
               />
             </div>
             <div>
-              <label style={styles.label}>Cancel Redirect URL</label>
+              <label style={styles.label}>{t("settings.cancelRedirect")}</label>
               <input
                 style={styles.input}
                 value={payment.cancelRedirectUrl}
@@ -550,7 +552,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={styles.label}>Statement Descriptor</label>
+            <label style={styles.label}>{t("settings.statementDescriptor")}</label>
             <input
               style={styles.input}
               value={payment.statementDescriptor}
@@ -575,7 +577,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
               disabled={saving === "settings_payment"}
               onClick={() => saveSection("settings_payment", payment as unknown as Record<string, unknown>)}
             >
-              {saving === "settings_payment" ? "Saving..." : "Save"}
+              {saving === "settings_payment" ? t("common.saving") : t("common.save")}
             </button>
           </div>
         </div>
@@ -584,15 +586,15 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             Section 3: Notification Preferences
            ════════════════════════════════════════════════ */}
         <div style={styles.card}>
-          <div style={styles.sectionTitle}>Notification Preferences</div>
-          <div style={styles.sectionSub}>Control which email and in-app notifications you receive (auto-saves)</div>
+          <div style={styles.sectionTitle}>{t("settings.notifications")}</div>
+          <div style={styles.sectionSub}>{t("settings.notificationsSub")}</div>
 
           {/* Simple toggle rows */}
           {([
-            { key: "paymentReceived", label: "Payment received", desc: "Get notified when a customer payment is captured" },
-            { key: "payoutCompleted", label: "Payout completed", desc: "Get notified when a payout is deposited to your bank" },
-            { key: "weeklySummaryEmail", label: "Weekly summary email", desc: "Receive a weekly digest of transactions and revenue" },
-            { key: "cardTransactionAlerts", label: "Card transaction alerts", desc: "Real-time alerts for every card transaction" },
+            { key: "paymentReceived", label: t("settings.notifPaymentReceived"), desc: t("settings.notifPaymentReceivedDesc") },
+            { key: "payoutCompleted", label: t("settings.notifPayoutCompleted"), desc: t("settings.notifPayoutCompletedDesc") },
+            { key: "weeklySummaryEmail", label: t("settings.notifWeeklySummary"), desc: t("settings.notifWeeklySummaryDesc") },
+            { key: "cardTransactionAlerts", label: t("settings.notifCardAlerts"), desc: t("settings.notifCardAlertsDesc") },
           ] as { key: keyof NotificationPrefs; label: string; desc: string }[]).map(({ key, label, desc }) => (
             <div
               key={key}
@@ -703,8 +705,8 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             Section 4: Fee Structure (read-only)
            ════════════════════════════════════════════════ */}
         <div style={styles.card}>
-          <div style={styles.sectionTitle}>Fee Structure</div>
-          <div style={styles.sectionSub}>Current pricing for your ZeniPay account</div>
+          <div style={styles.sectionTitle}>{t("settings.feeStructure")}</div>
+          <div style={styles.sectionSub}>{t("settings.feeStructureSub")}</div>
 
           {[
             { label: "Processing Fee", value: "2.9% per transaction" },
@@ -753,8 +755,8 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             Section 5: Security & Compliance (read-only)
            ════════════════════════════════════════════════ */}
         <div style={styles.card}>
-          <div style={styles.sectionTitle}>Security &amp; Compliance</div>
-          <div style={styles.sectionSub}>Your data security and compliance posture</div>
+          <div style={styles.sectionTitle}>{t("settings.security")}</div>
+          <div style={styles.sectionSub}>{t("settings.securitySub")}</div>
 
           {[
             {
@@ -826,8 +828,8 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             background: "#fff",
           }}
         >
-          <div style={{ ...styles.sectionTitle, color: "#DC2626" }}>Danger Zone</div>
-          <div style={styles.sectionSub}>Irreversible actions that affect your account</div>
+          <div style={{ ...styles.sectionTitle, color: "#DC2626" }}>{t("settings.dangerZone")}</div>
+          <div style={styles.sectionSub}>{t("settings.dangerZoneSub")}</div>
 
           <div
             style={{
@@ -838,9 +840,9 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             }}
           >
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>Delete Account</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{t("settings.deleteAccount")}</div>
               <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-                Permanently delete your ZeniPay merchant account and all associated data
+                {t("settings.deleteAccountDesc")}
               </div>
             </div>
             <button
@@ -858,7 +860,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
                 flexShrink: 0,
               }}
             >
-              Delete Account
+              {t("settings.deleteAccount")}
             </button>
           </div>
         </div>
@@ -933,7 +935,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
                   cursor: "pointer",
                 }}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 disabled={deleteInput !== "DELETE"}
@@ -965,7 +967,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
                   transition: "background 0.2s",
                 }}
               >
-                Delete Permanently
+                {t("settings.deletePermanently")}
               </button>
             </div>
           </div>

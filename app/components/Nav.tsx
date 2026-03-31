@@ -2,21 +2,23 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useT, LangToggle } from "../../modules/zenipay/i18n";
 
 const ZP_GREEN = "#2DBE60";
 const ZP_CYAN = "#15B8C9";
 const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
 
-const NAV_LINKS = [
-  { label: "Payments", href: "/payments" },
-  { label: "Payouts", href: "/payouts" },
-  { label: "Tools", href: "/tools" },
-  { label: "Docs", href: "/docs" },
-];
-
 export default function Nav({ active = "" }: { active?: string }) {
   const [open, setOpen] = useState(false);
+  const { t } = useT();
+
+  const NAV_LINKS = [
+    { label: t("nav.payments"), href: "/payments", key: "Payments" },
+    { label: t("nav.payouts"), href: "/payouts", key: "Payouts" },
+    { label: t("nav.tools"), href: "/tools", key: "Tools" },
+    { label: t("nav.docs"), href: "/docs", key: "Docs" },
+  ];
 
   return (
     <>
@@ -36,25 +38,26 @@ export default function Nav({ active = "" }: { active?: string }) {
         <div style={{ display: "flex", alignItems: "center", gap: 28 }} className="zp-desktop-nav">
           {NAV_LINKS.map(item => (
             <Link
-              key={item.label}
+              key={item.key}
               href={item.href}
               style={{
-                color: item.label === active ? "#fff" : "rgba(255,255,255,0.6)",
-                textDecoration: "none", fontSize: 14, fontWeight: item.label === active ? 700 : 500,
-                borderBottom: item.label === active ? `2px solid ${ZP_PURPLE}` : "2px solid transparent",
+                color: item.key === active ? "#fff" : "rgba(255,255,255,0.6)",
+                textDecoration: "none", fontSize: 14, fontWeight: item.key === active ? 700 : 500,
+                borderBottom: item.key === active ? `2px solid ${ZP_PURPLE}` : "2px solid transparent",
                 paddingBottom: 2,
               }}
             >{item.label}</Link>
           ))}
-          <Link href="/login" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none", padding: "8px 18px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Sign In</Link>
-          <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "8px 18px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>Get Started</Link>
+          <LangToggle />
+          <Link href="/login" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none", padding: "8px 18px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>{t("nav.signIn")}</Link>
+          <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "8px 18px", borderRadius: 24, fontSize: 14, fontWeight: 700 }}>{t("nav.getStarted")}</Link>
         </div>
 
         {/* Hamburger */}
         <button
           className="zp-hamburger"
           onClick={() => setOpen(o => !o)}
-          aria-label="Menu"
+          aria-label={t("nav.menu")}
           style={{
             background: "none", border: "none", cursor: "pointer",
             display: "none", flexDirection: "column", gap: 5, padding: 8,
@@ -78,19 +81,20 @@ export default function Nav({ active = "" }: { active?: string }) {
         >
           {NAV_LINKS.map(item => (
             <Link
-              key={item.label}
+              key={item.key}
               href={item.href}
               onClick={() => setOpen(false)}
               style={{
-                color: item.label === active ? "#fff" : "rgba(255,255,255,0.75)",
+                color: item.key === active ? "#fff" : "rgba(255,255,255,0.75)",
                 textDecoration: "none", fontSize: 22, fontWeight: 700,
                 padding: "12px 0", width: "80%", textAlign: "center",
                 borderBottom: "1px solid rgba(255,255,255,0.07)",
               }}
             >{item.label}</Link>
           ))}
-          <Link href="/login" onClick={() => setOpen(false)} style={{ marginTop: 24, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", textDecoration: "none", padding: "14px 40px", borderRadius: 24, fontSize: 16, fontWeight: 700, width: "80%", textAlign: "center" }}>Sign In</Link>
-          <Link href="/signup" onClick={() => setOpen(false)} style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "14px 40px", borderRadius: 24, fontSize: 16, fontWeight: 800, width: "80%", textAlign: "center" }}>Get Started</Link>
+          <div style={{ marginTop: 16 }}><LangToggle /></div>
+          <Link href="/login" onClick={() => setOpen(false)} style={{ marginTop: 8, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", textDecoration: "none", padding: "14px 40px", borderRadius: 24, fontSize: 16, fontWeight: 700, width: "80%", textAlign: "center" }}>{t("nav.signIn")}</Link>
+          <Link href="/signup" onClick={() => setOpen(false)} style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "14px 40px", borderRadius: 24, fontSize: 16, fontWeight: 800, width: "80%", textAlign: "center" }}>{t("nav.getStarted")}</Link>
         </div>
       )}
 

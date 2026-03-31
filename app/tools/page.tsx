@@ -2,13 +2,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import Nav from "../components/Nav";
+import { useT } from "../../modules/zenipay/i18n";
 
 const ZP_GREEN = "#2DBE60"; const ZP_CYAN = "#15B8C9"; const ZP_BLUE = "#2A8FE0"; const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
 const DARK = "#0A0F1E"; const DARK2 = "#111827"; const GLASS = "rgba(255,255,255,0.05)";
-const NAV_LINKS = [{ label: "Payments", href: "/payments" }, { label: "Payouts", href: "/payouts" }, { label: "Tools", href: "/tools" }, { label: "Docs", href: "/docs" }];
 
 export default function ToolsPage() {
+  const { t } = useT();
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <Nav active="Tools" />
@@ -18,15 +19,15 @@ export default function ToolsPage() {
         <div style={{ maxWidth: 820, margin: "0 auto" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(123,79,191,0.1)", border: "1px solid rgba(123,79,191,0.3)", borderRadius: 24, padding: "6px 16px", marginBottom: 24 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: ZP_PURPLE, display: "inline-block" }} />
-            <span style={{ fontSize: 12, color: ZP_PURPLE, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>Financial Tools</span>
+            <span style={{ fontSize: 12, color: ZP_PURPLE, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("tools_page.badge")}</span>
           </div>
           <h1 style={{ fontSize: "clamp(40px, 5.5vw, 68px)", fontWeight: 900, lineHeight: 1.08, margin: "0 0 24px", letterSpacing: "-2px" }}>
-            Your complete<br /><span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>financial command center.</span>
+            {t("tools_page.heroTitle1")}<br /><span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t("tools_page.heroTitle2")}</span>
           </h1>
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.65)", lineHeight: 1.65, margin: "0 auto 44px", maxWidth: 580 }}>
-            Real-time dashboards, multi-wallet architecture, automated invoicing, commission splits, reconciliation, and QuickBooks exports — all built in.
+            {t("tools_page.heroDesc")}
           </p>
-          <Link href="/signup" style={{ display: "inline-block", background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(123,79,191,0.3)" }}>Access your dashboard →</Link>
+          <Link href="/signup" style={{ display: "inline-block", background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(123,79,191,0.3)" }}>{t("tools_page.ctaDashboard")}</Link>
         </div>
       </section>
 
@@ -69,8 +70,8 @@ export default function ToolsPage() {
 
       {/* Tools grid */}
       <section style={{ padding: "0 5% 80px", maxWidth: 1100, margin: "0 auto" }}>
-        <h2 style={{ fontSize: "clamp(26px, 3vw, 42px)", fontWeight: 900, textAlign: "center", marginBottom: 12, letterSpacing: "-1px" }}>Every tool you need. Already built.</h2>
-        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 48 }}>No integrations. No extra cost. Included with every ZeniPay account.</p>
+        <h2 style={{ fontSize: "clamp(26px, 3vw, 42px)", fontWeight: 900, textAlign: "center", marginBottom: 12, letterSpacing: "-1px" }}>{t("tools_page.toolsTitle")}</h2>
+        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 48 }}>{t("tools_page.toolsDesc")}</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
             { icon: "📊", color: ZP_GREEN, title: "Real-time Dashboard", desc: "Live revenue charts, transaction feed, decline analysis, and KPI widgets. Update in under 1 second." },
@@ -97,18 +98,20 @@ export default function ToolsPage() {
 
       {/* CTA */}
       <section style={{ padding: "60px 5% 80px", textAlign: "center", background: `linear-gradient(135deg, rgba(123,79,191,0.08) 0%, rgba(45,190,96,0.08) 100%)`, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <h2 style={{ fontSize: 36, fontWeight: 900, margin: "0 0 14px" }}>All tools. One dashboard.</h2>
-        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 17, margin: "0 0 36px", maxWidth: 400, marginLeft: "auto", marginRight: "auto" }}>Free to start. No setup fees. Upgrade when you scale.</p>
+        <h2 style={{ fontSize: 36, fontWeight: 900, margin: "0 0 14px" }}>{t("tools_page.ctaTitle")}</h2>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 17, margin: "0 0 36px", maxWidth: 400, marginLeft: "auto", marginRight: "auto" }}>{t("tools_page.ctaDesc")}</p>
         <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
-          <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800 }}>Get started free →</Link>
-          <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>Talk to sales</a>
+          <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800 }}>{t("tools_page.ctaGetStarted")}</Link>
+          <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>{t("tools_page.ctaTalkToSales")}</a>
         </div>
       </section>
 
       <footer style={{ background: DARK2, borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 5%", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
         <Link href="/" style={{ textDecoration: "none" }}><Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={110} height={32} style={{ objectFit: "contain" }} /></Link>
-        <div style={{ display: "flex", gap: 24 }}>{NAV_LINKS.map(item => <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}</div>
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>© 2026 ZeniPay Inc.</p>
+        <div style={{ display: "flex", gap: 24 }}>
+          {[{ label: t("nav.payments"), href: "/payments" }, { label: t("nav.payouts"), href: "/payouts" }, { label: t("nav.tools"), href: "/tools" }, { label: t("nav.docs"), href: "/docs" }].map(item => <Link key={item.href} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}
+        </div>
+        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>{t("common.copyright")}</p>
       </footer>
     </div>
   );

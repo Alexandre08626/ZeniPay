@@ -6,6 +6,7 @@ import BankingPage from "./BankingPage";
 import SettingsPanel from "./SettingsPanel";
 import KeysPanel from "./KeysPanel";
 import SandboxPanel from "./SandboxPanel";
+import { useT, LangToggle } from "../../modules/zenipay/i18n";
 
 // ═══════════════════════════════════════════════════════
 //  ZeniPay — The Financial Core of Zeniva Travel
@@ -427,6 +428,7 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
 }
 
 function WalletModal({ name, data, icon, color, onClose, businessName = "ZeniPay Merchant" }: { name: string; data: { available: number; pending: number; paid: number; currency: string }; icon: string; color: string; onClose: () => void; businessName?: string }) {
+  const { t } = useT();
   const isPlatform = name === "Platform";
   const BNAME = businessName;
   type ModalTab = "overview" | "bank" | "history" | "distribute";
@@ -546,7 +548,7 @@ function WalletModal({ name, data, icon, color, onClose, businessName = "ZeniPay
               )}
               {!isPlatform && (
                 <div style={{ background: "#f8fafc", borderRadius: 14, padding: 18 }}>
-                  <p style={{ margin: "0 0 12px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>💳 Quick Actions</p>
+                  <p style={{ margin: "0 0 12px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>💳 {t("overview.quickActions")}</p>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {[
                       { label: "💸 Request Payout", action: () => setTab("bank") },
@@ -1710,6 +1712,7 @@ export interface ZenivaCompleteProps {
 }
 
 export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
+  const { t } = useT();
   const MID = props.merchantId || (typeof window !== "undefined" ? sessionStorage.getItem("zp_client") : null) || "zeniva-001";
   const BNAME = props.businessName || (typeof window !== "undefined" ? sessionStorage.getItem("zp_client_bname") : null) || "Zeniva Travel LLC";
   const BEMAIL = props.email || (typeof window !== "undefined" ? sessionStorage.getItem("zp_client_email") : null) || "info@zeniva.ca";
@@ -1920,16 +1923,38 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const successRate = TRANSACTIONS.length > 0 ? Math.round(TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length / TRANSACTIONS.length * 100) : 0;
   const isLive = MMODE === "live";
   // In sandbox mode, add Setup & Go Live tabs just above Settings
+  // Build a label map that uses i18n translations (inside the component)
+  const tabLabelMap: Record<string, string> = {
+    overview: t("nav.overview"),
+    transactions: t("nav.transactions"),
+    wallets: t("nav.banking"),
+    paylinks: t("nav.payLinks"),
+    invoices: t("nav.invoices"),
+    payouts: t("nav.payouts"),
+    financing: t("nav.financing"),
+    analytics: t("nav.analytics"),
+    ai: t("nav.benAI"),
+    accounting: t("nav.accounting"),
+    disputes: t("nav.disputes"),
+    compliance: t("nav.compliance"),
+    keys: t("nav.keys"),
+    settings: t("nav.settings"),
+    "sandbox-test": t("nav.sandbox"),
+    setup: t("nav.setup"),
+    "onboarding-status": t("nav.goLive"),
+  };
+  const translateTab = (tab: { id: string; icon: string; label: string }) => ({ ...tab, label: tabLabelMap[tab.id] || tab.label });
+
   const activeTabs = MMODE === "sandbox" && !isZeniva
     ? [
-        ...TABS.filter(t => t.id !== "settings" && t.id !== "keys"),
-        { id: "sandbox-test", icon: "🧪", label: "Sandbox" },
-        { id: "keys", icon: "🔑", label: "Keys" },
-        { id: "setup", icon: "🚀", label: "Setup" },
-        { id: "onboarding-status", icon: "✅", label: "Go Live" },
-        ...TABS.filter(t => t.id === "settings"),
+        ...TABS.filter(t => t.id !== "settings" && t.id !== "keys").map(translateTab),
+        { id: "sandbox-test", icon: "🧪", label: t("nav.sandbox") },
+        { id: "keys", icon: "🔑", label: t("nav.keys") },
+        { id: "setup", icon: "🚀", label: t("nav.setup") },
+        { id: "onboarding-status", icon: "✅", label: t("nav.goLive") },
+        ...TABS.filter(t => t.id === "settings").map(translateTab),
       ]
-    : TABS;
+    : TABS.map(translateTab);
 
   const filteredTx = TRANSACTIONS.filter(t => {
     const matchSearch = !txSearch || t.customer.toLowerCase().includes(txSearch.toLowerCase()) || t.id.includes(txSearch) || t.booking.includes(txSearch);
@@ -2368,8 +2393,9 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.65)" }}>Txns</p>
                 <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#ffffff" }}>{STATS.totalTransactions}</p>
               </div>
+              <LangToggle />
               <button onClick={() => { sessionStorage.removeItem("zp_client"); window.location.href = "/login"; }} style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: "7px 12px", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                Sign Out
+                {t("common.signOut")}
               </button>
             </div>
           </div>
@@ -2400,10 +2426,10 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 <p style={{ margin: "0 0 16px", fontSize: 14, opacity: 0.75 }}>Accept payments · Bank like a pro · All in one</p>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" as const }}>
                   {[
-                    { v: fmt(totalRevenue), l: "Total Volume" },
-                    { v: fmt(zenipayFees), l: "ZeniPay Fees" },
-                    { v: `${successRate}%`, l: "Success Rate" },
-                    { v: String(STATS.totalTransactions), l: "Transactions" },
+                    { v: fmt(totalRevenue), l: t("kpi.totalVolume") },
+                    { v: fmt(zenipayFees), l: t("kpi.zenipayFees") },
+                    { v: `${successRate}%`, l: t("kpi.successRate") },
+                    { v: String(STATS.totalTransactions), l: t("nav.transactions") },
                   ].map(s => (
                     <div key={s.l} style={{ background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: "10px 16px", backdropFilter: "blur(4px)" }}>
                       <p style={{ margin: "0 0 2px", fontWeight: 900, fontSize: 18, background: "linear-gradient(90deg, #F5A623, #ffffff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.v}</p>
@@ -2420,12 +2446,12 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             {/* KPI Cards — Dark glass */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 24 }}>
               {[
-                { icon: "💰", label: "Total Revenue", value: fmt(totalRevenue), sub: "Real payments only", color: ORANGE },
-                { icon: "🏛️", label: "ZeniPay Fees", value: fmt(zenipayFees), sub: "2.9% + $0.30/tx", color: BLUE },
-                { icon: "💵", label: "Net Revenue", value: fmt(totalRevenue - zenipayFees), sub: "After fees", color: GREEN },
-                { icon: "✅", label: "Success Rate", value: `${successRate}%`, sub: `${TRANSACTIONS.length} txns`, color: GREEN },
-                { icon: "🧾", label: "Invoices", value: String(zpInvoices.length), sub: "ZeniPay invoices", color: GOLD },
-                { icon: "🔄", label: "Refunds", value: fmt(0), sub: "No refunds yet", color: PURPLE },
+                { icon: "💰", label: t("kpi.totalRevenue"), value: fmt(totalRevenue), sub: t("kpi.realPaymentsOnly"), color: ORANGE },
+                { icon: "🏛️", label: t("kpi.zenipayFees"), value: fmt(zenipayFees), sub: "2.9% + $0.30/tx", color: BLUE },
+                { icon: "💵", label: t("kpi.netRevenue"), value: fmt(totalRevenue - zenipayFees), sub: t("kpi.afterFees"), color: GREEN },
+                { icon: "✅", label: t("kpi.successRate"), value: `${successRate}%`, sub: `${TRANSACTIONS.length} txns`, color: GREEN },
+                { icon: "🧾", label: t("kpi.invoices"), value: String(zpInvoices.length), sub: t("kpi.zenipayInvoices"), color: GOLD },
+                { icon: "🔄", label: t("kpi.refunds"), value: fmt(0), sub: t("kpi.noRefundsYet"), color: PURPLE },
               ].map(s => (
                 <div key={s.label} style={{ background: "white", borderRadius: 16, padding: "18px 20px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", borderLeft: `4px solid ${s.color}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -2444,7 +2470,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               {/* Live Payment Activity */}
               <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", padding: 24 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a" }}>⚡ Recent Payments</h3>
+                  <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a" }}>⚡ {t("overview.recentPayments")}</h3>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: GREEN, fontWeight: 600 }}>
                     <div style={{ width: 6, height: 6, background: GREEN, borderRadius: "50%", boxShadow: `0 0 6px ${GREEN}`, animation: "pulse 1.5s infinite" }} />
                     Live
@@ -2476,7 +2502,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               <div style={{ display: "grid", gap: 20 }}>
                 {/* Revenue by day mini chart */}
                 <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", padding: 24 }}>
-                  <h3 style={{ margin: "0 0 16px", fontWeight: 700, fontSize: 15, color: "#0f172a" }}>📊 Revenue (Last 7 Days)</h3>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 700, fontSize: 15, color: "#0f172a" }}>📊 {t("overview.revenueLast7Days")}</h3>
                   {(() => {
                     const days: Record<string, number> = {};
                     const now = Date.now();
@@ -2500,7 +2526,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 {/* Recent Invoices */}
                 <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", padding: 24 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a" }}>📄 Recent Invoices</h3>
+                    <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a" }}>📄 {t("overview.recentInvoices")}</h3>
                     <button onClick={() => setTab("invoices")} style={{ background: "none", border: "none", color: BLUE, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>View All →</button>
                   </div>
                   {zpInvoices.length === 0 ? (
@@ -2524,12 +2550,12 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             {/* Quick Actions */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginTop: 20 }}>
               {[
-                { label: "Create Pay Link", icon: "🔗", tab: "paylinks", color: BLUE },
-                { label: "View Banking", icon: "🏦", tab: "wallets", color: GREEN },
-                { label: "Send Payout", icon: "💸", tab: "payouts", color: PURPLE },
-                { label: "View Analytics", icon: "📈", tab: "analytics", color: GOLD },
-                { label: "API Keys", icon: "🔑", tab: "keys", color: BLUE2 },
-                { label: "Settings", icon: "⚙️", tab: "settings", color: "#64748b" },
+                { label: t("quickActions.createPayLink"), icon: "🔗", tab: "paylinks", color: BLUE },
+                { label: t("quickActions.viewBanking"), icon: "🏦", tab: "wallets", color: GREEN },
+                { label: t("quickActions.sendPayout"), icon: "💸", tab: "payouts", color: PURPLE },
+                { label: t("quickActions.viewAnalytics"), icon: "📈", tab: "analytics", color: GOLD },
+                { label: t("quickActions.apiKeys"), icon: "🔑", tab: "keys", color: BLUE2 },
+                { label: t("nav.settings"), icon: "⚙️", tab: "settings", color: "#64748b" },
               ].map(a => (
                 <button key={a.label} onClick={() => setTab(a.tab)} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", transition: "all 0.15s", textAlign: "left" as const }}>
                   <span style={{ fontSize: 20 }}>{a.icon}</span>
@@ -2908,12 +2934,12 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             {/* ── Key Metrics ── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 16, marginBottom: 20 }}>
               {[
-                { label: "Total Revenue", value: fmt(totalRevenue), icon: "💰", color: ZPGREEN },
-                { label: "Transactions", value: String(succeededCount), icon: "💳", color: BLUE },
-                { label: "Avg. Transaction", value: succeededCount > 0 ? fmt(totalRevenue / succeededCount) : "$0", icon: "📊", color: PURPLE },
-                { label: "Success Rate", value: `${successRate}%`, icon: "✅", color: GREEN },
-                { label: "ZeniPay Fees", value: fmt(zenipayFees), icon: "🏦", color: GOLD },
-                { label: "Net Revenue", value: fmt(platformBalance), icon: "📈", color: BLUE2 },
+                { label: t("kpi.totalRevenue"), value: fmt(totalRevenue), icon: "💰", color: ZPGREEN },
+                { label: t("nav.transactions"), value: String(succeededCount), icon: "💳", color: BLUE },
+                { label: t("kpi.avgTransaction"), value: succeededCount > 0 ? fmt(totalRevenue / succeededCount) : "$0", icon: "📊", color: PURPLE },
+                { label: t("kpi.successRate"), value: `${successRate}%`, icon: "✅", color: GREEN },
+                { label: t("kpi.zenipayFees"), value: fmt(zenipayFees), icon: "🏦", color: GOLD },
+                { label: t("kpi.netRevenue"), value: fmt(platformBalance), icon: "📈", color: BLUE2 },
               ].map(s => (
                 <div key={s.label} style={{ background: "white", borderRadius: 16, padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
                   <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -3139,7 +3165,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 </div>
                 {/* Quick Actions */}
                 <div style={{ background: "white", borderRadius: 20, padding: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
-                  <h3 style={{ margin: "0 0 12px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>⚡ Quick Actions</h3>
+                  <h3 style={{ margin: "0 0 12px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>⚡ {t("overview.quickActions")}</h3>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {[
                       { label: "📊 Generate Report", color: BLUE },

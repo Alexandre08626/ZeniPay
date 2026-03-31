@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import Nav from "./components/Nav";
+import { useT } from "../modules/zenipay/i18n";
 
 const ZP_GREEN = "#2DBE60";
 const ZP_CYAN = "#15B8C9";
@@ -13,6 +14,7 @@ const DARK2 = "#111827";
 const GLASS = "rgba(255,255,255,0.05)";
 
 export default function ZeniPayLanding() {
+  const { t } = useT();
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", overflowX: "hidden" }}>
       <Nav />
@@ -35,32 +37,32 @@ export default function ZeniPayLanding() {
           }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: ZP_GREEN, display: "inline-block" }} />
             <span style={{ fontSize: 11, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Accept payments · Bank like a pro · All in one
+              {t("landing.heroBadge")}
             </span>
           </div>
 
           <h1 style={{ fontSize: "clamp(40px, 6vw, 74px)", fontWeight: 900, lineHeight: 1.08, margin: "0 0 24px", letterSpacing: "-2px" }}>
-            Accept Visa, Mastercard & more.<br />
-            Every dollar lands in your<br />
+            {t("landing.heroTitle1")}<br />
+            {t("landing.heroTitle2")}<br />
             <span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              ZeniCard — instantly.
+              {t("landing.heroTitle3")}
             </span>
           </h1>
 
           <p style={{ fontSize: "clamp(16px, 2vw, 20px)", color: "rgba(255,255,255,0.65)", lineHeight: 1.65, margin: "0 auto 20px", maxWidth: 640 }}>
-            ZeniPay is a <strong style={{ color: "#fff" }}>payment processor</strong> and a <strong style={{ color: "#fff" }}>business bank account</strong> in one. Accept card payments from your customers — funds go straight into your <strong style={{ color: ZP_CYAN }}>ZeniCard</strong>, a real business chequing or savings account. Then manage everything from a single dashboard.
+            {t("landing.heroDesc1")} <strong style={{ color: "#fff" }}>{t("landing.heroDescProcessor")}</strong> {t("landing.heroDescAnd")} <strong style={{ color: "#fff" }}>{t("landing.heroDescBank")}</strong> {t("landing.heroDescRest")} <strong style={{ color: ZP_CYAN }}>{t("landing.heroDescZeniCard")}</strong>{t("landing.heroDescEnd")}
           </p>
 
           {/* The flow — visual pill chain */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap", margin: "0 auto 40px", maxWidth: 700 }}>
             {[
-              { label: "Customer pays", sub: "Visa · MC · Amex", color: ZP_GREEN },
+              { label: t("landing.flowCustomerPays"), sub: t("landing.flowCustomerPaysSub"), color: ZP_GREEN },
               { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
-              { label: "ZeniPay processes", sub: "< 200ms · PCI L1", color: ZP_CYAN },
+              { label: t("landing.flowProcesses"), sub: t("landing.flowProcessesSub"), color: ZP_CYAN },
               { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
-              { label: "Funds in ZeniCard", sub: "Instant · 0-day hold", color: ZP_PURPLE },
+              { label: t("landing.flowFunds"), sub: t("landing.flowFundsSub"), color: ZP_PURPLE },
               { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
-              { label: "You manage it all", sub: "Dashboard · Tools", color: ZP_BLUE },
+              { label: t("landing.flowManage"), sub: t("landing.flowManageSub"), color: ZP_BLUE },
             ].map((s, i) => s.sub ? (
               <div key={i} style={{ background: s.color + "18", border: `1px solid ${s.color}44`, borderRadius: 12, padding: "8px 14px", textAlign: "center" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.label}</div>
@@ -73,15 +75,15 @@ export default function ZeniPayLanding() {
 
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 36px", fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(45,190,96,0.25)" }}>
-              Get started with ZeniPay →
+              {t("landing.ctaGetStarted")}
             </Link>
             <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>
-              Talk to Sales
+              {t("landing.ctaTalkToSales")}
             </a>
           </div>
 
           <p style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
-            Trusted by travel, e-commerce and SaaS businesses · No setup fees · PCI DSS Level 1
+            {t("landing.trustLine")}
           </p>
         </div>
       </section>
@@ -93,11 +95,11 @@ export default function ZeniPayLanding() {
         display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, textAlign: "center",
       }}>
         {[
-          { num: "99.99%", label: "Uptime SLA" },
-          { num: "<200ms", label: "Processing time" },
-          { num: "135+", label: "Currencies accepted" },
-          { num: "0 days", label: "Hold on your funds" },
-          { num: "PCI DSS", label: "Level 1 certified" },
+          { num: "99.99%", label: t("landing.statUptime") },
+          { num: "<200ms", label: t("landing.statProcessing") },
+          { num: "135+", label: t("landing.statCurrencies") },
+          { num: "0 days", label: t("landing.statHold") },
+          { num: "PCI DSS", label: t("landing.statPCI") },
         ].map(s => (
           <div key={s.label}>
             <div style={{ fontSize: 28, fontWeight: 900, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.num}</div>
@@ -110,24 +112,24 @@ export default function ZeniPayLanding() {
       <section style={{ padding: "100px 5%", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 64 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(21,184,201,0.1)", border: "1px solid rgba(21,184,201,0.3)", borderRadius: 24, padding: "6px 16px", marginBottom: 20 }}>
-            <span style={{ fontSize: 12, color: ZP_CYAN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>ZeniCard — Your Business Account</span>
+            <span style={{ fontSize: 12, color: ZP_CYAN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("landing.zeniCardBadge")}</span>
           </div>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>
-            One account. The complete picture.
+            {t("landing.zeniCardTitle")}
           </h2>
           <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 17, maxWidth: 600, margin: "0 auto" }}>
-            When you use ZeniPay, you get two things working together: a world-class payment processor that accepts any card — and a real business bank account (ZeniCard) where every dollar lands instantly.
+            {t("landing.zeniCardDesc")}
           </p>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
           {[
-            { icon: "💳", title: "Accept all card payments", desc: "Accept Visa, Mastercard, Amex, Discover and 135+ currencies from your customers worldwide. Your checkout, our infrastructure.", color: ZP_GREEN, href: "/payments" },
-            { icon: "🏦", title: "ZeniCard — your business account", desc: "Every payment you accept lands instantly in your ZeniCard — a real business chequing or savings account. No intermediary. No delay.", color: ZP_CYAN, href: "/tools" },
-            { icon: "⚡", title: "Zero-day hold on funds", desc: "Funds are available in your ZeniCard the moment a payment succeeds. Use them immediately — no waiting periods.", color: ZP_PURPLE, href: "/payouts" },
-            { icon: "🃏", title: "ZeniCard debit card", desc: "Spend directly from your ZeniCard balance with Visa & Mastercard debit cards (pending verification). Physical and virtual cards available.", color: ZP_BLUE, href: "/tools" },
-            { icon: "📒", title: "Built-in accounting suite", desc: "Invoicing, reconciliation, double-entry bookkeeping, QuickBooks & Xero export. Everything you need to run clean books.", color: "#F5A623", href: "/tools" },
-            { icon: "👥", title: "Pay suppliers & employees", desc: "Use your ZeniCard balance to pay vendors, contractors, and employees via ACH, RTP, wire, or SWIFT — all from the dashboard.", color: "#E5247B", href: "/payouts" },
+            { icon: "💳", title: t("landing.featurePaymentsTitle"), desc: t("landing.featurePaymentsDesc"), color: ZP_GREEN, href: "/payments" },
+            { icon: "🏦", title: t("landing.featureBankTitle"), desc: t("landing.featureBankDesc"), color: ZP_CYAN, href: "/tools" },
+            { icon: "⚡", title: t("landing.featureZeroTitle"), desc: t("landing.featureZeroDesc"), color: ZP_PURPLE, href: "/payouts" },
+            { icon: "🃏", title: t("landing.featureDebitTitle"), desc: t("landing.featureDebitDesc"), color: ZP_BLUE, href: "/tools" },
+            { icon: "📒", title: t("landing.featureAccountingTitle"), desc: t("landing.featureAccountingDesc"), color: "#F5A623", href: "/tools" },
+            { icon: "👥", title: t("landing.featurePaySuppliersTitle"), desc: t("landing.featurePaySuppliersDesc"), color: "#E5247B", href: "/payouts" },
           ].map(f => (
             <Link key={f.title} href={f.href} style={{ textDecoration: "none" }}>
               <div style={{
@@ -153,16 +155,16 @@ export default function ZeniPayLanding() {
       }}>
         <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
           <h2 style={{ fontSize: "clamp(24px, 3.5vw, 42px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>
-            From signup to first payment in 3 steps
+            {t("landing.howItWorksTitle")}
           </h2>
           <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 64, fontSize: 16 }}>
-            One account. Accept payments and bank — all in one place.
+            {t("landing.howItWorksDesc")}
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 32 }}>
             {[
-              { step: "01", icon: "🏦", title: "Open your ZeniPay account", desc: "Sign up, verify your business, and receive your ZeniCard business account + API keys instantly." },
-              { step: "02", icon: "🔌", title: "Integrate payments", desc: "Drop in our SDK or use the REST API. Start accepting Visa, Mastercard and more the same day." },
-              { step: "03", icon: "⚡", title: "Funds hit your ZeniCard", desc: "Every payment clears directly into your ZeniCard. Spend, transfer, or pay people — immediately." },
+              { step: "01", icon: "🏦", title: t("landing.step01Title"), desc: t("landing.step01Desc") },
+              { step: "02", icon: "🔌", title: t("landing.step02Title"), desc: t("landing.step02Desc") },
+              { step: "03", icon: "⚡", title: t("landing.step03Title"), desc: t("landing.step03Desc") },
             ].map(s => (
               <div key={s.step} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "32px 24px" }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.15em", marginBottom: 12 }}>STEP {s.step}</div>
@@ -182,17 +184,17 @@ export default function ZeniPayLanding() {
         borderTop: "1px solid rgba(255,255,255,0.06)",
       }}>
         <h2 style={{ fontSize: "clamp(28px, 4vw, 52px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
-          Your payments. Your bank. One dashboard.
+          {t("landing.ctaSectionTitle")}
         </h2>
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, margin: "0 auto 40px", maxWidth: 480 }}>
-          Open your ZeniPay account today — accept card payments, receive your ZeniCard, and bank your money all in one place. Free to start.
+          {t("landing.ctaSectionDesc")}
         </p>
         <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
           <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700 }}>
-            Get started with ZeniPay free →
+            {t("landing.ctaSectionBtn")}
           </Link>
           <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700, border: "1px solid rgba(255,255,255,0.15)" }}>
-            Talk to Sales
+            {t("landing.ctaTalkToSales")}
           </a>
         </div>
       </section>
@@ -208,18 +210,18 @@ export default function ZeniPayLanding() {
         </Link>
         <div style={{ display: "flex", gap: 24 }}>
           {[
-            { label: "Payments", href: "/payments" },
-            { label: "Payouts", href: "/payouts" },
-            { label: "Tools", href: "/tools" },
-            { label: "Docs", href: "/docs" },
-            { label: "Terms", href: "/terms" },
-            { label: "Privacy", href: "/privacy" },
+            { label: t("landing.footerPayments"), href: "/payments" },
+            { label: t("landing.footerPayouts"), href: "/payouts" },
+            { label: t("landing.footerTools"), href: "/tools" },
+            { label: t("landing.footerDocs"), href: "/docs" },
+            { label: t("landing.footerTerms"), href: "/terms" },
+            { label: t("landing.footerPrivacy"), href: "/privacy" },
           ].map(item => (
-            <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>
+            <Link key={item.href} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>
           ))}
         </div>
         <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>
-          © 2026 ZeniPay Inc. · zenipay.ca
+          {t("common.copyrightLong")}
         </p>
       </footer>
     </div>

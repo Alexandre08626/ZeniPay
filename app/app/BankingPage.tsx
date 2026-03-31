@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useT } from "../../modules/zenipay/i18n";
 
 const BLUE = "#15B8C9";
 const GREEN = "#2DBE60";
@@ -112,6 +113,7 @@ const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: 
 type Toast = { id: number; message: string; type: "success" | "error" };
 
 export default function BankingPage(props: BankingProps) {
+  const { t } = useT();
   const { platformBalance, grossRevenue, zenipayFees, paidOut, pending, transactions, merchantId, businessName, onTabChange } = props;
   const [section, setSection] = useState<Section>("Overview");
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -206,15 +208,15 @@ export default function BankingPage(props: BankingProps) {
           </div>
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Send Money")}>Send Money</button>
-          <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Cards")}>Cards</button>
-          <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Transactions")}>Statements</button>
+          <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Send Money")}>{t("banking.sendMoney")}</button>
+          <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Cards")}>{t("banking.cards")}</button>
+          <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Transactions")}>{t("banking.statements")}</button>
         </div>
       </div>
       <div style={cardStyle}>
-        <div style={{ fontWeight: 800, fontSize: 18, color: "#0F172A", marginBottom: 20 }}>Revenue Breakdown</div>
+        <div style={{ fontWeight: 800, fontSize: 18, color: "#0F172A", marginBottom: 20 }}>{t("banking.revenueBreakdown")}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          {([["Gross Revenue", grossRevenue, GREEN], ["ZeniPay Fees", -zenipayFees, "#e74c3c"], ["Net Revenue", netBalance, BLUE]] as [string, number, string][]).map(([lbl, val, clr]) => (
+          {([[t("banking.grossRevenue"), grossRevenue, GREEN], [t("kpi.zenipayFees"), -zenipayFees, "#e74c3c"], [t("kpi.netRevenue"), netBalance, BLUE]] as [string, number, string][]).map(([lbl, val, clr]) => (
             <div key={lbl} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", borderBottom: "1px solid #F1F5F9" }}>
               <span style={{ fontWeight: 600, color: "#0F172A", fontSize: 15 }}>{lbl}</span>
               <span style={{ fontWeight: 900, color: clr, fontSize: 20, letterSpacing: "-0.02em" }}>{fmt(val)}</span>
@@ -237,19 +239,19 @@ export default function BankingPage(props: BankingProps) {
     return (
       <div style={{ animation: "slideUp 0.3s ease forwards" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Your Accounts</h3>
-          <button style={btnPrimary()} onClick={() => setShowForm(!showForm)}>+ Open New Account</button>
+          <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>{t("banking.yourAccounts")}</h3>
+          <button style={btnPrimary()} onClick={() => setShowForm(!showForm)}>+ {t("banking.openNewAccount")}</button>
         </div>
         {showForm && (
           <div style={{ ...cardStyle, marginBottom: 24, border: "2px solid #15B8C920" }}>
-            <div style={{ fontWeight: 800, marginBottom: 18, fontSize: 16, color: "#0F172A" }}>Open New Account</div>
+            <div style={{ fontWeight: 800, marginBottom: 18, fontSize: 16, color: "#0F172A" }}>{t("banking.openNewAccount")}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-              <div><label style={labelStyle}>Account Type</label><select style={inputStyle} value={form.account_type} onChange={e => setForm({ ...form, account_type: e.target.value })}>{ACCT_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}</select></div>
-              <div><label style={labelStyle}>Account Name</label><input style={inputStyle} placeholder="e.g. Main Business Account" value={form.account_name} onChange={e => setForm({ ...form, account_name: e.target.value })} /></div>
+              <div><label style={labelStyle}>{t("banking.accountType")}</label><select style={inputStyle} value={form.account_type} onChange={e => setForm({ ...form, account_type: e.target.value })}>{ACCT_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}</select></div>
+              <div><label style={labelStyle}>{t("banking.accountName")}</label><input style={inputStyle} placeholder="e.g. Main Business Account" value={form.account_name} onChange={e => setForm({ ...form, account_name: e.target.value })} /></div>
               {form.account_type === "multi_currency" && <div><label style={labelStyle}>Currency</label><select style={inputStyle} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}>{["USD", "EUR", "GBP", "CAD", "AUD", "JPY"].map(c => <option key={c} value={c}>{c}</option>)}</select></div>}
               {form.account_type === "goal" && <><div><label style={labelStyle}>Goal Amount</label><input style={inputStyle} type="number" placeholder="5000" value={form.goal_amount} onChange={e => setForm({ ...form, goal_amount: e.target.value })} /></div><div><label style={labelStyle}>Deadline</label><input style={inputStyle} type="date" value={form.goal_deadline} onChange={e => setForm({ ...form, goal_deadline: e.target.value })} /></div></>}
             </div>
-            <button style={{ ...btnAccent(GREEN), marginTop: 18 }} disabled={loading} onClick={submit}>{loading ? "Creating..." : "Create Account"}</button>
+            <button style={{ ...btnAccent(GREEN), marginTop: 18 }} disabled={loading} onClick={submit}>{loading ? t("common.creating") : t("banking.createAccount")}</button>
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 }}>
@@ -292,12 +294,12 @@ export default function BankingPage(props: BankingProps) {
     return (
       <div style={{ animation: "slideUp 0.3s ease forwards" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Your Cards</h3>
-          <button style={btnPrimary()} onClick={() => setShowForm(!showForm)}>Apply for New Card</button>
+          <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>{t("banking.yourCards")}</h3>
+          <button style={btnPrimary()} onClick={() => setShowForm(!showForm)}>{t("banking.applyForCard")}</button>
         </div>
         {showForm && (
           <div style={{ ...cardStyle, marginBottom: 24, border: "2px solid #7B4FBF20" }}>
-            <div style={{ fontWeight: 800, marginBottom: 18, fontSize: 16, color: "#0F172A" }}>Apply for New Card</div>
+            <div style={{ fontWeight: 800, marginBottom: 18, fontSize: 16, color: "#0F172A" }}>{t("banking.applyForCard")}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
               <div><label style={labelStyle}>Card Type</label><select style={inputStyle} value={form.card_type} onChange={e => setForm({ ...form, card_type: e.target.value })}>{CARD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
               <div><label style={labelStyle}>Daily Limit: {fmt(form.daily_limit)}</label><input type="range" min={500} max={50000} step={500} value={form.daily_limit} onChange={e => setForm({ ...form, daily_limit: Number(e.target.value) })} style={{ width: "100%", marginTop: 12, accentColor: PURPLE }} /></div>
@@ -371,7 +373,7 @@ export default function BankingPage(props: BankingProps) {
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button style={c.status === "active" ? btnAccent(GOLD, true) : btnAccent(GREEN, true)} onClick={() => toggle(c)} disabled={loading}>{c.status === "active" ? "🔒 Freeze" : "🔓 Unfreeze"}</button>
+                  <button style={c.status === "active" ? btnAccent(GOLD, true) : btnAccent(GREEN, true)} onClick={() => toggle(c)} disabled={loading}>{c.status === "active" ? `🔒 ${t("banking.freeze")}` : `🔓 ${t("banking.unfreeze")}`}</button>
                   <button style={btnSecondary(true)} onClick={() => { setSelectedCard(c); setRevealCard(false); }}>360° View →</button>
                 </div>
               </div>
@@ -417,20 +419,20 @@ export default function BankingPage(props: BankingProps) {
         </div>
         {contactSelect}
         {tab === "ACH" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-          <div><label style={labelStyle}>Recipient</label><input style={inputStyle} value={f.recipient || ""} onChange={e => update("recipient", e.target.value)} /></div>
-          <div><label style={labelStyle}>Routing Number</label><input style={inputStyle} value={f.routing_number || ""} onChange={e => update("routing_number", e.target.value)} /></div>
-          <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={f.account_number || ""} onChange={e => update("account_number", e.target.value)} /></div>
-          <div><label style={labelStyle}>Amount</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
-          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Memo</label><input style={inputStyle} value={f.memo || ""} onChange={e => update("memo", e.target.value)} /></div>
+          <div><label style={labelStyle}>{t("banking.recipient")}</label><input style={inputStyle} value={f.recipient || ""} onChange={e => update("recipient", e.target.value)} /></div>
+          <div><label style={labelStyle}>{t("banking.routingNumber")}</label><input style={inputStyle} value={f.routing_number || ""} onChange={e => update("routing_number", e.target.value)} /></div>
+          <div><label style={labelStyle}>{t("banking.accountNumber")}</label><input style={inputStyle} value={f.account_number || ""} onChange={e => update("account_number", e.target.value)} /></div>
+          <div><label style={labelStyle}>{t("banking.amount")}</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>{t("banking.memo")}</label><input style={inputStyle} value={f.memo || ""} onChange={e => update("memo", e.target.value)} /></div>
         </div>)}
         {tab === "Wire" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-          <div><label style={labelStyle}>Recipient</label><input style={inputStyle} value={f.recipient || ""} onChange={e => update("recipient", e.target.value)} /></div>
-          <div><label style={labelStyle}>Bank Name</label><input style={inputStyle} value={f.bank_name || ""} onChange={e => update("bank_name", e.target.value)} /></div>
-          <div><label style={labelStyle}>Routing Number</label><input style={inputStyle} value={f.routing_number || ""} onChange={e => update("routing_number", e.target.value)} /></div>
-          <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={f.account_number || ""} onChange={e => update("account_number", e.target.value)} /></div>
-          <div><label style={labelStyle}>SWIFT Code (Intl)</label><input style={inputStyle} value={f.swift_code || ""} onChange={e => update("swift_code", e.target.value)} placeholder="Leave blank for domestic" /></div>
-          <div><label style={labelStyle}>Amount</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
-          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Memo</label><input style={inputStyle} value={f.memo || ""} onChange={e => update("memo", e.target.value)} /></div>
+          <div><label style={labelStyle}>{t("banking.recipient")}</label><input style={inputStyle} value={f.recipient || ""} onChange={e => update("recipient", e.target.value)} /></div>
+          <div><label style={labelStyle}>{t("banking.bankName")}</label><input style={inputStyle} value={f.bank_name || ""} onChange={e => update("bank_name", e.target.value)} /></div>
+          <div><label style={labelStyle}>{t("banking.routingNumber")}</label><input style={inputStyle} value={f.routing_number || ""} onChange={e => update("routing_number", e.target.value)} /></div>
+          <div><label style={labelStyle}>{t("banking.accountNumber")}</label><input style={inputStyle} value={f.account_number || ""} onChange={e => update("account_number", e.target.value)} /></div>
+          <div><label style={labelStyle}>{t("banking.swiftCode")}</label><input style={inputStyle} value={f.swift_code || ""} onChange={e => update("swift_code", e.target.value)} placeholder={t("banking.leaveBlankDomestic")} /></div>
+          <div><label style={labelStyle}>{t("banking.amount")}</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>{t("banking.memo")}</label><input style={inputStyle} value={f.memo || ""} onChange={e => update("memo", e.target.value)} /></div>
         </div>)}
         {tab === "Internal" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
           <div><label style={labelStyle}>From Account</label><select style={inputStyle} value={f.from_account || ""} onChange={e => update("from_account", e.target.value)}><option value="">Select...</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.account_name} ({fmt(a.balance)})</option>)}</select></div>
@@ -537,7 +539,7 @@ export default function BankingPage(props: BankingProps) {
 
   const FeeSchedule = () => (
     <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
-      <h3 style={{ margin: "0 0 22px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Fee Schedule</h3>
+      <h3 style={{ margin: "0 0 22px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>{t("banking.feeSchedule")}</h3>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
         {FEES_DATA.map(([name, amount], i) => (
           <div key={name} style={{
@@ -555,7 +557,7 @@ export default function BankingPage(props: BankingProps) {
 
   const MoneyFlow = () => (
     <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
-      <h3 style={{ margin: "0 0 28px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Money Flow</h3>
+      <h3 style={{ margin: "0 0 28px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>{t("banking.moneyFlow")}</h3>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, flexWrap: "wrap", padding: "24px 0" }}>
         {[
           { label: "Customer", sub: "Payment initiated", color: PURPLE, icon: "\uD83D\uDC64" },
@@ -650,7 +652,13 @@ export default function BankingPage(props: BankingProps) {
           display: "flex", gap: 4, padding: "14px 28px", overflowX: "auto",
           maxWidth: 1200, margin: "0 auto",
         }}>
-          {SECTIONS.map(s => (
+          {SECTIONS.map(s => {
+            const sectionLabel: Record<string, string> = {
+              Overview: t("banking.overview"), Accounts: t("banking.accounts"), Cards: t("banking.cards"),
+              "Send Money": t("banking.sendMoney"), Transactions: t("banking.transactions"),
+              "Fee Schedule": t("banking.feeSchedule"), "Money Flow": t("banking.moneyFlow"), Settings: t("banking.settings"),
+            };
+            return (
             <button key={s} onClick={() => setSection(s)} style={{
               padding: "10px 20px", borderRadius: 12, border: "none", cursor: "pointer",
               fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", letterSpacing: "0.01em",
@@ -661,9 +669,9 @@ export default function BankingPage(props: BankingProps) {
               display: "flex", alignItems: "center", gap: 6,
             }}>
               <span style={{ fontSize: 15 }}>{SECTION_ICONS[s]}</span>
-              {s}
+              {sectionLabel[s] || s}
             </button>
-          ))}
+          );})}
         </div>
       </div>
       <div style={{ padding: 28, maxWidth: 1140, margin: "0 auto" }}>

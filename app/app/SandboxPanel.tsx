@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useT } from "../../modules/zenipay/i18n";
 
 // ─── Brand ─────────────────────────────────────────────
 const ZP_GREEN  = "#2DBE60";
@@ -227,6 +228,7 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle?: string })
 // ═══════════════════════════════════════════════════════
 
 export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelProps) {
+  const { t } = useT();
   // ── State ──────────────────────────────────────────
   const [toast, setToast] = useState<string | null>(null);
   const [payments, setPayments] = useState<TestPayment[]>([]);
@@ -499,7 +501,7 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
               <span style={{ fontSize: 18 }}>&#128179;</span>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#fff" }}>
-                Test Cards
+                {t("sandbox.testCards")}
               </h3>
             </div>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#94a3b8" }}>
@@ -522,9 +524,9 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
                 borderBottom: "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              <span>Card</span>
-              <span>Number</span>
-              <span>Result</span>
+              <span>{t("sandbox.card")}</span>
+              <span>{t("sandbox.number")}</span>
+              <span>{t("sandbox.result")}</span>
               <span></span>
             </div>
 
@@ -568,15 +570,15 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
         {/* ═══ 2. SIMULATE PAYMENT ════════════════════════ */}
         <div style={CARD_STYLE}>
           <SectionTitle
-            title="Simulate Payment"
-            subtitle="Process a test payment to see the full flow"
+            title={t("sandbox.simulatePayment")}
+            subtitle={t("sandbox.simulatePaymentSub")}
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             {/* Amount */}
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6 }}>
-                Amount (CAD)
+                {t("sandbox.amount")}
               </label>
               <div style={{ position: "relative" }}>
                 <span
@@ -606,7 +608,7 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
             {/* Card selector */}
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6 }}>
-                Test Card
+                {t("sandbox.testCard")}
               </label>
               <select
                 value={selectedCard}
@@ -624,7 +626,7 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
             {/* Customer name */}
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6 }}>
-                Customer Name
+                {t("sandbox.customerName")}
               </label>
               <input
                 type="text"
@@ -638,7 +640,7 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
             {/* Customer email */}
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6 }}>
-                Customer Email
+                {t("sandbox.customerEmail")}
               </label>
               <input
                 type="email"
@@ -652,7 +654,7 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
             {/* Description — full width */}
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6 }}>
-                Description
+                {t("sandbox.description")}
               </label>
               <input
                 type="text"
@@ -678,14 +680,14 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
             onMouseEnter={(e) => { if (!processing) (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; }}
           >
-            {processing ? "Processing..." : "Process Test Payment"}
+            {processing ? t("sandbox.processing") : t("sandbox.processTestPayment")}
           </button>
 
           {/* Payment results */}
           {payments.length > 0 && (
             <div style={{ marginTop: 20 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: MUTED, marginBottom: 10 }}>
-                Recent Test Payments
+                {t("sandbox.recentTestPayments")}
               </div>
               <div
                 style={{
@@ -757,8 +759,8 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
         <div style={CARD_STYLE}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <SectionTitle
-              title="Webhook Events Log"
-              subtitle="Simulated webhook events for each action"
+              title={t("sandbox.webhookEventsLog")}
+              subtitle={t("sandbox.webhookEventsLogSub")}
             />
             {webhookEvents.length > 0 && (
               <button
@@ -778,7 +780,7 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f1f5f9"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f8fafc"; }}
               >
-                Clear Log
+                {t("sandbox.clearLog")}
               </button>
             )}
           </div>
@@ -919,27 +921,27 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
 
           {/* ═══ 4. SANDBOX STATS ═════════════════════════ */}
           <div style={CARD_STYLE}>
-            <SectionTitle title="Sandbox Stats" />
+            <SectionTitle title={t("sandbox.sandboxStats")} />
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               {[
                 {
-                  label: "Test Payments",
+                  label: t("sandbox.testPayments"),
                   value: String(payments.length),
                   color: ZP_BLUE,
                 },
                 {
-                  label: "Success Rate",
+                  label: t("kpi.successRate"),
                   value: payments.length > 0 ? `${successRate}%` : "--",
                   color: ZP_GREEN,
                 },
                 {
-                  label: "Total Volume",
+                  label: t("sandbox.totalVolume"),
                   value: payments.length > 0 ? fmt(totalVolume) : "--",
                   color: ZP_PURPLE,
                 },
                 {
-                  label: "Last Payment",
+                  label: t("sandbox.lastPayment"),
                   value: lastPaymentTime
                     ? new Date(lastPaymentTime).toLocaleTimeString("en-CA", {
                         hour: "2-digit",
@@ -981,8 +983,8 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
           {/* ═══ 5. TEST CHECKLIST ════════════════════════ */}
           <div style={CARD_STYLE}>
             <SectionTitle
-              title="Test Checklist"
-              subtitle="Complete these to verify your integration"
+              title={t("sandbox.testChecklist")}
+              subtitle={t("sandbox.testChecklistSub")}
             />
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1065,7 +1067,7 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
                   marginBottom: 6,
                 }}
               >
-                <span>Progress</span>
+                <span>{t("sandbox.progress")}</span>
                 <span>
                   {checklist.filter((c) => c.checked).length}/{checklist.length}
                 </span>

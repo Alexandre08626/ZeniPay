@@ -2,11 +2,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ZeniPayLogo from "@/components/ZeniPayLogo";
+import { useT, LangToggleLight } from "../../modules/zenipay/i18n";
 
 const ZP_GRAD = "linear-gradient(90deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useT();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [error, setError] = useState("");
@@ -18,10 +20,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError("");
 
-    // Also accept info@zenivatravel.com as alias for info@zeniva.ca
     const lookupEmail = (email === "info@zenivatravel.com" ? "info@zeniva.ca" : email).trim().toLowerCase();
 
-    // Authenticate via /api/zenipay/login
     try {
       const res = await fetch("/api/zenipay/login", {
         method: "POST",
@@ -30,7 +30,7 @@ export default function LoginPage() {
       });
       const text = await res.text();
       let data;
-      try { data = JSON.parse(text); } catch { setLoading(false); setError("Server error. Please try again."); return; }
+      try { data = JSON.parse(text); } catch { setLoading(false); setError(t("login.serverError")); return; }
 
       if (data.success && data.merchant) {
         const m = data.merchant;
@@ -43,10 +43,10 @@ export default function LoginPage() {
         return;
       }
       setLoading(false);
-      setError(data.error || "Invalid email or password.");
+      setError(data.error || t("login.invalidCredentials"));
     } catch {
       setLoading(false);
-      setError("Connection error. Please try again.");
+      setError(t("login.connectionError"));
     }
   };
 
@@ -58,7 +58,6 @@ export default function LoginPage() {
       padding: 24, fontFamily: "'Inter', system-ui, sans-serif",
     }}>
 
-      {/* Grid texture */}
       <div style={{
         position: "fixed", inset: 0, pointerEvents: "none",
         backgroundImage: "radial-gradient(circle, rgba(21,184,201,0.05) 1px, transparent 1px)",
@@ -86,7 +85,7 @@ export default function LoginPage() {
             ZeniPay
           </div>
           <div style={{ color: "#64748B", fontSize: 14, fontWeight: 500 }}>
-            Client Portal
+            {t("login.clientPortal")}
           </div>
         </div>
 
@@ -97,10 +96,10 @@ export default function LoginPage() {
           border: "1px solid rgba(0,0,0,0.06)",
         }}>
 
-          {/* Mode Toggle — Live / Sandbox */}
+          {/* Mode Toggle */}
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 700, letterSpacing: "0.07em", marginBottom: 8 }}>
-              ENVIRONMENT
+              {t("login.environment")}
             </div>
             <div style={{ display: "flex", background: "#F1F5F9", borderRadius: 12, padding: 4, gap: 3 }}>
               {(["live", "sandbox"] as const).map(m => (
@@ -118,7 +117,7 @@ export default function LoginPage() {
                   }}
                 >
                   <span style={{ marginRight: 6, fontSize: 9 }}>{m === "live" ? "●" : "◎"}</span>
-                  {m === "live" ? "Live" : "Sandbox"}
+                  {m === "live" ? t("login.live") : t("login.sandbox")}
                 </button>
               ))}
             </div>
@@ -128,20 +127,19 @@ export default function LoginPage() {
                 background: "rgba(217,119,6,0.06)", border: "1px solid rgba(217,119,6,0.18)",
                 fontSize: 12, color: "#B45309",
               }}>
-                Sandbox mode — no real transactions
+                {t("login.sandboxNotice")}
               </div>
             )}
           </div>
 
           <form onSubmit={login}>
-            {/* Email */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, display: "block", marginBottom: 7, letterSpacing: "0.06em" }}>
-                EMAIL
+                {t("login.emailLabel")}
               </label>
               <input
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
-                required placeholder="you@company.com" autoComplete="email"
+                required placeholder={t("login.emailPlaceholder")} autoComplete="email"
                 style={{
                   width: "100%", padding: "12px 14px", borderRadius: 12,
                   background: "#F8FAFC", border: "1.5px solid #E2E8F0",
@@ -153,20 +151,19 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password */}
             <div style={{ marginBottom: 24 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
                 <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, letterSpacing: "0.06em" }}>
-                  PASSWORD
+                  {t("login.passwordLabel")}
                 </label>
                 <a href="mailto:info@zenipay.ca" style={{ fontSize: 11, color: "#15B8C9", textDecoration: "none", fontWeight: 600 }}>
-                  Forgot password?
+                  {t("login.forgotPassword")}
                 </a>
               </div>
               <div style={{ position: "relative" }}>
                 <input
                   type={showPw ? "text" : "password"} value={pw} onChange={e => setPw(e.target.value)}
-                  required placeholder="••••••••" autoComplete="current-password"
+                  required placeholder={t("login.passwordPlaceholder")} autoComplete="current-password"
                   style={{
                     width: "100%", padding: "12px 44px 12px 14px", borderRadius: 12,
                     background: "#F8FAFC", border: "1.5px solid #E2E8F0",
@@ -208,21 +205,23 @@ export default function LoginPage() {
               {loading
                 ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                     <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #94A3B8", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                    Signing in…
+                    {t("login.signingIn")}
                   </span>
-                : `Sign In ${mode === "sandbox" ? "(Sandbox)" : ""} →`
+                : mode === "sandbox" ? t("login.signInSandbox") : t("login.signInLive")
               }
             </button>
           </form>
         </div>
 
         {/* Footer */}
-        <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20 }}>
-          <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>← Back</a>
+        <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20, alignItems: "center" }}>
+          <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("login.back")}</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
-          <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>Support</a>
+          <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("login.support")}</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
-          <a href="/admin/login" style={{ color: "#CBD5E1", fontSize: 13, textDecoration: "none" }}>Admin</a>
+          <a href="/admin/login" style={{ color: "#CBD5E1", fontSize: 13, textDecoration: "none" }}>{t("login.admin")}</a>
+          <span style={{ color: "#CBD5E1" }}>·</span>
+          <LangToggleLight />
         </div>
 
         {/* Not a client yet */}
@@ -231,9 +230,9 @@ export default function LoginPage() {
           background: "rgba(45,190,96,0.04)", borderRadius: 12,
           border: "1px solid rgba(45,190,96,0.12)", fontSize: 13, color: "#64748B",
         }}>
-          Not a client yet?{" "}
+          {t("common.notClientYet")}{" "}
           <a href="mailto:info@zenipay.ca" style={{ color: "#16A34A", fontWeight: 700, textDecoration: "none" }}>
-            Get in touch →
+            {t("common.getInTouch")}
           </a>
         </div>
       </div>

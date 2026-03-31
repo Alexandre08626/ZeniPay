@@ -2,9 +2,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ZeniPayLogo from "@/components/ZeniPayLogo";
+import { useT, LangToggleLight } from "../../../modules/zenipay/i18n";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { t } = useT();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [error, setError] = useState("");
@@ -20,7 +22,7 @@ export default function AdminLoginPage() {
         router.replace("/admin");
       } else {
         setLoading(false);
-        setError("Invalid credentials. Contact info@zenipay.ca for access.");
+        setError(t("admin.login.invalidCredentials"));
       }
     }, 600);
   };
@@ -64,7 +66,7 @@ export default function AdminLoginPage() {
             ZeniPay
           </div>
           <div style={{ color: "#64748B", fontSize: 14, fontWeight: 500 }}>
-            Admin Console
+            {t("admin.login.adminConsole")}
           </div>
         </div>
 
@@ -77,7 +79,7 @@ export default function AdminLoginPage() {
           <form onSubmit={login}>
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, display: "block", marginBottom: 7, letterSpacing: "0.06em" }}>
-                EMAIL
+                {t("admin.login.email")}
               </label>
               <input
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
@@ -95,7 +97,7 @@ export default function AdminLoginPage() {
 
             <div style={{ marginBottom: 24 }}>
               <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, display: "block", marginBottom: 7, letterSpacing: "0.06em" }}>
-                PASSWORD
+                {t("admin.login.password")}
               </label>
               <div style={{ position: "relative" }}>
                 <input
@@ -141,18 +143,20 @@ export default function AdminLoginPage() {
               {loading
                 ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                     <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #94A3B8", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                    Signing in…
+                    {t("admin.login.signingIn")}
                   </span>
-                : "Admin Access →"
+                : t("admin.login.adminAccess")
               }
             </button>
           </form>
         </div>
 
-        <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20 }}>
-          <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>← Back</a>
+        <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20, alignItems: "center" }}>
+          <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("admin.login.back")}</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
-          <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>Support</a>
+          <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("admin.login.support")}</a>
+          <span style={{ color: "#CBD5E1" }}>·</span>
+          <LangToggleLight />
         </div>
       </div>
 

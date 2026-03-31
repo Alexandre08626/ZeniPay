@@ -3,11 +3,11 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Nav from "../components/Nav";
+import { useT } from "../../modules/zenipay/i18n";
 
 const ZP_GREEN = "#2DBE60"; const ZP_CYAN = "#15B8C9"; const ZP_BLUE = "#2A8FE0"; const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
 const DARK = "#0A0F1E"; const DARK2 = "#111827"; const GLASS = "rgba(255,255,255,0.05)";
-const NAV_LINKS = [{ label: "Payments", href: "/payments" }, { label: "Payouts", href: "/payouts" }, { label: "Tools", href: "/tools" }, { label: "Docs", href: "/docs" }];
 
 const SECTIONS = [
   {
@@ -75,6 +75,7 @@ const TEST_CARDS = [
 ];
 
 export default function DocsPage() {
+  const { t } = useT();
   const [activeSection, setActiveSection] = useState("Getting Started");
   const current = SECTIONS.find(s => s.category === activeSection)!;
 
@@ -86,14 +87,14 @@ export default function DocsPage() {
       <section style={{ paddingTop: 100, paddingBottom: 48, paddingLeft: "5%", paddingRight: "5%", background: `radial-gradient(ellipse 70% 50% at 50% 0%, rgba(42,143,224,0.1) 0%, transparent 70%)` }}>
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
           <h1 style={{ fontSize: "clamp(36px, 4.5vw, 58px)", fontWeight: 900, lineHeight: 1.1, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
-            API Reference
+            {t("docs_page.heroTitle")}
           </h1>
           <p style={{ fontSize: 17, color: "rgba(255,255,255,0.6)", lineHeight: 1.65, margin: "0 auto 28px", maxWidth: 500 }}>
-            Clean REST API. Consistent patterns. Built for developers who move fast.
+            {t("docs_page.heroDesc")}
           </p>
           {/* Base URL */}
           <div style={{ display: "inline-flex", alignItems: "center", gap: 12, background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 20px", fontFamily: "monospace", fontSize: 14 }}>
-            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", fontFamily: "inherit" }}>Base URL</span>
+            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", fontFamily: "inherit" }}>{t("docs_page.baseUrl")}</span>
             <span style={{ color: ZP_GREEN }}>https://</span><span style={{ color: "#e6edf3" }}>api.zenipay.ca/v1</span>
           </div>
         </div>
@@ -194,8 +195,10 @@ export default function DocsPage() {
 
       <footer style={{ background: DARK2, borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 5%", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
         <Link href="/" style={{ textDecoration: "none" }}><Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={110} height={32} style={{ objectFit: "contain" }} /></Link>
-        <div style={{ display: "flex", gap: 24 }}>{NAV_LINKS.map(item => <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}</div>
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>© 2026 ZeniPay Inc.</p>
+        <div style={{ display: "flex", gap: 24 }}>
+          {[{ label: t("nav.payments"), href: "/payments" }, { label: t("nav.payouts"), href: "/payouts" }, { label: t("nav.tools"), href: "/tools" }, { label: t("nav.docs"), href: "/docs" }].map(item => <Link key={item.href} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}
+        </div>
+        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>{t("common.copyright")}</p>
       </footer>
     </div>
   );

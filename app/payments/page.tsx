@@ -2,26 +2,27 @@
 import Image from "next/image";
 import Link from "next/link";
 import Nav from "../components/Nav";
+import { useT } from "../../modules/zenipay/i18n";
 
 const ZP_GREEN = "#2DBE60"; const ZP_CYAN = "#15B8C9"; const ZP_BLUE = "#2A8FE0"; const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
 const DARK = "#0A0F1E"; const DARK2 = "#111827"; const GLASS = "rgba(255,255,255,0.05)";
 
-const NAV_LINKS = [{ label: "Payments", href: "/payments" }, { label: "Payouts", href: "/payouts" }, { label: "Tools", href: "/tools" }, { label: "Docs", href: "/docs" }];
-
-function Footer() {
+function Footer({ t }: { t: (k: string) => string }) {
+  const NAV_LINKS = [{ label: t("nav.payments"), href: "/payments" }, { label: t("nav.payouts"), href: "/payouts" }, { label: t("nav.tools"), href: "/tools" }, { label: t("nav.docs"), href: "/docs" }];
   return (
     <footer style={{ background: DARK2, borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 5%", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
       <Link href="/" style={{ textDecoration: "none" }}><Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={110} height={32} style={{ objectFit: "contain" }} /></Link>
       <div style={{ display: "flex", gap: 24 }}>
-        {NAV_LINKS.map(item => <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}
+        {NAV_LINKS.map(item => <Link key={item.href} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}
       </div>
-      <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>© 2026 ZeniPay Inc.</p>
+      <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>{t("common.copyright")}</p>
     </footer>
   );
 }
 
 export default function PaymentsPage() {
+  const { t } = useT();
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <Nav active="Payments" />
@@ -31,19 +32,19 @@ export default function PaymentsPage() {
         <div style={{ maxWidth: 820, margin: "0 auto" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(45,190,96,0.1)", border: "1px solid rgba(45,190,96,0.3)", borderRadius: 24, padding: "6px 16px", marginBottom: 24 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: ZP_GREEN, display: "inline-block" }} />
-            <span style={{ fontSize: 12, color: ZP_GREEN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>Card Payments</span>
+            <span style={{ fontSize: 12, color: ZP_GREEN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("payments_page.badge")}</span>
           </div>
           <h1 style={{ fontSize: "clamp(40px, 5.5vw, 68px)", fontWeight: 900, lineHeight: 1.08, margin: "0 0 24px", letterSpacing: "-2px" }}>
-            Accept every payment.<br /><span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Everywhere it happens.</span>
+            {t("payments_page.heroTitle1")}<br /><span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t("payments_page.heroTitle2")}</span>
           </h1>
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.65)", lineHeight: 1.65, margin: "0 auto 44px", maxWidth: 580 }}>
-            Visa, Mastercard, Amex, Discover — processed in seconds. PCI DSS Level 1, 3DS2, intelligent retry logic, and real-time webhooks built in from day one.
+            {t("payments_page.heroDesc")}
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(45,190,96,0.3)" }}>Start free in sandbox →</Link>
-            <Link href="/docs" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>Read the API docs</Link>
+            <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(45,190,96,0.3)" }}>{t("payments_page.ctaStartFree")}</Link>
+            <Link href="/docs" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>{t("payments_page.ctaReadDocs")}</Link>
           </div>
-          <p style={{ marginTop: 20, fontSize: 12, color: "rgba(255,255,255,0.3)" }}>No credit card required · PCI DSS Level 1 · 99.99% uptime SLA</p>
+          <p style={{ marginTop: 20, fontSize: 12, color: "rgba(255,255,255,0.3)" }}>{t("payments_page.trustLine")}</p>
         </div>
       </section>
 
@@ -66,8 +67,8 @@ export default function PaymentsPage() {
       {/* How it works */}
       <section style={{ padding: "90px 5%", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <h2 style={{ fontSize: "clamp(28px, 3.5vw, 46px)", fontWeight: 900, margin: "0 0 14px", letterSpacing: "-1px" }}>How a payment flows</h2>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 16, maxWidth: 480, margin: "0 auto" }}>From card swipe to bank deposit — fully automated.</p>
+          <h2 style={{ fontSize: "clamp(28px, 3.5vw, 46px)", fontWeight: 900, margin: "0 0 14px", letterSpacing: "-1px" }}>{t("payments_page.howTitle")}</h2>
+          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 16, maxWidth: 480, margin: "0 auto" }}>{t("payments_page.howDesc")}</p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 0, position: "relative" }}>
           {[
@@ -89,7 +90,7 @@ export default function PaymentsPage() {
 
       {/* Features grid */}
       <section style={{ padding: "0 5% 90px", maxWidth: 1100, margin: "0 auto" }}>
-        <h2 style={{ fontSize: "clamp(26px, 3vw, 40px)", fontWeight: 900, textAlign: "center", marginBottom: 48, letterSpacing: "-1px" }}>Everything included, no add-ons</h2>
+        <h2 style={{ fontSize: "clamp(26px, 3vw, 40px)", fontWeight: 900, textAlign: "center", marginBottom: 48, letterSpacing: "-1px" }}>{t("payments_page.featuresTitle")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
             { icon: "💳", color: ZP_GREEN, title: "All major cards", desc: "Visa, Mastercard, Amex, Discover, UnionPay, JCB. Debit and credit. Prepaid and corporate." },
@@ -113,7 +114,7 @@ export default function PaymentsPage() {
 
       {/* Code snippet */}
       <section style={{ padding: "0 5% 90px", maxWidth: 860, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 32, fontWeight: 900, textAlign: "center", marginBottom: 32 }}>Live in minutes</h2>
+        <h2 style={{ fontSize: 32, fontWeight: 900, textAlign: "center", marginBottom: 32 }}>{t("payments_page.codeTitle")}</h2>
         <div style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflow: "hidden" }}>
           <div style={{ padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 6 }}>
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff5f57" }} />
@@ -138,14 +139,14 @@ export default function PaymentsPage() {
           </div>
         </div>
         <div style={{ textAlign: "center", marginTop: 28 }}>
-          <Link href="/signup" style={{ display: "inline-block", background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "14px 36px", borderRadius: 12, fontSize: 15, fontWeight: 800 }}>Get your sandbox API keys →</Link>
+          <Link href="/signup" style={{ display: "inline-block", background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "14px 36px", borderRadius: 12, fontSize: 15, fontWeight: 800 }}>{t("payments_page.codeSandboxCta")}</Link>
         </div>
       </section>
 
       {/* Pricing */}
       <section style={{ padding: "0 5% 90px", maxWidth: 900, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 36, fontWeight: 900, textAlign: "center", marginBottom: 12 }}>Simple, transparent pricing</h2>
-        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 44 }}>No monthly fees. No setup fees. No hidden costs.</p>
+        <h2 style={{ fontSize: 36, fontWeight: 900, textAlign: "center", marginBottom: 12 }}>{t("payments_page.pricingTitle")}</h2>
+        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 44 }}>{t("payments_page.pricingDesc")}</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
           {[
             { title: "Standard", price: "2.9% + $0.30", per: "per successful charge", color: ZP_GREEN, features: ["Visa, Mastercard, Discover", "3DS2 included", "Real-time webhooks", "Basic reporting", "Email receipts"] },
@@ -168,7 +169,7 @@ export default function PaymentsPage() {
         </div>
       </section>
 
-      <Footer />
+      <Footer t={t} />
     </div>
   );
 }

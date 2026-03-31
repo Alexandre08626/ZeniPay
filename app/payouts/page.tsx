@@ -2,13 +2,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import Nav from "../components/Nav";
+import { useT } from "../../modules/zenipay/i18n";
 
 const ZP_GREEN = "#2DBE60"; const ZP_CYAN = "#15B8C9"; const ZP_BLUE = "#2A8FE0"; const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
 const DARK = "#0A0F1E"; const DARK2 = "#111827"; const GLASS = "rgba(255,255,255,0.05)";
-const NAV_LINKS = [{ label: "Payments", href: "/payments" }, { label: "Payouts", href: "/payouts" }, { label: "Tools", href: "/tools" }, { label: "Docs", href: "/docs" }];
 
 export default function PayoutsPage() {
+  const { t } = useT();
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <Nav active="Payouts" />
@@ -18,25 +19,25 @@ export default function PayoutsPage() {
         <div style={{ maxWidth: 820, margin: "0 auto" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(21,184,201,0.1)", border: "1px solid rgba(21,184,201,0.3)", borderRadius: 24, padding: "6px 16px", marginBottom: 24 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: ZP_CYAN, display: "inline-block" }} />
-            <span style={{ fontSize: 12, color: ZP_CYAN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>Instant Payouts</span>
+            <span style={{ fontSize: 12, color: ZP_CYAN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("payouts_page.badge")}</span>
           </div>
           <h1 style={{ fontSize: "clamp(40px, 5.5vw, 68px)", fontWeight: 900, lineHeight: 1.08, margin: "0 0 24px", letterSpacing: "-2px" }}>
-            Pay anyone.<br /><span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>In seconds. At scale.</span>
+            {t("payouts_page.heroTitle1")}<br /><span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t("payouts_page.heroTitle2")}</span>
           </h1>
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.65)", lineHeight: 1.65, margin: "0 auto 44px", maxWidth: 580 }}>
-            ACH, real-time (RTP/FedNow), wire — send money to employees, contractors, and partners via a single API call. Batch thousands at once.
+            {t("payouts_page.heroDesc")}
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(21,184,201,0.3)" }}>Start sending payouts →</Link>
-            <Link href="/docs" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>API reference</Link>
+            <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(21,184,201,0.3)" }}>{t("payouts_page.ctaStart")}</Link>
+            <Link href="/docs" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>{t("payouts_page.ctaDocs")}</Link>
           </div>
         </div>
       </section>
 
       {/* Payout methods */}
       <section style={{ padding: "80px 5%", maxWidth: 1100, margin: "0 auto" }}>
-        <h2 style={{ fontSize: "clamp(26px, 3vw, 42px)", fontWeight: 900, textAlign: "center", marginBottom: 12, letterSpacing: "-1px" }}>Every payout method. One API.</h2>
-        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 48 }}>Choose the right rail for each use case — or let ZeniPay auto-select the fastest available.</p>
+        <h2 style={{ fontSize: "clamp(26px, 3vw, 42px)", fontWeight: 900, textAlign: "center", marginBottom: 12, letterSpacing: "-1px" }}>{t("payouts_page.methodsTitle")}</h2>
+        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 48 }}>{t("payouts_page.methodsDesc")}</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
             { icon: "⚡", color: ZP_CYAN, title: "Real-time (RTP / FedNow)", time: "< 30 seconds", availability: "24/7/365", desc: "Instant payouts via RTP and FedNow rails. Recipients see funds in seconds, not days. Ideal for on-demand platforms." },
@@ -64,7 +65,7 @@ export default function PayoutsPage() {
       <section style={{ padding: "0 5% 80px", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "center" }}>
           <div>
-            <h2 style={{ fontSize: "clamp(26px, 3vw, 40px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>Manage recipients at scale</h2>
+            <h2 style={{ fontSize: "clamp(26px, 3vw, 40px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>{t("payouts_page.recipientsTitle")}</h2>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, lineHeight: 1.7, marginBottom: 28 }}>
               Save bank accounts as verified recipients. Reuse them for recurring payouts. Full KYC/KYB validation. ACH micro-deposit verification. Instant bank verification via Plaid.
             </p>
@@ -112,8 +113,8 @@ export default function PayoutsPage() {
       {/* Industries */}
       <section style={{ padding: "0 5% 80px", background: `radial-gradient(ellipse 60% 40% at 50% 50%, rgba(21,184,201,0.05) 0%, transparent 70%)` }}>
         <div style={{ maxWidth: 1000, margin: "0 auto", textAlign: "center" }}>
-          <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 12 }}>Built for every business that pays people</h2>
-          <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 44 }}>From startups to enterprises — if you move money, ZeniPay handles it.</p>
+          <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 12 }}>{t("payouts_page.industriesTitle")}</h2>
+          <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 44 }}>{t("payouts_page.industriesDesc")}</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
             {[
               { icon: "✈️", name: "Travel Agencies", desc: "Commissions to agents & guides" },
@@ -135,8 +136,10 @@ export default function PayoutsPage() {
 
       <footer style={{ background: DARK2, borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 5%", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
         <Link href="/" style={{ textDecoration: "none" }}><Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={110} height={32} style={{ objectFit: "contain" }} /></Link>
-        <div style={{ display: "flex", gap: 24 }}>{NAV_LINKS.map(item => <Link key={item.label} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}</div>
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>© 2026 ZeniPay Inc.</p>
+        <div style={{ display: "flex", gap: 24 }}>
+          {[{ label: t("nav.payments"), href: "/payments" }, { label: t("nav.payouts"), href: "/payouts" }, { label: t("nav.tools"), href: "/tools" }, { label: t("nav.docs"), href: "/docs" }].map(item => <Link key={item.href} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}
+        </div>
+        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>{t("common.copyright")}</p>
       </footer>
     </div>
   );
