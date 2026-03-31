@@ -267,7 +267,7 @@ export default function BankingPage(props: BankingProps) {
                 <div style={{ fontWeight: 700, fontSize: 16, color: "#0F172A", marginTop: 4, paddingLeft: 20 }}>{a.account_name}</div>
                 <div style={{ fontSize: 12, color: "#64748B", marginTop: 4, paddingLeft: 20, textTransform: "capitalize" }}>{a.account_type.replace(/_/g, " ")}</div>
                 <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 8, fontFamily: "'SF Mono', 'Fira Code', monospace", letterSpacing: "0.05em", paddingLeft: 20 }}>****{a.account_number?.slice(-4) || "0000"}</div>
-                <div style={{ fontSize: 28, fontWeight: 900, marginTop: 14, color: typeColor, letterSpacing: "-0.02em", paddingLeft: 20 }}>{fmt(a.is_primary ? netBalance : (a.balance || 0))}</div>
+                <div style={{ fontSize: 28, fontWeight: 900, marginTop: 14, color: typeColor, letterSpacing: "-0.02em", paddingLeft: 20 }}>{fmt(a.is_primary && netBalance > 0 ? netBalance : (a.balance || 0))}</div>
                 <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 8, paddingLeft: 20 }}>Click for 360° view →</div>
               </div>
             );
