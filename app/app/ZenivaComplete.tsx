@@ -2819,7 +2819,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         {tab === "financing" && (
           <div>
             <div style={{ background: `linear-gradient(135deg, ${DARK}, #1e3a8a)`, borderRadius: 20, padding: 28, marginBottom: 20, color: "white" }}>
-              <h2 style={{ margin: "0 0 8px", fontWeight: 800, fontSize: 24 }}>🏛️ ZeniPay Financing</h2>
+              <h2 style={{ margin: "0 0 8px", fontWeight: 800, fontSize: 24 }}>🏛️ ZeniPay Financing <span style={{ background: "#fbbf24", color: "#78350f", fontSize: 12, fontWeight: 700, borderRadius: 6, padding: "2px 10px", marginLeft: 8, verticalAlign: "middle" }}>Coming Soon</span></h2>
               <p style={{ margin: 0, opacity: 0.7 }}>Offer flexible payment plans to your travelers. Split any trip into installments.</p>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 20 }}>
@@ -2963,6 +2963,11 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         {/* ════ NOAH AI ════ */}
         {tab === "ai" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Early preview banner */}
+            <div style={{ background: "#fffbeb", border: "1px solid #fbbf24", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>&#9888;&#65039;</span>
+              <span style={{ fontSize: 13, color: "#92400e", fontWeight: 600 }}>Ben AI is in early preview. Responses are generated from your dashboard data.</span>
+            </div>
             {/* HERO CARD — same visual style as /ai-agents */}
             <div style={{ background: `linear-gradient(135deg, ${DARK} 0%, #1a2f6e 60%, #0d2257 100%)`, borderRadius: 24, padding: 32, color: "white", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, background: "rgba(21,184,201,0.08)", borderRadius: "50%", filter: "blur(40px)" }} />

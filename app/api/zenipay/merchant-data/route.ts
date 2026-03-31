@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { hashPassword } from "../../../../modules/zenipay/services/auth";
 
 export async function GET(req: NextRequest) {
   const merchant_id = req.nextUrl.searchParams.get("merchant_id");
@@ -39,6 +40,11 @@ export async function PUT(req: NextRequest) {
     .select("merchant_data")
     .eq("id", merchant_id)
     .single();
+
+  // Hash password if being updated
+  if (body.password && typeof body.password === "string" && !body.password.includes(":")) {
+    body.password = await hashPassword(body.password);
+  }
 
   const merged = { ...(existing?.merchant_data || {}), ...body };
 

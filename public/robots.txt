@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /sandbox/
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://zenipay.ca/sitemap.xml

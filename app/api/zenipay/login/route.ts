@@ -2,9 +2,16 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { verifyPassword } from "../../../../modules/zenipay/services/auth";
+import { rateLimit } from "../../../../modules/zenipay/services/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    if (!rateLimit(`login:${ip}`, 5, 60000)) {
+      return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 });
+    }
+
     const { email, password } = await req.json();
     if (!email || !password) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
@@ -13,11 +20,9 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
 
     // Query ALL merchants and check merchant_data JSONB (visible to PostgREST)
-    const { data: merchants, error: dbError } = await supabase
+    const { data: merchants } = await supabase
       .from("zenipay_merchants")
       .select("id, merchant_data, sandbox_key, live_key");
-
-    console.error("[Login API] DB query result:", { count: merchants?.length, error: dbError?.message, ids: merchants?.map((m: { id: string }) => m.id) });
 
     if (!merchants || merchants.length === 0) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
@@ -32,15 +37,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (!found) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const emails = merchants.map((m: any) => m.merchant_data?.email).filter(Boolean);
-      console.error("[Login API] No match for", email, "in", emails);
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
     const md = found.merchant_data;
     // Validate password
-    if (md.password !== password && password !== "client2026") {
+    if (!(await verifyPassword(password, md.password || ""))) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 

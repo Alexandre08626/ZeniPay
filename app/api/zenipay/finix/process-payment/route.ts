@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         paymentId,
       });
     } catch (err: unknown) {
-      console.error("[Finix] Payment processing error:", err);
+      console.error("[Finix] Payment processing failed");
       return NextResponse.json(
         { error: "Payment processing failed", message: err instanceof Error ? err.message : String(err), paymentId },
         { status: 402 }
@@ -80,7 +80,6 @@ export async function POST(req: NextRequest) {
     const paymentStatus = finixResult.state === "SUCCEEDED" ? "succeeded" : "pending";
 
     // ─── 3. INSERT PAYMENT ────────────────────────────────────────────────
-    console.log("[DB] Inserting payment:", paymentId, "merchant:", merchantId);
     const { error: payErr } = await supabase.from("zenipay_payments").upsert({
       id: paymentId,
       payment_link_id: pay_link_id,
@@ -100,8 +99,7 @@ export async function POST(req: NextRequest) {
       updated_at: now,
     }, { onConflict: "id" });
 
-    if (payErr) console.error("[DB] Payment insert error:", payErr.message);
-    else console.log("[DB] Payment recorded:", paymentId);
+    if (payErr) console.error("[DB] Payment insert failed");
 
     // ─── 4. CREATE INVOICE ────────────────────────────────────────────────
     if (finixResult.state === "SUCCEEDED") {
@@ -126,8 +124,7 @@ export async function POST(req: NextRequest) {
         created_at: now, updated_at: now,
       }, { onConflict: "id" });
 
-      if (invErr) console.error("[DB] Invoice error:", invErr.message);
-      else console.log("[DB] Invoice created:", invoiceNumber);
+      if (invErr) console.error("[DB] Invoice creation failed");
     }
 
     // ─── 5. UPDATE MERCHANT STATS ─────────────────────────────────────────
@@ -171,7 +168,7 @@ export async function POST(req: NextRequest) {
           }).eq("id", primaryAcct.id);
         }
       } catch (e) {
-        console.error("[DB] Merchant update failed:", e);
+        console.error("[DB] Merchant update failed");
       }
     }
 
@@ -206,7 +203,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (err) {
-    console.error("[Finix] Fatal error:", err);
-    return NextResponse.json({ error: "Internal server error", message: String(err) }, { status: 500 });
+    console.error("[Finix] Fatal error");
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

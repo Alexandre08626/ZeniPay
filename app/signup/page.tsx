@@ -86,6 +86,7 @@ export default function SignupPage() {
       sandboxKey: sbKey,
       sandboxSecret: sbSecret,
       liveKey,
+      password,
     };
 
     // Save to Supabase via API (visible from all devices)

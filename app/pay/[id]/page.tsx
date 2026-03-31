@@ -221,11 +221,7 @@ function PayLinkContent() {
           </div>
 
           {/* Email */}
-                    <div style={{ padding: "14px 18px", background: "linear-gradient(135deg, #F59E0B, #D97706)", borderRadius: 10, marginBottom: 12, textAlign: "center", color: "#fff" }}>
-            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 4 }}>Temporary Maintenance</div>
-            <div style={{ fontSize: 12, opacity: 0.95 }}>To complete your booking, please contact <strong>info@zeniva.ca</strong></div>
-          </div>
-<div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>EMAIL (for receipt)</label>
             <input
               value={email} onChange={e => setEmail(e.target.value)}

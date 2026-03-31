@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { hashPassword } from "../../../../modules/zenipay/services/auth";
+import { rateLimit } from "../../../../modules/zenipay/services/rate-limit";
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,6 +61,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    if (!rateLimit(`signup:${ip}`, 3, 300000)) {
+      return NextResponse.json({ error: "Too many signups. Try again later." }, { status: 429 });
+    }
+
     const body = await req.json();
 
     // ── Roll sandbox keys action ──
@@ -75,14 +82,17 @@ export async function POST(req: NextRequest) {
     const {
       id, businessName, ownerName, email, phone, website,
       businessType, country, monthlyVolume, status, plan,
-      sandboxKey, sandboxSecret, liveKey,
+      sandboxKey, sandboxSecret, liveKey, password,
     } = body;
 
     if (!id || !email || !businessName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const merchant = {
+    // Hash password if provided
+    const hashedPassword = password ? await hashPassword(password) : null;
+
+    const merchant: Record<string, unknown> = {
       id,
       business_name:  businessName,
       owner_name:     ownerName   || null,
@@ -103,6 +113,19 @@ export async function POST(req: NextRequest) {
       notes:    "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      merchant_data: {
+        email,
+        businessName: businessName || "",
+        ownerName: ownerName || "",
+        phone: phone || "",
+        website: website || "",
+        businessType: businessType || "",
+        country: country || "",
+        monthlyVolume: monthlyVolume || "",
+        plan: plan || "Standard",
+        status: status || "sandbox",
+        ...(hashedPassword ? { password: hashedPassword } : {}),
+      },
     };
 
     const supabase = getSupabaseAdmin();
