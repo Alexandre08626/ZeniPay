@@ -18,7 +18,7 @@ function cardType(v: string) {
 }
 
 function PayLinkContent() {
-  const SANDBOX_MODE = false; // Finix integration active
+  const SANDBOX_MODE = true; // Maintenance — contact info@zeniva.ca
 
   const params   = useSearchParams();
   const { id }   = useParams<{ id: string }>();
