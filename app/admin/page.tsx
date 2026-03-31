@@ -72,6 +72,12 @@ export default function AdminPage() {
   const [billingLoading, setBillingLoading]   = useState(false);
   const [billingForm, setBillingForm]         = useState<{ open: boolean; merchant_id: string; merchant_name: string; period_start: string; period_end: string }>({ open: false, merchant_id: "", merchant_name: "", period_start: "", period_end: "" });
 
+  // Merchant review state
+  const [reviewMerchant, setReviewMerchant] = useState<any>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [showRejectInput, setShowRejectInput] = useState(false);
+
   // Toast state
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const showToast = (msg: string, type: "success" | "error" = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
@@ -152,6 +158,8 @@ export default function AdminPage() {
             txCount:       m.tx_count,
             balance:       m.balance,
             notes:         m.notes,
+            onboarding_state: m.onboarding_state || m.onboardingState || null,
+            merchant_data:    m.merchant_data || m.merchantData || null,
           })));
         }
       })
@@ -202,6 +210,8 @@ export default function AdminPage() {
       monthlyVolume: s.monthlyVolume || s.monthly_volume || "—",
       notes: s.notes || "",
       createdAt: s.createdAt || s.created_at || "—",
+      onboarding_state: s.onboarding_state || null,
+      merchant_data: s.merchant_data || null,
     })),
   ];
 
@@ -482,7 +492,8 @@ export default function AdminPage() {
                 marginBottom: 2,
               }}>
                 <div style={{ width: 28, height: 28, borderRadius: 8, background: active ? color + "20" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, color: active ? color : MUTED, transition: "all 0.15s" }}>{icon}</div>
-                {(sidebarOpen || isMobile) && <span>{t("admin.nav." + key)}</span>}
+                {(sidebarOpen || isMobile) && <span style={{ flex: 1 }}>{t("admin.nav." + key)}</span>}
+                {key === "clients" && (() => { const cnt = CLIENTS.filter((c: any) => c.onboarding_state === "provisioning" || c.merchant_data?.pending_review).length; return cnt > 0 ? <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#DC2626", color: "#fff", fontSize: 10, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px", marginLeft: 4 }}>{cnt}</span> : null; })()}
               </button>
             );
           })}
@@ -540,6 +551,24 @@ export default function AdminPage() {
                 </div>
                 <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ padding: "6px 16px", borderRadius: 8, background: "#D97706", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>{t("admin.overview.finixDashboard")}</a>
               </div>
+
+              {/* Pending Approvals Banner */}
+              {(() => {
+                const pending = CLIENTS.filter((c: any) => c.onboarding_state === "provisioning" || c.merchant_data?.pending_review);
+                if (pending.length === 0) return null;
+                return (
+                  <div className="admin-grid-2" style={{ background: "#FEF3C7", border: "1px solid #FBBF24", borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 20 }}>⚠️</span>
+                      <div>
+                        <div style={{ fontWeight: 700, color: "#92400E", fontSize: 14 }}>{pending.length} merchant{pending.length > 1 ? "s" : ""} pending review</div>
+                        <div style={{ fontSize: 12, color: "#B45309" }}>Go to Clients tab to review and approve</div>
+                      </div>
+                    </div>
+                    <button onClick={() => setTab("clients")} style={{ background: "#F59E0B", color: "white", border: "none", borderRadius: 8, padding: "8px 16px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Review Now</button>
+                  </div>
+                );
+              })()}
 
               {/* KPI row */}
               <div className="admin-grid-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 20 }}>
@@ -739,6 +768,14 @@ export default function AdminPage() {
                           <button onClick={() => setClientView(clientView === c.id ? null : c.id)} style={{ fontWeight: 800, fontSize: 16, background: "none", border: "none", cursor: "pointer", color: TEXT, padding: 0, textAlign: "left" }}>{c.name}</button>
                           <div style={{ ...badge(c.status) }}><span style={{ fontSize: 7 }}>●</span> {c.status}</div>
                           <div style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "rgba(123,79,191,0.08)", color: ZP_PURPLE, border: `1px solid ${ZP_PURPLE}33` }}>{c.plan}</div>
+                          {/* Onboarding state badge */}
+                          {(() => {
+                            const os = (c as any).onboarding_state;
+                            if (os === "provisioning") return <div style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "rgba(245,158,11,0.1)", color: "#D97706", border: "1px solid rgba(245,158,11,0.3)" }}>Pending Review</div>;
+                            if (os === "approved") return <div style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "rgba(22,163,74,0.08)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.3)" }}>Approved</div>;
+                            if (os === "rejected") return <div style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.3)" }}>Rejected</div>;
+                            return <div style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "rgba(148,163,184,0.1)", color: "#94A3B8", border: "1px solid rgba(148,163,184,0.3)" }}>Not Started</div>;
+                          })()}
                         </div>
                         <div style={{ fontSize: 12, color: MUTED, marginBottom: 8 }}>{c.domain} · {c.contact} · Since {fmtDate(c.since)}</div>
                         <div style={{ fontSize: 12, color: MUTED, fontStyle: "italic", marginBottom: 12 }}>{c.description}</div>
@@ -799,6 +836,14 @@ export default function AdminPage() {
                               </div>
                             )}
                           </div>
+                          {(c as any).onboarding_state === "provisioning" && (
+                            <button
+                              onClick={() => { setReviewMerchant(c); setShowRejectInput(false); setRejectReason(""); }}
+                              style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #FBBF24", background: "#FEF3C7", fontSize: 11, fontWeight: 700, cursor: "pointer", color: "#92400E", display: "flex", alignItems: "center", gap: 4 }}
+                            >
+                              Review Application
+                            </button>
+                          )}
                           <button onClick={() => setClientView(clientView === c.id ? null : c.id)} style={{ padding: "6px 16px", borderRadius: 8, background: clientView === c.id ? ZP_GRAD : LIGHT, border: `1px solid ${clientView === c.id ? "transparent" : BORDER}`, fontSize: 11, fontWeight: 700, cursor: "pointer", color: clientView === c.id ? "#fff" : TEXT }}>
                             {clientView === c.id ? t("admin.clients.close") : t("admin.clients.details")}
                           </button>
@@ -1937,6 +1982,211 @@ export default function AdminPage() {
 
         </div>
       </div>
+
+      {/* ════════════════ MERCHANT REVIEW MODAL ════════════════ */}
+      {reviewMerchant && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setReviewMerchant(null)}>
+          <div style={{ background: SURFACE, borderRadius: 20, width: "100%", maxWidth: 720, maxHeight: "90vh", overflow: "auto", boxShadow: "0 24px 48px rgba(0,0,0,0.2)", border: `1px solid ${BORDER}` }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ padding: "20px 24px", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FEF3C7" }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 18, color: "#92400E" }}>Merchant Review</div>
+                <div style={{ fontSize: 13, color: "#B45309", marginTop: 2 }}>{reviewMerchant.name} - Application Review</div>
+              </div>
+              <button onClick={() => setReviewMerchant(null)} style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "rgba(0,0,0,0.08)", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>x</button>
+            </div>
+
+            <div style={{ padding: "24px" }}>
+              {/* Business Info */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: ZP_GREEN, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Business Info</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
+                  {[
+                    { k: "Business Name", v: reviewMerchant.name },
+                    { k: "DBA", v: reviewMerchant.merchant_data?.dba || reviewMerchant.merchant_data?.businessName || "—" },
+                    { k: "Email", v: reviewMerchant.contact },
+                    { k: "Phone", v: reviewMerchant.phone },
+                    { k: "Website", v: reviewMerchant.domain },
+                    { k: "Type", v: reviewMerchant.description },
+                    { k: "Country", v: reviewMerchant.country },
+                    { k: "Tax ID", v: reviewMerchant.merchant_data?.tax_id || reviewMerchant.merchant_data?.taxId || "—" },
+                    { k: "MCC", v: reviewMerchant.merchant_data?.mcc || "—" },
+                    { k: "Address", v: reviewMerchant.merchant_data?.address || reviewMerchant.merchant_data?.businessAddress?.line1 || "—" },
+                  ].map(s => (
+                    <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
+                      <span style={{ color: MUTED }}>{s.k}</span>
+                      <span style={{ fontWeight: 600, maxWidth: 180, textAlign: "right", wordBreak: "break-all" }}>{s.v || "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Owner KYC */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: ZP_CYAN, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Owner KYC</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
+                  {[
+                    { k: "First Name", v: reviewMerchant.merchant_data?.ownerFirstName || reviewMerchant.merchant_data?.owner?.firstName || "—" },
+                    { k: "Last Name", v: reviewMerchant.merchant_data?.ownerLastName || reviewMerchant.merchant_data?.owner?.lastName || reviewMerchant.ownerName },
+                    { k: "Title", v: reviewMerchant.merchant_data?.ownerTitle || reviewMerchant.merchant_data?.owner?.title || "—" },
+                    { k: "Ownership %", v: reviewMerchant.merchant_data?.ownershipPct || reviewMerchant.merchant_data?.owner?.ownershipPercentage || "—" },
+                    { k: "DOB", v: reviewMerchant.merchant_data?.ownerDob || reviewMerchant.merchant_data?.owner?.dob || "—" },
+                    { k: "SSN Last 4", v: reviewMerchant.merchant_data?.ssnLast4 || reviewMerchant.merchant_data?.owner?.ssnLast4 || "****" },
+                    { k: "Address", v: reviewMerchant.merchant_data?.ownerAddress || reviewMerchant.merchant_data?.owner?.address?.line1 || "—" },
+                  ].map(s => (
+                    <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
+                      <span style={{ color: MUTED }}>{s.k}</span>
+                      <span style={{ fontWeight: 600, maxWidth: 180, textAlign: "right", wordBreak: "break-all" }}>{s.v || "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bank Account */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: ZP_BLUE, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Bank Account</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
+                  {[
+                    { k: "Bank Name", v: reviewMerchant.merchant_data?.bankName || reviewMerchant.merchant_data?.bank?.name || "—" },
+                    { k: "Routing", v: reviewMerchant.merchant_data?.routingNumber || reviewMerchant.merchant_data?.bank?.routingNumber || "—" },
+                    { k: "Account", v: reviewMerchant.merchant_data?.accountNumber ? "****" + String(reviewMerchant.merchant_data.accountNumber).slice(-4) : reviewMerchant.merchant_data?.bank?.accountLast4 ? "****" + reviewMerchant.merchant_data.bank.accountLast4 : "—" },
+                    { k: "Type", v: reviewMerchant.merchant_data?.accountType || reviewMerchant.merchant_data?.bank?.type || "—" },
+                  ].map(s => (
+                    <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
+                      <span style={{ color: MUTED }}>{s.k}</span>
+                      <span style={{ fontWeight: 600 }}>{s.v || "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Finix Status */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: ZP_PURPLE, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Finix Status</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
+                  {[
+                    { k: "Identity ID", v: reviewMerchant.merchant_data?.finix_identity_id || reviewMerchant.merchant_data?.identityId || "—" },
+                    { k: "Merchant ID", v: reviewMerchant.merchant_data?.finix_merchant_id || reviewMerchant.merchant_data?.merchantId || "—" },
+                    { k: "Onboarding State", v: reviewMerchant.onboarding_state || "—" },
+                  ].map(s => (
+                    <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
+                      <span style={{ color: MUTED }}>{s.k}</span>
+                      <span style={{ fontWeight: 600, maxWidth: 220, textAlign: "right", wordBreak: "break-all" }}>{s.v || "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tests & Submission */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Tests Passed</div>
+                  {[
+                    { k: "Pay Link", v: reviewMerchant.merchant_data?.tests?.paylink ? "Yes" : "No" },
+                    { k: "Success Test", v: reviewMerchant.merchant_data?.tests?.success ? "Yes" : "No" },
+                    { k: "Fail Test", v: reviewMerchant.merchant_data?.tests?.fail ? "Yes" : "No" },
+                  ].map(s => (
+                    <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
+                      <span style={{ color: MUTED }}>{s.k}</span>
+                      <span style={{ fontWeight: 700, color: s.v === "Yes" ? "#16A34A" : "#DC2626" }}>{s.v}</span>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Submission</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
+                    <span style={{ color: MUTED }}>Submitted</span>
+                    <span style={{ fontWeight: 600 }}>{reviewMerchant.merchant_data?.submitted_at ? fmtDateTime(reviewMerchant.merchant_data.submitted_at) : fmtDate(reviewMerchant.createdAt)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
+                    <span style={{ color: MUTED }}>Plan</span>
+                    <span style={{ fontWeight: 600 }}>{reviewMerchant.plan}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Approve / Reject buttons */}
+              <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 20, display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+                <button
+                  disabled={reviewLoading}
+                  onClick={async () => {
+                    setReviewLoading(true);
+                    try {
+                      const res = await fetch("/api/zenipay/admin/actions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "approve_merchant", merchant_id: reviewMerchant.id }),
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        showToast(`${reviewMerchant.name} approved successfully`, "success");
+                        setReviewMerchant(null);
+                        loadMerchants();
+                        loadStats();
+                      } else {
+                        showToast(data.error || "Approval failed", "error");
+                      }
+                    } catch { showToast("Network error", "error"); }
+                    finally { setReviewLoading(false); }
+                  }}
+                  style={{ padding: "10px 28px", borderRadius: 10, background: ZP_GREEN, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  {reviewLoading ? <Spinner size={12} color="#fff" /> : null} Approve Merchant
+                </button>
+
+                {!showRejectInput ? (
+                  <button
+                    onClick={() => setShowRejectInput(true)}
+                    style={{ padding: "10px 28px", borderRadius: 10, background: "rgba(220,38,38,0.06)", border: "2px solid #DC2626", color: "#DC2626", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Reject
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flex: 1 }}>
+                    <input
+                      type="text"
+                      placeholder="Reason for rejection..."
+                      value={rejectReason}
+                      onChange={e => setRejectReason(e.target.value)}
+                      style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+                    />
+                    <button
+                      disabled={reviewLoading || !rejectReason.trim()}
+                      onClick={async () => {
+                        setReviewLoading(true);
+                        try {
+                          const res = await fetch("/api/zenipay/admin/actions", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "reject_merchant", merchant_id: reviewMerchant.id, reason: rejectReason.trim() }),
+                          });
+                          const data = await res.json();
+                          if (res.ok) {
+                            showToast(`${reviewMerchant.name} rejected`, "success");
+                            setReviewMerchant(null);
+                            setRejectReason("");
+                            setShowRejectInput(false);
+                            loadMerchants();
+                            loadStats();
+                          } else {
+                            showToast(data.error || "Rejection failed", "error");
+                          }
+                        } catch { showToast("Network error", "error"); }
+                        finally { setReviewLoading(false); }
+                      }}
+                      style={{ padding: "10px 20px", borderRadius: 10, background: "#DC2626", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: rejectReason.trim() ? "pointer" : "not-allowed", opacity: rejectReason.trim() ? 1 : 0.5 }}
+                    >
+                      {reviewLoading ? <Spinner size={12} color="#fff" /> : null} Confirm Reject
+                    </button>
+                    <button onClick={() => { setShowRejectInput(false); setRejectReason(""); }} style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${BORDER}`, background: SURFACE, fontSize: 12, fontWeight: 600, cursor: "pointer", color: MUTED }}>Cancel</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

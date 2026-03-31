@@ -49,6 +49,8 @@ export async function GET(req: NextRequest) {
       txCount:       m.tx_count ?? 0,
       balance:       m.balance  ?? 0,
       notes:         m.notes    ?? "",
+      onboardingState: m.onboarding_state || "pending",
+      merchantData: m.merchant_data || {},
     }));
 
     return NextResponse.json({ merchants });

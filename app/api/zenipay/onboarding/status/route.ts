@@ -77,14 +77,25 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
 
     if (action === "go_live") {
-      const { data: m } = await supabase.from("zenipay_merchants").select("onboarding_state").eq("id", merchant_id).single();
+      const { data: m } = await supabase.from("zenipay_merchants").select("onboarding_state, live_key, merchant_data").eq("id", merchant_id).single();
       if (!m) return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
       if (m.onboarding_state !== "approved") {
         return NextResponse.json({ error: "Merchant not yet approved" }, { status: 403 });
       }
-      const { error } = await supabase.from("zenipay_merchants").update({ status: "live", updated_at: new Date().toISOString() }).eq("id", merchant_id);
+
+      // Generate live key if not set
+      const genKey = (prefix: string) => `${prefix}_${Array.from({ length: 24 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 62)]).join("")}`;
+      const liveKey = m.live_key || genKey("zpk_live");
+
+      // Update status to live, keep ALL merchant_data intact
+      const { error } = await supabase.from("zenipay_merchants").update({
+        status: "live",
+        live_key: liveKey,
+        updated_at: new Date().toISOString()
+      }).eq("id", merchant_id);
+
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ success: true, status: "live" });
+      return NextResponse.json({ success: true, status: "live", liveKey });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

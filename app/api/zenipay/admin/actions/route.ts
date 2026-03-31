@@ -71,6 +71,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === "approve_merchant") {
+      const { error } = await supabase.from("zenipay_merchants").update({
+        onboarding_state: "approved",
+        updated_at: new Date().toISOString()
+      }).eq("id", merchant_id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      // Also update merchant_data to mark as reviewed
+      const { data: m } = await supabase.from("zenipay_merchants").select("merchant_data").eq("id", merchant_id).single();
+      if (m) {
+        const md = { ...(m.merchant_data || {}), pending_review: false, approved_at: new Date().toISOString(), approved_by: "admin" };
+        await supabase.from("zenipay_merchants").update({ merchant_data: md }).eq("id", merchant_id);
+      }
+      return NextResponse.json({ success: true, onboarding_state: "approved" });
+    }
+
+    if (action === "reject_merchant") {
+      const reason = params.reason || "Application not approved";
+      const { error } = await supabase.from("zenipay_merchants").update({
+        onboarding_state: "rejected",
+        updated_at: new Date().toISOString()
+      }).eq("id", merchant_id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      const { data: m } = await supabase.from("zenipay_merchants").select("merchant_data").eq("id", merchant_id).single();
+      if (m) {
+        const md = { ...(m.merchant_data || {}), pending_review: false, rejected_at: new Date().toISOString(), rejection_reason: reason };
+        await supabase.from("zenipay_merchants").update({ merchant_data: md }).eq("id", merchant_id);
+      }
+      return NextResponse.json({ success: true, onboarding_state: "rejected" });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
     return NextResponse.json({ error: "Action failed" }, { status: 500 });

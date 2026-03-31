@@ -39,6 +39,10 @@ export async function POST(req: NextRequest) {
     if (bank?.account_number && bank?.routing_number) { const b = await finixPost("/payment_instruments", { identity: identityId, type: "BANK_ACCOUNT", account_number: bank.account_number, bank_code: bank.routing_number, account_type: (bank.account_type||"CHECKING").toUpperCase(), name: business.business_name, country: business.country||"USA", currency: "USD" }); if (b.data?.id) bankInstrumentId = b.data.id; }
     const supabase = getSupabaseAdmin();
     await supabase.from("zenipay_merchants").update({ finix_identity_id: identityId, finix_merchant_id: finixMerchantId, onboarding_state: onboardingState, updated_at: new Date().toISOString() }).eq("id", merchant_id);
+    // After setting finix_merchant_id and onboarding_state, also update merchant_data
+    const { data: currentMerchant } = await supabase.from("zenipay_merchants").select("merchant_data").eq("id", merchant_id).single();
+    const updatedMd = { ...(currentMerchant?.merchant_data || {}), pending_review: true, submitted_at: new Date().toISOString() };
+    await supabase.from("zenipay_merchants").update({ merchant_data: updatedMd }).eq("id", merchant_id);
     return NextResponse.json({ success: true, identity_id: identityId, finix_merchant_id: finixMerchantId, bank_instrument_id: bankInstrumentId, onboarding_state: onboardingState });
   } catch (err: unknown) { return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 }); }
 }
