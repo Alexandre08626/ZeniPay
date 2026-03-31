@@ -1765,6 +1765,27 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const [recentBookings, setRecentBookings] = useState<{ id: string; client_name: string; destination: string; total_price: number; status: string; created_at: string }[]>([]);
   const [zpInvoices, setZpInvoices] = useState<{ id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string; merchant_name?: string; merchant_email?: string }[]>([]);
   const [viewInvoice, setViewInvoice] = useState<typeof zpInvoices[number] | null>(null);
+  const [showNewInv, setShowNewInv] = useState(false);
+  const [invForm, setInvForm] = useState({ customer_name: "", customer_email: "", description: "", amount: "", tax: "0", notes: "", status: "draft" });
+  const [invSaving, setInvSaving] = useState(false);
+  const createInvoice = async () => {
+    if (!invForm.customer_name || !invForm.amount) return;
+    setInvSaving(true);
+    try {
+      const invId = "INV-" + Date.now().toString(36).toUpperCase();
+      const now = new Date().toISOString();
+      const amt = parseFloat(invForm.amount) || 0;
+      const taxAmt = parseFloat(invForm.tax) || 0;
+      const total = amt + taxAmt;
+      const invoiceData = { id: invId, invoice_number: invId, merchant_id: MID, customer_name: invForm.customer_name, customer_email: invForm.customer_email, items: JSON.stringify([{ description: invForm.description || "Service", qty: 1, unit_price: amt, total: amt }]), subtotal: amt, tax: taxAmt, total, currency: "USD", status: invForm.status, notes: invForm.notes, merchant_name: BNAME, merchant_email: BEMAIL, created_at: now, updated_at: now };
+      const r = await fetch("/api/zenipay/merchant-data?merchant_id=" + encodeURIComponent(MID), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ _direct_invoice: invoiceData }) });
+      if (r.ok) {
+        setShowNewInv(false);
+        setInvForm({ customer_name: "", customer_email: "", description: "", amount: "", tax: "0", notes: "", status: "draft" });
+        setZpInvoices(prev => [{ id: invId, invoice_number: invId, customer_name: invForm.customer_name, customer_email: invForm.customer_email, total, status: invForm.status, payment_id: "", created_at: now }, ...prev]);
+      }
+    } catch { /* silent */ } finally { setInvSaving(false); }
+  };
   // Unit.co banking layer
   const [unitAccounts, setUnitAccounts] = useState<{ id: string; type: string; name: string; status: string; balanceCents: number; availableCents: number; routingNumber: string; accountNumber: string; currency: string; createdAt: string }[]>([
     { id:"11589672", type:"depositAccount", name:`ZeniPay Checking — ${BNAME}`, status:"Open", balanceCents:0, availableCents:0, routingNumber:"812345678", accountNumber:"1009825847", currency:"USD", createdAt:"2026-03-17T18:09:35.382Z" }
@@ -2730,61 +2751,48 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         {/* ════ INVOICES ════ */}
         {tab === "invoices" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {/* Info Banner */}
-            <div style={{ background: `linear-gradient(135deg, ${DARK}, #1a2f6e)`, borderRadius: 16, padding: "20px 24px", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {/* Header */}
+            <div style={{ background: `linear-gradient(135deg, ${DARK}, #1a2f6e)`, borderRadius: 16, padding: "20px 24px", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 12 }}>
               <div>
-                <h3 style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 16, color: "#0f172a" }}>📄 ZeniPay Invoices</h3>
-                <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>Auto-generated on booking · Editable HTML · Print-ready</p>
+                <h3 style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 16 }}>📄 {t("nav.invoices")}</h3>
+                <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>{zpInvoices.length} invoice{zpInvoices.length !== 1 ? "s" : ""}</p>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <a href="#" style={{ background: BLUE, color: "white", textDecoration: "none", borderRadius: 9999, padding: "9px 18px", fontSize: 13, fontWeight: 700 }}>
-                  + New Invoice
-                </a>
-                <a href="#" style={{ background: "rgba(255,255,255,0.1)", color: "white", textDecoration: "none", borderRadius: 9999, padding: "9px 18px", fontSize: 13, fontWeight: 600 }}>
-                  View All Invoices →
-                </a>
-              </div>
+              <button onClick={() => setShowNewInv(!showNewInv)} style={{ background: showNewInv ? "rgba(255,255,255,0.2)" : BLUE, color: "white", border: "none", borderRadius: 9999, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                {showNewInv ? "Cancel" : "+ New Invoice"}
+              </button>
             </div>
 
-            {/* How it works */}
-            <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-              <h4 style={{ margin: "0 0 16px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>🔄 How Invoices Work</h4>
-              <div className="zp-tab-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-                {[
-                  { icon: "💳", title: "Client Pays", desc: "Payment processed via ZeniPay checkout" },
-                  { icon: "📄", title: "Auto-Generated", desc: "Invoice created automatically with booking details" },
-                  { icon: "✉️", title: "Emailed", desc: "Sent to client via info@zeniva.ca" },
-                  { icon: "✏️", title: "Editable", desc: "Admin can modify any invoice and reprint" },
-                ].map(s => (
-                  <div key={s.title} style={{ background: "#f8fafc", borderRadius: 12, padding: 16, textAlign: "center" as const }}>
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
-                    <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 13, color: "#374151" }}>{s.title}</p>
-                    <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>{s.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Live invoice list from Supabase */}
-            <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <div>
-                  <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "white" }}>{BNAME} — Client Invoices</p>
-                  <p style={{ margin: 0, fontSize: 11, color: "#94a3b8" }}>Auto-generated on every confirmed ZeniPay payment</p>
+            {/* New Invoice Form */}
+            {showNewInv && (
+              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                <h4 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 15, color: "#0f172a" }}>Create Invoice</h4>
+                <div className="zp-tab-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Customer Name *</label><input value={invForm.customer_name} onChange={e => setInvForm(p => ({...p, customer_name: e.target.value}))} placeholder="John Doe" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Customer Email</label><input value={invForm.customer_email} onChange={e => setInvForm(p => ({...p, customer_email: e.target.value}))} placeholder="john@email.com" type="email" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Description</label><input value={invForm.description} onChange={e => setInvForm(p => ({...p, description: e.target.value}))} placeholder="Service or product" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Amount (USD) *</label><input value={invForm.amount} onChange={e => setInvForm(p => ({...p, amount: e.target.value}))} placeholder="0.00" type="number" step="0.01" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Tax</label><input value={invForm.tax} onChange={e => setInvForm(p => ({...p, tax: e.target.value}))} placeholder="0.00" type="number" step="0.01" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Status</label><select value={invForm.status} onChange={e => setInvForm(p => ({...p, status: e.target.value}))} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }}><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></div>
                 </div>
-                <span style={{ background: `${BLUE}12`, color: BLUE, fontWeight: 700, fontSize: 12, padding: "4px 12px", borderRadius: 9999 }}>{zpInvoices.length} invoice{zpInvoices.length !== 1 ? "s" : ""}</span>
+                <div style={{ marginTop: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Notes</label><textarea value={invForm.notes} onChange={e => setInvForm(p => ({...p, notes: e.target.value}))} placeholder="Additional notes..." rows={2} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const, resize: "vertical" as const }} /></div>
+                <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "#64748b" }}>Total: <strong style={{ color: "#0f172a", fontSize: 18 }}>{fmt((parseFloat(invForm.amount) || 0) + (parseFloat(invForm.tax) || 0))}</strong></span>
+                  <button onClick={createInvoice} disabled={invSaving || !invForm.customer_name || !invForm.amount} style={{ background: invSaving ? "#94a3b8" : `linear-gradient(135deg, ${ZPGREEN}, ${BLUE})`, color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>{invSaving ? "Creating..." : "Create Invoice"}</button>
+                </div>
               </div>
+            )}
+
+            {/* Invoice List */}
+            <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
               {zpInvoices.length === 0 ? (
                 <div style={{ textAlign: "center" as const, padding: "40px 20px" }}>
-                  <div style={{ fontSize: 64, marginBottom: 16 }}>📄</div>
-                  <h3 style={{ margin: "0 0 8px", fontWeight: 800, color: "white" }}>No invoices yet</h3>
-                  <p style={{ color: "rgba(255,255,255,0.4)", margin: "0 0 20px" }}>Invoices are auto-generated when a client completes payment via ZeniPay.</p>
-                  <a href="/zenipay/checkout" style={{ background: BLUE, color: "white", textDecoration: "none", borderRadius: 9999, padding: "12px 28px", fontWeight: 700, fontSize: 14 }}>
-                    Test a Payment →
-                  </a>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>📄</div>
+                  <p style={{ margin: "0 0 8px", fontWeight: 700, color: "#374151" }}>No invoices yet</p>
+                  <p style={{ margin: 0, fontSize: 13, color: "#94a3b8" }}>Create your first invoice or they'll be auto-generated on payments.</p>
                 </div>
               ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <div style={{ overflowX: "auto" as const }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
                   <thead>
                     <tr style={{ background: "#f8fafc" }}>
                       {["Invoice #", "Client", "Amount", "Date", "Status", ""].map(h => (
@@ -2795,23 +2803,24 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                   <tbody>
                     {zpInvoices.map(inv => (
                       <tr key={inv.id} style={{ borderTop: "1px solid #f1f5f9" }}>
-                        <td style={{ padding: "12px 16px", fontSize: 12, fontFamily: "monospace", color: BLUE, fontWeight: 700 }}>{inv.id}</td>
+                        <td style={{ padding: "12px 16px", fontSize: 12, fontFamily: "monospace", color: BLUE, fontWeight: 700 }}>{inv.invoice_number || inv.id}</td>
                         <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 500, color: "#0f172a" }}>{inv.customer_name || "—"}</td>
                         <td style={{ padding: "12px 16px", fontWeight: 800, color: GREEN }}>{fmt(inv.total)}</td>
                         <td style={{ padding: "12px 16px", fontSize: 12, color: "#94a3b8" }}>{new Date(inv.created_at).toLocaleDateString("en-CA")}</td>
                         <td style={{ padding: "12px 16px" }}>
-                          <span style={{ background: "#d1fae5", color: "#065f46", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 9999 }}>✓ Paid</span>
+                          <span style={{ background: inv.status === "paid" ? "#d1fae5" : inv.status === "overdue" ? "#fee2e2" : "#f1f5f9", color: inv.status === "paid" ? "#065f46" : inv.status === "overdue" ? "#dc2626" : "#64748b", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 9999 }}>{inv.status || "draft"}</span>
                         </td>
                         <td style={{ padding: "12px 16px" }}>
                           <button onClick={() => setViewInvoice(inv)}
                             style={{ background: `${BLUE}10`, border: `1px solid ${BLUE}30`, borderRadius: 8, padding: "6px 14px", fontSize: 11, cursor: "pointer", color: BLUE, fontWeight: 700 }}>
-                            📄 View Invoice
+                            📄 View
                           </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </div>

@@ -41,6 +41,14 @@ export async function PUT(req: NextRequest) {
     .eq("id", merchant_id)
     .single();
 
+  // Direct invoice creation
+  if (body._direct_invoice) {
+    const inv = body._direct_invoice;
+    const { error: invErr } = await supabase.from("zenipay_invoices").upsert(inv, { onConflict: "id" });
+    if (invErr) return NextResponse.json({ error: invErr.message }, { status: 500 });
+    return NextResponse.json({ success: true, invoice_id: inv.id });
+  }
+
   // Hash password if being updated
   if (body.password && typeof body.password === "string" && !body.password.includes(":")) {
     body.password = await hashPassword(body.password);
