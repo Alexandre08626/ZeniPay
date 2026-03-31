@@ -768,19 +768,42 @@ function PayoutsPanel({ agents, platformBalance, merchantId, mode }: { agents: A
   const [sentResult, setSentResult] = useState<{id:string;status:string}|null>(null);
   const [history, setHistory] = useState<{id:string;agent:string;amount:number;method:string;note:string;date:string;status:string}[]>([]);
 
-  // Recipients management
-  const [recipients, setRecipients] = useState<Recipient[]>(DEFAULT_RECIPIENTS);
+  // Recipients management — loaded from + saved to Supabase
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newR, setNewR] = useState<Omit<Recipient,"id"|"pending">>({
     name: "", type: "supplier", email: "", rate: "", method: "bank", note: "",
   });
+
+  // Load recipients from merchant_data + payout history from stats
+  useEffect(() => {
+    if (!merchantId) return;
+    fetch("/api/zenipay/merchant-data?merchant_id=" + encodeURIComponent(merchantId)).then(r => r.json()).then(d => {
+      if (d.data?.recipients) setRecipients(d.data.recipients);
+    }).catch(() => {});
+    fetch("/api/zenipay/stats?merchant_id=" + encodeURIComponent(merchantId)).then(r => r.json()).then(d => {
+      if (d.recent_payouts?.length) setHistory(d.recent_payouts.map((p: Record<string, unknown>) => ({ id: p.id as string, agent: (p.recipient_name as string) || "", amount: Number(p.amount) || 0, method: (p.method as string) || "ach", note: (p.notes as string) || "", date: p.created_at ? new Date(p.created_at as string).toLocaleDateString("en-CA") : "", status: (p.status as string) || "processing" })));
+    }).catch(() => {});
+  }, [merchantId]);
+
+  // Save recipients to DB
+  const saveRecipients = async (updated: Recipient[]) => {
+    setRecipients(updated);
+    if (!merchantId) return;
+    try { await fetch("/api/zenipay/merchant-data?merchant_id=" + encodeURIComponent(merchantId), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recipients: updated }) }); } catch {}
+  };
+
   const addRecipient = () => {
     if (!newR.name.trim()) return;
-    setRecipients(r => [...r, { ...newR, id: `r-${Date.now()}`, pending: 0 }]);
+    const updated = [...recipients, { ...newR, id: `r-${Date.now()}`, pending: 0 }];
+    saveRecipients(updated);
     setNewR({ name: "", type: "supplier", email: "", rate: "", method: "bank", note: "" });
     setShowAddForm(false);
   };
-  const removeRecipient = (id: string) => setRecipients(r => r.filter(x => x.id !== id));
+  const removeRecipient = (id: string) => {
+    const updated = recipients.filter(x => x.id !== id);
+    saveRecipients(updated);
+  };
 
   const handleSend = async () => {
     if (Number(amount) > platformBalance) {
@@ -794,6 +817,7 @@ function PayoutsPanel({ agents, platformBalance, merchantId, mode }: { agents: A
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          merchant_id: merchantId,
           recipient_type: selectedAgent?.role?.includes("Owner") ? "owner" : "agent",
           recipient_name: selectedAgent!.name,
           recipient_id: selectedAgent?.id,
@@ -801,7 +825,7 @@ function PayoutsPanel({ agents, platformBalance, merchantId, mode }: { agents: A
           currency: "USD",
           method: method === "instant" ? "instant" : "ach",
           from_wallet: "platform",
-          note: note || "Agent commission payment",
+          note: note || "Payout",
         }),
       });
       const data = await res.json();
