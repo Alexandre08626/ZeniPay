@@ -2306,7 +2306,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
       {/* ── HEADER ── */}
       <div style={{ background: `linear-gradient(135deg, #0d1633 0%, #1a2a5e 25%, #2DBE60 55%, #15B8C9 75%, #7B4FBF 100%)`, padding: "0 24px", borderBottom: "1px solid rgba(255,255,255,0.15)" }}>
         <div style={{ maxWidth: 1600, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 0", borderBottom: `1px solid rgba(255,255,255,0.15)` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 0" }}>
             {/* Brand */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 42, height: 42, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
