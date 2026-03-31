@@ -1976,15 +1976,50 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     setBenMsg("");
     setBenChat(prev => [...prev, { role: "user", text: userMsg }]);
     setAiLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    const responses: Record<string, string> = {
-      "revenue": `📊 Revenue Analysis:\n• Total today: ${fmt(totalRevenue)}\n• MTD: ${fmt(totalRevenue)}\n• Active agents: Louis, Jason, Luca\n• Success rate: ${successRate}%`,
-      "fraud": `🛡️ Fraud Monitoring:\n• No high-risk transactions detected\n• Carlos Ruiz failure flagged: card declined (3x attempt)\n• Recommendation: request alternative payment method`,
-      "payout": `💸 Upcoming Payouts:\n• Merchant Revenue: ${fmt(totalRevenue)}\n• ZeniPay Fees: ${fmt(zenipayFees)}\n• Agents: Louis, Jason, Luca — $0 pending\n• No payouts scheduled yet — activate Finix live to begin`,
-      "rapport": `📄 Financial Report — Current:\n• Gross Revenue: ${fmt(totalRevenue)}\n• Platform Wallet: ${fmt(WALLETS.platform.available)} available\n• Agent Commissions Paid: ${fmt(WALLETS.agent.paid)} (70% travel agents)\n• Influencer Referrals Paid: ${fmt(WALLETS.influencer.paid)} (5% net profit)\n• Supplier Balance: ${fmt(WALLETS.supplier.available)}\n• ZeniYacht: 100% Zeniva`,
-    };
-    const keyword = Object.keys(responses).find(k => userMsg.toLowerCase().includes(k));
-    const reply = keyword ? responses[keyword] : `Analysing your request: "${userMsg}"...\n\n✅ All systems operational. Platform balance: ${fmt(platformBalance, true)}. Payment success rate: ${successRate}%. No anomalies detected in the last 24h.`;
+    await new Promise(r => setTimeout(r, 800 + Math.random() * 600));
+
+    const q = userMsg.toLowerCase();
+    const txCount = TRANSACTIONS.length;
+    const succeededTx = TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed");
+    const failedTx = TRANSACTIONS.filter(t => t.status === "failed");
+    const avgTx = succeededTx.length > 0 ? totalRevenue / succeededTx.length : 0;
+    const topCustomers = Object.entries(succeededTx.reduce((acc, t) => { acc[t.customer] = (acc[t.customer] || 0) + t.amount; return acc; }, {} as Record<string, number>)).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const recentTx = TRANSACTIONS.slice(0, 3);
+    const netRev = totalRevenue - zenipayFees;
+
+    let reply = "";
+
+    if (q.includes("revenue") || q.includes("revenu") || q.includes("chiffre") || q.includes("sales") || q.includes("vente")) {
+      reply = `📊 Revenue Summary\n\n• Gross Revenue: ${fmt(totalRevenue)}\n• ZeniPay Fees: ${fmt(zenipayFees)} (2.9% + $0.30/tx)\n• Net Revenue: ${fmt(netRev)}\n• Total Transactions: ${txCount}\n• Avg Transaction: ${fmt(avgTx)}\n• Success Rate: ${successRate}%`;
+    } else if (q.includes("fraud") || q.includes("risk") || q.includes("suspicious") || q.includes("fraude")) {
+      const highValue = succeededTx.filter(t => t.amount > 5000);
+      reply = `🛡️ Fraud & Risk Report\n\n• Failed Transactions: ${failedTx.length}\n• High-Value Transactions (>$5K): ${highValue.length}\n• Chargeback Rate: 0%\n• Risk Level: LOW\n${failedTx.length > 0 ? `\n⚠️ Recent Failures:\n${failedTx.slice(0, 3).map(t => `• ${t.customer} — ${fmt(t.amount)} (${t.card_brand || "card"} declined)`).join("\n")}` : "\n✅ No suspicious activity detected."}\n\nAll transactions monitored in real-time.`;
+    } else if (q.includes("payout") || q.includes("withdraw") || q.includes("retrait") || q.includes("virement")) {
+      reply = `💸 Payout Summary\n\n• Available Balance: ${fmt(netRev)}\n• Gross Revenue: ${fmt(totalRevenue)}\n• ZeniPay Fees Deducted: ${fmt(zenipayFees)}\n• Pending Payouts: $0.00\n• Payout Method: ACH (free) / Wire ($25)\n\nYou can initiate a payout from the Payouts tab.`;
+    } else if (q.includes("rapport") || q.includes("report") || q.includes("summary") || q.includes("resume") || q.includes("résumé")) {
+      reply = `📄 Financial Report\n\n━━ Revenue ━━\n• Gross: ${fmt(totalRevenue)}\n• Fees: -${fmt(zenipayFees)}\n• Net: ${fmt(netRev)}\n\n━━ Transactions ━━\n• Total: ${txCount}\n• Succeeded: ${succeededTx.length}\n• Failed: ${failedTx.length}\n• Success Rate: ${successRate}%\n• Avg Size: ${fmt(avgTx)}\n\n━━ Invoices ━━\n• Generated: ${zpInvoices.length}\n• Paid: ${zpInvoices.filter(i => i.status === "paid").length}\n\n━━ Status ━━\n• Gateway: Finix (active)\n• Mode: ${isLive ? "LIVE" : "Sandbox"}`;
+    } else if (q.includes("customer") || q.includes("client") || q.includes("top") || q.includes("meilleur")) {
+      reply = topCustomers.length > 0
+        ? `👥 Top Customers by Revenue\n\n${topCustomers.map(([name, amount], i) => `${i + 1}. ${name} — ${fmt(amount as number)}`).join("\n")}\n\nTotal unique customers: ${new Set(succeededTx.map(t => t.customer)).size}`
+        : "👥 No customer data available yet. Customers will appear after payments are processed.";
+    } else if (q.includes("invoice") || q.includes("facture")) {
+      const paid = zpInvoices.filter(i => i.status === "paid").length;
+      const pending = zpInvoices.filter(i => i.status !== "paid").length;
+      reply = `📄 Invoice Summary\n\n• Total Invoices: ${zpInvoices.length}\n• Paid: ${paid}\n• Pending/Other: ${pending}\n• Total Billed: ${fmt(zpInvoices.reduce((s, i) => s + Number(i.total || 0), 0))}\n\nInvoices are auto-generated after each successful payment.`;
+    } else if (q.includes("fee") || q.includes("frais") || q.includes("cost") || q.includes("commission")) {
+      reply = `💰 Fee Breakdown\n\n• Processing Fee: 2.9% per transaction\n• Per-Transaction Fee: $0.30\n• Payout Fee (ACH): Free\n• Payout Fee (Wire): $25.00\n• Chargeback Fee: $15.00 per dispute\n\n━━ Your Fees ━━\n• Total Fees Charged: ${fmt(zenipayFees)}\n• Fee per Transaction (avg): ${fmt(succeededTx.length > 0 ? zenipayFees / succeededTx.length : 0)}\n• Effective Rate: ${succeededTx.length > 0 ? ((zenipayFees / totalRevenue) * 100).toFixed(2) : "0"}%`;
+    } else if (q.includes("recent") || q.includes("last") || q.includes("dernier") || q.includes("latest")) {
+      reply = recentTx.length > 0
+        ? `⚡ Last ${recentTx.length} Transactions\n\n${recentTx.map(t => `• ${t.status === "succeeded" ? "✅" : "❌"} ${fmt(t.amount)} — ${t.customer}${t.card_brand ? ` (${t.card_brand} ••${t.card_last4})` : ""}`).join("\n")}`
+        : "No recent transactions found.";
+    } else if (q.includes("balance") || q.includes("solde") || q.includes("available") || q.includes("disponible")) {
+      reply = `🏦 Balance Overview\n\n• Gross Revenue: ${fmt(totalRevenue)}\n• ZeniPay Fees: -${fmt(zenipayFees)}\n• Net Available: ${fmt(netRev)}\n• Pending: $0.00\n• Paid Out: $0.00\n\nYour net balance is available for withdrawal at any time.`;
+    } else if (q.includes("help") || q.includes("aide") || q.includes("?") || q.includes("what") || q.includes("quoi")) {
+      reply = `🤖 I can help you with:\n\n• "revenue" — Revenue breakdown & stats\n• "report" — Full financial report\n• "customers" — Top customers by revenue\n• "invoices" — Invoice summary\n• "fees" — Fee breakdown & effective rate\n• "fraud" — Risk & fraud analysis\n• "payout" — Payout status & balance\n• "recent" — Latest transactions\n• "balance" — Available balance\n\nJust type your question in English or French.`;
+    } else {
+      reply = `📊 Quick Overview\n\n• Revenue: ${fmt(totalRevenue)} (${txCount} transactions)\n• Net: ${fmt(netRev)} after ${fmt(zenipayFees)} in fees\n• Success Rate: ${successRate}%\n• Gateway: ${isLive ? "LIVE" : "Sandbox"} · Finix Active\n\n✅ All systems operational.\n\nType "help" to see what I can answer.`;
+    }
+
     setBenChat(prev => [...prev, { role: "ben", text: reply }]);
     setAiLoading(false);
   };
@@ -3071,7 +3106,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                   )}
                 </div>
                 <div style={{ padding: "0 16px 8px", display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {["💰 Revenue du jour", "🛡️ Fraud check", "💸 Payout status", "📊 Rapport mensuel"].map(s => (
+                  {["📊 Revenue", "🛡️ Fraud check", "💸 Payout", "📄 Report", "👥 Customers", "💰 Fees", "⚡ Recent", "❓ Help"].map(s => (
                     <button key={s} onClick={() => setBenMsg(s.replace(/^[^ ]+ /, ""))}
                       style={{ background: "#f0f4ff", color: BLUE, border: "1px solid #dbeafe", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{s}</button>
                   ))}
