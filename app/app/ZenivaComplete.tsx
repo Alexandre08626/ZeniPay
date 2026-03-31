@@ -1964,7 +1964,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   };
   const fetchPayLinks = async () => {
     try {
-      const res = await fetch("/api/zenipay/create-link");
+      const res = await fetch("/api/zenipay/create-link?merchant_id=" + encodeURIComponent(MID));
       const data = await res.json();
       if (data.links) setPayLinks(data.links);
     } catch { /* ignore */ }

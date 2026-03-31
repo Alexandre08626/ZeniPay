@@ -9,18 +9,20 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const merchantId = req.nextUrl.searchParams.get("merchant_id");
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let query = supabase
       .from("zenipay_pay_links")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
+    if (merchantId) query = query.eq("merchant_id", merchantId);
+    const { data, error } = await query;
     if (error) return NextResponse.json({ links: [], error: error.message });
     return NextResponse.json({ links: data || [] });
   } catch (err) {
-    console.error("[ZeniPay PayLinks GET] Error:", err);
     return NextResponse.json({ links: [] });
   }
 }
