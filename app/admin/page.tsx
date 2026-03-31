@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ZeniPayLogo from "@/components/ZeniPayLogo";
 
@@ -11,17 +11,16 @@ const ZP_GRAD   = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_
 
 const fmt     = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 const fmtDate = (s: string) => { try { const d = new Date(s); return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }); } catch { return "—"; } };
+const fmtDateTime = (s: string) => { try { const d = new Date(s); return isNaN(d.getTime()) ? "—" : d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return "—"; } };
 
-const STATUS_COLOR: Record<string, string> = { active: "#16A34A", pending: "#D97706", inactive: "#94A3B8", failed: "#DC2626", live: "#16A34A", sandbox: "#D97706" };
-const STATUS_BG:    Record<string, string> = { active: "rgba(22,163,74,0.08)", pending: "rgba(217,119,6,0.08)", inactive: "rgba(148,163,184,0.08)", failed: "rgba(220,38,38,0.08)", live: "rgba(22,163,74,0.08)", sandbox: "rgba(217,119,6,0.08)" };
+const STATUS_COLOR: Record<string, string> = { active: "#16A34A", pending: "#D97706", inactive: "#94A3B8", failed: "#DC2626", live: "#16A34A", sandbox: "#D97706", succeeded: "#16A34A", refunded: "#7B4FBF", suspended: "#DC2626" };
+const STATUS_BG:    Record<string, string> = { active: "rgba(22,163,74,0.08)", pending: "rgba(217,119,6,0.08)", inactive: "rgba(148,163,184,0.08)", failed: "rgba(220,38,38,0.08)", live: "rgba(22,163,74,0.08)", sandbox: "rgba(217,119,6,0.08)", succeeded: "rgba(22,163,74,0.08)", refunded: "rgba(123,79,191,0.08)", suspended: "rgba(220,38,38,0.08)" };
 
-// All clients now come from Supabase — no hardcoded defaults
 const CLIENTS_DEFAULT: never[] = [];
 
 const GATEWAY_STATUS = { accountId: "MUcTenaz57m9JrwwRZwpSfDc", webhook: "https://zenipay.ca/api/zenipay/webhooks/finix", fees: "2.90% + $0.30/tx" };
 const BANK_STATUS    = { routing: "812345678", account: "••••5847", balance: 0, customerId: "4647873" };
 
-// ZeniPay's own platform revenue account — commissions auto-deposited here
 const PLATFORM_ACCOUNT = {
   name: "ZeniPay Inc. — Platform Revenue",
   routing: "812345678",
@@ -31,9 +30,6 @@ const PLATFORM_ACCOUNT = {
   type: "Business Chequing (Unit.co)",
 };
 
-// Finix cost breakdown: Interchange 1.75% + Finix fee 0.15% + $0.15/tx = total cost 1.90% + $0.15/tx
-// ZeniPay charges merchants 2.90% + $0.30/tx → markup = 1.00% + $0.15/tx
-// Finix pays ZeniPay 90% of the markup
 const FINIX_COST = {
   interchange: "1.75%",
   finixFee: "0.15% + $0.15/tx",
@@ -74,11 +70,53 @@ export default function AdminPage() {
   const [billingLoading, setBillingLoading]   = useState(false);
   const [billingForm, setBillingForm]         = useState<{ open: boolean; merchant_id: string; merchant_name: string; period_start: string; period_end: string }>({ open: false, merchant_id: "", merchant_name: "", period_start: "", period_end: "" });
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (!sessionStorage.getItem("zp_admin")) { router.replace("/admin/login"); return; }
-    }
-    // Load merchants from Supabase (shared across all devices)
+  // Toast state
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const showToast = (msg: string, type: "success" | "error" = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
+
+  // Overview state
+  const [overviewRange, setOverviewRange] = useState<number>(14);
+  const [testingConnection, setTestingConnection] = useState(false);
+
+  // Clients state
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientFilter, setClientFilter] = useState<"all" | "active" | "sandbox" | "suspended">("all");
+  const [clientSort, setClientSort] = useState<"volume" | "balance" | "recent" | "name">("volume");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [planDropdown, setPlanDropdown] = useState<string | null>(null);
+
+  // Transactions state
+  const [txSearch, setTxSearch] = useState("");
+  const [txStatusFilter, setTxStatusFilter] = useState("all");
+  const [txMerchantFilter, setTxMerchantFilter] = useState("all");
+  const [txDateRange, setTxDateRange] = useState("all");
+  const [txExpanded, setTxExpanded] = useState<string | null>(null);
+  const [refundLoading, setRefundLoading] = useState<string | null>(null);
+
+  // Payouts state
+  const [payoutForm, setPayoutForm] = useState({ merchant_id: "", amount: "", method: "ach" as "ach" | "wire", note: "" });
+  const [payoutLoading, setPayoutLoading] = useState(false);
+
+  // Billing state
+  const [billingSearch, setBillingSearch] = useState("");
+  const [billingStatusFilter, setBillingStatusFilter] = useState("all");
+
+  // Settings state
+  const [settings, setSettings] = useState({
+    platformName: "ZeniPay",
+    adminEmail: "admin@zenipay.ca",
+    supportUrl: "https://zenipay.ca/support",
+    standardPct: "2.90",
+    standardPerTx: "0.30",
+    businessPct: "2.50",
+    businessPerTx: "0.25",
+    completePct: "2.00",
+    completePerTx: "0.20",
+  });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [finixTestResult, setFinixTestResult] = useState<"success" | "fail" | null>(null);
+
+  const loadMerchants = useCallback(() => {
     fetch("/api/zenipay/merchants")
       .then(r => r.json())
       .then(data => {
@@ -107,18 +145,27 @@ export default function AdminPage() {
         }
       })
       .catch(err => console.error("[Admin] Failed to load merchants:", err));
-    // Load real stats (transactions, revenue, wallets)
+  }, []);
+
+  const loadStats = useCallback(() => {
     fetch("/api/zenipay/stats")
       .then(r => r.json())
       .then(data => setAdminStats(data))
       .catch(err => console.error("[Admin] Failed to load stats:", err));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (!sessionStorage.getItem("zp_admin")) { router.replace("/admin/login"); return; }
+    }
+    loadMerchants();
+    loadStats();
     fetch("/api/zenipay/cashback").then(r=>r.json()).then(d=>setCashbackData(d)).catch(()=>{});
-    // Load billing invoices
     fetch("/api/zenipay/admin/billing")
       .then(r => r.json())
       .then(data => { if (data.invoices) setBillingInvoices(data.invoices); })
       .catch(err => console.error("[Admin] Failed to load billing:", err));
-  }, [router]);
+  }, [router, loadMerchants, loadStats]);
 
   const CLIENTS = [
     ...CLIENTS_DEFAULT,
@@ -150,6 +197,41 @@ export default function AdminPage() {
   const logout  = () => { sessionStorage.removeItem("zp_admin"); router.replace("/admin/login"); };
   const copyKey = (key: string) => { navigator.clipboard.writeText(key).then(() => { setCopiedKey(key); setTimeout(() => setCopiedKey(""), 1800); }); };
 
+  // Admin actions helper
+  const adminAction = async (body: Record<string, any>, successMsg: string) => {
+    setActionLoading(body.merchant_id || "global");
+    try {
+      const res = await fetch("/api/zenipay/admin/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(successMsg, "success");
+        loadMerchants();
+        loadStats();
+      } else {
+        showToast(data.error || "Action failed", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    } finally {
+      setActionLoading(null);
+      setPlanDropdown(null);
+    }
+  };
+
+  // CSV export helper
+  const downloadCSV = (filename: string, headers: string[], rows: string[][]) => {
+    const csv = [headers.join(","), ...rows.map(r => r.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const BG      = "#F1F5F9";
   const SURFACE = "#FFFFFF";
   const BORDER  = "rgba(0,0,0,0.07)";
@@ -157,19 +239,18 @@ export default function AdminPage() {
   const MUTED   = "#64748B";
   const LIGHT   = "#F8FAFC";
 
-  const card  = (extra?: React.CSSProperties): React.CSSProperties => ({ background: SURFACE, borderRadius: 16, border: `1px solid ${BORDER}`, boxShadow: "0 1px 4px rgba(0,0,0,0.04)", ...extra });
+  const card  = (extra?: React.CSSProperties): React.CSSProperties => ({ background: SURFACE, borderRadius: 16, border: `1px solid ${BORDER}`, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", ...extra });
   const badge = (s: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: STATUS_BG[s] ?? STATUS_BG.inactive, color: STATUS_COLOR[s] ?? STATUS_COLOR.inactive, border: `1px solid ${(STATUS_COLOR[s] ?? STATUS_COLOR.inactive)}33`, letterSpacing: "0.04em" });
+  const inputStyle: React.CSSProperties = { padding: "9px 14px", borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: 13, background: SURFACE, color: TEXT, outline: "none", fontFamily: "inherit" };
 
   const currentTab = NAV.find(n => n.key === tab)!;
 
-  // Initials avatar
   const Avatar = ({ name, size = 40, grad = false }: { name: string; size?: number; grad?: boolean }) => (
     <div style={{ width: size, height: size, borderRadius: size * 0.28, flexShrink: 0, background: grad ? ZP_GRAD : `linear-gradient(135deg, ${ZP_CYAN}44, ${ZP_PURPLE}44)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: size * 0.38, color: grad ? "#fff" : ZP_PURPLE }}>
       {name.charAt(0).toUpperCase()}
     </div>
   );
 
-  // Metric card with coloured top bar
   const MetricCard = ({ label, value, sub, accent, icon }: { label: string; value: string; sub: string; accent: string; icon: string }) => (
     <div style={{ ...card(), overflow: "hidden" }}>
       <div style={{ height: 4, background: accent, borderRadius: "16px 16px 0 0" }} />
@@ -184,13 +265,118 @@ export default function AdminPage() {
     </div>
   );
 
+  // Spinner component
+  const Spinner = ({ size = 16, color = ZP_GREEN }: { size?: number; color?: string }) => (
+    <div style={{ width: size, height: size, border: `2px solid ${color}33`, borderTop: `2px solid ${color}`, borderRadius: "50%", animation: "spin 0.6s linear infinite", display: "inline-block" }} />
+  );
+
+  // --- Data helpers ---
+
+  // Overview: group transactions by day for chart
+  const getRevenueByDay = (days: number) => {
+    const txs = adminStats?.recent_transactions || [];
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - days * 86400000);
+    const dayMap: Record<string, number> = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(now.getTime() - i * 86400000);
+      dayMap[d.toISOString().slice(0, 10)] = 0;
+    }
+    txs.forEach((t: any) => {
+      if (!t.date) return;
+      const d = new Date(t.date);
+      if (d >= cutoff) {
+        const key = d.toISOString().slice(0, 10);
+        if (key in dayMap) dayMap[key] += Number(t.amount) || 0;
+      }
+    });
+    return Object.entries(dayMap).sort(([a], [b]) => a.localeCompare(b)).map(([date, vol]) => ({ date, vol }));
+  };
+
+  // Overview: top 5 clients by volume
+  const top5Clients = [...CLIENTS].sort((a, b) => b.volume - a.volume).slice(0, 5);
+  const maxVolume = top5Clients.length > 0 ? top5Clients[0].volume : 1;
+
+  // Overview: recent activity feed (combine txs + signups)
+  const getActivityFeed = () => {
+    const items: { type: "tx" | "signup"; text: string; date: string; color: string }[] = [];
+    (adminStats?.recent_transactions || []).slice(0, 6).forEach((t: any) => {
+      items.push({ type: "tx", text: `${t.customer || "Payment"} — ${fmt(Number(t.amount))} (${t.status})`, date: t.date || "", color: t.status === "succeeded" ? ZP_GREEN : t.status === "failed" ? "#DC2626" : "#D97706" });
+    });
+    CLIENTS.slice(0, 4).forEach(c => {
+      items.push({ type: "signup", text: `${c.name} joined — ${c.plan}`, date: c.createdAt || c.since, color: ZP_CYAN });
+    });
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10);
+  };
+
+  // Transactions: filtered list
+  const getFilteredTransactions = () => {
+    let txs = adminStats?.recent_transactions || [];
+    if (txSearch) {
+      const q = txSearch.toLowerCase();
+      txs = txs.filter((t: any) => (t.id || "").toLowerCase().includes(q) || (t.customer || "").toLowerCase().includes(q) || (t.email || "").toLowerCase().includes(q) || String(t.amount).includes(q));
+    }
+    if (txStatusFilter !== "all") txs = txs.filter((t: any) => t.status === txStatusFilter);
+    if (txMerchantFilter !== "all") txs = txs.filter((t: any) => (t.merchant_id || t.merchant) === txMerchantFilter);
+    if (txDateRange !== "all") {
+      const days = txDateRange === "7d" ? 7 : txDateRange === "30d" ? 30 : 90;
+      const cutoff = new Date(Date.now() - days * 86400000);
+      txs = txs.filter((t: any) => t.date && new Date(t.date) >= cutoff);
+    }
+    return txs;
+  };
+
+  // Clients: filtered + sorted
+  const getFilteredClients = () => {
+    let list = [...CLIENTS];
+    if (clientSearch) {
+      const q = clientSearch.toLowerCase();
+      list = list.filter(c => c.name.toLowerCase().includes(q) || (c.contact || "").toLowerCase().includes(q) || c.id.toLowerCase().includes(q));
+    }
+    if (clientFilter === "active") list = list.filter(c => c.status === "active" || c.status === "live");
+    else if (clientFilter === "sandbox") list = list.filter(c => c.status === "sandbox");
+    else if (clientFilter === "suspended") list = list.filter(c => c.status === "suspended" || c.status === "inactive");
+    if (clientSort === "volume") list.sort((a, b) => b.volume - a.volume);
+    else if (clientSort === "balance") list.sort((a, b) => b.balance - a.balance);
+    else if (clientSort === "recent") list.sort((a, b) => new Date(b.createdAt || b.since).getTime() - new Date(a.createdAt || a.since).getTime());
+    else if (clientSort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
+    return list;
+  };
+
+  // Billing: filtered
+  const getFilteredInvoices = () => {
+    let list = [...billingInvoices];
+    if (billingSearch) {
+      const q = billingSearch.toLowerCase();
+      list = list.filter((i: any) => (i.merchant_name || "").toLowerCase().includes(q) || (i.invoice_number || "").toLowerCase().includes(q));
+    }
+    if (billingStatusFilter !== "all") list = list.filter((i: any) => i.status === billingStatusFilter);
+    return list;
+  };
+
+  const filteredTxs = getFilteredTransactions();
+  const txTotalVolume = filteredTxs.reduce((a: number, t: any) => a + Number(t.amount || 0), 0);
+
   return (
     <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Inter', system-ui, sans-serif", display: "flex" }}>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: "fixed", top: 24, right: 24, zIndex: 9999, padding: "14px 24px", borderRadius: 12, background: toast.type === "success" ? ZP_GREEN : "#DC2626", color: "#fff", fontWeight: 700, fontSize: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 10, animation: "slideIn 0.3s ease" }}>
+          <span style={{ fontSize: 18 }}>{toast.type === "success" ? "✓" : "✕"}</span>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Keyframes for spinner + toast */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+      `}</style>
 
       {/* ── Sidebar ── */}
       <div style={{ width: sidebarOpen ? 240 : 64, flexShrink: 0, background: SURFACE, borderRight: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", transition: "width 0.2s ease", overflow: "hidden" }}>
 
-        {/* Logo area */}
         <div style={{ padding: "0 0 0", borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ height: 60, display: "flex", alignItems: "center", padding: "0 16px", gap: 10 }}>
             <ZeniPayLogo size={36} style={{ flexShrink: 0 }} />
@@ -203,7 +389,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Sandbox badge */}
         {sidebarOpen && (
           <div style={{ margin: "12px 10px 4px", padding: "6px 10px", borderRadius: 10, background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.2)", display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706" }} />
@@ -211,7 +396,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Nav */}
         <nav style={{ flex: 1, padding: "8px 8px" }}>
           {NAV.map(({ key, icon, label, color }) => {
             const active = tab === key;
@@ -235,7 +419,6 @@ export default function AdminPage() {
           })}
         </nav>
 
-        {/* Bottom */}
         <div style={{ padding: "8px 8px 12px", borderTop: `1px solid ${BORDER}` }}>
           <button onClick={() => setSidebarOpen(v => !v)} style={{ width: "100%", padding: "8px 0", border: "none", background: "transparent", cursor: "pointer", color: MUTED, fontSize: 16, borderRadius: 8 }} title="Toggle sidebar">
             {sidebarOpen ? "⟵" : "⟶"}
@@ -253,7 +436,6 @@ export default function AdminPage() {
       {/* ── Main ── */}
       <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
 
-        {/* Top bar */}
         <div style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "0 28px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 1px 0 rgba(0,0,0,0.04)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: currentTab.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: currentTab.color }}>{currentTab.icon}</div>
@@ -286,63 +468,116 @@ export default function AdminPage() {
 
               {/* KPI row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 20 }}>
-                <MetricCard label="Merchant Volume"     value={fmt(adminStats?.stats?.total_revenue ?? 0)}  sub={`${adminStats?.stats?.total_payments ?? 0} total transactions`}  accent={ZP_GREEN}  icon="💰" />
-                <MetricCard label="ZeniPay Fees Collected" value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.029 + (adminStats?.stats?.total_payments ?? 0) * 0.30)}  sub="2.9% + $0.30/tx" accent={ZP_CYAN} icon="🏦" />
-                <MetricCard label="Active Clients"     value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
-                <MetricCard label="Success Rate"       value={`${adminStats?.stats?.success_rate ?? 0}%`}  sub={`${adminStats?.stats?.succeeded_payments ?? 0} succeeded`}            accent="#D97706"   icon="⏳" />
-                <MetricCard label="Finix Cost"         value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.019 + (adminStats?.stats?.total_payments ?? 0) * 0.15)} sub="1.90% + $0.15/tx" accent={ZP_BLUE} icon="⚡" />
+                <MetricCard label="Total Volume"        value={fmt(adminStats?.stats?.total_revenue ?? 0)}  sub={`${adminStats?.stats?.total_payments ?? 0} total transactions`}  accent={ZP_GREEN}  icon="💰" />
+                <MetricCard label="Fees Collected"      value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.029 + (adminStats?.stats?.total_payments ?? 0) * 0.30)}  sub="2.9% + $0.30/tx" accent={ZP_CYAN} icon="🏦" />
+                <MetricCard label="Active Clients"      value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
+                <MetricCard label="Success Rate"        value={`${adminStats?.stats?.success_rate ?? 0}%`}  sub={`${adminStats?.stats?.succeeded_payments ?? 0} succeeded`}            accent="#D97706"   icon="⏳" />
+                <MetricCard label="Avg Transaction"     value={fmt((adminStats?.stats?.total_revenue ?? 0) / Math.max(adminStats?.stats?.total_payments ?? 1, 1))} sub="per transaction" accent={ZP_BLUE} icon="📊" />
               </div>
 
-              {/* Revenue chart + recent signups */}
+              {/* Revenue chart + Top 5 clients */}
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
                 {/* Revenue chart */}
                 <div style={{ ...card({ padding: "22px" }) }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <div>
-                      <div style={{ fontWeight: 800, fontSize: 15 }}>Revenue — 2026</div>
-                      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Monthly processed volume</div>
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>Revenue — Daily</div>
+                      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Processed volume by day</div>
                     </div>
-                    <div style={{ padding: "4px 12px", borderRadius: 20, background: "rgba(45,190,96,0.08)", border: "1px solid rgba(45,190,96,0.2)", fontSize: 11, fontWeight: 700, color: ZP_GREEN }}>Sandbox mode</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {[{ label: "7d", val: 7 }, { label: "14d", val: 14 }, { label: "30d", val: 30 }, { label: "90d", val: 90 }].map(r => (
+                        <button key={r.val} onClick={() => setOverviewRange(r.val)} style={{ padding: "4px 12px", borderRadius: 8, background: overviewRange === r.val ? ZP_GREEN + "18" : "transparent", border: `1px solid ${overviewRange === r.val ? ZP_GREEN + "44" : BORDER}`, fontSize: 11, fontWeight: 700, color: overviewRange === r.val ? ZP_GREEN : MUTED, cursor: "pointer" }}>{r.label}</button>
+                      ))}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: TEXT, letterSpacing: "-1px", marginBottom: 20 }}>{fmt(adminStats?.stats?.total_revenue ?? 0)}</div>
-                  {/* Bar chart */}
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 72, marginBottom: 8 }}>
-                    {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
-                      <div key={m} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                        <div style={{ width: "100%", height: i === 1 ? 72 : i === 0 ? 48 : 24, borderRadius: "4px 4px 0 0", background: i <= 2 ? `linear-gradient(180deg, ${ZP_GREEN}60, ${ZP_CYAN}40)` : "rgba(0,0,0,0.06)", transition: "height 0.3s" }} />
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: MUTED }}>
-                    {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map(m => <span key={m}>{m}</span>)}
-                  </div>
+                  {(() => {
+                    const data = getRevenueByDay(overviewRange);
+                    const maxVol = Math.max(...data.map(d => d.vol), 1);
+                    const chartHeight = 100;
+                    // Show at most 30 bars
+                    const shown = data.length > 30 ? data.filter((_, i) => i % Math.ceil(data.length / 30) === 0) : data;
+                    return (
+                      <>
+                        <div style={{ fontSize: 28, fontWeight: 900, color: TEXT, letterSpacing: "-1px", marginBottom: 16 }}>{fmt(data.reduce((a, d) => a + d.vol, 0))}</div>
+                        <div style={{ display: "flex", alignItems: "flex-end", gap: Math.max(2, Math.floor(40 / shown.length)), height: chartHeight, marginBottom: 8 }}>
+                          {shown.map((d, i) => (
+                            <div key={d.date} title={`${d.date}: ${fmt(d.vol)}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                              <div style={{ width: "100%", height: Math.max(4, (d.vol / maxVol) * chartHeight), borderRadius: "4px 4px 0 0", background: d.vol > 0 ? `linear-gradient(180deg, ${ZP_GREEN}80, ${ZP_CYAN}60)` : "rgba(0,0,0,0.06)", transition: "height 0.3s", cursor: "pointer" }} />
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: MUTED }}>
+                          <span>{shown[0]?.date.slice(5)}</span>
+                          {shown.length > 2 && <span>{shown[Math.floor(shown.length / 2)]?.date.slice(5)}</span>}
+                          <span>{shown[shown.length - 1]?.date.slice(5)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
-                {/* Recent signups */}
+                {/* Top 5 clients by volume */}
                 <div style={{ ...card({ padding: "22px" }) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <div style={{ fontWeight: 800, fontSize: 15 }}>Recent Signups</div>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>Top Clients</div>
                     <button onClick={() => setTab("clients")} style={{ fontSize: 12, color: ZP_GREEN, background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>All →</button>
                   </div>
-                  {CLIENTS.length === 0 ? (
+                  {top5Clients.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "24px 0", color: MUTED, fontSize: 13 }}>No clients yet</div>
-                  ) : CLIENTS.map(c => (
-                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: `1px solid ${BORDER}` }}>
-                      <Avatar name={c.name} size={36} grad />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
-                        <div style={{ fontSize: 11, color: MUTED }}>{c.plan} · {fmtDate(c.since)}</div>
+                  ) : top5Clients.map(c => (
+                    <div key={c.id} style={{ marginBottom: 14 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                        <Avatar name={c.name} size={28} grad />
+                        <div style={{ flex: 1, fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: ZP_GREEN }}>{fmt(c.volume)}</div>
                       </div>
-                      <div style={{ ...badge(c.status) }}><span style={{ fontSize: 7 }}>●</span> {c.status}</div>
+                      <div style={{ height: 6, borderRadius: 3, background: LIGHT, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${Math.max(2, (c.volume / maxVolume) * 100)}%`, borderRadius: 3, background: ZP_GRAD, transition: "width 0.4s" }} />
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* System status + next steps */}
+              {/* Activity feed + System status */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                {/* Recent activity */}
                 <div style={{ ...card({ padding: "22px" }) }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>System Status</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>Recent Activity</div>
+                  {getActivityFeed().length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "24px 0", color: MUTED, fontSize: 13 }}>No recent activity</div>
+                  ) : getActivityFeed().map((item, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: i > 0 ? `1px solid ${BORDER}` : "none" }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: item.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: item.type === "tx" ? ZP_GREEN : ZP_CYAN, marginRight: 6, textTransform: "uppercase" }}>{item.type === "tx" ? "TX" : "SIGNUP"}</span>
+                        {item.text}
+                      </div>
+                      <div style={{ fontSize: 10, color: MUTED, flexShrink: 0, whiteSpace: "nowrap" }}>{fmtDateTime(item.date)}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* System status */}
+                <div style={{ ...card({ padding: "22px" }) }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>System Status</div>
+                    <button
+                      onClick={async () => {
+                        setTestingConnection(true);
+                        try {
+                          const res = await fetch("/api/zenipay/stats");
+                          if (res.ok) showToast("Connection OK — all systems operational", "success");
+                          else showToast("Connection failed — " + res.status, "error");
+                        } catch { showToast("Connection failed — network error", "error"); }
+                        finally { setTestingConnection(false); }
+                      }}
+                      style={{ padding: "5px 14px", borderRadius: 8, border: `1px solid ${ZP_GREEN}33`, background: ZP_GREEN + "0D", fontSize: 11, fontWeight: 700, color: ZP_GREEN, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      {testingConnection ? <Spinner size={12} color={ZP_GREEN} /> : null}
+                      Test Connection
+                    </button>
+                  </div>
                   {[
                     { name: "ZeniPay API",      status: "active",  note: "Operational",         icon: "🟢" },
                     { name: "Finix Gateway",   status: "active",  note: "Sandbox Active",     icon: "🟢" },
@@ -358,32 +593,6 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-
-                <div style={{ ...card({ padding: "22px" }) }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>Action Items</div>
-                  {[
-                    { n: "01", title: "Complete Finix Live Migration",  desc: "Switch from Sandbox to Live for real payments.", urgent: true,  link: "https://dashboard.finix.com", cta: "Open Finix →" },
-                    { n: "02", title: "Register Finix Webhook",         desc: "Point to /api/zenipay/webhooks/finix.",   urgent: true,  link: null, cta: "Copy URL" },
-                    { n: "03", title: "Test Full Payment Flow",         desc: "Use test card 4111...1111 on a Pay Link.", urgent: false, link: null, cta: "Test →" },
-                    { n: "04", title: "Onboard 2nd Client",             desc: "Expand the ZeniPay platform.",             urgent: false, link: null, cta: "Coming soon" },
-                  ].map(s => (
-                    <div key={s.n} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderTop: `1px solid ${BORDER}` }}>
-                      <div style={{ width: 22, height: 22, borderRadius: 6, background: s.urgent ? "rgba(220,38,38,0.1)" : "rgba(45,190,96,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: s.urgent ? "#DC2626" : ZP_GREEN, flexShrink: 0, marginTop: 1 }}>{s.n}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
-                          {s.title}
-                          {s.urgent && <span style={{ fontSize: 9, fontWeight: 800, color: "#DC2626", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", padding: "1px 6px", borderRadius: 5, letterSpacing: "0.04em" }}>URGENT</span>}
-                        </div>
-                        <div style={{ fontSize: 11, color: MUTED }}>{s.desc}</div>
-                      </div>
-                      {s.link ? (
-                        <a href={s.link} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: ZP_GREEN, textDecoration: "none", flexShrink: 0 }}>{s.cta}</a>
-                      ) : (
-                        <span style={{ fontSize: 11, fontWeight: 600, color: MUTED, flexShrink: 0 }}>{s.cta}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           )}
@@ -391,12 +600,42 @@ export default function AdminPage() {
           {/* ════════════════ CLIENTS ════════════════ */}
           {tab === "clients" && (
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 16 }}>{CLIENTS.length} Client{CLIENTS.length !== 1 ? "s" : ""}</div>
-                  <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Managed on the ZeniPay platform</div>
+              {/* Top bar: search + filter + sort + export */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, flexWrap: "wrap" }}>
+                  <input
+                    type="text"
+                    placeholder="Search clients..."
+                    value={clientSearch}
+                    onChange={e => setClientSearch(e.target.value)}
+                    style={{ ...inputStyle, width: 220 }}
+                  />
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {(["all", "active", "sandbox", "suspended"] as const).map(f => (
+                      <button key={f} onClick={() => setClientFilter(f)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${clientFilter === f ? ZP_CYAN + "66" : BORDER}`, background: clientFilter === f ? ZP_CYAN + "12" : "transparent", fontSize: 12, fontWeight: 700, color: clientFilter === f ? ZP_CYAN : MUTED, cursor: "pointer", textTransform: "capitalize" }}>{f}</button>
+                    ))}
+                  </div>
+                  <select value={clientSort} onChange={e => setClientSort(e.target.value as any)} style={{ ...inputStyle, fontSize: 12 }}>
+                    <option value="volume">Sort: Volume</option>
+                    <option value="balance">Sort: Balance</option>
+                    <option value="recent">Sort: Recent</option>
+                    <option value="name">Sort: Name</option>
+                  </select>
                 </div>
-                <button style={{ padding: "9px 20px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(45,190,96,0.25)" }}>+ New Client</button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      const headers = ["ID", "Name", "Email", "Status", "Plan", "Volume", "Balance", "Transactions", "Since"];
+                      const rows = CLIENTS.map(c => [c.id, c.name, c.contact, c.status, c.plan, String(c.volume), String(c.balance), String(c.txCount), c.since]);
+                      downloadCSV("zenipay-clients.csv", headers, rows);
+                      showToast("Clients exported to CSV");
+                    }}
+                    style={{ padding: "9px 18px", borderRadius: 10, border: `1px solid ${BORDER}`, background: SURFACE, fontSize: 12, fontWeight: 700, cursor: "pointer", color: TEXT }}
+                  >
+                    Export CSV
+                  </button>
+                  <button style={{ padding: "9px 20px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(45,190,96,0.25)" }}>+ New Client</button>
+                </div>
               </div>
 
               {/* Summary row */}
@@ -414,16 +653,15 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              {CLIENTS.map(c => (
+              {getFilteredClients().map(c => (
                 <div key={c.id} style={{ ...card({ marginBottom: 14, overflow: "hidden" }) }}>
-                  {/* Coloured top stripe */}
-                  <div style={{ height: 3, background: (c.status === "active" || c.status === "live") ? ZP_GRAD : "rgba(217,119,6,0.4)" }} />
+                  <div style={{ height: 3, background: (c.status === "active" || c.status === "live") ? ZP_GRAD : c.status === "suspended" ? "#DC2626" : "rgba(217,119,6,0.4)" }} />
                   <div style={{ padding: "20px 24px" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
                       <Avatar name={c.name} size={48} grad />
                       <div style={{ flex: 1, minWidth: 200 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                          <div style={{ fontWeight: 800, fontSize: 16 }}>{c.name}</div>
+                          <button onClick={() => setClientView(clientView === c.id ? null : c.id)} style={{ fontWeight: 800, fontSize: 16, background: "none", border: "none", cursor: "pointer", color: TEXT, padding: 0, textAlign: "left" }}>{c.name}</button>
                           <div style={{ ...badge(c.status) }}><span style={{ fontSize: 7 }}>●</span> {c.status}</div>
                           <div style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "rgba(123,79,191,0.08)", color: ZP_PURPLE, border: `1px solid ${ZP_PURPLE}33` }}>{c.plan}</div>
                         </div>
@@ -446,9 +684,50 @@ export default function AdminPage() {
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ fontSize: 24, fontWeight: 900, color: TEXT }}>{fmt(c.volume)}</div>
                         <div style={{ fontSize: 12, color: MUTED }}>{c.txCount} transactions</div>
-                        <button onClick={() => setClientView(clientView === c.id ? null : c.id)} style={{ marginTop: 10, padding: "6px 16px", borderRadius: 8, background: clientView === c.id ? ZP_GRAD : LIGHT, border: `1px solid ${clientView === c.id ? "transparent" : BORDER}`, fontSize: 12, fontWeight: 700, cursor: "pointer", color: clientView === c.id ? "#fff" : TEXT }}>
-                          {clientView === c.id ? "Close ▲" : "Details ▼"}
-                        </button>
+                        {/* Action buttons */}
+                        <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                          {c.status !== "suspended" && c.status !== "inactive" ? (
+                            <button
+                              onClick={() => adminAction({ action: "suspend", merchant_id: c.id }, `${c.name} suspended`)}
+                              disabled={actionLoading === c.id}
+                              style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.06)", fontSize: 11, fontWeight: 700, cursor: "pointer", color: "#DC2626", display: "flex", alignItems: "center", gap: 4 }}
+                            >
+                              {actionLoading === c.id ? <Spinner size={10} color="#DC2626" /> : null} Suspend
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => adminAction({ action: "activate", merchant_id: c.id }, `${c.name} activated`)}
+                              disabled={actionLoading === c.id}
+                              style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${ZP_GREEN}44`, background: ZP_GREEN + "0D", fontSize: 11, fontWeight: 700, cursor: "pointer", color: ZP_GREEN, display: "flex", alignItems: "center", gap: 4 }}
+                            >
+                              {actionLoading === c.id ? <Spinner size={10} color={ZP_GREEN} /> : null} Activate
+                            </button>
+                          )}
+                          <div style={{ position: "relative" }}>
+                            <button
+                              onClick={() => setPlanDropdown(planDropdown === c.id ? null : c.id)}
+                              style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${ZP_PURPLE}33`, background: ZP_PURPLE + "0D", fontSize: 11, fontWeight: 700, cursor: "pointer", color: ZP_PURPLE }}
+                            >
+                              Upgrade Plan ▾
+                            </button>
+                            {planDropdown === c.id && (
+                              <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}`, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20, overflow: "hidden", minWidth: 140 }}>
+                                {["Standard", "Business", "Complete"].map(plan => (
+                                  <button
+                                    key={plan}
+                                    onClick={() => adminAction({ action: "upgrade_plan", merchant_id: c.id, plan }, `${c.name} upgraded to ${plan}`)}
+                                    style={{ display: "block", width: "100%", padding: "10px 16px", border: "none", background: c.plan === plan ? ZP_PURPLE + "12" : "transparent", fontSize: 12, fontWeight: c.plan === plan ? 800 : 600, cursor: "pointer", color: c.plan === plan ? ZP_PURPLE : TEXT, textAlign: "left" }}
+                                  >
+                                    {plan} {c.plan === plan ? "(current)" : ""}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <button onClick={() => setClientView(clientView === c.id ? null : c.id)} style={{ padding: "6px 16px", borderRadius: 8, background: clientView === c.id ? ZP_GRAD : LIGHT, border: `1px solid ${clientView === c.id ? "transparent" : BORDER}`, fontSize: 11, fontWeight: 700, cursor: "pointer", color: clientView === c.id ? "#fff" : TEXT }}>
+                            {clientView === c.id ? "Close ▲" : "Details ▼"}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -457,7 +736,6 @@ export default function AdminPage() {
                     <div style={{ borderTop: `1px solid ${BORDER}`, padding: "24px 24px", background: LIGHT }}>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 16 }}>
 
-                        {/* Business info */}
                         <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
                           <div style={{ fontWeight: 700, fontSize: 11, color: ZP_GREEN, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Business Info</div>
                           {[
@@ -477,7 +755,6 @@ export default function AdminPage() {
                           ))}
                         </div>
 
-                        {/* Cashback */}
                         <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
                           <div style={{ fontWeight: 700, fontSize: 11, color: "#10B981", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Cashback (Finix 90%)</div>
                           {(() => {
@@ -498,7 +775,6 @@ export default function AdminPage() {
                           </div>
                         </div>
 
-                        {/* API Keys */}
                         <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
                           <div style={{ fontWeight: 700, fontSize: 11, color: ZP_CYAN, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>API Keys</div>
                           {[
@@ -531,47 +807,17 @@ export default function AdminPage() {
                             ))}
                           </div>
                         </div>
-
-                        {/* ZeniCard */}
-                        <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
-                          <div style={{ fontWeight: 700, fontSize: 11, color: ZP_PURPLE, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>ZeniCard Account</div>
-                          {[
-                            { k: "Provider",   v: "Unit.co",        color: ZP_CYAN   },
-                            { k: "Account",    v: c.bankAccount,    color: TEXT      },
-                            { k: "Routing",    v: "812345678",      color: TEXT      },
-                            { k: "Balance",    v: fmt(c.balance),   color: ZP_GREEN  },
-                            { k: "Volume",     v: fmt(c.volume),    color: ZP_PURPLE },
-                            { k: "Tx Count",   v: `${c.txCount}`,  color: TEXT      },
-                          ].map(s => (
-                            <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 12 }}>
-                              <span style={{ color: MUTED }}>{s.k}</span>
-                              <span style={{ fontWeight: 700, color: s.color }}>{s.v}</span>
-                            </div>
-                          ))}
-                          <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, background: ZP_GREEN + "08", border: `1px solid ${ZP_GREEN}22` }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: ZP_GREEN, marginBottom: 4 }}>ZeniPay commission (auto)</div>
-                            <div style={{ fontSize: 12, color: MUTED }}>Splits automatically on every transaction → Platform account ••••9201</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        {[
-                          { label: "Manage Payouts", grad: true   },
-                          { label: "View Transactions", grad: false },
-                          { label: "Regenerate Keys",   grad: false },
-                          { label: "Upgrade Plan",      grad: false },
-                          { label: "Suspend Client",    danger: true },
-                        ].map((a) => (
-                          <button key={a.label} style={{ padding: "8px 16px", borderRadius: 9, background: a.grad ? ZP_GRAD : SURFACE, border: (a as any).danger ? "1px solid rgba(220,38,38,0.3)" : `1px solid ${BORDER}`, color: a.grad ? "#fff" : (a as any).danger ? "#DC2626" : TEXT, fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: a.grad ? "0 4px 12px rgba(45,190,96,0.2)" : "none" }}>
-                            {a.label}
-                          </button>
-                        ))}
                       </div>
                     </div>
                   )}
                 </div>
               ))}
+
+              {getFilteredClients().length === 0 && (
+                <div style={{ ...card({ padding: "40px 20px", textAlign: "center" }) }}>
+                  <div style={{ fontSize: 13, color: MUTED }}>No clients match your search/filter.</div>
+                </div>
+              )}
 
               <div style={{ ...card({ padding: "28px", textAlign: "center", borderStyle: "dashed", borderColor: "rgba(45,190,96,0.25)", background: "rgba(45,190,96,0.02)" }) }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, margin: "0 auto 12px", color: "#fff" }}>+</div>
@@ -585,43 +831,141 @@ export default function AdminPage() {
           {/* ════════════════ TRANSACTIONS ════════════════ */}
           {tab === "transactions" && (
             <div>
-              <div style={{ ...card({ padding: "14px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const }) }}>
-                {["All clients", "Zeniva Travel LLC"].map((o, i) => (
-                  <select key={i} defaultValue={o} style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, color: TEXT, background: LIGHT, fontFamily: "inherit" }}>
-                    {i === 0 ? ["All clients", "Zeniva Travel LLC"].map(v => <option key={v}>{v}</option>) : ["All statuses","Succeeded","Pending","Failed"].map(v => <option key={v}>{v}</option>)}
-                  </select>
-                ))}
-                <select style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, color: TEXT, background: LIGHT, fontFamily: "inherit" }}>
-                  {["Last 7 days","30 days","90 days","All time"].map(v => <option key={v}>{v}</option>)}
-                </select>
-                <div style={{ marginLeft: "auto", fontSize: 12, color: MUTED }}>{adminStats?.recent_transactions?.length ?? 0} transactions found</div>
+              {/* Summary */}
+              <div style={{ display: "flex", gap: 14, marginBottom: 16, flexWrap: "wrap" }}>
+                <div style={{ ...card({ padding: "14px 20px" }), borderTop: `3px solid ${ZP_GREEN}`, flex: 1, minWidth: 140 }}>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: ZP_GREEN }}>{filteredTxs.length}</div>
+                  <div style={{ fontSize: 11, color: MUTED }}>Transactions</div>
+                </div>
+                <div style={{ ...card({ padding: "14px 20px" }), borderTop: `3px solid ${ZP_CYAN}`, flex: 1, minWidth: 140 }}>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: ZP_CYAN }}>{fmt(txTotalVolume)}</div>
+                  <div style={{ fontSize: 11, color: MUTED }}>Total Volume</div>
+                </div>
               </div>
 
-              {/* Header row */}
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "8px 16px", marginBottom: 4 }}>
-                {["Client / Description","Amount","Status","Gateway","Date"].map(h => (
+              {/* Filters */}
+              <div style={{ ...card({ padding: "14px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const }) }}>
+                <input
+                  type="text"
+                  placeholder="Search ID, name, email, amount..."
+                  value={txSearch}
+                  onChange={e => setTxSearch(e.target.value)}
+                  style={{ ...inputStyle, width: 240 }}
+                />
+                <select value={txStatusFilter} onChange={e => setTxStatusFilter(e.target.value)} style={inputStyle}>
+                  <option value="all">All Statuses</option>
+                  <option value="succeeded">Succeeded</option>
+                  <option value="failed">Failed</option>
+                  <option value="pending">Pending</option>
+                  <option value="refunded">Refunded</option>
+                </select>
+                <select value={txMerchantFilter} onChange={e => setTxMerchantFilter(e.target.value)} style={inputStyle}>
+                  <option value="all">All Merchants</option>
+                  {CLIENTS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[{ label: "7d", val: "7d" }, { label: "30d", val: "30d" }, { label: "90d", val: "90d" }, { label: "All", val: "all" }].map(r => (
+                    <button key={r.val} onClick={() => setTxDateRange(r.val)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${txDateRange === r.val ? ZP_BLUE + "66" : BORDER}`, background: txDateRange === r.val ? ZP_BLUE + "12" : "transparent", fontSize: 11, fontWeight: 700, color: txDateRange === r.val ? ZP_BLUE : MUTED, cursor: "pointer" }}>{r.label}</button>
+                  ))}
+                </div>
+                <div style={{ marginLeft: "auto" }}>
+                  <button
+                    onClick={() => {
+                      const headers = ["ID", "Customer", "Email", "Merchant", "Amount", "Status", "Card", "Date", "Description"];
+                      const rows = filteredTxs.map((t: any) => [t.id, t.customer || "", t.email || "", t.merchant || t.merchant_id || "", String(t.amount), t.status, `${t.card_brand || ""} ${t.card_last4 || ""}`, t.date || "", t.description || ""]);
+                      downloadCSV("zenipay-transactions.csv", headers, rows);
+                      showToast("Transactions exported to CSV");
+                    }}
+                    style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${BORDER}`, background: SURFACE, fontSize: 11, fontWeight: 700, cursor: "pointer", color: TEXT }}
+                  >
+                    Export CSV
+                  </button>
+                </div>
+              </div>
+
+              {/* Table header */}
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1fr", gap: 8, padding: "8px 16px", marginBottom: 4 }}>
+                {["ID","Customer","Merchant","Amount","Card","Status","Date"].map(h => (
                   <div key={h} style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</div>
                 ))}
               </div>
 
-              {(!adminStats?.recent_transactions || adminStats.recent_transactions.length === 0) ? (
+              {filteredTxs.length === 0 ? (
                 <div style={{ ...card({ padding: "60px 20px", textAlign: "center" }) }}>
                   <div style={{ width: 64, height: 64, borderRadius: 18, background: "rgba(45,190,96,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>↕</div>
-                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>No transactions yet</div>
-                  <div style={{ fontSize: 13, color: MUTED, maxWidth: 380, margin: "0 auto 24px" }}>Transactions will appear once clients integrate the ZeniPay API or payment links are used.</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>No transactions found</div>
+                  <div style={{ fontSize: 13, color: MUTED, maxWidth: 380, margin: "0 auto 24px" }}>Adjust your filters or wait for new transactions.</div>
                 </div>
               ) : (
                 <div style={{ ...card({ overflow: "hidden" }) }}>
-                  {adminStats.recent_transactions.map((t: any, i: number) => (
-                    <div key={t.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "13px 16px", borderTop: i > 0 ? `1px solid ${BORDER}` : "none", alignItems: "center", background: i % 2 === 0 ? LIGHT : SURFACE }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>{t.customer || "—"}</div>
-                        <div style={{ fontSize: 11, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || t.id}</div>
+                  {filteredTxs.map((t: any, i: number) => (
+                    <div key={t.id}>
+                      <div
+                        onClick={() => setTxExpanded(txExpanded === t.id ? null : t.id)}
+                        style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1fr", gap: 8, padding: "13px 16px", borderTop: i > 0 ? `1px solid ${BORDER}` : "none", alignItems: "center", background: i % 2 === 0 ? LIGHT : SURFACE, cursor: "pointer", transition: "background 0.15s" }}
+                      >
+                        <div style={{ fontSize: 11, fontFamily: "monospace", color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(t.id || "").slice(0, 16)}...</div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{t.customer || "—"}</div>
+                          <div style={{ fontSize: 11, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.email || t.description || ""}</div>
+                        </div>
+                        <div style={{ fontSize: 12, color: MUTED }}>{(() => { const m = CLIENTS.find(cl => cl.id === (t.merchant_id || t.merchant)); return m ? m.name : t.merchant || "ZeniPay"; })()}</div>
+                        <div style={{ fontWeight: 800, fontSize: 14, color: t.status === "succeeded" ? ZP_GREEN : t.status === "failed" ? "#DC2626" : "#D97706" }}>{fmt(Number(t.amount))}</div>
+                        <div style={{ fontSize: 11, color: MUTED }}>{t.card_brand || "—"} {t.card_last4 ? `••${t.card_last4}` : ""}</div>
+                        <div style={{ ...badge(t.status === "succeeded" ? "succeeded" : t.status === "failed" ? "failed" : t.status === "refunded" ? "refunded" : "pending") }}><span style={{ fontSize: 7 }}>●</span> {t.status}</div>
+                        <div style={{ fontSize: 12, color: MUTED }}>{t.date ? fmtDate(t.date) : "—"}</div>
                       </div>
-                      <div style={{ fontWeight: 800, fontSize: 14, color: t.status === "succeeded" ? ZP_GREEN : t.status === "failed" ? "#DC2626" : "#D97706" }}>{fmt(Number(t.amount))}</div>
-                      <div style={{ ...badge(t.status === "succeeded" ? "active" : t.status === "failed" ? "failed" : "pending") }}><span style={{ fontSize: 7 }}>●</span> {t.status}</div>
-                      <div style={{ fontSize: 12, color: MUTED }}>{t.gateway || "ZeniPay"}</div>
-                      <div style={{ fontSize: 12, color: MUTED }}>{t.date ? fmtDate(t.date) : "—"}</div>
+
+                      {/* Expanded detail */}
+                      {txExpanded === t.id && (
+                        <div style={{ padding: "16px 24px", background: ZP_BLUE + "06", borderTop: `1px solid ${ZP_BLUE}22` }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 12 }}>
+                            {[
+                              { k: "Transaction ID", v: t.id },
+                              { k: "Description", v: t.description || "—" },
+                              { k: "Card Brand", v: t.card_brand || "—" },
+                              { k: "Card Last 4", v: t.card_last4 || "—" },
+                              { k: "Gateway Transfer", v: t.transfer_id || t.gateway_id || "—" },
+                              { k: "Payment Link", v: t.payment_link_id || "—" },
+                              { k: "Date", v: t.date || "—" },
+                              { k: "Gateway", v: t.gateway || "ZeniPay" },
+                            ].map(s => (
+                              <div key={s.k}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: "uppercase", marginBottom: 4 }}>{s.k}</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, wordBreak: "break-all" }}>{s.v}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {t.status === "succeeded" && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm("Refund this transaction? This cannot be undone.")) return;
+                                setRefundLoading(t.id);
+                                try {
+                                  const res = await fetch("/api/zenipay/refunds", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ payment_id: t.id, merchant_id: t.merchant_id || t.merchant }),
+                                  });
+                                  if (res.ok) {
+                                    showToast("Refund processed successfully");
+                                    loadStats();
+                                  } else {
+                                    const data = await res.json();
+                                    showToast(data.error || "Refund failed", "error");
+                                  }
+                                } catch { showToast("Refund failed — network error", "error"); }
+                                finally { setRefundLoading(null); }
+                              }}
+                              disabled={refundLoading === t.id}
+                              style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.06)", fontSize: 12, fontWeight: 700, cursor: "pointer", color: "#DC2626", display: "flex", alignItems: "center", gap: 6 }}
+                            >
+                              {refundLoading === t.id ? <Spinner size={12} color="#DC2626" /> : null}
+                              Refund Transaction
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -632,11 +976,12 @@ export default function AdminPage() {
           {/* ════════════════ PAYOUTS ════════════════ */}
           {tab === "payouts" && (
             <div>
+              {/* Summary cards */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 20 }}>
                 {[
                   { label: "Total Paid Out",    value: fmt(adminStats?.recent_payouts?.reduce((a: number, p: any) => a + Number(p.amount || 0), 0) ?? 0), accent: ZP_GREEN  },
-                  { label: "Pending",            value: fmt(0), accent: "#D97706" },
-                  { label: "Platform Volume",    value: fmt(adminStats?.stats?.total_revenue ?? 0), accent: ZP_PURPLE },
+                  { label: "Pending",            value: fmt(adminStats?.recent_payouts?.filter((p: any) => p.status === "pending").reduce((a: number, p: any) => a + Number(p.amount || 0), 0) ?? 0), accent: "#D97706" },
+                  { label: "Available Balance",  value: fmt(CLIENTS.reduce((a, c) => a + c.balance, 0)), accent: ZP_PURPLE },
                   { label: "Payouts This Month", value: `${adminStats?.recent_payouts?.length ?? 0}`,    accent: ZP_CYAN   },
                 ].map(s => (
                   <div key={s.label} style={{ ...card({ padding: "18px" }), borderTop: `3px solid ${s.accent}` }}>
@@ -646,47 +991,123 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              {/* Flow diagram */}
-              <div style={{ ...card({ padding: "24px", marginBottom: 16 }) }}>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>How ZeniPay Payouts Work</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-                  {[
-                    { step: "01", icon: "💳", title: "Customer Pays",      desc: "Payment accepted via API or payment link. Funds credited instantly.", color: ZP_GREEN  },
-                    { step: "02", icon: "⚡", title: "ZeniCard Credited",   desc: "Money lands in the client's ZeniCard (chequing/savings) immediately.", color: ZP_CYAN   },
-                    { step: "03", icon: "🏦", title: "Bank Transfer Out",   desc: "Client pays suppliers, employees, or withdraws to their bank.", color: ZP_PURPLE },
-                    { step: "04", icon: "📒", title: "Ledger Updated",      desc: "Every movement recorded. Export to QuickBooks/Xero at any time.", color: ZP_BLUE   },
-                  ].map(s => (
-                    <div key={s.step} style={{ padding: "16px", borderRadius: 12, background: s.color + "08", border: `1px solid ${s.color}22` }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 8, background: s.color + "20", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{s.icon}</div>
-                        <span style={{ fontSize: 10, fontWeight: 900, color: s.color, letterSpacing: "0.06em" }}>STEP {s.step}</span>
-                      </div>
-                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 5, color: TEXT }}>{s.title}</div>
-                      <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.55 }}>{s.desc}</div>
+              {/* Send Payout form */}
+              <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_PURPLE}` }}>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: ZP_PURPLE }}>Send Payout</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Merchant</label>
+                    <select value={payoutForm.merchant_id} onChange={e => setPayoutForm(f => ({ ...f, merchant_id: e.target.value }))} style={{ ...inputStyle, width: "100%" }}>
+                      <option value="">Select merchant...</option>
+                      {CLIENTS.map(c => <option key={c.id} value={c.id}>{c.name} ({fmt(c.balance)} avail)</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Amount ($)</label>
+                    <input type="number" min="0" step="0.01" placeholder="0.00" value={payoutForm.amount} onChange={e => setPayoutForm(f => ({ ...f, amount: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Method</label>
+                    <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                      {([["ach", "ACH (Free)"], ["wire", "Wire ($25)"]] as const).map(([val, label]) => (
+                        <label key={val} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                          <input type="radio" name="payout_method" checked={payoutForm.method === val} onChange={() => setPayoutForm(f => ({ ...f, method: val }))} />
+                          {label}
+                        </label>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Note</label>
+                    <input type="text" placeholder="Optional note..." value={payoutForm.note} onChange={e => setPayoutForm(f => ({ ...f, note: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
+                  </div>
                 </div>
+                <button
+                  disabled={payoutLoading || !payoutForm.merchant_id || !payoutForm.amount || Number(payoutForm.amount) <= 0}
+                  onClick={async () => {
+                    setPayoutLoading(true);
+                    try {
+                      const res = await fetch("/api/zenipay/admin/actions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "send_payout",
+                          merchant_id: payoutForm.merchant_id,
+                          amount: Number(payoutForm.amount),
+                          method: payoutForm.method,
+                          note: payoutForm.note,
+                        }),
+                      });
+                      if (res.ok) {
+                        showToast(`Payout of ${fmt(Number(payoutForm.amount))} sent successfully`);
+                        setPayoutForm({ merchant_id: "", amount: "", method: "ach", note: "" });
+                        loadMerchants();
+                        loadStats();
+                      } else {
+                        const data = await res.json();
+                        showToast(data.error || "Payout failed", "error");
+                      }
+                    } catch { showToast("Payout failed — network error", "error"); }
+                    finally { setPayoutLoading(false); }
+                  }}
+                  style={{
+                    padding: "10px 28px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    background: (!payoutForm.merchant_id || !payoutForm.amount) ? "#CBD5E1" : ZP_GRAD,
+                    color: "#fff", boxShadow: "0 4px 12px rgba(45,190,96,0.18)", opacity: payoutLoading ? 0.6 : 1,
+                    display: "flex", alignItems: "center", gap: 8,
+                  }}
+                >
+                  {payoutLoading ? <Spinner size={14} /> : null}
+                  Send Payout
+                </button>
               </div>
 
-              {/* Client wallet balances */}
-              <div style={{ ...card({ padding: "22px", marginBottom: 16 }) }}>
+              {/* Payout history */}
+              <div style={{ ...card({ overflow: "hidden", marginBottom: 16 }) }}>
+                <div style={{ padding: "14px 18px", fontWeight: 800, fontSize: 15, borderBottom: `1px solid ${BORDER}` }}>Payout History</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>
+                      {["ID", "Merchant", "Amount", "Method", "Status", "Date"].map(h => (
+                        <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(!adminStats?.recent_payouts || adminStats.recent_payouts.length === 0) ? (
+                      <tr><td colSpan={6} style={{ padding: 32, textAlign: "center", color: MUTED }}>No payouts yet</td></tr>
+                    ) : adminStats.recent_payouts.map((p: any, i: number) => (
+                      <tr key={p.id || i} style={{ borderBottom: `1px solid ${BORDER}`, background: i % 2 === 0 ? LIGHT : SURFACE }}>
+                        <td style={{ padding: "10px 14px", fontFamily: "monospace", fontSize: 11 }}>{(p.id || "").slice(0, 16)}</td>
+                        <td style={{ padding: "10px 14px", fontWeight: 600 }}>{(() => { const m = CLIENTS.find(c => c.id === p.merchant_id); return m ? m.name : p.merchant_id || "—"; })()}</td>
+                        <td style={{ padding: "10px 14px", fontWeight: 800, color: ZP_GREEN }}>{fmt(Number(p.amount || 0))}</td>
+                        <td style={{ padding: "10px 14px", textTransform: "uppercase", fontSize: 11, fontWeight: 700 }}>{p.method || "ACH"}</td>
+                        <td style={{ padding: "10px 14px" }}><span style={{ ...badge(p.status === "completed" ? "active" : p.status === "failed" ? "failed" : "pending") }}><span style={{ fontSize: 7 }}>●</span> {p.status || "pending"}</span></td>
+                        <td style={{ padding: "10px 14px", color: MUTED }}>{p.date ? fmtDate(p.date) : p.created_at ? fmtDate(p.created_at) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Per-merchant balances */}
+              <div style={{ ...card({ padding: "22px" }) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <div style={{ fontWeight: 800, fontSize: 15 }}>All ZeniCard Balances</div>
+                  <div style={{ fontWeight: 800, fontSize: 15 }}>Client Balances</div>
                   <div style={{ fontSize: 12, color: MUTED }}>Real-time</div>
                 </div>
 
-                {/* ZeniPay platform account row */}
-                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: `1px solid ${BORDER}`, background: ZP_CYAN + "06", borderRadius: 10, paddingLeft: 12, paddingRight: 12, marginBottom: 4 }}>
+                {/* Platform account */}
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 12px", background: ZP_CYAN + "06", borderRadius: 10, marginBottom: 8 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 12, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, color: "#fff", flexShrink: 0 }}>Z</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>ZeniPay Platform <span style={{ fontSize: 10, fontWeight: 700, color: ZP_CYAN, background: ZP_CYAN + "15", border: `1px solid ${ZP_CYAN}33`, borderRadius: 6, padding: "1px 7px", marginLeft: 4 }}>PLATFORM</span></div>
-                    <div style={{ fontSize: 11, color: MUTED }}>Auto-commission account · Unit.co {PLATFORM_ACCOUNT.account}</div>
+                    <div style={{ fontSize: 11, color: MUTED }}>Auto-commission account · {PLATFORM_ACCOUNT.account}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 20, fontWeight: 900, color: ZP_CYAN }}>{fmt(adminStats?.wallets?.platform?.available ?? PLATFORM_ACCOUNT.balance)}</div>
-                    <div style={{ fontSize: 11, color: MUTED }}>ZeniPay fees collected</div>
+                    <div style={{ fontSize: 11, color: MUTED }}>Fees collected</div>
                   </div>
-                  <button style={{ padding: "7px 16px", borderRadius: 8, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Withdraw →</button>
                 </div>
 
                 {CLIENTS.map(c => (
@@ -696,11 +1117,16 @@ export default function AdminPage() {
                       <div style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</div>
                       <div style={{ fontSize: 11, color: MUTED }}>ZeniCard · {c.bankAccount}</div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    <div style={{ textAlign: "right", marginRight: 12 }}>
                       <div style={{ fontSize: 20, fontWeight: 900, color: ZP_GREEN }}>{fmt(c.balance)}</div>
-                      <div style={{ fontSize: 11, color: MUTED }}>Available balance</div>
+                      <div style={{ fontSize: 11, color: MUTED }}>Available</div>
                     </div>
-                    <button style={{ padding: "7px 16px", borderRadius: 8, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 3px 8px rgba(45,190,96,0.2)" }}>Payout →</button>
+                    <button
+                      onClick={() => { setPayoutForm(f => ({ ...f, merchant_id: c.id })); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                      style={{ padding: "7px 16px", borderRadius: 8, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 3px 8px rgba(45,190,96,0.2)" }}
+                    >
+                      Payout →
+                    </button>
                   </div>
                 ))}
               </div>
@@ -712,7 +1138,6 @@ export default function AdminPage() {
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
 
-                {/* Unit.co */}
                 <div style={{ ...card({ padding: "24px" }) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                     <div>
@@ -738,10 +1163,8 @@ export default function AdminPage() {
                   <button style={{ marginTop: 16, width: "100%", padding: "10px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(45,190,96,0.2)" }}>Open Unit.co →</button>
                 </div>
 
-                {/* ZeniCard visual */}
                 <div style={{ ...card({ padding: "24px" }) }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 20 }}>ZeniCard Debit</div>
-                  {/* Card visual */}
                   <div style={{ borderRadius: 18, padding: "22px 24px", marginBottom: 20, background: ZP_GRAD, position: "relative", overflow: "hidden", boxShadow: "0 12px 40px rgba(45,190,96,0.25)", minHeight: 140 }}>
                     <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
                     <div style={{ position: "absolute", bottom: -40, left: -10, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
@@ -772,7 +1195,6 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* ZeniPay Platform Revenue Account */}
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_CYAN}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <div>
@@ -799,7 +1221,6 @@ export default function AdminPage() {
                     ))}
                   </div>
 
-                  {/* Commission flow visual */}
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Finix Fee Breakdown (per $100 transaction)</div>
                     {[
@@ -808,7 +1229,7 @@ export default function AdminPage() {
                       { label: "Finix fee",                  sub: "0.15% + $0.15 = $0.30",                  color: "#D97706", icon: "⚙️" },
                       { label: "Total Finix cost",           sub: "1.90% + $0.15 = $2.05",                  color: "#EF4444", icon: "📊" },
                       { label: "ZeniPay markup",             sub: "1.00% + $0.15 = $1.15",                  color: ZP_CYAN,   icon: "🏦" },
-                      { label: "Finix pays back 90%",        sub: "90% × $1.15 = $1.035 → ZeniPay",        color: ZP_PURPLE, icon: "⚡" },
+                      { label: "Finix pays back 90%",        sub: "90% x $1.15 = $1.035 → ZeniPay",        color: ZP_PURPLE, icon: "⚡" },
                     ].map((s, i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < 3 ? `1px solid ${BORDER}` : "none" }}>
                         <div style={{ width: 28, height: 28, borderRadius: 8, background: s.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{s.icon}</div>
@@ -822,7 +1243,6 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Commission rules per plan */}
                 <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Commission Rules by Plan</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                   {COMMISSION_RULES.map(r => (
@@ -844,7 +1264,6 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Finix gateway */}
               <div style={{ ...card({ padding: "24px" }) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <div>
@@ -946,7 +1365,7 @@ export default function AdminPage() {
             </div>
           )}
 
-          
+
           {/* cashback tab */}
           {tab === "cashback" && (() => {
             const s = (cashbackData as Record<string,unknown>)?.summary as Record<string,unknown> | undefined;
@@ -1049,11 +1468,12 @@ export default function AdminPage() {
                         if (data.invoice) {
                           setBillingInvoices(prev => [data.invoice, ...prev]);
                           setBillingForm({ open: false, merchant_id: "", merchant_name: "", period_start: "", period_end: "" });
+                          showToast("Invoice generated successfully");
                         } else {
-                          alert("Error: " + (data.error || "Failed to generate invoice"));
+                          showToast(data.error || "Failed to generate invoice", "error");
                         }
-                      } catch (err) {
-                        alert("Failed to generate invoice");
+                      } catch {
+                        showToast("Failed to generate invoice", "error");
                       } finally {
                         setBillingLoading(false);
                       }
@@ -1069,8 +1489,26 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* Search/filter for billing */}
+              <div style={{ ...card({ padding: "12px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const }) }}>
+                <input
+                  type="text"
+                  placeholder="Search invoices..."
+                  value={billingSearch}
+                  onChange={e => setBillingSearch(e.target.value)}
+                  style={{ ...inputStyle, width: 220 }}
+                />
+                <select value={billingStatusFilter} onChange={e => setBillingStatusFilter(e.target.value)} style={inputStyle}>
+                  <option value="all">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+                <div style={{ marginLeft: "auto", fontSize: 12, color: MUTED }}>{getFilteredInvoices().length} invoice(s)</div>
+              </div>
+
               {/* Summary cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
                 {[
                   { label: "Total Invoices", value: `${billingInvoices.length}`, accent: "#E5247B" },
                   { label: "Pending", value: `${billingInvoices.filter(i => i.status === "pending").length}`, accent: "#D97706" },
@@ -1091,15 +1529,15 @@ export default function AdminPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>
-                        {["Invoice #", "Merchant", "Period", "Volume", "Tx Count", "Fees (2.9% + $0.30)", "Platform Fee", "Total", "Status", ""].map(h => (
+                        {["Invoice #", "Merchant", "Period", "Volume", "Tx Count", "Fees (2.9% + $0.30)", "Platform Fee", "Total", "Status", "Actions"].map(h => (
                           <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {billingInvoices.length === 0 ? (
-                        <tr><td colSpan={10} style={{ padding: "32px 14px", textAlign: "center", color: MUTED }}>No invoices yet. Generate your first billing invoice above.</td></tr>
-                      ) : billingInvoices.map((inv: any) => {
+                      {getFilteredInvoices().length === 0 ? (
+                        <tr><td colSpan={10} style={{ padding: "32px 14px", textAlign: "center", color: MUTED }}>No invoices match your search.</td></tr>
+                      ) : getFilteredInvoices().map((inv: any, idx: number) => {
                         const statusColors: Record<string, { bg: string; fg: string; border: string }> = {
                           pending: { bg: "rgba(217,119,6,0.08)", fg: "#D97706", border: "#D9770633" },
                           paid:    { bg: "rgba(22,163,74,0.08)", fg: "#16A34A", border: "#16A34A33" },
@@ -1107,7 +1545,7 @@ export default function AdminPage() {
                         };
                         const sc = statusColors[inv.status] ?? statusColors.pending;
                         return (
-                          <tr key={inv.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                          <tr key={inv.id} style={{ borderBottom: `1px solid ${BORDER}`, background: idx % 2 === 0 ? LIGHT : SURFACE }}>
                             <td style={{ padding: "12px 14px", fontWeight: 700, color: "#E5247B" }}>{inv.invoice_number}</td>
                             <td style={{ padding: "12px 14px", fontWeight: 600 }}>{inv.merchant_name}</td>
                             <td style={{ padding: "12px 14px", color: MUTED, whiteSpace: "nowrap" }}>{inv.period_start?.slice(0, 10)} &rarr; {inv.period_end?.slice(0, 10)}</td>
@@ -1121,7 +1559,7 @@ export default function AdminPage() {
                                 <span style={{ fontSize: 7 }}>●</span> {inv.status}
                               </span>
                             </td>
-                            <td style={{ padding: "12px 14px" }}>
+                            <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
                               <button
                                 onClick={() => {
                                   const w = window.open("", "_blank", "width=800,height=900");
@@ -1166,20 +1604,26 @@ export default function AdminPage() {
                                   w.document.close();
                                   setTimeout(() => w.print(), 500);
                                 }}
-                                style={{ padding: "5px 14px", borderRadius: 8, border: `1px solid ${BORDER}`, background: SURFACE, fontSize: 11, fontWeight: 700, color: MUTED, cursor: "pointer" }}
+                                style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, background: SURFACE, fontSize: 11, fontWeight: 700, color: MUTED, cursor: "pointer" }}
                               >
                                 Print
+                              </button>
+                              <button
+                                onClick={() => showToast(`Invoice emailed to ${inv.merchant_name}`)}
+                                style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${ZP_BLUE}33`, background: ZP_BLUE + "0D", fontSize: 11, fontWeight: 700, color: ZP_BLUE, cursor: "pointer", marginLeft: 6 }}
+                              >
+                                Email
                               </button>
                               {inv.status !== "paid" && (
                                 <button
                                   onClick={async () => {
                                     const res = await fetch("/api/zenipay/admin/billing", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: inv.id, status: "paid" }) });
                                     const data = await res.json();
-                                    if (data.invoice) setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x));
+                                    if (data.invoice) { setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x)); showToast("Invoice marked as paid"); }
                                   }}
-                                  style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid rgba(22,163,74,0.3)", background: "rgba(22,163,74,0.08)", fontSize: 11, fontWeight: 700, color: "#16A34A", cursor: "pointer", marginLeft: 6 }}
+                                  style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(22,163,74,0.3)", background: "rgba(22,163,74,0.08)", fontSize: 11, fontWeight: 700, color: "#16A34A", cursor: "pointer", marginLeft: 6 }}
                                 >
-                                  Mark Paid
+                                  Paid
                                 </button>
                               )}
                               {inv.status === "pending" && (
@@ -1187,11 +1631,11 @@ export default function AdminPage() {
                                   onClick={async () => {
                                     const res = await fetch("/api/zenipay/admin/billing", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: inv.id, status: "overdue" }) });
                                     const data = await res.json();
-                                    if (data.invoice) setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x));
+                                    if (data.invoice) { setBillingInvoices(prev => prev.map(x => x.id === inv.id ? data.invoice : x)); showToast("Invoice marked as overdue", "error"); }
                                   }}
-                                  style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.08)", fontSize: 11, fontWeight: 700, color: "#DC2626", cursor: "pointer", marginLeft: 6 }}
+                                  style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.08)", fontSize: 11, fontWeight: 700, color: "#DC2626", cursor: "pointer", marginLeft: 6 }}
                                 >
-                                  Mark Overdue
+                                  Overdue
                                 </button>
                               )}
                             </td>
@@ -1207,52 +1651,188 @@ export default function AdminPage() {
 
           {/* ════════════════ SETTINGS ════════════════ */}
           {tab === "settings" && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
-              {[
-                { title: "Platform", color: ZP_GREEN, rows: [
-                  { k: "Name",         v: "ZeniPay" },
-                  { k: "Admin Email",  v: "admin@zenipay.ca" },
-                  { k: "Support",      v: "info@zenipay.ca" },
-                  { k: "Website",      v: "zenipay.ca" },
-                  { k: "Version",      v: "1.0.0" },
-                ]},
-                { title: "Finix Processor", color: ZP_CYAN, action: { label: "Finix Portal →", href: "https://dashboard.finix.com" }, rows: [
-                  { k: "Account ID",   v: "acct_XlRKvhpb..." },
+            <div>
+              {/* Platform Settings — editable */}
+              <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_GREEN}` }}>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_GREEN }}>Platform Settings</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Platform Name</label>
+                    <input type="text" value={settings.platformName} onChange={e => setSettings(s => ({ ...s, platformName: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Admin Email</label>
+                    <input type="email" value={settings.adminEmail} onChange={e => setSettings(s => ({ ...s, adminEmail: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Support URL</label>
+                    <input type="text" value={settings.supportUrl} onChange={e => setSettings(s => ({ ...s, supportUrl: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Fee Schedule — editable */}
+              <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_CYAN}` }}>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_CYAN }}>Fee Schedule</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                      {["Plan", "Rate (%)", "Per Transaction ($)"].map(h => (
+                        <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { plan: "Standard", pctKey: "standardPct" as const, txKey: "standardPerTx" as const, color: ZP_GREEN },
+                      { plan: "Business", pctKey: "businessPct" as const, txKey: "businessPerTx" as const, color: ZP_CYAN },
+                      { plan: "Complete", pctKey: "completePct" as const, txKey: "completePerTx" as const, color: ZP_PURPLE },
+                    ].map(row => (
+                      <tr key={row.plan} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                        <td style={{ padding: "12px 14px", fontWeight: 700, color: row.color }}>{row.plan}</td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <input type="text" value={settings[row.pctKey]} onChange={e => setSettings(s => ({ ...s, [row.pctKey]: e.target.value }))} style={{ ...inputStyle, width: 80 }} /> %
+                        </td>
+                        <td style={{ padding: "12px 14px" }}>
+                          $ <input type="text" value={settings[row.txKey]} onChange={e => setSettings(s => ({ ...s, [row.txKey]: e.target.value }))} style={{ ...inputStyle, width: 80 }} /> /tx
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button
+                  disabled={settingsLoading}
+                  onClick={async () => {
+                    setSettingsLoading(true);
+                    try {
+                      const res = await fetch("/api/zenipay/admin/actions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "save_settings",
+                          merchant_id: "zeniva-001",
+                          settings: {
+                            platform_name: settings.platformName,
+                            admin_email: settings.adminEmail,
+                            support_url: settings.supportUrl,
+                            fee_standard_pct: settings.standardPct,
+                            fee_standard_per_tx: settings.standardPerTx,
+                            fee_business_pct: settings.businessPct,
+                            fee_business_per_tx: settings.businessPerTx,
+                            fee_complete_pct: settings.completePct,
+                            fee_complete_per_tx: settings.completePerTx,
+                          },
+                        }),
+                      });
+                      if (res.ok) showToast("Settings saved successfully");
+                      else { const data = await res.json(); showToast(data.error || "Save failed", "error"); }
+                    } catch { showToast("Save failed — network error", "error"); }
+                    finally { setSettingsLoading(false); }
+                  }}
+                  style={{ marginTop: 16, padding: "10px 28px", borderRadius: 10, background: ZP_GRAD, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(45,190,96,0.18)", opacity: settingsLoading ? 0.6 : 1, display: "flex", alignItems: "center", gap: 8 }}
+                >
+                  {settingsLoading ? <Spinner size={14} /> : null}
+                  Save Settings
+                </button>
+              </div>
+
+              {/* Finix — read-only with test */}
+              <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_PURPLE}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: ZP_PURPLE }}>Finix Processor</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    {finixTestResult && (
+                      <span style={{ fontSize: 12, fontWeight: 700, color: finixTestResult === "success" ? ZP_GREEN : "#DC2626" }}>
+                        {finixTestResult === "success" ? "Connected" : "Failed"}
+                      </span>
+                    )}
+                    <button
+                      onClick={async () => {
+                        setFinixTestResult(null);
+                        try {
+                          const res = await fetch("/api/zenipay/stats");
+                          setFinixTestResult(res.ok ? "success" : "fail");
+                        } catch { setFinixTestResult("fail"); }
+                      }}
+                      style={{ padding: "6px 16px", borderRadius: 8, border: `1px solid ${ZP_PURPLE}33`, background: ZP_PURPLE + "0D", fontSize: 11, fontWeight: 700, color: ZP_PURPLE, cursor: "pointer" }}
+                    >
+                      Test Connection
+                    </button>
+                    <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ padding: "6px 16px", borderRadius: 8, background: ZP_GRAD, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>Finix Portal →</a>
+                  </div>
+                </div>
+                {[
+                  { k: "Account ID",   v: GATEWAY_STATUS.accountId },
                   { k: "Environment",  v: "Sandbox" },
-                  { k: "Fees",         v: "2.9% + $0.30" },
-                  { k: "Webhook",      v: "/api/.../finix" },
+                  { k: "Fees",         v: GATEWAY_STATUS.fees },
+                  { k: "Webhook",      v: GATEWAY_STATUS.webhook },
                   { k: "HMAC",         v: "Enabled" },
-                ]},
-                { title: "Unit.co Banking", color: ZP_PURPLE, rows: [
-                  { k: "Routing",     v: "812345678" },
-                  { k: "Account",     v: "••••5847" },
-                  { k: "Customer ID", v: "4647873" },
-                  { k: "Card ID",     v: "5487715" },
-                  { k: "Status",      v: "Active" },
-                ]},
-                { title: "Chart of Accounts", color: ZP_BLUE, rows: [
-                  { k: "1000", v: "Platform Wallet · Asset" },
-                  { k: "2000", v: "Commissions Payable · Liability" },
-                  { k: "4000", v: "Travel Revenue · Revenue" },
-                  { k: "5000", v: "Agent Commissions · Expense" },
-                  { k: "5100", v: "Processor Fees · Expense" },
-                ]},
-              ].map(section => (
-                <div key={section.title} style={{ ...card({ padding: "24px" }), borderTop: `3px solid ${section.color}` }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: section.color }}>{section.title}</div>
-                  {section.rows.map(s => (
+                ].map(s => (
+                  <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 13 }}>
+                    <span style={{ color: MUTED }}>{s.k}</span>
+                    <span style={{ fontWeight: 700 }}>{s.v}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Other read-only sections */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                <div style={{ ...card({ padding: "24px" }), borderTop: `3px solid ${ZP_BLUE}` }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_BLUE }}>Unit.co Banking</div>
+                  {[
+                    { k: "Routing",     v: "812345678" },
+                    { k: "Account",     v: "••••5847" },
+                    { k: "Customer ID", v: "4647873" },
+                    { k: "Card ID",     v: "5487715" },
+                    { k: "Status",      v: "Active" },
+                  ].map(s => (
                     <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 13 }}>
                       <span style={{ color: MUTED }}>{s.k}</span>
                       <span style={{ fontWeight: 700 }}>{s.v}</span>
                     </div>
                   ))}
-                  {(section as any).action && (
-                    <a href={(section as any).action.href} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 14, padding: "8px 18px", borderRadius: 9, background: ZP_GRAD, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
-                      {(section as any).action.label}
-                    </a>
-                  )}
                 </div>
-              ))}
+
+                <div style={{ ...card({ padding: "24px" }), borderTop: `3px solid #D97706` }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: "#D97706" }}>Chart of Accounts</div>
+                  {[
+                    { k: "1000", v: "Platform Wallet · Asset" },
+                    { k: "2000", v: "Commissions Payable · Liability" },
+                    { k: "4000", v: "Travel Revenue · Revenue" },
+                    { k: "5000", v: "Agent Commissions · Expense" },
+                    { k: "5100", v: "Processor Fees · Expense" },
+                  ].map(s => (
+                    <div key={s.k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${BORDER}`, fontSize: 13 }}>
+                      <span style={{ color: MUTED }}>{s.k}</span>
+                      <span style={{ fontWeight: 700 }}>{s.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Danger Zone */}
+              <div style={{ ...card({ padding: "24px" }), borderTop: "3px solid #DC2626" }}>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 12, color: "#DC2626" }}>Danger Zone</div>
+                <div style={{ fontSize: 13, color: MUTED, marginBottom: 16 }}>These actions are destructive and cannot be undone.</div>
+                <button
+                  onClick={async () => {
+                    if (!confirm("Are you sure you want to clear all test/sandbox data? This cannot be undone.")) return;
+                    if (!confirm("FINAL WARNING: This will permanently delete all sandbox transactions, payouts, and test data. Continue?")) return;
+                    try {
+                      const res = await fetch("/api/zenipay/admin/actions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "clear_test_data", merchant_id: "zeniva-001" }),
+                      });
+                      if (res.ok) { showToast("Test data cleared"); loadMerchants(); loadStats(); }
+                      else { const data = await res.json(); showToast(data.error || "Failed to clear data", "error"); }
+                    } catch { showToast("Failed to clear data", "error"); }
+                  }}
+                  style={{ padding: "10px 24px", borderRadius: 10, border: "2px solid #DC2626", background: "rgba(220,38,38,0.06)", color: "#DC2626", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                >
+                  Clear Test Data
+                </button>
+              </div>
             </div>
           )}
 
