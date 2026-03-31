@@ -29,7 +29,7 @@ function PayLinkContent() {
   const amount   = Number(params.get("amount") || params.get("a") || "0");
   const currency = (params.get("currency") || params.get("c") || "USD").toUpperCase();
   const desc     = params.get("desc") || params.get("d") || "";
-  const merchant = params.get("m") || "Zeniva Travel";
+  const merchant = params.get("m") || "Merchant";
 
   const [cardNum, setCardNum] = useState("");
   const [name,    setName]    = useState("");

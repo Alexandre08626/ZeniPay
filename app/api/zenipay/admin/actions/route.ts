@@ -10,6 +10,12 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
+    // Verify target merchant exists before performing any action
+    if (action !== "save_settings") {
+      const { data: target } = await supabase.from("zenipay_merchants").select("id").eq("id", merchant_id).single();
+      if (!target) return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
+    }
+
     if (action === "suspend") {
       const { error } = await supabase.from("zenipay_merchants").update({ status: "suspended", updated_at: new Date().toISOString() }).eq("id", merchant_id);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });

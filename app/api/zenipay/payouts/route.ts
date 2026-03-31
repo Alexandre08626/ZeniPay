@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
  * POST — execute a payout (validates balance, creates ledger entry, records in DB)
  */
 
+import { NextResponse } from "next/server";
 import { getWalletBalances, recordPayoutExecution, writeAuditLog, checkIdempotency, saveIdempotency } from "../../../../modules/zenipay/services/ledger";
 import type { WalletType } from "../../../../modules/zenipay/database/schema";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
@@ -60,7 +61,8 @@ export async function POST(request: Request) {
     // ── Balance check — CRITICAL: cannot payout more than available ────────
     // Use merchant balance as source of truth (stays in sync with payments + payouts)
     const supabaseCheck = getSupabaseAdmin();
-    const merchant_id_check = body.merchant_id || "zeniva-001";
+    const merchant_id_check = body.merchant_id;
+    if (!merchant_id_check) return NextResponse.json({ error: "merchant_id is required" }, { status: 400 });
     let availableBalance = 0;
     const { data: mCheck } = await supabaseCheck
       .from("zenipay_merchants")
@@ -119,7 +121,7 @@ export async function POST(request: Request) {
     }).eq("id", payoutId);
 
     // ── Decrement merchant balance to stay in sync ────────────────────
-    const merchant_id = body.merchant_id || "zeniva-001";
+    const merchant_id = body.merchant_id;
     const { data: merchant } = await supabase
       .from("zenipay_merchants")
       .select("balance")

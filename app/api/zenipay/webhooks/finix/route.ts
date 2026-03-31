@@ -165,7 +165,6 @@ export async function POST(request: Request) {
             .from("zenipay_merchants")
             .update({ onboarding_state: "verification_required", updated_at: now })
             .eq("finix_merchant_id", vrMerchantId);
-          console.log(`[Webhook] Merchant ${vrMerchantId} → verification_required`);
         }
         break;
       }
@@ -178,7 +177,6 @@ export async function POST(request: Request) {
             .from("zenipay_merchants")
             .update({ onboarding_state: "rejected", updated_at: now })
             .eq("finix_merchant_id", vfMerchantId);
-          console.log(`[Webhook] Merchant ${vfMerchantId} → rejected`);
         }
         break;
       }
@@ -192,7 +190,6 @@ export async function POST(request: Request) {
           payload: data,
           created_at: now,
         });
-        console.log(`[Webhook] Settlement created: ${data.id}`);
         break;
       }
 
@@ -205,7 +202,6 @@ export async function POST(request: Request) {
           payload: data,
           created_at: now,
         });
-        console.log(`[Webhook] Settlement updated: ${data.id}`);
         break;
       }
 
@@ -226,7 +222,6 @@ export async function POST(request: Request) {
             .update({ status: "failed", updated_at: now })
             .eq("settlement_id", settlementId);
         }
-        console.log(`[Webhook] Settlement failed: ${data.id}`);
         break;
       }
 
@@ -244,7 +239,6 @@ export async function POST(request: Request) {
           created_at: now,
           updated_at: now,
         });
-        console.log(`[Webhook] Dispute created: ${disputeData.id}`);
         break;
       }
 
@@ -263,13 +257,11 @@ export async function POST(request: Request) {
               updated_at: now,
             })
             .eq("finix_merchant_id", finixMerchantId);
-          console.log(`[Webhook] Merchant ${finixMerchantId} → ${onboardingState}`);
         }
         break;
       }
 
       default:
-        console.log(`[Webhook] Unhandled: ${eventType}`);
     }
 
     // Update log status

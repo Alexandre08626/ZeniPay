@@ -34,7 +34,7 @@ export default function InvoicesPage() {
 
       // Fetch from Supabase directly
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mjkvkibdfteonvlahtag.supabase.co";
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3ZraWJkZnRlb252bGFodGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgwMjYsImV4cCI6MjA5MDAyNDAyNn0.yRUCBzFEDWaM8aXBTu4BmkbdX9RdJPGYV_ZJBeG7DD4";
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
       const response = await fetch(`${supabaseUrl}/rest/v1/zenipay_invoices?select=*&order=created_at.desc`, {
         headers: {
