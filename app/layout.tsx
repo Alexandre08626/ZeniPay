@@ -11,6 +11,13 @@ export const metadata: Metadata = {
     url: "https://zenipay.ca",
     siteName: "ZeniPay",
     type: "website",
+    images: [{ url: "https://zenipay.ca/opengraph-image", width: 1200, height: 630, alt: "ZeniPay" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ZeniPay — Payment Infrastructure for Businesses",
+    description: "Accept payments, issue payouts, and manage your business finances with ZeniPay.",
+    images: ["https://zenipay.ca/opengraph-image"],
   },
   icons: {
     icon: "/favicon.ico",
