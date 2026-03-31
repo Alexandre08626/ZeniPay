@@ -130,6 +130,7 @@ function KeyRow({
         {label}
       </div>
       <div
+        className="kp-key-display"
         style={{
           display: "flex",
           alignItems: "center",
@@ -392,7 +393,7 @@ function QuickStartGuide({ publishableKey }: { publishableKey: string }) {
   return (
     <div>
       {/* Language tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: KEY_BG, borderRadius: 10, padding: 4, border: `1px solid ${BORDER}` }}>
+      <div className="kp-lang-tabs" style={{ display: "flex", gap: 4, marginBottom: 20, background: KEY_BG, borderRadius: 10, padding: 4, border: `1px solid ${BORDER}` }}>
         {LANGS.map((l) => (
           <button
             key={l}
@@ -550,6 +551,17 @@ export default function KeysPanel({ merchantId, mode, sandboxKey: propSbKey, san
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .kp-lang-tabs { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; flex-wrap: nowrap !important; }
+          .kp-lang-tabs button { flex: 0 0 auto !important; white-space: nowrap !important; min-width: unset !important; padding: 8px 12px !important; }
+          .kp-key-display code { font-size: 11px !important; word-break: break-all !important; }
+          .kp-key-display { flex-wrap: wrap !important; gap: 6px !important; }
+          .kp-card { padding: 16px !important; }
+          .kp-roll-row { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
+          .kp-roll-row button { width: 100% !important; }
+        }
+      `}</style>
       {/* ─── Error Banner ──────────────────────────────── */}
       {error && (
         <div

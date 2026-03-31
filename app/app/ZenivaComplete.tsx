@@ -838,7 +838,7 @@ function PayoutsPanel({ agents, platformBalance, merchantId, mode }: { agents: A
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+    <div className="zp-tab-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
 
       {/* LEFT: Send Payment */}
       <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
@@ -2263,7 +2263,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     <>
     <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Inter',system-ui,sans-serif", display: "flex" }}>
       {/* ══ LEFT SIDEBAR — Dark Glassmorphism ══ */}
-      <div style={{
+      <div className="zp-sidebar" style={{
         width: sidebarOpen ? 240 : 64,
         minHeight: "100vh",
         background: `linear-gradient(180deg, #0d1633 0%, #1a2a5e 30%, #2A8FE0 70%, #7B4FBF 100%)`,
@@ -2362,6 +2362,26 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        @media (max-width: 768px) {
+          .zp-hero-banner { flex-direction: column !important; padding: 20px !important; text-align: center !important; gap: 16px !important; }
+          .zp-hero-banner img { width: 120px !important; height: 120px !important; }
+          .zp-hero-logo-wrap { width: 120px !important; height: 120px !important; }
+          .zp-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .zp-overview-grid { grid-template-columns: 1fr !important; }
+          .zp-quick-actions { grid-template-columns: repeat(2, 1fr) !important; }
+          .zp-360-modal { width: 100vw !important; }
+          .zp-360-stats { grid-template-columns: repeat(2, 1fr) !important; }
+          .zp-360-form { grid-template-columns: 1fr !important; }
+          .zp-sidebar { display: none !important; }
+          .zp-content-area { padding: 16px !important; }
+          .zp-header-inner { padding: 12px 16px !important; gap: 8px !important; flex-wrap: wrap !important; }
+          .zp-header-actions { flex-wrap: wrap !important; gap: 6px !important; }
+          .zp-tab-grid-3 { grid-template-columns: 1fr !important; }
+          .zp-tab-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+          .zp-tab-grid-5 { grid-template-columns: repeat(2, 1fr) !important; }
+          .zp-tab-grid-2 { grid-template-columns: 1fr !important; }
+          .zp-wallet-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
       `}</style>
       {/* ── HEADER ── */}
       <div style={{ background: `linear-gradient(135deg, #0d1633 0%, #1a2a5e 25%, #2DBE60 55%, #15B8C9 75%, #7B4FBF 100%)`, padding: "0 24px", borderBottom: "1px solid rgba(255,255,255,0.15)" }}>
@@ -2403,16 +2423,16 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
       </div>
 
       {/* ── CONTENT ── */}
-      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "24px 28px" }}>
+      <div className="zp-content-area" style={{ maxWidth: 1600, margin: "0 auto", padding: "24px 28px" }}>
 
         {/* ════ OVERVIEW ════ */}
         {tab === "overview" && (
           <div>
             {/* ── ZENIPAY HERO BANNER ── */}
-            <div style={{ background: "linear-gradient(135deg, #0d1633 0%, #1a2a5e 40%, #7B4FBF 80%, #E5247B 100%)", borderRadius: 24, padding: "32px 40px", marginBottom: 24, color: "white", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 32 }}>
+            <div className="zp-hero-banner" style={{ background: "linear-gradient(135deg, #0d1633 0%, #1a2a5e 40%, #7B4FBF 80%, #E5247B 100%)", borderRadius: 24, padding: "32px 40px", marginBottom: 24, color: "white", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 32 }}>
               <style>{`@keyframes logoBounce{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-6px) rotate(3deg)}}`}</style>
               {/* Big logo */}
-              <div style={{ flexShrink: 0, width: 280, height: 280, display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible", animation: "logoBounce 5s ease-in-out infinite" }}>
+              <div className="zp-hero-logo-wrap" style={{ flexShrink: 0, width: 280, height: 280, display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible", animation: "logoBounce 5s ease-in-out infinite" }}>
                 <img src="/zenipay-logo.png" alt="ZeniPay" style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 8px 32px rgba(123,79,191,0.6)) drop-shadow(0 0 20px rgba(21,184,201,0.4))" }} />
               </div>
               {/* Text */}
@@ -2444,7 +2464,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               <div style={{ position: "absolute", top: 40, right: 120, fontSize: 16, opacity: 0.35 }}>⭐</div>
             </div>
             {/* KPI Cards — Dark glass */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 24 }}>
+            <div className="zp-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 24 }}>
               {[
                 { icon: "💰", label: t("kpi.totalRevenue"), value: fmt(totalRevenue), sub: t("kpi.realPaymentsOnly"), color: ORANGE },
                 { icon: "🏛️", label: t("kpi.zenipayFees"), value: fmt(zenipayFees), sub: "2.9% + $0.30/tx", color: BLUE },
@@ -2466,7 +2486,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div className="zp-overview-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               {/* Live Payment Activity */}
               <div style={{ background: "white", borderRadius: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", padding: 24 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -2548,7 +2568,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             </div>
 
             {/* Quick Actions */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginTop: 20 }}>
+            <div className="zp-quick-actions" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginTop: 20 }}>
               {[
                 { label: t("quickActions.createPayLink"), icon: "🔗", tab: "paylinks", color: BLUE },
                 { label: t("quickActions.viewBanking"), icon: "🏦", tab: "wallets", color: GREEN },
@@ -2632,7 +2652,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             {/* Create form */}
             <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
               <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>🔗 Create Payment Link</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div className="zp-tab-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 5, textTransform: "uppercase" as const }}>Amount (USD)</label>
                   <input type="number" value={linkForm.amount} onChange={e => setLinkForm(p => ({...p, amount: e.target.value}))} placeholder="500"
@@ -2729,7 +2749,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             {/* How it works */}
             <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
               <h4 style={{ margin: "0 0 16px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>🔄 How Invoices Work</h4>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+              <div className="zp-tab-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
                 {[
                   { icon: "💳", title: "Client Pays", desc: "Payment processed via ZeniPay checkout" },
                   { icon: "📄", title: "Auto-Generated", desc: "Invoice created automatically with booking details" },
@@ -2880,7 +2900,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               <h2 style={{ margin: "0 0 8px", fontWeight: 800, fontSize: 24 }}>🏛️ ZeniPay Financing <span style={{ background: "#fbbf24", color: "#78350f", fontSize: 12, fontWeight: 700, borderRadius: 6, padding: "2px 10px", marginLeft: 8, verticalAlign: "middle" }}>Coming Soon</span></h2>
               <p style={{ margin: 0, opacity: 0.7 }}>Offer flexible payment plans to your travelers. Split any trip into installments.</p>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 20 }}>
+            <div className="zp-tab-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 20 }}>
               {[
                 { title: "Pay in Full", icon: "💳", desc: "Full payment upfront. Best rate.", badge: "Standard", color: BLUE },
                 { title: "Deposit + Balance", icon: "📅", desc: "30% deposit now, balance before travel.", badge: "Popular", color: GREEN },
@@ -2932,7 +2952,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               </div>
             </div>
             {/* ── Key Metrics ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 16, marginBottom: 20 }}>
+            <div className="zp-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 16, marginBottom: 20 }}>
               {[
                 { label: t("kpi.totalRevenue"), value: fmt(totalRevenue), icon: "💰", color: ZPGREEN },
                 { label: t("nav.transactions"), value: String(succeededCount), icon: "💳", color: BLUE },
@@ -3070,7 +3090,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 </div>
               </div>
               {/* Capabilities Row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10, marginTop: 24, position: "relative" }}>
+              <div className="zp-tab-grid-5" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10, marginTop: 24, position: "relative" }}>
                 {[
                   { icon: "🛡️", title: "Fraud Detection", desc: "Real-time anomaly detection" },
                   { icon: "📊", title: "Revenue Analytics", desc: "Margin & commission tracking" },
@@ -3088,7 +3108,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             </div>
 
             {/* CHAT + LIVE LOG */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div className="zp-tab-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               {/* Chat Interface */}
               <div style={{ background: "linear-gradient(135deg, #0d1829, #111f38)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column" }}>
                 <div style={{ background: `linear-gradient(135deg, ${DARK}, #1a2f6e)`, borderRadius: "20px 20px 0 0", padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -3202,7 +3222,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 </div>
               </div>
               {/* Fiscal summary */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginTop: 20 }}>
+              <div className="zp-tab-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginTop: 20 }}>
                 {[
                   { label: "Gross Revenue", value: fmt(accountingSummary?.totalRevenue ?? 0), sub: "FY 2025-2026", color: GREEN },
                   { label: "Total Expenses", value: fmt(accountingSummary?.totalExpenses ?? 0), sub: "Operating costs", color: RED },
@@ -3219,7 +3239,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             </div>
 
             {/* P&L + Balance Sheet side by side */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div className="zp-tab-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               {/* P&L Statement */}
               <div style={{ background: "white", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
@@ -3292,7 +3312,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             </div>
 
             {/* Chart of Accounts + Journal Entries */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div className="zp-tab-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               {/* Chart of Accounts */}
               <div style={{ background: "white", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -3395,7 +3415,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 <h3 style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#0f172a" }}>📄 Financial Reports</h3>
                 <span style={{ fontSize: 12, color: "#94a3b8" }}>Auto-generated by ZeniPay AI</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+              <div className="zp-tab-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
                 {[
                   { icon: "📊", title: "Income Statement", desc: "Revenue, expenses, profit", color: BLUE },
                   { icon: "🏛️", title: "Balance Sheet", desc: "Assets, liabilities, equity", color: PURPLE },
@@ -3459,7 +3479,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     {/* ═══ 360° BANKING MODAL ═══ */}
     {show360 && unitAccounts.length > 0 && (
       <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(10,15,30,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "stretch", justifyContent: "flex-end" }}>
-        <div style={{ width: "min(820px,100vw)", background: "#0B1B4D", overflowY: "auto", display: "flex", flexDirection: "column" }}>
+        <div className="zp-360-modal" style={{ width: "min(820px,100vw)", background: "#0B1B4D", overflowY: "auto", display: "flex", flexDirection: "column" }}>
           <div style={{ background: "linear-gradient(135deg,#0d1633 0%,#1a2a5e 40%,#2DBE60 80%,#15B8C9 100%)", padding: "24px 28px", flexShrink: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -3472,7 +3492,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               <button onClick={() => setShow360(false)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>✕ Close</button>
             </div>
             {unitAccounts[0] && (() => { const a = unitAccounts[0]; return (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
+              <div className="zp-360-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
                 {[
                   { label: "Balance", value: `$${(a.balanceCents > 0 ? a.balanceCents/100 : merchantBalance).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#2DBE60" },
                   { label: "Available", value: `$${(a.availableCents > 0 ? a.availableCents/100 : merchantBalance).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#15B8C9" },
@@ -3504,7 +3524,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
           </div>
           {bankAction && (
             <div style={{ padding: "20px 28px", background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="zp-360-form" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 {bankAction === "wire" && [{k:"beneficiary",l:"Beneficiary Name"},{k:"routingNum",l:"Routing Number"},{k:"accountNum",l:"Account Number"},{k:"amount",l:"Amount USD"},{k:"memo",l:"Memo"}].map(f=>(
                   <div key={f.k} style={{ gridColumn: f.k==="memo" ? "span 2" : undefined }}>
                     <label style={{ color:"rgba(255,255,255,0.5)", fontSize:11, fontWeight:600, display:"block", marginBottom:4 }}>{f.l}</label>

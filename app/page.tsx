@@ -17,6 +17,21 @@ export default function ZeniPayLanding() {
   const { t } = useT();
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", overflowX: "hidden" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .zp-hero-logo { max-width: 160px !important; }
+          .zp-flow-arrow { display: none !important; }
+          .zp-flow-pills { justify-content: center !important; }
+          .zp-hero-btns { flex-direction: column !important; width: 100% !important; }
+          .zp-hero-btns a { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
+          .zp-stats-bar { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; }
+          .zp-feature-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; }
+          .zp-step-grid { grid-template-columns: 1fr !important; }
+          .zp-section { padding-top: 48px !important; padding-bottom: 48px !important; }
+          .zp-cta-btns { flex-direction: column !important; width: 100% !important; }
+          .zp-cta-btns a { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
+        }
+      `}</style>
       <Nav />
 
       {/* Hero */}
@@ -27,7 +42,7 @@ export default function ZeniPayLanding() {
       }}>
         <div style={{ maxWidth: 860 }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 40 }}>
-            <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={920} height={255} style={{ objectFit: "contain", maxWidth: "100%" }} priority />
+            <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={920} height={255} className="zp-hero-logo" style={{ objectFit: "contain", maxWidth: "100%" }} priority />
           </div>
 
           <div style={{
@@ -54,7 +69,7 @@ export default function ZeniPayLanding() {
           </p>
 
           {/* The flow — visual pill chain */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap", margin: "0 auto 40px", maxWidth: 700 }}>
+          <div className="zp-flow-pills" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap", margin: "0 auto 40px", maxWidth: 700 }}>
             {[
               { label: t("landing.flowCustomerPays"), sub: t("landing.flowCustomerPaysSub"), color: ZP_GREEN },
               { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
@@ -69,11 +84,11 @@ export default function ZeniPayLanding() {
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{s.sub}</div>
               </div>
             ) : (
-              <div key={i} style={{ fontSize: 18, color: s.color, fontWeight: 700 }}>→</div>
+              <div key={i} className="zp-flow-arrow" style={{ fontSize: 18, color: s.color, fontWeight: 700 }}>→</div>
             ))}
           </div>
 
-          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+          <div className="zp-hero-btns" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 36px", fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(45,190,96,0.25)" }}>
               {t("landing.ctaGetStarted")}
             </Link>
@@ -89,7 +104,7 @@ export default function ZeniPayLanding() {
       </section>
 
       {/* Stats bar */}
-      <section style={{
+      <section className="zp-stats-bar" style={{
         background: GLASS, borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)",
         padding: "40px 5%",
         display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, textAlign: "center",
@@ -109,7 +124,7 @@ export default function ZeniPayLanding() {
       </section>
 
       {/* What is ZeniCard */}
-      <section style={{ padding: "100px 5%", maxWidth: 1100, margin: "0 auto" }}>
+      <section className="zp-section" style={{ padding: "100px 5%", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 64 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(21,184,201,0.1)", border: "1px solid rgba(21,184,201,0.3)", borderRadius: 24, padding: "6px 16px", marginBottom: 20 }}>
             <span style={{ fontSize: 12, color: ZP_CYAN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("landing.zeniCardBadge")}</span>
@@ -122,7 +137,7 @@ export default function ZeniPayLanding() {
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
+        <div className="zp-feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
           {[
             { icon: "💳", title: t("landing.featurePaymentsTitle"), desc: t("landing.featurePaymentsDesc"), color: ZP_GREEN, href: "/payments" },
             { icon: "🏦", title: t("landing.featureBankTitle"), desc: t("landing.featureBankDesc"), color: ZP_CYAN, href: "/tools" },
@@ -160,7 +175,7 @@ export default function ZeniPayLanding() {
           <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 64, fontSize: 16 }}>
             {t("landing.howItWorksDesc")}
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 32 }}>
+          <div className="zp-step-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 32 }}>
             {[
               { step: "01", icon: "🏦", title: t("landing.step01Title"), desc: t("landing.step01Desc") },
               { step: "02", icon: "🔌", title: t("landing.step02Title"), desc: t("landing.step02Desc") },
@@ -178,7 +193,7 @@ export default function ZeniPayLanding() {
       </section>
 
       {/* CTA Section */}
-      <section style={{
+      <section className="zp-section" style={{
         padding: "100px 5%", textAlign: "center",
         background: `linear-gradient(135deg, rgba(45,190,96,0.08) 0%, rgba(123,79,191,0.08) 100%)`,
         borderTop: "1px solid rgba(255,255,255,0.06)",
@@ -189,7 +204,7 @@ export default function ZeniPayLanding() {
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, margin: "0 auto 40px", maxWidth: 480 }}>
           {t("landing.ctaSectionDesc")}
         </p>
-        <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+        <div className="zp-cta-btns" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
           <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700 }}>
             {t("landing.ctaSectionBtn")}
           </Link>

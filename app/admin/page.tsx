@@ -118,6 +118,15 @@ export default function AdminPage() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [finixTestResult, setFinixTestResult] = useState<"success" | "fail" | null>(null);
 
+  // Mobile responsive state
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   const loadMerchants = useCallback(() => {
     fetch("/api/zenipay/merchants")
       .then(r => r.json())
@@ -374,10 +383,68 @@ export default function AdminPage() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @media (max-width: 768px) {
+          .admin-sidebar {
+            position: fixed !important;
+            z-index: 1000 !important;
+            height: 100vh !important;
+            width: 240px !important;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease !important;
+          }
+          .admin-sidebar.open { transform: translateX(0) !important; }
+          .admin-overlay {
+            display: block !important;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+          }
+          .admin-main { margin-left: 0 !important; }
+          .admin-header { padding: 0 12px !important; }
+          .admin-content { padding: 14px 12px !important; }
+          .admin-grid-2 { grid-template-columns: 1fr !important; }
+          .admin-grid-3 { grid-template-columns: 1fr !important; }
+          .admin-grid-4 { grid-template-columns: 1fr 1fr !important; }
+          .admin-grid-5 { grid-template-columns: 1fr 1fr !important; }
+          .admin-grid-kpi { grid-template-columns: 1fr 1fr !important; }
+          .admin-grid-commission { grid-template-columns: 1fr !important; }
+          .admin-filter-row { flex-direction: column !important; align-items: stretch !important; }
+          .admin-filter-row > * { width: 100% !important; }
+          .admin-filter-row input, .admin-filter-row select { width: 100% !important; box-sizing: border-box !important; }
+          .admin-filter-row .admin-ml-auto { margin-left: 0 !important; }
+          .admin-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+          .admin-table-wrap table { min-width: 700px; }
+          .admin-client-detail-grid { grid-template-columns: 1fr !important; }
+          .admin-payout-grid { grid-template-columns: 1fr !important; }
+          .admin-billing-form-grid { grid-template-columns: 1fr !important; }
+          .admin-settings-grid { grid-template-columns: 1fr !important; }
+          .admin-client-row { flex-direction: column !important; align-items: stretch !important; }
+          .admin-client-right { text-align: left !important; margin-top: 12px; }
+          .admin-client-actions { justify-content: flex-start !important; }
+          .admin-chart-2col { grid-template-columns: 1fr !important; }
+          .admin-activity-2col { grid-template-columns: 1fr !important; }
+          .admin-header-right .admin-sandbox-badge { display: none !important; }
+          .admin-bank-2col { grid-template-columns: 1fr !important; }
+          .admin-platform-rev-grid { grid-template-columns: 1fr !important; }
+          .admin-tx-grid-header, .admin-tx-grid-row { display: none !important; }
+          .admin-tx-card-mobile { display: block !important; }
+          .admin-api-endpoint { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
+          .admin-api-endpoint code { word-break: break-all !important; }
+          .admin-alert-banner { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+          .admin-alert-banner a { align-self: flex-start; }
+          .admin-header-title-extra { display: none !important; }
+          .admin-client-summary-row { grid-template-columns: 1fr 1fr !important; }
+          .admin-cashback-summary { grid-template-columns: 1fr 1fr !important; }
+        }
       `}</style>
 
+      {/* Mobile overlay */}
+      {isMobile && sidebarOpen && (
+        <div className="admin-overlay" onClick={() => setSidebarOpen(false)} style={{ display: "block", position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 999 }} />
+      )}
+
       {/* ── Sidebar ── */}
-      <div style={{ width: sidebarOpen ? 240 : 64, flexShrink: 0, background: SURFACE, borderRight: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", transition: "width 0.2s ease", overflow: "hidden" }}>
+      <div className={`admin-sidebar${isMobile && sidebarOpen ? " open" : ""}`} style={{ width: isMobile ? 240 : (sidebarOpen ? 240 : 64), flexShrink: 0, background: SURFACE, borderRight: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", transition: isMobile ? "transform 0.3s ease" : "width 0.2s ease", overflow: "hidden", ...(isMobile ? { position: "fixed", zIndex: 1000, height: "100vh", transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)" } : {}) }}>
 
         <div style={{ padding: "0 0 0", borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ height: 60, display: "flex", alignItems: "center", padding: "0 16px", gap: 10 }}>
@@ -402,10 +469,10 @@ export default function AdminPage() {
           {NAV.map(({ key, icon, label, color }) => {
             const active = tab === key;
             return (
-              <button key={key} onClick={() => setTab(key)} title={label} style={{
+              <button key={key} onClick={() => { setTab(key); if (isMobile) setSidebarOpen(false); }} title={label} style={{
                 display: "flex", alignItems: "center", gap: 10,
-                padding: sidebarOpen ? "9px 12px" : "9px 0",
-                justifyContent: sidebarOpen ? "flex-start" : "center",
+                padding: (sidebarOpen || isMobile) ? "9px 12px" : "9px 0",
+                justifyContent: (sidebarOpen || isMobile) ? "flex-start" : "center",
                 width: "100%", border: "none", cursor: "pointer",
                 background: active ? color + "12" : "transparent",
                 borderRadius: 10,
@@ -415,7 +482,7 @@ export default function AdminPage() {
                 marginBottom: 2,
               }}>
                 <div style={{ width: 28, height: 28, borderRadius: 8, background: active ? color + "20" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, color: active ? color : MUTED, transition: "all 0.15s" }}>{icon}</div>
-                {sidebarOpen && <span>{t("admin.nav." + key)}</span>}
+                {(sidebarOpen || isMobile) && <span>{t("admin.nav." + key)}</span>}
               </button>
             );
           })}
@@ -437,30 +504,35 @@ export default function AdminPage() {
       </div>
 
       {/* ── Main ── */}
-      <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
+      <div className="admin-main" style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
 
-        <div style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "0 28px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 1px 0 rgba(0,0,0,0.04)" }}>
+        <div className="admin-header" style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: isMobile ? "0 12px" : "0 28px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 1px 0 rgba(0,0,0,0.04)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {isMobile && (
+              <button onClick={() => setSidebarOpen(v => !v)} style={{ width: 36, height: 36, borderRadius: 8, border: `1px solid ${BORDER}`, background: SURFACE, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: TEXT, flexShrink: 0 }}>
+                ☰
+              </button>
+            )}
             <div style={{ width: 28, height: 28, borderRadius: 8, background: currentTab.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: currentTab.color }}>{currentTab.icon}</div>
-            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 800, letterSpacing: "-0.3px" }}>{t("admin.nav." + currentTab.key)}</h1>
-            <span style={{ color: BORDER, fontSize: 16 }}>·</span>
-            <span style={{ fontSize: 12, color: MUTED }}>ZeniPay Platform</span>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 14 : 16, fontWeight: 800, letterSpacing: "-0.3px" }}>{t("admin.nav." + currentTab.key)}</h1>
+            <span className="admin-header-title-extra" style={{ color: BORDER, fontSize: 16 }}>·</span>
+            <span className="admin-header-title-extra" style={{ fontSize: 12, color: MUTED }}>ZeniPay Platform</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ padding: "5px 14px", borderRadius: 8, background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.18)", fontSize: 11, fontWeight: 700, color: "#D97706", display: "flex", alignItems: "center", gap: 5 }}>
+          <div className="admin-header-right" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="admin-sandbox-badge" style={{ padding: "5px 14px", borderRadius: 8, background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.18)", fontSize: 11, fontWeight: 700, color: "#D97706", display: "flex", alignItems: "center", gap: 5 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706", display: "inline-block" }} /> {t("admin.sandboxMode")}
             </div>
             <div style={{ width: 34, height: 34, borderRadius: 10, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 14 }}>A</div>
           </div>
         </div>
 
-        <div style={{ padding: "24px 28px", flex: 1 }}>
+        <div className="admin-content" style={{ padding: isMobile ? "14px 12px" : "24px 28px", flex: 1 }}>
 
           {/* ════════════════ OVERVIEW ════════════════ */}
           {tab === "overview" && (
             <div>
               {/* Alert banner */}
-              <div style={{ marginBottom: 20, padding: "12px 18px", borderRadius: 12, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.2)", display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="admin-alert-banner" style={{ marginBottom: 20, padding: "12px 18px", borderRadius: 12, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.2)", display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ fontSize: 20 }}>⚠️</div>
                 <div style={{ flex: 1 }}>
                   <span style={{ fontWeight: 700, color: "#B45309", fontSize: 13 }}>{t("admin.overview.alertTitle")}</span>
@@ -470,7 +542,7 @@ export default function AdminPage() {
               </div>
 
               {/* KPI row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 20 }}>
+              <div className="admin-grid-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 14, marginBottom: 20 }}>
                 <MetricCard label={t("admin.overview.totalVolume")}    value={fmt(adminStats?.stats?.total_revenue ?? 0)}  sub={`${adminStats?.stats?.total_payments ?? 0} ${t("admin.overview.totalTransactions")}`}  accent={ZP_GREEN}  icon="💰" />
                 <MetricCard label={t("admin.overview.feesCollected")}  value={fmt((adminStats?.stats?.total_revenue ?? 0) * 0.029 + (adminStats?.stats?.total_payments ?? 0) * 0.30)}  sub="2.9% + $0.30/tx" accent={ZP_CYAN} icon="🏦" />
                 <MetricCard label={t("admin.overview.activeClients")}  value={`${CLIENTS.length}`} sub={`${CLIENTS.filter(c=>c.status==="active").length} live · ${CLIENTS.filter(c=>c.status==="sandbox").length} sandbox`} accent={ZP_PURPLE} icon="🏢" />
@@ -479,7 +551,7 @@ export default function AdminPage() {
               </div>
 
               {/* Revenue chart + Top 5 clients */}
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div className="admin-chart-2col" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
                 {/* Revenue chart */}
                 <div style={{ ...card({ padding: "22px" }) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -543,7 +615,7 @@ export default function AdminPage() {
               </div>
 
               {/* Activity feed + System status */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div className="admin-activity-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 {/* Recent activity */}
                 <div style={{ ...card({ padding: "22px" }) }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>{t("admin.overview.recentActivity")}</div>
@@ -604,8 +676,8 @@ export default function AdminPage() {
           {tab === "clients" && (
             <div>
               {/* Top bar: search + filter + sort + export */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, flexWrap: "wrap" }}>
+              <div className="admin-filter-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+                <div className="admin-filter-row" style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, flexWrap: "wrap" }}>
                   <input
                     type="text"
                     placeholder={t("admin.clients.searchPlaceholder")}
@@ -642,7 +714,7 @@ export default function AdminPage() {
               </div>
 
               {/* Summary row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+              <div className="admin-client-summary-row" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
                 {[
                   { label: t("admin.clients.totalClients"), value: `${CLIENTS.length}`,                                              accent: ZP_PURPLE },
                   { label: t("admin.clients.live"),         value: `${CLIENTS.filter(c => c.status === "active" || c.status === "live").length}`,           accent: ZP_GREEN  },
@@ -660,7 +732,7 @@ export default function AdminPage() {
                 <div key={c.id} style={{ ...card({ marginBottom: 14, overflow: "hidden" }) }}>
                   <div style={{ height: 3, background: (c.status === "active" || c.status === "live") ? ZP_GRAD : c.status === "suspended" ? "#DC2626" : "rgba(217,119,6,0.4)" }} />
                   <div style={{ padding: "20px 24px" }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+                    <div className="admin-client-row" style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
                       <Avatar name={c.name} size={48} grad />
                       <div style={{ flex: 1, minWidth: 200 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
@@ -684,11 +756,11 @@ export default function AdminPage() {
                           ))}
                         </div>
                       </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div className="admin-client-right" style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ fontSize: 24, fontWeight: 900, color: TEXT }}>{fmt(c.volume)}</div>
                         <div style={{ fontSize: 12, color: MUTED }}>{c.txCount} transactions</div>
                         {/* Action buttons */}
-                        <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                        <div className="admin-client-actions" style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
                           {c.status !== "suspended" && c.status !== "inactive" ? (
                             <button
                               onClick={() => adminAction({ action: "suspend", merchant_id: c.id }, `${c.name} suspended`)}
@@ -737,7 +809,7 @@ export default function AdminPage() {
 
                   {clientView === c.id && (
                     <div style={{ borderTop: `1px solid ${BORDER}`, padding: "24px 24px", background: LIGHT }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 16 }}>
+                      <div className="admin-client-detail-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 16 }}>
 
                         <div style={{ background: SURFACE, borderRadius: 12, padding: "16px", border: `1px solid ${BORDER}` }}>
                           <div style={{ fontWeight: 700, fontSize: 11, color: ZP_GREEN, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>{t("admin.clients.businessInfo")}</div>
@@ -847,7 +919,7 @@ export default function AdminPage() {
               </div>
 
               {/* Filters */}
-              <div style={{ ...card({ padding: "14px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const }) }}>
+              <div className="admin-filter-row" style={{ ...card({ padding: "14px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const }) }}>
                 <input
                   type="text"
                   placeholder={t("admin.transactions.searchPlaceholder")}
@@ -871,7 +943,7 @@ export default function AdminPage() {
                     <button key={r.val} onClick={() => setTxDateRange(r.val)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${txDateRange === r.val ? ZP_BLUE + "66" : BORDER}`, background: txDateRange === r.val ? ZP_BLUE + "12" : "transparent", fontSize: 11, fontWeight: 700, color: txDateRange === r.val ? ZP_BLUE : MUTED, cursor: "pointer" }}>{r.label}</button>
                   ))}
                 </div>
-                <div style={{ marginLeft: "auto" }}>
+                <div className="admin-ml-auto" style={{ marginLeft: "auto" }}>
                   <button
                     onClick={() => {
                       const headers = ["ID", "Customer", "Email", "Merchant", "Amount", "Status", "Card", "Date", "Description"];
@@ -887,7 +959,7 @@ export default function AdminPage() {
               </div>
 
               {/* Table header */}
-              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1fr", gap: 8, padding: "8px 16px", marginBottom: 4 }}>
+              <div className="admin-tx-grid-header" style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1fr", gap: 8, padding: "8px 16px", marginBottom: 4 }}>
                 {[t("admin.transactions.id"),t("admin.transactions.customer"),t("admin.transactions.merchant"),t("admin.transactions.amount"),t("admin.transactions.card"),t("admin.transactions.status"),t("admin.transactions.date")].map(h => (
                   <div key={h} style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</div>
                 ))}
@@ -903,7 +975,23 @@ export default function AdminPage() {
                 <div style={{ ...card({ overflow: "hidden" }) }}>
                   {filteredTxs.map((t: any, i: number) => (
                     <div key={t.id}>
+                      {/* Mobile card view */}
+                      <div className="admin-tx-card-mobile" style={{ display: "none" }} onClick={() => setTxExpanded(txExpanded === t.id ? null : t.id)}>
+                        <div style={{ padding: "12px 16px", borderTop: i > 0 ? `1px solid ${BORDER}` : "none", cursor: "pointer", background: i % 2 === 0 ? LIGHT : SURFACE }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{t.customer || "---"}</div>
+                            <div style={{ fontWeight: 800, fontSize: 14, color: t.status === "succeeded" ? ZP_GREEN : t.status === "failed" ? "#DC2626" : "#D97706" }}>{fmt(Number(t.amount))}</div>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ fontSize: 11, color: MUTED }}>{(t.id || "").slice(0, 12)}...</div>
+                            <div style={{ ...badge(t.status === "succeeded" ? "succeeded" : t.status === "failed" ? "failed" : t.status === "refunded" ? "refunded" : "pending") }}><span style={{ fontSize: 7 }}>●</span> {t.status}</div>
+                          </div>
+                          <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>{t.date ? fmtDate(t.date) : "---"} · {t.card_brand || ""} {t.card_last4 ? `••${t.card_last4}` : ""}</div>
+                        </div>
+                      </div>
+                      {/* Desktop grid row */}
                       <div
+                        className="admin-tx-grid-row"
                         onClick={() => setTxExpanded(txExpanded === t.id ? null : t.id)}
                         style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1fr", gap: 8, padding: "13px 16px", borderTop: i > 0 ? `1px solid ${BORDER}` : "none", alignItems: "center", background: i % 2 === 0 ? LIGHT : SURFACE, cursor: "pointer", transition: "background 0.15s" }}
                       >
@@ -997,7 +1085,7 @@ export default function AdminPage() {
               {/* Send Payout form */}
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_PURPLE}` }}>
                 <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: ZP_PURPLE }}>{t("admin.payouts.sendPayout")}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
+                <div className="admin-payout-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("admin.payouts.merchant")}</label>
                     <select value={payoutForm.merchant_id} onChange={e => setPayoutForm(f => ({ ...f, merchant_id: e.target.value }))} style={{ ...inputStyle, width: "100%" }}>
@@ -1068,6 +1156,7 @@ export default function AdminPage() {
               {/* Payout history */}
               <div style={{ ...card({ overflow: "hidden", marginBottom: 16 }) }}>
                 <div style={{ padding: "14px 18px", fontWeight: 800, fontSize: 15, borderBottom: `1px solid ${BORDER}` }}>{t("admin.payouts.payoutHistory")}</div>
+                <div className="admin-table-wrap">
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>
@@ -1091,6 +1180,7 @@ export default function AdminPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               {/* Per-merchant balances */}
@@ -1139,7 +1229,7 @@ export default function AdminPage() {
           {/* ════════════════ ZENICARD / BANKING ════════════════ */}
           {tab === "bank" && (
             <div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div className="admin-bank-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
 
                 <div style={{ ...card({ padding: "24px" }) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -1207,7 +1297,7 @@ export default function AdminPage() {
                   <div style={{ ...badge("active") }}><span style={{ fontSize: 7 }}>●</span> Active</div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+                <div className="admin-platform-rev-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
                   <div>
                     {[
                       { k: "Account Name",  v: PLATFORM_ACCOUNT.name,       color: TEXT      },
@@ -1247,7 +1337,7 @@ export default function AdminPage() {
                 </div>
 
                 <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>{t("admin.bank.commissionRulesByPlan")}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                <div className="admin-grid-commission" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                   {COMMISSION_RULES.map(r => (
                     <div key={r.plan} style={{ padding: "12px 14px", borderRadius: 12, background: r.color + "08", border: `1px solid ${r.color}22` }}>
                       <div style={{ fontWeight: 800, fontSize: 13, color: r.color, marginBottom: 8 }}>{r.plan}</div>
@@ -1376,22 +1466,26 @@ export default function AdminPage() {
             const setts = ((cashbackData as Record<string,unknown>)?.settlements || []) as Array<Record<string,unknown>>;
             return (<div>
               <div style={{ marginBottom: 20 }}><div style={{ fontWeight: 800, fontSize: 16 }}>{t("admin.cashback.title")}</div><div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{t("admin.cashback.subtitle")}</div></div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+              <div className="admin-cashback-summary" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
                 {[{l:t("admin.cashback.totalVolume"),v:s?fmt(Number(s.total_volume||0)):"...",a:ZP_GREEN},{l:t("admin.cashback.feesCollected"),v:s?fmt(Number(s.total_platform_fees||0)):"...",a:ZP_CYAN},{l:t("admin.cashback.cashback90"),v:s?fmt(Number(s.total_cashback_payouts||0)):"...",a:ZP_PURPLE},{l:t("admin.clients.transactions"),v:s?String(s.transactions_count):"...",a:"#E5247B"}].map(c=>(<div key={c.l} style={{ ...card({ padding: "14px 16px" }), borderTop: `3px solid ${c.a}` }}><div style={{ fontSize: 20, fontWeight: 900, color: c.a }}>{c.v}</div><div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>{c.l}</div></div>))}
               </div>
               <div style={{ ...card({ overflow: "hidden" }), marginBottom: 20 }}>
                 <div style={{ padding: "14px 16px", fontWeight: 700, borderBottom: `1px solid ${BORDER}` }}>{t("admin.cashback.perTxCashback")}</div>
+                <div className="admin-table-wrap">
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead><tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>{["Transfer","Amount","Gross Fee","Cashback 90%","Net Fee"].map(h=><th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{h}</th>)}</tr></thead>
                   <tbody>{txF.length===0?<tr><td colSpan={5} style={{ padding:32,textAlign:"center",color:MUTED }}>Loading...</td></tr>:txF.map((t:Record<string,unknown>)=>(<tr key={String(t.transfer_id)} style={{ borderBottom:`1px solid ${BORDER}` }}><td style={{ padding:"10px 14px",fontFamily:"monospace",fontSize:11 }}>{String(t.transfer_id).slice(0,18)}</td><td style={{ padding:"10px 14px",fontWeight:700 }}>{fmt(Number(t.amount))}</td><td style={{ padding:"10px 14px",color:"#DC2626" }}>-{fmt(Number(t.gross_fee))}</td><td style={{ padding:"10px 14px",color:ZP_GREEN,fontWeight:700 }}>+{fmt(Number(t.cashback_90pct))}</td><td style={{ padding:"10px 14px",fontWeight:800 }}>{fmt(Number(t.net_fee_merchant))}</td></tr>))}</tbody>
                 </table>
+                </div>
               </div>
               <div style={{ ...card({ overflow: "hidden" }) }}>
                 <div style={{ padding: "14px 16px", fontWeight: 700, borderBottom: `1px solid ${BORDER}` }}>Settlement History</div>
+                <div className="admin-table-wrap">
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead><tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>{["Period","Volume","Fees","Cashback","Net","Status"].map(h=><th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: MUTED, textTransform: "uppercase" }}>{h}</th>)}</tr></thead>
                   <tbody>{setts.length===0?<tr><td colSpan={6} style={{ padding:32,textAlign:"center",color:MUTED }}>Loading...</td></tr>:setts.map((st:Record<string,unknown>)=>(<tr key={String(st.id)} style={{ borderBottom:`1px solid ${BORDER}` }}><td style={{ padding:"10px 14px",fontSize:11,color:MUTED }}>{String(st.period_start||"").slice(0,10)} &rarr; {String(st.period_end||"").slice(0,10)}</td><td style={{ padding:"10px 14px",fontWeight:700 }}>{fmt(Number(st.total_amount))}</td><td style={{ padding:"10px 14px",color:"#DC2626" }}>-{fmt(Number(st.total_fees))}</td><td style={{ padding:"10px 14px",color:ZP_GREEN,fontWeight:700 }}>+{fmt(Number(st.cashback_to_platform))}</td><td style={{ padding:"10px 14px",fontWeight:800 }}>{fmt(Number(st.net_amount))}</td><td style={{ padding:"10px 14px" }}><span style={{ padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:String(st.status)==="APPROVED"?"rgba(22,163,74,0.08)":"rgba(217,119,6,0.08)",color:String(st.status)==="APPROVED"?"#16A34A":"#D97706" }}>{String(st.status)}</span></td></tr>))}</tbody>
                 </table>
+                </div>
               </div>
             </div>);
           })()}
@@ -1416,7 +1510,7 @@ export default function AdminPage() {
               {billingForm.open && (
                 <div style={{ ...card({ padding: "24px", marginBottom: 20 }), borderTop: "3px solid #E5247B" }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: "#E5247B" }}>{t("admin.billing.generateNewInvoice")}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
+                  <div className="admin-billing-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>{t("admin.payouts.merchant")}</label>
                       <select
@@ -1493,7 +1587,7 @@ export default function AdminPage() {
               )}
 
               {/* Search/filter for billing */}
-              <div style={{ ...card({ padding: "12px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const }) }}>
+              <div className="admin-filter-row" style={{ ...card({ padding: "12px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const }) }}>
                 <input
                   type="text"
                   placeholder={t("admin.billing.searchPlaceholder")}
@@ -1511,7 +1605,7 @@ export default function AdminPage() {
               </div>
 
               {/* Summary cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
+              <div className="admin-grid-5" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
                 {[
                   { label: t("admin.billing.totalInvoices"), value: `${billingInvoices.length}`, accent: "#E5247B" },
                   { label: t("admin.payouts.pending"), value: `${billingInvoices.filter(i => i.status === "pending").length}`, accent: "#D97706" },
@@ -1528,7 +1622,7 @@ export default function AdminPage() {
 
               {/* Billing table */}
               <div style={{ ...card({ overflow: "hidden" }) }}>
-                <div style={{ overflowX: "auto" }}>
+                <div className="admin-table-wrap" style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}` }}>
@@ -1658,7 +1752,7 @@ export default function AdminPage() {
               {/* Platform Settings — editable */}
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_GREEN}` }}>
                 <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_GREEN }}>{t("admin.settings.platformSettings")}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+                <div className="admin-settings-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("admin.settings.platformName")}</label>
                     <input type="text" value={settings.platformName} onChange={e => setSettings(s => ({ ...s, platformName: e.target.value }))} style={{ ...inputStyle, width: "100%" }} />
@@ -1677,6 +1771,7 @@ export default function AdminPage() {
               {/* Fee Schedule — editable */}
               <div style={{ ...card({ padding: "24px", marginBottom: 16 }), borderTop: `3px solid ${ZP_CYAN}` }}>
                 <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_CYAN }}>{t("admin.settings.feeSchedule")}</div>
+                <div className="admin-table-wrap">
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
@@ -1703,6 +1798,7 @@ export default function AdminPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
                 <button
                   disabled={settingsLoading}
                   onClick={async () => {
@@ -1779,7 +1875,7 @@ export default function AdminPage() {
               </div>
 
               {/* Other read-only sections */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div className="admin-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
                 <div style={{ ...card({ padding: "24px" }), borderTop: `3px solid ${ZP_BLUE}` }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: ZP_BLUE }}>{t("admin.settings.unitBanking")}</div>
                   {[

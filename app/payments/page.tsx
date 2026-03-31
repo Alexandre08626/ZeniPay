@@ -25,6 +25,19 @@ export default function PaymentsPage() {
   const { t } = useT();
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .zp-pay-stats { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; }
+          .zp-pay-flow { grid-template-columns: 1fr !important; }
+          .zp-pay-flow > div { border-radius: 16px !important; border-right: 1px solid rgba(255,255,255,0.08) !important; }
+          .zp-pay-features { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; }
+          .zp-pay-code { padding: 16px 16px !important; }
+          .zp-pay-pricing { grid-template-columns: 1fr !important; }
+          .zp-pay-section { padding-top: 48px !important; padding-bottom: 48px !important; }
+          .zp-pay-hero-btns { flex-direction: column !important; width: 100% !important; }
+          .zp-pay-hero-btns a { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
+        }
+      `}</style>
       <Nav active="Payments" />
 
       {/* Hero */}
@@ -40,7 +53,7 @@ export default function PaymentsPage() {
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.65)", lineHeight: 1.65, margin: "0 auto 44px", maxWidth: 580 }}>
             {t("payments_page.heroDesc")}
           </p>
-          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+          <div className="zp-pay-hero-btns" style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(45,190,96,0.3)" }}>{t("payments_page.ctaStartFree")}</Link>
             <Link href="/docs" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>{t("payments_page.ctaReadDocs")}</Link>
           </div>
@@ -49,7 +62,7 @@ export default function PaymentsPage() {
       </section>
 
       {/* Stats */}
-      <section style={{ background: "rgba(255,255,255,0.03)", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "36px 5%", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 24, textAlign: "center" }}>
+      <section className="zp-pay-stats" style={{ background: "rgba(255,255,255,0.03)", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "36px 5%", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 24, textAlign: "center" }}>
         {[
           { num: "135+", label: "Currencies accepted" },
           { num: "<200ms", label: "Authorization time" },
@@ -65,12 +78,12 @@ export default function PaymentsPage() {
       </section>
 
       {/* How it works */}
-      <section style={{ padding: "90px 5%", maxWidth: 1100, margin: "0 auto" }}>
+      <section className="zp-pay-section" style={{ padding: "90px 5%", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <h2 style={{ fontSize: "clamp(28px, 3.5vw, 46px)", fontWeight: 900, margin: "0 0 14px", letterSpacing: "-1px" }}>{t("payments_page.howTitle")}</h2>
           <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 16, maxWidth: 480, margin: "0 auto" }}>{t("payments_page.howDesc")}</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 0, position: "relative" }}>
+        <div className="zp-pay-flow" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 0, position: "relative" }}>
           {[
             { step: "01", icon: "💳", title: "Card tokenized", desc: "Sensitive card data is tokenized client-side. Never touches your servers." },
             { step: "02", icon: "🔐", title: "3DS2 check", desc: "SCA authentication in milliseconds. Fraud blocked before authorization." },
@@ -91,7 +104,7 @@ export default function PaymentsPage() {
       {/* Features grid */}
       <section style={{ padding: "0 5% 90px", maxWidth: 1100, margin: "0 auto" }}>
         <h2 style={{ fontSize: "clamp(26px, 3vw, 40px)", fontWeight: 900, textAlign: "center", marginBottom: 48, letterSpacing: "-1px" }}>{t("payments_page.featuresTitle")}</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+        <div className="zp-pay-features" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
             { icon: "💳", color: ZP_GREEN, title: "All major cards", desc: "Visa, Mastercard, Amex, Discover, UnionPay, JCB. Debit and credit. Prepaid and corporate." },
             { icon: "🔒", color: ZP_CYAN, title: "PCI DSS Level 1", desc: "The highest level of PCI compliance. Card data fully tokenized — your servers stay out of scope." },
@@ -122,7 +135,7 @@ export default function PaymentsPage() {
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#28c840" }} />
             <span style={{ marginLeft: 12, color: "rgba(255,255,255,0.3)", fontSize: 12 }}>payment.js</span>
           </div>
-          <div style={{ padding: "24px 28px", fontFamily: "monospace", fontSize: 13, lineHeight: 1.9, overflowX: "auto" }}>
+          <div className="zp-pay-code" style={{ padding: "24px 28px", fontFamily: "monospace", fontSize: 13, lineHeight: 1.9, overflowX: "auto" }}>
             <div style={{ color: "#8b949e" }}>// 1. Install: npm install @zenipay/sdk</div>
             <div style={{ marginTop: 8 }}><span style={{ color: "#ff7b72" }}>import</span> <span style={{ color: "#e6edf3" }}>ZeniPay</span> <span style={{ color: "#ff7b72" }}>from</span> <span style={{ color: "#a5d6ff" }}>&quot;@zenipay/sdk&quot;</span>;</div>
             <div style={{ marginTop: 8 }}><span style={{ color: "#ff7b72" }}>const</span> <span style={{ color: "#e6edf3" }}>zp</span> <span style={{ color: "#ff7b72" }}>=</span> <span style={{ color: "#ff7b72" }}>new</span> <span style={{ color: "#d2a8ff" }}>ZeniPay</span><span style={{ color: "#e6edf3" }}>(</span><span style={{ color: "#a5d6ff" }}>&quot;zpk_sb_your_key&quot;</span><span style={{ color: "#e6edf3" }}>);</span></div>
@@ -147,7 +160,7 @@ export default function PaymentsPage() {
       <section style={{ padding: "0 5% 90px", maxWidth: 900, margin: "0 auto" }}>
         <h2 style={{ fontSize: 36, fontWeight: 900, textAlign: "center", marginBottom: 12 }}>{t("payments_page.pricingTitle")}</h2>
         <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 44 }}>{t("payments_page.pricingDesc")}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
+        <div className="zp-pay-pricing" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
           {[
             { title: "Standard", price: "2.9% + $0.30", per: "per successful charge", color: ZP_GREEN, features: ["Visa, Mastercard, Discover", "3DS2 included", "Real-time webhooks", "Basic reporting", "Email receipts"] },
             { title: "Business", price: "2.5% + $0.25", per: "per successful charge", color: ZP_CYAN, badge: "Most popular", features: ["Everything in Standard", "Amex & international cards", "Priority routing", "Advanced analytics", "Phone support", "Custom webhook retry"] },

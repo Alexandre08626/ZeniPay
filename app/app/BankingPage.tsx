@@ -92,6 +92,24 @@ const CSS_ANIMATIONS = `
   from { opacity: 1; transform: translateX(0); }
   to { opacity: 0; transform: translateX(40px); }
 }
+@media (max-width: 768px) {
+  .bp-hero { padding: 20px !important; }
+  .bp-hero-stats { gap: 16px !important; }
+  .bp-hero-btns button { padding: 10px 18px !important; font-size: 13px !important; }
+  .bp-form-grid { grid-template-columns: 1fr !important; }
+  .bp-card-grid { grid-template-columns: 1fr !important; }
+  .bp-search-input { width: 100% !important; }
+  .bp-tx-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
+  .bp-fee-grid { grid-template-columns: 1fr !important; }
+  .bp-section-tabs { padding: 10px 12px !important; gap: 2px !important; }
+  .bp-section-tabs button { padding: 8px 12px !important; font-size: 12px !important; }
+  .bp-content { padding: 16px !important; }
+  .bp-settings-grid { grid-template-columns: 1fr !important; }
+  .bp-modal-panel { width: 100vw !important; }
+  .bp-filter-row { flex-direction: column !important; align-items: stretch !important; }
+  .bp-money-flow { padding: 12px 0 !important; }
+  .bp-money-flow > div { min-width: 100px !important; padding: 12px 8px !important; }
+}
 `;
 
 const badge = (text: string, color: string): React.CSSProperties => ({
@@ -190,10 +208,10 @@ export default function BankingPage(props: BankingProps) {
   /* === SUB-COMPONENTS === */
   const Overview = () => (
     <div style={{ animation: "slideUp 0.3s ease forwards" }}>
-      <div style={{ background: "linear-gradient(135deg, #15B8C9 0%, #7B4FBF 50%, #E5247B 100%)", borderRadius: 24, padding: 40, color: "#fff", marginBottom: 24 }}>
+      <div className="bp-hero" style={{ background: "linear-gradient(135deg, #15B8C9 0%, #7B4FBF 50%, #E5247B 100%)", borderRadius: 24, padding: 40, color: "#fff", marginBottom: 24 }}>
         <div style={{ ...labelStyle, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>NET BALANCE</div>
         <div style={{ fontSize: 48, fontWeight: 900, marginBottom: 24, letterSpacing: "-0.02em" }}>{fmt(netBalance)}</div>
-        <div style={{ display: "flex", gap: 36, flexWrap: "wrap", marginBottom: 32 }}>
+        <div className="bp-hero-stats" style={{ display: "flex", gap: 36, flexWrap: "wrap", marginBottom: 32 }}>
           <div>
             <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7, marginBottom: 4 }}>Pending</div>
             <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.02em", color: "#FFD86B" }}>{fmt(pending)}</div>
@@ -207,7 +225,7 @@ export default function BankingPage(props: BankingProps) {
             <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.02em", color: "#B8F0FF" }}>{fmt(platformBalance)}</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div className="bp-hero-btns" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Send Money")}>{t("banking.sendMoney")}</button>
           <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Cards")}>{t("banking.cards")}</button>
           <button style={{ padding: "12px 28px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", backdropFilter: "blur(8px)" }} onClick={() => setSection("Transactions")}>{t("banking.statements")}</button>
@@ -245,7 +263,7 @@ export default function BankingPage(props: BankingProps) {
         {showForm && (
           <div style={{ ...cardStyle, marginBottom: 24, border: "2px solid #15B8C920" }}>
             <div style={{ fontWeight: 800, marginBottom: 18, fontSize: 16, color: "#0F172A" }}>{t("banking.openNewAccount")}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+            <div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
               <div><label style={labelStyle}>{t("banking.accountType")}</label><select style={inputStyle} value={form.account_type} onChange={e => setForm({ ...form, account_type: e.target.value })}>{ACCT_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}</select></div>
               <div><label style={labelStyle}>{t("banking.accountName")}</label><input style={inputStyle} placeholder="e.g. Main Business Account" value={form.account_name} onChange={e => setForm({ ...form, account_name: e.target.value })} /></div>
               {form.account_type === "multi_currency" && <div><label style={labelStyle}>Currency</label><select style={inputStyle} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}>{["USD", "EUR", "GBP", "CAD", "AUD", "JPY"].map(c => <option key={c} value={c}>{c}</option>)}</select></div>}
@@ -300,7 +318,7 @@ export default function BankingPage(props: BankingProps) {
         {showForm && (
           <div style={{ ...cardStyle, marginBottom: 24, border: "2px solid #7B4FBF20" }}>
             <div style={{ fontWeight: 800, marginBottom: 18, fontSize: 16, color: "#0F172A" }}>{t("banking.applyForCard")}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+            <div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
               <div><label style={labelStyle}>Card Type</label><select style={inputStyle} value={form.card_type} onChange={e => setForm({ ...form, card_type: e.target.value })}>{CARD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
               <div><label style={labelStyle}>Daily Limit: {fmt(form.daily_limit)}</label><input type="range" min={500} max={50000} step={500} value={form.daily_limit} onChange={e => setForm({ ...form, daily_limit: Number(e.target.value) })} style={{ width: "100%", marginTop: 12, accentColor: PURPLE }} /></div>
               {isPhysical && <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Shipping Address</label><input style={inputStyle} placeholder="123 Main St, City, State, ZIP" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>}
@@ -309,7 +327,7 @@ export default function BankingPage(props: BankingProps) {
             <button style={{ ...btnAccent(PURPLE), marginTop: 18 }} disabled={loading} onClick={submit}>{loading ? "Applying..." : "Apply"}</button>
           </div>
         )}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 24 }}>
+        <div className="bp-card-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 24 }}>
           {cards.map((c, i) => {
             const pct = c.spending_limit ? Math.min(100, ((c.spent_this_month || 0) / c.spending_limit) * 100) : 0;
             const isFrozen = c.status === "frozen";
@@ -418,14 +436,14 @@ export default function BankingPage(props: BankingProps) {
           ))}
         </div>
         {contactSelect}
-        {tab === "ACH" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        {tab === "ACH" && (<div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
           <div><label style={labelStyle}>{t("banking.recipient")}</label><input style={inputStyle} value={f.recipient || ""} onChange={e => update("recipient", e.target.value)} /></div>
           <div><label style={labelStyle}>{t("banking.routingNumber")}</label><input style={inputStyle} value={f.routing_number || ""} onChange={e => update("routing_number", e.target.value)} /></div>
           <div><label style={labelStyle}>{t("banking.accountNumber")}</label><input style={inputStyle} value={f.account_number || ""} onChange={e => update("account_number", e.target.value)} /></div>
           <div><label style={labelStyle}>{t("banking.amount")}</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
           <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>{t("banking.memo")}</label><input style={inputStyle} value={f.memo || ""} onChange={e => update("memo", e.target.value)} /></div>
         </div>)}
-        {tab === "Wire" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        {tab === "Wire" && (<div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
           <div><label style={labelStyle}>{t("banking.recipient")}</label><input style={inputStyle} value={f.recipient || ""} onChange={e => update("recipient", e.target.value)} /></div>
           <div><label style={labelStyle}>{t("banking.bankName")}</label><input style={inputStyle} value={f.bank_name || ""} onChange={e => update("bank_name", e.target.value)} /></div>
           <div><label style={labelStyle}>{t("banking.routingNumber")}</label><input style={inputStyle} value={f.routing_number || ""} onChange={e => update("routing_number", e.target.value)} /></div>
@@ -434,12 +452,12 @@ export default function BankingPage(props: BankingProps) {
           <div><label style={labelStyle}>{t("banking.amount")}</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
           <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>{t("banking.memo")}</label><input style={inputStyle} value={f.memo || ""} onChange={e => update("memo", e.target.value)} /></div>
         </div>)}
-        {tab === "Internal" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        {tab === "Internal" && (<div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
           <div><label style={labelStyle}>From Account</label><select style={inputStyle} value={f.from_account || ""} onChange={e => update("from_account", e.target.value)}><option value="">Select...</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.account_name} ({fmt(a.balance)})</option>)}</select></div>
           <div><label style={labelStyle}>To Account</label><select style={inputStyle} value={f.to_account || ""} onChange={e => update("to_account", e.target.value)}><option value="">Select...</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.account_name} ({fmt(a.balance)})</option>)}</select></div>
           <div><label style={labelStyle}>Amount</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
         </div>)}
-        {tab === "Bill Pay" && (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        {tab === "Bill Pay" && (<div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
           <div><label style={labelStyle}>Payee</label><input style={inputStyle} value={f.payee || ""} onChange={e => update("payee", e.target.value)} /></div>
           <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={f.account_number || ""} onChange={e => update("account_number", e.target.value)} /></div>
           <div><label style={labelStyle}>Amount</label><input style={inputStyle} type="number" value={f.amount || ""} onChange={e => update("amount", e.target.value)} /></div>
@@ -487,8 +505,8 @@ export default function BankingPage(props: BankingProps) {
     const rows = filtered.slice(0, 50).map(t => { const bal = running; running -= t.amount; return { ...t, balance: bal }; });
     return (
       <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 14 }}>
-          <div style={{ display: "flex", gap: 6 }}>{filters.map(fl => (
+        <div className="bp-filter-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 14 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{filters.map(fl => (
             <button key={fl} onClick={() => setFilter(fl)} style={{
               padding: "8px 18px", border: "none", borderRadius: 20, cursor: "pointer", fontWeight: 700, fontSize: 12,
               background: filter === fl ? "linear-gradient(135deg, #15B8C9, #7B4FBF)" : "#F1F5F9",
@@ -496,10 +514,10 @@ export default function BankingPage(props: BankingProps) {
               transition: "all 0.2s ease", letterSpacing: "0.02em",
             }}>{fl}</button>
           ))}</div>
-          <input style={{ ...inputStyle, width: 260, height: 42 }} placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input className="bp-search-input" style={{ ...inputStyle, width: 260, height: 42 }} placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+        <div className="bp-tx-table-wrap" style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 640 }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #F1F5F9" }}>
                 {["", "Date", "Description", "Type", "Amount", "Balance"].map(h => (
@@ -540,7 +558,7 @@ export default function BankingPage(props: BankingProps) {
   const FeeSchedule = () => (
     <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
       <h3 style={{ margin: "0 0 22px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>{t("banking.feeSchedule")}</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+      <div className="bp-fee-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
         {FEES_DATA.map(([name, amount], i) => (
           <div key={name} style={{
             display: "flex", justifyContent: "space-between", padding: "16px 20px",
@@ -558,7 +576,7 @@ export default function BankingPage(props: BankingProps) {
   const MoneyFlow = () => (
     <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
       <h3 style={{ margin: "0 0 28px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>{t("banking.moneyFlow")}</h3>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, flexWrap: "wrap", padding: "24px 0" }}>
+      <div className="bp-money-flow" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, flexWrap: "wrap", padding: "24px 0" }}>
         {[
           { label: "Customer", sub: "Payment initiated", color: PURPLE, icon: "\uD83D\uDC64" },
           { label: "Card Network", sub: "Visa / Mastercard", color: GOLD, icon: "\uD83D\uDCB3" },
@@ -617,7 +635,7 @@ export default function BankingPage(props: BankingProps) {
         <Toggle k="payout_completed" label="Payout Completed" />
         <Toggle k="card_transaction" label="Card Transaction" />
         <Toggle k="weekly_summary" label="Weekly Summary" />
-        <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        <div className="bp-settings-grid" style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
           <div><label style={labelStyle}>Large Transaction Threshold</label><input style={inputStyle} type="number" value={n.large_transaction_threshold} onChange={e => setN(p => ({ ...p, large_transaction_threshold: Number(e.target.value) }))} /></div>
           <div><label style={labelStyle}>Low Balance Threshold</label><input style={inputStyle} type="number" value={n.low_balance_threshold} onChange={e => setN(p => ({ ...p, low_balance_threshold: Number(e.target.value) }))} /></div>
         </div>
@@ -648,7 +666,7 @@ export default function BankingPage(props: BankingProps) {
         background: "linear-gradient(135deg, #15B8C9 0%, #7B4FBF 50%, #E5247B 100%)",
         padding: "0", position: "relative",
       }}>
-        <div style={{
+        <div className="bp-section-tabs" style={{
           display: "flex", gap: 4, padding: "14px 28px", overflowX: "auto",
           maxWidth: 1200, margin: "0 auto",
         }}>
@@ -674,7 +692,7 @@ export default function BankingPage(props: BankingProps) {
           );})}
         </div>
       </div>
-      <div style={{ padding: 28, maxWidth: 1140, margin: "0 auto" }}>
+      <div className="bp-content" style={{ padding: 28, maxWidth: 1140, margin: "0 auto" }}>
         {renderSection()}
       </div>
 
@@ -688,7 +706,7 @@ export default function BankingPage(props: BankingProps) {
 
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", display: "flex", justifyContent: "flex-end" }} onClick={() => setSelectedCard(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ width: "min(680px,100vw)", height: "100vh", background: "#fff", overflowY: "auto", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)" }}>
+            <div className="bp-modal-panel" onClick={e => e.stopPropagation()} style={{ width: "min(680px,100vw)", height: "100vh", background: "#fff", overflowY: "auto", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)" }}>
               {/* Header with card gradient */}
               <div style={{ background: cardGradient(c), padding: "32px 28px", color: "white", position: "relative" }}>
                 {isFrozen && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }} />}
@@ -723,7 +741,7 @@ export default function BankingPage(props: BankingProps) {
                 {/* Card Details */}
                 <div style={{ ...cardStyle }}>
                   <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>💳 Card Details</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     {[
                       { l: "Card Number", v: fullNum },
                       { l: "Expiry Date", v: c.expiry },
@@ -748,7 +766,7 @@ export default function BankingPage(props: BankingProps) {
                 <div style={{ ...cardStyle }}>
                   <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>🏦 Linked Bank Account</h3>
                   {linkedAcct ? (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                       {[
                         { l: "Account Name", v: linkedAcct.account_name },
                         { l: "Account Number", v: linkedAcct.account_number },
@@ -769,7 +787,7 @@ export default function BankingPage(props: BankingProps) {
                 {/* Bank Address */}
                 <div style={{ ...cardStyle }}>
                   <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>🏛️ Issuing Bank</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     {[
                       { l: "Bank Name", v: "Unit Financial Technologies" },
                       { l: "Bank Address", v: "1 Letterman Drive, San Francisco, CA 94129" },
@@ -833,7 +851,7 @@ export default function BankingPage(props: BankingProps) {
 
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", display: "flex", justifyContent: "flex-end" }} onClick={() => setSelectedAccount(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ width: "min(680px,100vw)", height: "100vh", background: "#fff", overflowY: "auto", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)" }}>
+            <div className="bp-modal-panel" onClick={e => e.stopPropagation()} style={{ width: "min(680px,100vw)", height: "100vh", background: "#fff", overflowY: "auto", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)" }}>
               {/* Header */}
               <div style={{ background: ACCT_GRADIENTS[a.account_type] || `linear-gradient(135deg, ${BLUE}, ${PURPLE})`, padding: "32px 28px", color: "white" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -852,7 +870,7 @@ export default function BankingPage(props: BankingProps) {
                 {/* Account Details */}
                 <div style={{ ...cardStyle }}>
                   <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>🏦 Account Details</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     {[
                       { l: "Account Number", v: a.account_number || "—" },
                       { l: "Routing Number", v: a.routing_number || "812345678" },
@@ -874,7 +892,7 @@ export default function BankingPage(props: BankingProps) {
                 {/* Merchant Info */}
                 <div style={{ ...cardStyle }}>
                   <h3 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 16, color: "#0F172A" }}>🏢 Merchant Information</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="bp-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     {[
                       { l: "Business Name", v: businessName },
                       { l: "Merchant ID", v: merchantId },

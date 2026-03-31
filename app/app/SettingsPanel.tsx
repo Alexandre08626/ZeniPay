@@ -377,8 +377,19 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
   return (
     <div style={{ minHeight: "100vh", background: DARK, padding: "32px 24px" }}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <style>{`
+        @media (max-width: 768px) {
+          .sp-field-group { grid-template-columns: 1fr !important; }
+          .sp-card { padding: 16px !important; }
+          .sp-container { padding: 16px 12px !important; }
+          .sp-danger-row { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
+          .sp-danger-row button { width: 100% !important; }
+          .sp-header h1 { font-size: 22px !important; }
+          .sp-toggle-row { flex-direction: row !important; }
+        }
+      `}</style>
 
-      <div style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div className="sp-container" style={{ maxWidth: 800, margin: "0 auto" }}>
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{t("settings.title")}</h1>
@@ -405,11 +416,11 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
         {/* ════════════════════════════════════════════════
             Section 1: Business Information
            ════════════════════════════════════════════════ */}
-        <div style={styles.card}>
+        <div className="sp-card" style={styles.card}>
           <div style={styles.sectionTitle}>{t("settings.businessInfo")}</div>
           <div style={styles.sectionSub}>{t("settings.businessInfoSub")}</div>
 
-          <div style={styles.fieldGroup}>
+          <div className="sp-field-group" style={styles.fieldGroup}>
             <div>
               <label style={styles.label}>{t("settings.businessName")}</label>
               <input
@@ -430,7 +441,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             </div>
           </div>
 
-          <div style={styles.fieldGroup}>
+          <div className="sp-field-group" style={styles.fieldGroup}>
             <div>
               <label style={styles.label}>{t("settings.email")}</label>
               <input
@@ -464,7 +475,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             />
           </div>
 
-          <div style={styles.fieldGroup}>
+          <div className="sp-field-group" style={styles.fieldGroup}>
             <div>
               <label style={styles.label}>{t("settings.businessType")}</label>
               <select
@@ -513,7 +524,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
         {/* ════════════════════════════════════════════════
             Section 2: Payment Configuration
            ════════════════════════════════════════════════ */}
-        <div style={styles.card}>
+        <div className="sp-card" style={styles.card}>
           <div style={styles.sectionTitle}>{t("settings.paymentConfig")}</div>
           <div style={styles.sectionSub}>{t("settings.paymentConfigSub")}</div>
 
@@ -530,7 +541,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
             </p>
           </div>
 
-          <div style={styles.fieldGroup}>
+          <div className="sp-field-group" style={styles.fieldGroup}>
             <div>
               <label style={styles.label}>{t("settings.successRedirect")}</label>
               <input
@@ -585,7 +596,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
         {/* ════════════════════════════════════════════════
             Section 3: Notification Preferences
            ════════════════════════════════════════════════ */}
-        <div style={styles.card}>
+        <div className="sp-card" style={styles.card}>
           <div style={styles.sectionTitle}>{t("settings.notifications")}</div>
           <div style={styles.sectionSub}>{t("settings.notificationsSub")}</div>
 
@@ -704,7 +715,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
         {/* ════════════════════════════════════════════════
             Section 4: Fee Structure (read-only)
            ════════════════════════════════════════════════ */}
-        <div style={styles.card}>
+        <div className="sp-card" style={styles.card}>
           <div style={styles.sectionTitle}>{t("settings.feeStructure")}</div>
           <div style={styles.sectionSub}>{t("settings.feeStructureSub")}</div>
 
@@ -754,7 +765,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
         {/* ════════════════════════════════════════════════
             Section 5: Security & Compliance (read-only)
            ════════════════════════════════════════════════ */}
-        <div style={styles.card}>
+        <div className="sp-card" style={styles.card}>
           <div style={styles.sectionTitle}>{t("settings.security")}</div>
           <div style={styles.sectionSub}>{t("settings.securitySub")}</div>
 
@@ -832,6 +843,7 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
           <div style={styles.sectionSub}>{t("settings.dangerZoneSub")}</div>
 
           <div
+            className="sp-danger-row"
             style={{
               display: "flex",
               alignItems: "center",

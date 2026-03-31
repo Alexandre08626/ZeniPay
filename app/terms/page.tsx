@@ -7,6 +7,13 @@ export default function TermsPage() {
 
   return (
     <div style={{ backgroundColor: "#ffffff", minHeight: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .zp-legal-main { padding: 28px 16px 48px !important; }
+          .zp-legal-h1 { font-size: 28px !important; }
+          .zp-legal-header { padding: 0 16px !important; }
+        }
+      `}</style>
       {/* Header */}
       <header style={{ borderBottom: "1px solid #E5E7EB", padding: "20px 0" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -23,8 +30,8 @@ export default function TermsPage() {
       </header>
 
       {/* Content */}
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: "48px 24px 80px" }}>
-        <h1 style={{ fontSize: 36, fontWeight: 800, background: gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", marginBottom: 8 }}>
+      <main className="zp-legal-main" style={{ maxWidth: 800, margin: "0 auto", padding: "48px 24px 80px" }}>
+        <h1 className="zp-legal-h1" style={{ fontSize: 36, fontWeight: 800, background: gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", marginBottom: 8 }}>
           {t("terms.title")}
         </h1>
         <p style={{ color: "#6B7280", fontSize: 14, marginBottom: 40 }}>{t("common.effectiveDate")}</p>

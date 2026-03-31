@@ -185,17 +185,24 @@ function PayLinkContent() {
 
   return (
     <div style={{ minHeight: "100vh", background: ZP_DARK, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .zp-checkout-form { padding: 20px 18px 18px !important; }
+          .zp-checkout-amount { font-size: 32px !important; }
+          .zp-checkout-logo { transform: scale(0.85); }
+        }
+      `}</style>
       <div style={{ width: "100%", maxWidth: 440 }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 24, position: "relative" }}>
-          <ZeniPayLogo size={180} showWordmark />
+          <span className="zp-checkout-logo"><ZeniPayLogo size={180} showWordmark /></span>
           <div style={{ position: "absolute", top: 0, right: 0 }}><LangToggle /></div>
         </div>
 
         {/* Amount card */}
         <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "20px 24px", marginBottom: 20, textAlign: "center" }}>
           <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 6 }}>{t("checkout.amountDue")}</div>
-          <div style={{ fontSize: 42, fontWeight: 900, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "-1px" }}>
+          <div className="zp-checkout-amount" style={{ fontSize: 42, fontWeight: 900, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "-1px" }}>
             {fmtMoney(amount)}
           </div>
           {desc && <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginTop: 6 }}>{desc}</div>}
@@ -203,7 +210,7 @@ function PayLinkContent() {
         </div>
 
         {/* Payment form */}
-        <form onSubmit={handlePay} style={{ background: "#fff", borderRadius: 20, padding: "28px 28px 24px", boxShadow: "0 8px 48px rgba(0,0,0,0.3)" }}>
+        <form onSubmit={handlePay} className="zp-checkout-form" style={{ background: "#fff", borderRadius: 20, padding: "28px 28px 24px", boxShadow: "0 8px 48px rgba(0,0,0,0.3)" }}>
           <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 20px", color: "#0D1B3A" }}>{t("checkout.cardDetails")}</h2>
 
           {/* Card number */}

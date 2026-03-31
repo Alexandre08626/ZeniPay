@@ -156,7 +156,7 @@ export default function SignupPage() {
                     background: step >= s.num ? ZP_GRAD : "#E2E8F0",
                     color: step >= s.num ? "#fff" : "#94A3B8",
                   }}>{s.num}</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: step >= s.num ? "#0D1B3A" : "#94A3B8", whiteSpace: "nowrap" }}>{s.label}</div>
+                  <div className="zp-stepper-label" style={{ fontSize: 10, fontWeight: 600, color: step >= s.num ? "#0D1B3A" : "#94A3B8", whiteSpace: "nowrap" }}>{s.label}</div>
                 </div>
                 {i < steps.length - 1 && (
                   <div style={{ flex: 1, height: 2, background: step > s.num ? ZP_GREEN : "#E2E8F0", margin: "0 8px", marginBottom: 18 }} />
@@ -167,7 +167,7 @@ export default function SignupPage() {
         )}
 
         {/* Card */}
-        <div style={{ background: "#fff", borderRadius: 24, padding: "32px 32px 28px", boxShadow: "0 4px 48px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.06)" }}>
+        <div className="zp-signup-card" style={{ background: "#fff", borderRadius: 24, padding: "32px 32px 28px", boxShadow: "0 4px 48px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.06)" }}>
 
           {/* ── STEP 1 ── */}
           {step === 1 && (
@@ -175,7 +175,7 @@ export default function SignupPage() {
               <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 6px", color: "#0D1B3A", letterSpacing: "-0.5px" }}>{t("signup.createTitle")}</h2>
               <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 24px" }}>{t("signup.createDesc")}</p>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div className="zp-signup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={labelStyle}>BUSINESS NAME</label>
                   <input value={businessName} onChange={e => setBusinessName(e.target.value)} required placeholder="Acme Corp" style={inputStyle}
@@ -188,7 +188,7 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div className="zp-signup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={labelStyle}>BUSINESS EMAIL</label>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@company.com" style={inputStyle}
@@ -201,7 +201,7 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div className="zp-signup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={labelStyle}>WEBSITE (optional)</label>
                   <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://yoursite.com" style={inputStyle}
@@ -215,7 +215,7 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+              <div className="zp-signup-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
                 <div>
                   <label style={labelStyle}>BUSINESS TYPE</label>
                   <select value={businessType} onChange={e => setBusinessType(e.target.value)} required style={{ ...inputStyle, cursor: "pointer" }}>
@@ -358,7 +358,14 @@ export default function SignupPage() {
           )}
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+          .zp-signup-grid { grid-template-columns: 1fr !important; }
+          .zp-signup-card { padding: 20px 20px 18px !important; }
+          .zp-stepper-label { font-size: 9px !important; }
+        }
+      `}</style>
     </div>
   );
 }

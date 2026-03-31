@@ -483,6 +483,14 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
           0%, 100% { opacity: 1; }
           50%      { opacity: 0.6; }
         }
+        @media (max-width: 768px) {
+          .sb-test-cards { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
+          .sb-test-cards > div { min-width: 500px !important; }
+          .sb-form-grid { grid-template-columns: 1fr !important; }
+          .sb-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .sb-bottom-row { grid-template-columns: 1fr !important; }
+          .sb-card { padding: 16px !important; }
+        }
       `}</style>
 
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
@@ -509,7 +517,7 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
             </p>
           </div>
 
-          <div style={{ background: DARK_CARD }}>
+          <div className="sb-test-cards" style={{ background: DARK_CARD }}>
             {/* Header row */}
             <div
               style={{
@@ -574,7 +582,7 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
             subtitle={t("sandbox.simulatePaymentSub")}
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="sb-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             {/* Amount */}
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: MUTED, display: "block", marginBottom: 6 }}>
@@ -917,13 +925,13 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
         </div>
 
         {/* ═══ Bottom row: Stats + Checklist ══════════════ */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        <div className="sb-bottom-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
 
           {/* ═══ 4. SANDBOX STATS ═════════════════════════ */}
           <div style={CARD_STYLE}>
             <SectionTitle title={t("sandbox.sandboxStats")} />
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="sb-stats-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               {[
                 {
                   label: t("sandbox.testPayments"),

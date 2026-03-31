@@ -12,6 +12,16 @@ export default function PayoutsPage() {
   const { t } = useT();
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .zp-po-methods { grid-template-columns: 1fr !important; }
+          .zp-po-2col { grid-template-columns: 1fr !important; }
+          .zp-po-industries { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; }
+          .zp-po-hero-btns { flex-direction: column !important; width: 100% !important; }
+          .zp-po-hero-btns a { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
+          .zp-po-section { padding-top: 48px !important; padding-bottom: 48px !important; }
+        }
+      `}</style>
       <Nav active="Payouts" />
 
       {/* Hero */}
@@ -27,7 +37,7 @@ export default function PayoutsPage() {
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.65)", lineHeight: 1.65, margin: "0 auto 44px", maxWidth: 580 }}>
             {t("payouts_page.heroDesc")}
           </p>
-          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+          <div className="zp-po-hero-btns" style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(21,184,201,0.3)" }}>{t("payouts_page.ctaStart")}</Link>
             <Link href="/docs" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>{t("payouts_page.ctaDocs")}</Link>
           </div>
@@ -35,10 +45,10 @@ export default function PayoutsPage() {
       </section>
 
       {/* Payout methods */}
-      <section style={{ padding: "80px 5%", maxWidth: 1100, margin: "0 auto" }}>
+      <section className="zp-po-section" style={{ padding: "80px 5%", maxWidth: 1100, margin: "0 auto" }}>
         <h2 style={{ fontSize: "clamp(26px, 3vw, 42px)", fontWeight: 900, textAlign: "center", marginBottom: 12, letterSpacing: "-1px" }}>{t("payouts_page.methodsTitle")}</h2>
         <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 48 }}>{t("payouts_page.methodsDesc")}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+        <div className="zp-po-methods" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
             { icon: "⚡", color: ZP_CYAN, title: "Real-time (RTP / FedNow)", time: "< 30 seconds", availability: "24/7/365", desc: "Instant payouts via RTP and FedNow rails. Recipients see funds in seconds, not days. Ideal for on-demand platforms." },
             { icon: "🏦", color: ZP_GREEN, title: "Same-day ACH", time: "Same business day", availability: "Weekdays by 1PM ET", desc: "Guaranteed same-day settlement via NACHA same-day ACH. Perfect for payroll and contractor payments." },
@@ -63,7 +73,7 @@ export default function PayoutsPage() {
 
       {/* Recipients management */}
       <section style={{ padding: "0 5% 80px", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "center" }}>
+        <div className="zp-po-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "center" }}>
           <div>
             <h2 style={{ fontSize: "clamp(26px, 3vw, 40px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>{t("payouts_page.recipientsTitle")}</h2>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, lineHeight: 1.7, marginBottom: 28 }}>
@@ -115,7 +125,7 @@ export default function PayoutsPage() {
         <div style={{ maxWidth: 1000, margin: "0 auto", textAlign: "center" }}>
           <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 12 }}>{t("payouts_page.industriesTitle")}</h2>
           <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 44 }}>{t("payouts_page.industriesDesc")}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+          <div className="zp-po-industries" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
             {[
               { icon: "✈️", name: "Travel Agencies", desc: "Commissions to agents & guides" },
               { icon: "🚗", name: "Gig Platforms", desc: "Driver & contractor earnings" },

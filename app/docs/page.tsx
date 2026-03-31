@@ -77,10 +77,23 @@ const TEST_CARDS = [
 export default function DocsPage() {
   const { t } = useT();
   const [activeSection, setActiveSection] = useState("Getting Started");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const current = SECTIONS.find(s => s.category === activeSection)!;
 
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .zp-docs-layout { grid-template-columns: 1fr !important; }
+          .zp-docs-sidebar { display: none !important; }
+          .zp-docs-sidebar.zp-docs-sidebar-open { display: block !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 260px !important; height: 100vh !important; background: #0A0F1E !important; z-index: 1000 !important; padding: 60px 16px 16px !important; overflow-y: auto !important; border-right: 1px solid rgba(255,255,255,0.1) !important; }
+          .zp-docs-sidebar-open .zp-docs-sidebar-inner { position: static !important; }
+          .zp-docs-hamburger { display: flex !important; }
+          .zp-docs-overlay { display: block !important; }
+          .zp-docs-code { padding: 16px 16px !important; }
+          .zp-docs-test-cards { padding: 16px 16px !important; }
+        }
+      `}</style>
       <Nav active="Docs" />
 
       {/* Hero */}
@@ -100,13 +113,19 @@ export default function DocsPage() {
         </div>
       </section>
 
+      {/* Mobile sidebar toggle */}
+      <button className="zp-docs-hamburger" onClick={() => setSidebarOpen(v => !v)} style={{ display: "none", position: "fixed", bottom: 20, right: 20, zIndex: 1001, width: 48, height: 48, borderRadius: 12, background: ZP_GRAD, color: "#fff", border: "none", fontSize: 22, cursor: "pointer", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
+        {sidebarOpen ? "✕" : "☰"}
+      </button>
+      {sidebarOpen && <div className="zp-docs-overlay" onClick={() => setSidebarOpen(false)} style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 999 }} />}
+
       {/* Main layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", maxWidth: 1100, margin: "0 auto", padding: "0 5% 80px", gap: 32 }}>
+      <div className="zp-docs-layout" style={{ display: "grid", gridTemplateColumns: "220px 1fr", maxWidth: 1100, margin: "0 auto", padding: "0 5% 80px", gap: 32 }}>
         {/* Sidebar */}
-        <div style={{ paddingTop: 16 }}>
-          <div style={{ position: "sticky", top: 80 }}>
+        <div className={`zp-docs-sidebar${sidebarOpen ? " zp-docs-sidebar-open" : ""}`} style={{ paddingTop: 16 }}>
+          <div className="zp-docs-sidebar-inner" style={{ position: "sticky", top: 80 }}>
             {SECTIONS.map(s => (
-              <button key={s.category} onClick={() => setActiveSection(s.category)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", borderRadius: 10, border: "none", cursor: "pointer", background: activeSection === s.category ? s.color + "18" : "transparent", color: activeSection === s.category ? "#fff" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: activeSection === s.category ? 700 : 500, textAlign: "left", borderLeft: `2px solid ${activeSection === s.category ? s.color : "transparent"}`, marginBottom: 2 }}>
+              <button key={s.category} onClick={() => { setActiveSection(s.category); setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", borderRadius: 10, border: "none", cursor: "pointer", background: activeSection === s.category ? s.color + "18" : "transparent", color: activeSection === s.category ? "#fff" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: activeSection === s.category ? 700 : 500, textAlign: "left", borderLeft: `2px solid ${activeSection === s.category ? s.color : "transparent"}`, marginBottom: 2 }}>
                 <span style={{ fontSize: 16 }}>{s.icon}</span>
                 <span>{s.category}</span>
               </button>
@@ -138,7 +157,7 @@ export default function DocsPage() {
           </div>
 
           {/* Test cards (always shown) */}
-          <div style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: "24px 28px", marginBottom: 32 }}>
+          <div className="zp-docs-test-cards" style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: "24px 28px", marginBottom: 32 }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 16px", color: ZP_CYAN }}>🧪 Sandbox test cards</h3>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -175,7 +194,7 @@ export default function DocsPage() {
               </div>
               <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12, marginLeft: 8 }}>curl example — create payment</span>
             </div>
-            <div style={{ padding: "22px 28px", fontFamily: "monospace", fontSize: 13, lineHeight: 1.9, overflowX: "auto" }}>
+            <div className="zp-docs-code" style={{ padding: "22px 28px", fontFamily: "monospace", fontSize: 13, lineHeight: 1.9, overflowX: "auto" }}>
               <div><span style={{ color: "#ff7b72" }}>curl</span> -X POST https://api.zenipay.ca/v1/payments \</div>
               <div style={{ paddingLeft: 24 }}>-H <span style={{ color: "#a5d6ff" }}>&quot;Authorization: Bearer zpk_sb_your_key&quot;</span> \</div>
               <div style={{ paddingLeft: 24 }}>-H <span style={{ color: "#a5d6ff" }}>&quot;Content-Type: application/json&quot;</span> \</div>

@@ -12,6 +12,15 @@ export default function ToolsPage() {
   const { t } = useT();
   return (
     <div style={{ background: DARK, color: "#fff", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .zp-tools-dash { grid-template-columns: 1fr !important; }
+          .zp-tools-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; }
+          .zp-tools-section { padding-top: 48px !important; padding-bottom: 48px !important; }
+          .zp-tools-cta-btns { flex-direction: column !important; width: 100% !important; }
+          .zp-tools-cta-btns a { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
+        }
+      `}</style>
       <Nav active="Tools" />
 
       {/* Hero */}
@@ -32,8 +41,8 @@ export default function ToolsPage() {
       </section>
 
       {/* Dashboard preview cards */}
-      <section style={{ padding: "80px 5%", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 20 }}>
+      <section className="zp-tools-section" style={{ padding: "80px 5%", maxWidth: 1100, margin: "0 auto" }}>
+        <div className="zp-tools-dash" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 20 }}>
           {/* Big revenue chart card */}
           <div style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 22, padding: "28px 28px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -72,7 +81,7 @@ export default function ToolsPage() {
       <section style={{ padding: "0 5% 80px", maxWidth: 1100, margin: "0 auto" }}>
         <h2 style={{ fontSize: "clamp(26px, 3vw, 42px)", fontWeight: 900, textAlign: "center", marginBottom: 12, letterSpacing: "-1px" }}>{t("tools_page.toolsTitle")}</h2>
         <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginBottom: 48 }}>{t("tools_page.toolsDesc")}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+        <div className="zp-tools-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
             { icon: "📊", color: ZP_GREEN, title: "Real-time Dashboard", desc: "Live revenue charts, transaction feed, decline analysis, and KPI widgets. Update in under 1 second." },
             { icon: "👛", color: ZP_CYAN, title: "Multi-wallet Architecture", desc: "Separate wallets per product, client, or business unit. Full isolation. Transfer between wallets instantly." },
@@ -100,7 +109,7 @@ export default function ToolsPage() {
       <section style={{ padding: "60px 5% 80px", textAlign: "center", background: `linear-gradient(135deg, rgba(123,79,191,0.08) 0%, rgba(45,190,96,0.08) 100%)`, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <h2 style={{ fontSize: 36, fontWeight: 900, margin: "0 0 14px" }}>{t("tools_page.ctaTitle")}</h2>
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 17, margin: "0 0 36px", maxWidth: 400, marginLeft: "auto", marginRight: "auto" }}>{t("tools_page.ctaDesc")}</p>
-        <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
+        <div className="zp-tools-cta-btns" style={{ display: "flex", gap: 14, justifyContent: "center" }}>
           <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800 }}>{t("tools_page.ctaGetStarted")}</Link>
           <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>{t("tools_page.ctaTalkToSales")}</a>
         </div>
