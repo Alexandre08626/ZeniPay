@@ -753,13 +753,9 @@ type Recipient = {
   rate: string; method: "bank" | "instant"; pending: number; note: string;
 };
 
-const DEFAULT_RECIPIENTS: Recipient[] = [
-  { id: "ag-001", name: "Louis", type: "agent", email: "", rate: "70%", method: "bank", pending: 0, note: "Senior Travel Agent" },
-  { id: "ag-002", name: "Jason", type: "agent", email: "", rate: "70%", method: "bank", pending: 0, note: "Travel Agent" },
-  { id: "ag-003", name: "Luca",  type: "agent", email: "", rate: "70%", method: "bank", pending: 0, note: "Travel Agent" },
-];
+const DEFAULT_RECIPIENTS: Recipient[] = [];
 
-function PayoutsPanel({ agents, platformBalance }: { agents: AgentType[]; platformBalance: number }) {
+function PayoutsPanel({ agents, platformBalance, merchantId, mode }: { agents: AgentType[]; platformBalance: number; merchantId?: string; mode?: string }) {
   const [step, setStep] = useState<"select"|"amount"|"confirm"|"sent">("select");
   const [selectedAgent, setSelectedAgent] = useState<AgentType | null>(null);
   const [amount, setAmount] = useState("");
@@ -1756,7 +1752,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const [aiLoading, setAiLoading] = useState(false);
   // Live data from API
   const [WALLETS, setWALLETS] = useState(DEFAULT_WALLETS);
-  const [TRANSACTIONS, setTRANSACTIONS] = useState<{ id: string; customer: string; booking: string; amount: number; currency: string; method: string; gateway: string; status: string; date: string }[]>([]);
+  const [TRANSACTIONS, setTRANSACTIONS] = useState<{ id: string; customer: string; booking: string; amount: number; currency: string; method: string; gateway: string; status: string; date: string; description?: string; card_brand?: string; card_last4?: string }[]>([]);
   const [STATS, setSTATS] = useState<{ totalTransactions: number; totalRevenue: number; successRate: number; env: string; sandboxKey?: string; sandboxSecret?: string; liveKey?: string }>({ totalTransactions: 0, totalRevenue: 0, successRate: 0, env: "sandbox" });
   const [merchantBalance, setMerchantBalance] = useState<number>(0);
   const [accountingSummary, setAccountingSummary] = useState<{ totalRevenue: number; totalExpenses: number; netProfit: number; platformFees: number; zenipayFees?: number; agentCommissions: number; journalEntries: unknown[]; chartOfAccounts: {code:string;name:string;balance:number;type:string}[] } | null>(null);
@@ -2745,7 +2741,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
 
         {/* ════ PAYOUTS ════ */}
         {tab === "payouts" && (
-          <PayoutsPanel agents={AGENTS} platformBalance={platformBalance} />
+          <PayoutsPanel agents={AGENTS} platformBalance={platformBalance} merchantId={MID} mode={MMODE} />
         )}
 
         
@@ -2877,36 +2873,83 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 )}
               </div>
             </div>
+            {/* ── Key Metrics ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 16, marginBottom: 20 }}>
+              {[
+                { label: "Total Revenue", value: fmt(totalRevenue), icon: "💰", color: ZPGREEN },
+                { label: "Transactions", value: String(succeededCount), icon: "💳", color: BLUE },
+                { label: "Avg. Transaction", value: succeededCount > 0 ? fmt(totalRevenue / succeededCount) : "$0", icon: "📊", color: PURPLE },
+                { label: "Success Rate", value: `${successRate}%`, icon: "✅", color: GREEN },
+                { label: "ZeniPay Fees", value: fmt(zenipayFees), icon: "🏦", color: GOLD },
+                { label: "Net Revenue", value: fmt(platformBalance), icon: "📈", color: BLUE2 },
+              ].map(s => (
+                <div key={s.label} style={{ background: "white", borderRadius: 16, padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
+                  <p style={{ margin: "0 0 4px", fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase" as const }}>{s.label}</p>
+                  <p style={{ margin: 0, fontWeight: 900, fontSize: 20, color: s.color }}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Top Payments ── */}
             <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>🥇 Top Revenue Sources</h3>
+              <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>🥇 Top Payments</h3>
+              {TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length === 0 ? (
+                <div style={{ textAlign: "center" as const, padding: "32px 0", color: "#94a3b8" }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>No transactions yet</p>
+                  <p style={{ margin: "4px 0 0", fontSize: 11 }}>Analytics will populate from your payment data</p>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed")
+                    .sort((a, b) => b.amount - a.amount).slice(0, 8).map((t, i) => (
+                    <div key={t.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#f8fafc", borderRadius: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontWeight: 800, fontSize: 14, color: i < 3 ? GOLD : "#94a3b8", width: 24 }}>#{i + 1}</span>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 600, fontSize: 13, color: "#0f172a" }}>{t.customer || "Customer"}</p>
+                          <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>{t.description || t.id}</p>
+                        </div>
+                      </div>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: BLUE }}>{fmt(t.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Payment Methods Breakdown ── */}
+            <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", marginTop: 16 }}>
+              <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>💳 Payment Methods</h3>
               {(() => {
-                const SERVICE_ICONS: Record<string, string> = { ZeniStay: "🏡", ZeniHotel: "🏨", ZeniFlights: "✈️", ZeniYacht: "⛵", ZeniCruise: "🚢", Other: "📦" };
-                const revenueByService: Record<string, number> = {};
+                const byBrand: Record<string, { count: number; amount: number }> = {};
                 TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").forEach(t => {
-                  const desc = String(t.booking || t.id || "Other");
-                  const service = desc.startsWith("ZeniStay") ? "ZeniStay" :
-                    desc.startsWith("ZeniYacht") ? "ZeniYacht" :
-                    desc.startsWith("Flight") || desc.toLowerCase().includes("flight") ? "ZeniFlights" :
-                    desc.startsWith("Hotel") || desc.toLowerCase().includes("hotel") ? "ZeniHotel" :
-                    desc.startsWith("Cruise") || desc.toLowerCase().includes("cruise") ? "ZeniCruise" : "Other";
-                  revenueByService[service] = (revenueByService[service] || 0) + t.amount;
+                  const brand = t.card_brand || "Other";
+                  if (!byBrand[brand]) byBrand[brand] = { count: 0, amount: 0 };
+                  byBrand[brand].count++;
+                  byBrand[brand].amount += t.amount;
                 });
-                const totalRev = Object.values(revenueByService).reduce((a, b) => a + b, 0);
-                const services = ["ZeniStay", "ZeniHotel", "ZeniFlights", "ZeniYacht", "ZeniCruise", "Other"];
-                return (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 }}>
-                    {services.map(s => {
-                      const rev = revenueByService[s] || 0;
-                      const pct = totalRev > 0 ? Math.round((rev / totalRev) * 100) : 0;
+                const brandIcons: Record<string, string> = { VISA: "💙", MASTERCARD: "🧡", AMEX: "💜", DISCOVER: "💛", Other: "💳" };
+                const brandColors: Record<string, string> = { VISA: "#1A1F71", MASTERCARD: "#EB001B", AMEX: "#006FCF", DISCOVER: "#FF6000", Other: "#64748b" };
+                const brands = Object.entries(byBrand).sort((a, b) => b[1].amount - a[1].amount);
+                const totalAmt = brands.reduce((s, [, v]) => s + v.amount, 0);
+                return brands.length === 0 ? (
+                  <p style={{ textAlign: "center" as const, color: "#94a3b8", fontSize: 13 }}>No payment data yet</p>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12 }}>
+                    {brands.map(([brand, data]) => {
+                      const pct = totalAmt > 0 ? Math.round((data.amount / totalAmt) * 100) : 0;
                       return (
-                        <div key={s} style={{ background: "#f8fafc", borderRadius: 12, padding: 16 }}>
-                          <div style={{ fontSize: 24, marginBottom: 8 }}>{SERVICE_ICONS[s]}</div>
-                          <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 13, color: "#374151" }}>{s}</p>
-                          <p style={{ margin: "0 0 8px", fontWeight: 800, fontSize: 16, color: BLUE }}>{fmt(rev)}</p>
+                        <div key={brand} style={{ background: "#f8fafc", borderRadius: 12, padding: 16 }}>
+                          <div style={{ fontSize: 24, marginBottom: 8 }}>{brandIcons[brand] || "💳"}</div>
+                          <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 13, color: brandColors[brand] || "#374151" }}>{brand}</p>
+                          <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 16, color: BLUE }}>{fmt(data.amount)}</p>
+                          <p style={{ margin: "0 0 8px", fontSize: 11, color: "#64748b" }}>{data.count} transactions</p>
                           <div style={{ background: "#e2e8f0", borderRadius: 3, height: 4 }}>
-                            <div style={{ background: BLUE, width: `${pct}%`, height: "100%", borderRadius: 3 }} />
+                            <div style={{ background: brandColors[brand] || BLUE, width: `${pct}%`, height: "100%", borderRadius: 3 }} />
                           </div>
-                          <p style={{ margin: "4px 0 0", fontSize: 10, color: "#94a3b8" }}>{pct}% of revenue</p>
+                          <p style={{ margin: "4px 0 0", fontSize: 10, color: "#94a3b8" }}>{pct}% of volume</p>
                         </div>
                       );
                     })}
