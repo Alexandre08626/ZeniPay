@@ -2322,54 +2322,21 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 <p style={{ margin: 0, fontSize: 9, color: "#94a3b8", letterSpacing: "0.06em" }}>Powered by Finix · Banking by Unit.co</p>
               </div>
             </div>
-            {/* Balance display */}
-            <div style={{ marginLeft: "auto", display: "flex", gap: 24, alignItems: "center" }}>
+            {/* Balance + Sign Out */}
+            <div style={{ marginLeft: "auto", display: "flex", gap: 20, alignItems: "center" }}>
               <div>
-                <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Merchant Revenue</p>
-                <p style={{ margin: 0, fontWeight: 900, fontSize: 22, color: "#ffffff", letterSpacing: "-0.5px" }}>{fmt(totalRevenue)}</p>
+                <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.65)", textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Revenue</p>
+                <p style={{ margin: 0, fontWeight: 900, fontSize: 20, color: "#ffffff", letterSpacing: "-0.5px" }}>{fmt(totalRevenue)}</p>
               </div>
-              <div style={{ width: 1, height: 36, background: "rgba(255,255,255,0.25)" }} />
+              <div style={{ width: 1, height: 30, background: "rgba(255,255,255,0.2)" }} />
               <div>
-                <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.65)" }}>Transactions</p>
-                <p style={{ margin: 0, fontWeight: 800, fontSize: 18, color: "#ffffff" }}>{STATS.totalTransactions}</p>
+                <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.65)" }}>Txns</p>
+                <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#ffffff" }}>{STATS.totalTransactions}</p>
               </div>
-              <div style={{ width: 1, height: 36, background: "rgba(255,255,255,0.25)" }} />
-              <div>
-                <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.65)" }}>Success Rate</p>
-                <p style={{ margin: 0, fontWeight: 800, fontSize: 18, color: STATS.successRate > 80 ? "#7fffb2" : "#fde68a" }}>{STATS.successRate.toFixed(0)}%</p>
-              </div>
-              <div style={{ width: 1, height: 36, background: "rgba(255,255,255,0.25)" }} />
-              {/* Quick actions */}
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => window.open("/zenipay/checkout/test", "_blank")} style={{ background: "linear-gradient(90deg, #F5A623, #E5247B)", border: "none", borderRadius: 8, padding: "8px 14px", color: "white", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(245,166,35,0.5)" }}>
-                  + New Payment
-                </button>
-                <button onClick={() => setTab("payouts")} style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, padding: "8px 14px", color: "white", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                  ↑ Payout
-                </button>
-                <button onClick={() => setTab("ben")} style={{ background: `${BLUE}15`, border: `1px solid ${BLUE}30`, borderRadius: 8, padding: "8px 14px", color: BLUE, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  🤖 Ben AI
-                </button>
-                <button onClick={() => { sessionStorage.removeItem("zp_client"); window.location.href = "/login"; }} style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: "8px 14px", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  🔓 Sign Out
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* ── TAB BAR ── */}
-          <div style={{ display: "flex", gap: 0, overflowX: "auto", scrollbarWidth: "none" as const }}>
-            {activeTabs.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} className="zp-tab-btn" style={{
-                background: tab === t.id ? `${BLUE}15` : "transparent",
-                border: "none", borderBottom: tab === t.id ? `2px solid ${BLUE}` : "2px solid transparent",
-                color: tab === t.id ? BLUE : "rgba(255,255,255,0.35)",
-                padding: "11px 11px", fontSize: 11, fontWeight: tab === t.id ? 700 : 400,
-                cursor: "pointer", whiteSpace: "nowrap" as const, transition: "all 0.15s", display: "flex", gap: 5, alignItems: "center", flexShrink: 0,
-              }}>
-                <span style={{ fontSize: 13 }}>{t.icon}</span> {t.label}
+              <button onClick={() => { sessionStorage.removeItem("zp_client"); window.location.href = "/login"; }} style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: "7px 12px", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                Sign Out
               </button>
-            ))}
+            </div>
           </div>
         </div>
       </div>
