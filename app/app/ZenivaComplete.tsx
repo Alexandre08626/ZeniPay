@@ -1891,7 +1891,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     }
     void fetchUnit();
     // Refresh every 30s
-    const interval = setInterval(() => { void fetchStats(); void fetchBookings(); void fetchZpInvoices(); }, 30_000);
+    const interval = setInterval(() => { void fetchStats(); void fetchBookings(); void fetchZpInvoices(); void fetchUnit(); }, 30_000);
     return () => clearInterval(interval);
   }, []);
 
