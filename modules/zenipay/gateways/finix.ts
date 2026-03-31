@@ -129,6 +129,7 @@ export async function createTransfer(params: {
   currency?: string;
   description?: string;
   tags?: Record<string, string>;
+  idempotencyKey?: string;
 }) {
   const body = {
     merchant: params.merchantId,
@@ -136,14 +137,23 @@ export async function createTransfer(params: {
     currency: params.currency || "USD",
     source: params.instrumentId,
     operation_key: "SALE",
+    idempotency_id: params.idempotencyKey || "txn_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
     tags: params.tags || {},
+    three_d_secure_authentication: {
+      three_d_secure_authentication_type: "OPTIONAL",
+    },
     ...(params.description ? { statement_descriptor: params.description.slice(0, 20) } : {}),
   };
   const result = await finixRequest("POST", "/transfers", body);
+
+  // Extract 3DS redirect URL if present (card issuer requires authentication)
+  const threeDSRedirectUrl = result.three_d_secure_redirect?.three_d_secure_redirect_url || null;
+
   return {
     transferId: result.id as string,
     state: result.state as string, // SUCCEEDED | FAILED | PENDING
     amount: result.amount as number,
+    threeDSRedirectUrl,
     raw: result,
   };
 }
@@ -164,6 +174,26 @@ export async function createReversal(transferId: string, amountCents?: number) {
 }
 
 /**
+ * Validate card details before sending to Finix
+ */
+function validateCard(params: { cardNumber: string; expiryMonth: string; expiryYear: string; cvc: string; cardholderName: string }) {
+  const num = params.cardNumber.replace(/\s/g, "");
+  // Luhn check
+  let sum = 0, alt = false;
+  for (let i = num.length - 1; i >= 0; i--) {
+    let n = parseInt(num[i], 10);
+    if (alt) { n *= 2; if (n > 9) n -= 9; }
+    sum += n;
+    alt = !alt;
+  }
+  if (sum % 10 !== 0) throw new Error("Invalid card number");
+  if (!/^\d{3,4}$/.test(params.cvc)) throw new Error("Invalid CVC");
+  const month = parseInt(params.expiryMonth);
+  if (month < 1 || month > 12) throw new Error("Invalid expiry month");
+  if (!params.cardholderName || params.cardholderName.trim().length < 2) throw new Error("Cardholder name required");
+}
+
+/**
  * Main ZeniPay process function
  */
 export async function processFinixPayment(params: {
@@ -178,6 +208,9 @@ export async function processFinixPayment(params: {
   description?: string;
   paymentId: string;
 }) {
+  // Validate card before processing
+  validateCard(params);
+
   const merchantId = process.env.FINIX_MERCHANT_ID || "";
   if (!merchantId) throw new Error("FINIX_MERCHANT_ID not configured");
 
@@ -210,5 +243,6 @@ export async function processFinixPayment(params: {
     last4,
     state: transfer.state,
     amountCents: transfer.amount,
+    threeDSRedirectUrl: transfer.threeDSRedirectUrl || null,
   };
 }

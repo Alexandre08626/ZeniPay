@@ -25,8 +25,14 @@ async function finixGet(path: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    const merchantId = process.env.FINIX_MERCHANT_ID || "MUcTenaz57m9JrwwRZwpSfDc";
-    const identityId = process.env.FINIX_MERCHANT_IDENTITY_ID || "";
+    const merchantId = process.env.FINIX_MERCHANT_ID;
+    if (!merchantId) {
+      return NextResponse.json({ error: "FINIX_MERCHANT_ID not configured" }, { status: 500 });
+    }
+    const identityId = process.env.FINIX_MERCHANT_IDENTITY_ID;
+    if (!identityId) {
+      return NextResponse.json({ error: "FINIX_MERCHANT_IDENTITY_ID not configured" }, { status: 500 });
+    }
 
     const merchant = await finixGet(`/merchants/${merchantId}`);
     const verifications = await finixGet(`/merchants/${merchantId}/verifications`);

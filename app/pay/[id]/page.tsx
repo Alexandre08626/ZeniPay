@@ -126,6 +126,12 @@ function PayLinkContent() {
         return;
       }
 
+      // 3D Secure: redirect customer for card issuer authentication
+      if (data.requires_3ds && data.redirect_url) {
+        window.location.href = data.redirect_url;
+        return;
+      }
+
       // Payment succeeded or pending — store result for confirmation screen
       if (data.state === "SUCCEEDED" || data.state === "PENDING") {
         setPaymentResult(data);

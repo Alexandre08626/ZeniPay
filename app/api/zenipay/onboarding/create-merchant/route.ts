@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const finixBody = {
       identity: identity_id,
-      processor: "DUMMY_V1",
+      processor: process.env.FINIX_ENV === "production" ? "FINIX_V1" : "DUMMY_V1",
       tags: { zenipay_merchant_id: merchant_id_internal || "" },
     };
 

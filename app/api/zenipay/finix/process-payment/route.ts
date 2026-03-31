@@ -22,6 +22,13 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    // ─── IDEMPOTENCY CHECK ───────────────────────────────────────────────
+    const idempotencyKey = body.idempotency_key || "pay_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    const { data: cached } = await supabase.from("zenipay_idempotency_keys").select("result").eq("key", idempotencyKey).single();
+    if (cached?.result) {
+      return NextResponse.json(cached.result);
+    }
     const now = new Date().toISOString();
     const paymentId = `ZNV-${Date.now().toString(36).toUpperCase()}`;
     const amountNum = parseFloat(String(amount));
@@ -40,13 +47,51 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       console.error("[Finix] Payment processing failed");
       return NextResponse.json(
-        { error: "Payment processing failed", message: err instanceof Error ? err.message : String(err), paymentId },
+        { error: "Payment processing failed", paymentId },
         { status: 402 }
       );
     }
 
     if (!finixResult.success) {
       return NextResponse.json({ error: "Payment declined", state: finixResult.state, paymentId }, { status: 402 });
+    }
+
+    // ─── 1b. CHECK FOR 3D SECURE REDIRECT ────────────────────────────────
+    // If the card issuer requires 3DS authentication, Finix returns PENDING
+    // with a redirect URL. Store the pending payment and return the URL.
+    if (finixResult.state === "PENDING" && finixResult.threeDSRedirectUrl) {
+      const { error: payErr3ds } = await supabase.from("zenipay_payments").upsert({
+        id: paymentId,
+        payment_link_id: pay_link_id,
+        merchant_id: bodyMerchantId || "unknown",
+        amount: amountNum,
+        currency,
+        description: description || "",
+        customer_name: customer_name || "",
+        customer_email: customer_email || "",
+        status: "pending_3ds",
+        gateway: "finix",
+        gateway_transfer_id: finixResult.transferId || "",
+        gateway_instrument_id: finixResult.instrumentId || "",
+        card_brand: finixResult.brand || "",
+        card_last4: finixResult.last4 || "",
+        created_at: now,
+        updated_at: now,
+      }, { onConflict: "id" });
+
+      if (payErr3ds) console.error("[DB] 3DS pending payment insert failed");
+
+      return NextResponse.json({
+        success: true,
+        requires_3ds: true,
+        redirect_url: finixResult.threeDSRedirectUrl,
+        paymentId,
+        transferId: finixResult.transferId,
+        state: finixResult.state,
+        amount: amountNum,
+        currency,
+        card: { brand: finixResult.brand, last4: finixResult.last4 },
+      });
     }
 
     // ─── 2. FIND MERCHANT ─────────────────────────────────────────────────
@@ -194,13 +239,24 @@ export async function POST(req: NextRequest) {
       .update({ uses: linkUses + 1, updated_at: now }).eq("id", pay_link_id);
 
     // ─── 8. RETURN SUCCESS ────────────────────────────────────────────────
-    return NextResponse.json({
+    const responsePayload = {
       success: true, paymentId,
       transferId: finixResult.transferId,
       state: finixResult.state,
       amount: amountNum, currency,
       card: { brand: finixResult.brand, last4: finixResult.last4 },
-    });
+    };
+
+    // Save idempotency key
+    await supabase.from("zenipay_idempotency_keys").upsert({
+      key: idempotencyKey,
+      operation: "process_payment",
+      result: responsePayload,
+      created_at: now,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    }, { onConflict: "key" });
+
+    return NextResponse.json(responsePayload);
 
   } catch (err) {
     console.error("[Finix] Fatal error");

@@ -19,12 +19,14 @@ export async function POST(request: Request) {
   const signature = request.headers.get("finix-signature") || request.headers.get("x-finix-signature") || "";
   const webhookSecret = process.env.FINIX_WEBHOOK_SECRET || "";
 
-  // Verify signature (skip in sandbox if no secret)
-  if (webhookSecret) {
-    if (!verifySignature(rawBody, signature, webhookSecret)) {
-      console.warn("[Webhook] Invalid Finix signature — rejected");
-      return Response.json({ error: "Invalid signature" }, { status: 401 });
-    }
+  // Verify signature — mandatory in production
+  const isProduction = process.env.FINIX_ENV === "production";
+  if (!webhookSecret && isProduction) {
+    return Response.json({ error: "Webhook secret not configured" }, { status: 500 });
+  }
+  if (webhookSecret && !verifySignature(rawBody, signature, webhookSecret)) {
+    console.warn("[Webhook] Invalid Finix signature — rejected");
+    return Response.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   let payload: Record<string, unknown>;
@@ -155,9 +157,94 @@ export async function POST(request: Request) {
         break;
       }
 
+      case "merchant.verification_required":
+      case "MERCHANT.VERIFICATION_REQUIRED": {
+        const vrMerchantId = (data.id as string) || "";
+        if (vrMerchantId) {
+          await supabase
+            .from("zenipay_merchants")
+            .update({ onboarding_state: "verification_required", updated_at: now })
+            .eq("finix_merchant_id", vrMerchantId);
+          console.log(`[Webhook] Merchant ${vrMerchantId} → verification_required`);
+        }
+        break;
+      }
+
+      case "merchant.verification_failed":
+      case "MERCHANT.VERIFICATION_FAILED": {
+        const vfMerchantId = (data.id as string) || "";
+        if (vfMerchantId) {
+          await supabase
+            .from("zenipay_merchants")
+            .update({ onboarding_state: "rejected", updated_at: now })
+            .eq("finix_merchant_id", vfMerchantId);
+          console.log(`[Webhook] Merchant ${vfMerchantId} → rejected`);
+        }
+        break;
+      }
+
       case "settlement.created":
-      case "dispute.created": {
-        console.log(`[Webhook] ${eventType}:`, JSON.stringify(data).slice(0, 200));
+      case "SETTLEMENT.CREATED": {
+        await supabase.from("zenipay_webhook_events").insert({
+          id: `whe_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          event_type: eventType,
+          entity_id: (data.id as string) || "",
+          payload: data,
+          created_at: now,
+        });
+        console.log(`[Webhook] Settlement created: ${data.id}`);
+        break;
+      }
+
+      case "settlement.updated":
+      case "SETTLEMENT.UPDATED": {
+        await supabase.from("zenipay_webhook_events").insert({
+          id: `whe_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          event_type: eventType,
+          entity_id: (data.id as string) || "",
+          payload: data,
+          created_at: now,
+        });
+        console.log(`[Webhook] Settlement updated: ${data.id}`);
+        break;
+      }
+
+      case "settlement.failed":
+      case "SETTLEMENT.FAILED": {
+        await supabase.from("zenipay_webhook_events").insert({
+          id: `whe_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          event_type: eventType,
+          entity_id: (data.id as string) || "",
+          payload: data,
+          created_at: now,
+        });
+        // Update relevant payout status if settlement ID is tracked
+        const settlementId = data.id as string;
+        if (settlementId) {
+          await supabase
+            .from("zenipay_payouts")
+            .update({ status: "failed", updated_at: now })
+            .eq("settlement_id", settlementId);
+        }
+        console.log(`[Webhook] Settlement failed: ${data.id}`);
+        break;
+      }
+
+      case "dispute.created":
+      case "DISPUTE.CREATED": {
+        const disputeData = data as Record<string, unknown>;
+        await supabase.from("zenipay_disputes").insert({
+          id: `dsp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          dispute_id: (disputeData.id as string) || "",
+          transfer_id: (disputeData.transfer as string) || "",
+          amount: (disputeData.amount as number) || 0,
+          reason: (disputeData.reason as string) || "",
+          state: (disputeData.state as string) || "PENDING",
+          payload: disputeData,
+          created_at: now,
+          updated_at: now,
+        });
+        console.log(`[Webhook] Dispute created: ${disputeData.id}`);
         break;
       }
 
