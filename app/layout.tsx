@@ -73,7 +73,10 @@ export const metadata: Metadata = {
     images: ["https://zenipay.ca/opengraph-image"],
   },
   icons: {
-    icon: "/icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "64x64" },
+      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+    ],
     apple: "/zenipay-logo.png",
   },
   manifest: "/manifest.json",
