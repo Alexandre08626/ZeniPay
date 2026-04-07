@@ -1,0 +1,21 @@
+{
+  "name": "ZeniPay — Payment Infrastructure for Businesses",
+  "short_name": "ZeniPay",
+  "description": "Accept payments, move money, issue payouts — all in one platform. The modern Stripe alternative for Canadian and American businesses.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0F1E",
+  "theme_color": "#2DBE60",
+  "icons": [
+    {
+      "src": "/zenipay-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ]
+}
