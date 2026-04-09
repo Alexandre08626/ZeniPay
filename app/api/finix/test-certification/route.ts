@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { createPaymentInstrument, createTransfer, generateFraudSessionId } from "@/lib/finix/client";
+import { createPaymentInstrument, createTransfer, generateFraudSessionId, finixRequest } from "@/lib/finix/client";
 import { FINIX_CONFIG, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/finix/config";
 import type { CertificationStepResult } from "@/lib/finix/types";
 import { createClient } from "@supabase/supabase-js";
@@ -66,10 +66,13 @@ async function step4(): Promise<CertificationStepResult> {
     const iid = (inst.data as unknown as Record<string, unknown>).id as string;
     const fsid = generateFraudSessionId(); const ikey = crypto.randomUUID();
     const tx1 = await createTransfer({ instrumentId: iid, amountCents: 300, fraudSessionId: fsid, idempotencyKey: ikey, tags: { test: "cert_s4_idempotency" } });
-    const tx2 = await createTransfer({ instrumentId: iid, amountCents: 300, fraudSessionId: fsid, idempotencyKey: ikey, tags: { test: "cert_s4_idempotency" } });
-    const same = tx1.data.id === tx2.data.id;
-    await logToSupabase("step_4", { id1: tx1.data.id, id2: tx2.data.id, idempotency_key: ikey, same });
-    return { status: same ? "PASS" : "FAIL", details: { transfer_id_1: tx1.data.id, transfer_id_2: tx2.data.id, idempotency_key: ikey, duplicate_prevented: same }, ...(same ? {} : { error: "Different IDs" }) };
+    const tx1ok = tx1.data.state === "SUCCEEDED" || tx1.data.state === "PENDING";
+    // Second request with same idempotency_id should be rejected (422)
+    const tx2 = await finixRequest({ method: "POST", path: "/transfers", body: { merchant: FINIX_CONFIG.merchantId, amount: 300, currency: "USD", source: iid, operation_key: "SALE", fraud_session_id: fsid, idempotency_id: ikey, tags: { test: "cert_s4_idempotency", source: "zenipay", idempotency_key: ikey } } });
+    const blocked = tx2.status === 422;
+    const passed = tx1ok && blocked;
+    await logToSupabase("step_4", { transfer_id: tx1.data.id, tx1_state: tx1.data.state, tx2_status: tx2.status, idempotency_key: ikey, duplicate_blocked: blocked });
+    return { status: passed ? "PASS" : "FAIL", details: { transfer_id: tx1.data.id, tx1_state: tx1.data.state, tx2_http_status: tx2.status, idempotency_key: ikey, duplicate_prevented: blocked }, ...(!passed ? { error: "tx1_ok=" + tx1ok + " blocked=" + blocked + " tx2_status=" + tx2.status } : {}) };
   } catch (e) { return { status: "FAIL", error: String(e) }; }
 }
 
