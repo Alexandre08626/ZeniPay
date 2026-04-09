@@ -65,8 +65,8 @@ async function step4(): Promise<CertificationStepResult> {
     if (inst.status >= 400) return { status: "FAIL", error: "Instrument failed" };
     const iid = (inst.data as unknown as Record<string, unknown>).id as string;
     const fsid = generateFraudSessionId(); const ikey = crypto.randomUUID();
-    const tx1 = await createTransfer({ instrumentId: iid, amountCents: 300, fraudSessionId: fsid, idempotencyKey: ikey, tags: { test: "cert_s4a" } });
-    const tx2 = await createTransfer({ instrumentId: iid, amountCents: 300, fraudSessionId: fsid, idempotencyKey: ikey, tags: { test: "cert_s4b" } });
+    const tx1 = await createTransfer({ instrumentId: iid, amountCents: 300, fraudSessionId: fsid, idempotencyKey: ikey, tags: { test: "cert_s4_idempotency" } });
+    const tx2 = await createTransfer({ instrumentId: iid, amountCents: 300, fraudSessionId: fsid, idempotencyKey: ikey, tags: { test: "cert_s4_idempotency" } });
     const same = tx1.data.id === tx2.data.id;
     await logToSupabase("step_4", { id1: tx1.data.id, id2: tx2.data.id, idempotency_key: ikey, same });
     return { status: same ? "PASS" : "FAIL", details: { transfer_id_1: tx1.data.id, transfer_id_2: tx2.data.id, idempotency_key: ikey, duplicate_prevented: same }, ...(same ? {} : { error: "Different IDs" }) };
