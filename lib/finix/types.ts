@@ -5,6 +5,7 @@ export interface FinixTransferRequest {
   source: string;
   operation_key: "SALE" | "UNREFERENCED_REFUND";
   fraud_session_id: string;
+  idempotency_id?: string;
   tags?: Record<string, string>;
   statement_descriptor?: string;
 }

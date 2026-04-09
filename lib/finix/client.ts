@@ -27,9 +27,6 @@ export async function finixRequest<T = Record<string, unknown>>(opts: FinixReque
     "Finix-Version": FINIX_CONFIG.apiVersion,
   };
 
-  if (opts.idempotencyKey) {
-    headers["Idempotency-Key"] = opts.idempotencyKey;
-  }
 
   const res = await fetch(`${FINIX_CONFIG.baseUrl}${opts.path}`, {
     method: opts.method,
@@ -83,6 +80,7 @@ export async function createTransfer(params: {
     source: params.instrumentId,
     operation_key: "SALE",
     fraud_session_id: params.fraudSessionId,
+    idempotency_id: idempotencyKey,
     tags: {
       ...params.tags,
       source: "zenipay",
@@ -95,7 +93,7 @@ export async function createTransfer(params: {
     method: "POST",
     path: "/transfers",
     body,
-    idempotencyKey,
+
   });
 }
 
