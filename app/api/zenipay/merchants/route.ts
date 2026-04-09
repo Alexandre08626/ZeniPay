@@ -69,6 +69,19 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
+    // ── Delete merchant action ──
+    if (body.action === "delete_merchant" && body.merchant_id) {
+      const supabase = getSupabaseAdmin();
+      // Delete all related data first
+      await supabase.from("zenipay_payments").delete().eq("merchant_id", body.merchant_id);
+      await supabase.from("zenipay_invoices").delete().eq("merchant_id", body.merchant_id);
+      await supabase.from("zenipay_payouts").delete().eq("merchant_id", body.merchant_id);
+      // Delete the merchant itself
+      const { error } = await supabase.from("zenipay_merchants").delete().eq("id", body.merchant_id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, deleted: body.merchant_id });
+    }
+
     // ── Roll sandbox keys action ──
     if (body.action === "roll_sandbox_keys" && body.merchant_id) {
       const supabase = getSupabaseAdmin();
