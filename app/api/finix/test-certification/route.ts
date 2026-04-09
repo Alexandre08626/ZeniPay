@@ -18,7 +18,7 @@ async function step1(): Promise<CertificationStepResult> {
   try {
     const inst = await createPaymentInstrument({ cardNumber: "4111111111111111", expiryMonth: 12, expiryYear: 2029, cvc: "123", name: "Cert Success" });
     if (inst.status >= 400) return { status: "FAIL", error: "Instrument failed: " + JSON.stringify(inst.data) };
-    const iid = (inst.data as Record<string, unknown>).id as string;
+    const iid = (inst.data as unknown as Record<string, unknown>).id as string;
     const fsid = generateFraudSessionId();
     const ikey = crypto.randomUUID();
     const tx = await createTransfer({ instrumentId: iid, amountCents: 100, fraudSessionId: fsid, idempotencyKey: ikey, tags: { test: "cert_s1" } });
@@ -33,7 +33,7 @@ async function step2(): Promise<CertificationStepResult> {
   try {
     const inst = await createPaymentInstrument({ cardNumber: "4000000000000002", expiryMonth: 12, expiryYear: 2029, cvc: "123", name: "Cert Decline" });
     if (inst.status >= 400) return { status: "FAIL", error: "Instrument failed" };
-    const iid = (inst.data as Record<string, unknown>).id as string;
+    const iid = (inst.data as unknown as Record<string, unknown>).id as string;
     const fsid = generateFraudSessionId();
     const tx = await createTransfer({ instrumentId: iid, amountCents: 100, fraudSessionId: fsid, tags: { test: "cert_s2" } });
     const st = tx.data.state; const fc = tx.data.failure_code;
@@ -51,7 +51,7 @@ async function step3(): Promise<CertificationStepResult> {
     const fsid = generateFraudSessionId();
     const inst = await createPaymentInstrument({ cardNumber: "4111111111111111", expiryMonth: 12, expiryYear: 2029, cvc: "123", name: "Cert FraudSession" });
     if (inst.status >= 400) return { status: "FAIL", error: "Instrument failed" };
-    const iid = (inst.data as Record<string, unknown>).id as string;
+    const iid = (inst.data as unknown as Record<string, unknown>).id as string;
     const tx = await createTransfer({ instrumentId: iid, amountCents: 200, fraudSessionId: fsid, tags: { test: "cert_s3" } });
     const st = tx.data.state; const ok = st === "SUCCEEDED" || st === "PENDING";
     await logToSupabase("step_3", { transfer_id: tx.data.id, fraud_session_id: fsid, state: st });
@@ -63,7 +63,7 @@ async function step4(): Promise<CertificationStepResult> {
   try {
     const inst = await createPaymentInstrument({ cardNumber: "4111111111111111", expiryMonth: 12, expiryYear: 2029, cvc: "123", name: "Cert Idempotency" });
     if (inst.status >= 400) return { status: "FAIL", error: "Instrument failed" };
-    const iid = (inst.data as Record<string, unknown>).id as string;
+    const iid = (inst.data as unknown as Record<string, unknown>).id as string;
     const fsid = generateFraudSessionId(); const ikey = crypto.randomUUID();
     const tx1 = await createTransfer({ instrumentId: iid, amountCents: 300, fraudSessionId: fsid, idempotencyKey: ikey, tags: { test: "cert_s4a" } });
     const tx2 = await createTransfer({ instrumentId: iid, amountCents: 300, fraudSessionId: fsid, idempotencyKey: ikey, tags: { test: "cert_s4b" } });
@@ -76,7 +76,7 @@ async function step4(): Promise<CertificationStepResult> {
 async function step5(): Promise<CertificationStepResult> {
   try {
     const inst = await createPaymentInstrument({ cardNumber: "4111111111111111", expiryMonth: 12, expiryYear: 2029, cvc: "123", name: "Cert Tokenization" });
-    const iid = (inst.data as Record<string, unknown>).id as string;
+    const iid = (inst.data as unknown as Record<string, unknown>).id as string;
     const ok = !!iid && inst.status < 400;
     await logToSupabase("step_5", { instrument_id: iid, app_id: FINIX_CONFIG.applicationId, env: FINIX_CONFIG.environment });
     return { status: ok ? "PASS" : "FAIL", details: { token_id: iid, application_id: FINIX_CONFIG.applicationId || "(set FINIX_APPLICATION_ID)", environment: FINIX_CONFIG.environment, form: "/components/payment/FinixTokenForm.tsx", sdk: "Finix.js CDN", note: "Client-side tokenization in FinixTokenForm.tsx" } };
@@ -87,7 +87,7 @@ async function step6(): Promise<CertificationStepResult> {
   try {
     const inst = await createPaymentInstrument({ cardNumber: "4111111111111111", expiryMonth: 12, expiryYear: 2029, cvc: "123", name: "Cert Dispute" });
     if (inst.status >= 400) return { status: "FAIL", error: "Instrument failed" };
-    const iid = (inst.data as Record<string, unknown>).id as string;
+    const iid = (inst.data as unknown as Record<string, unknown>).id as string;
     const fsid = generateFraudSessionId();
     const tx = await createTransfer({ instrumentId: iid, amountCents: 888888, fraudSessionId: fsid, tags: { test: "cert_s6", dispute_test: "true" } });
     const st = tx.data.state;
