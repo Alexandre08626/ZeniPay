@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
       if (instRes.status >= 400) {
         return NextResponse.json({ error: "Failed to create payment instrument", details: instRes.data }, { status: instRes.status });
       }
-      instrumentId = (instRes.data as Record<string, unknown>).id;
-      instrumentDetails = instRes.data as Record<string, unknown>;
+      instrumentId = (instRes.data as unknown as Record<string, unknown>).id;
+      instrumentDetails = instRes.data as unknown as Record<string, unknown>;
     }
 
     const fraudSessionId = providedFraudSessionId || generateFraudSessionId();
