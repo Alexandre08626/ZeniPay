@@ -19,7 +19,7 @@ function cardType(v: string) {
 }
 
 function PayLinkContent() {
-  const SANDBOX_MODE = true; // Maintenance — contact info@zeniva.ca
+  const SANDBOX_MODE = false;
   const { t } = useT();
 
   const params   = useSearchParams();
@@ -99,9 +99,22 @@ function PayLinkContent() {
     setError(""); setLoading(true);
 
     try {
-      // Parse expiry MM/YY
-      const [expiryMonth, expiryYear] = expiry.split("/");
+      // Step 1: Tokenize card via test-certification (sandbox)
+      // TODO: Replace with Finix.js client-side tokenization for production
+      const num = cardNum.replace(/\s/g, "");
+      const tokenRes = await fetch("/api/finix/test-certification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ card: num.startsWith("4000000000000002") ? "decline" : num.startsWith("4000000000009995") ? "insufficient" : num.startsWith("5") ? "success_mc" : "success" }),
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.instrument_id) {
+        setError(tokenData.error || "Card tokenization failed");
+        setLoading(false);
+        return;
+      }
 
+      // Step 2: Process payment with tokenized instrument
       const res = await fetch("/api/zenipay/finix/process-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,11 +125,7 @@ function PayLinkContent() {
           description: desc,
           customer_name: name,
           customer_email: email,
-          cardNumber: cardNum.replace(/\s/g, ""),
-          expiryMonth,
-          expiryYear,
-          cvc,
-          postalCode: "",
+          instrument_id: tokenData.instrument_id,
           merchant_id: linkMerchantId || undefined,
         }),
       });
