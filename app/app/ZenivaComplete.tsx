@@ -1903,23 +1903,10 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     void fetchZpInvoices();
     void fetchAccountingSummary();
     void fetchPayLinks();
-    // Fetch Unit banking accounts + cards + transactions via unified endpoint
-    async function fetchUnit() {
-      setUnitLoading(true);
-      try {
-        const r = await fetch("/api/zenipay/bank-balance");
-        if (r.ok) {
-          const d = await r.json();
-          setUnitAccounts(d.accounts || []);
-          setUnitCards(d.cards || []);
-          if (d.transactions) setUnitRealTxns(d.transactions);
-        }
-      } catch { /* silent — Unit may not be configured yet */ }
-      finally { setUnitLoading(false); }
-    }
-    void fetchUnit();
+    // Unit.co disabled — using ZeniPay/Finix wallets only
+    setUnitLoading(false);
     // Refresh every 30s
-    const interval = setInterval(() => { void fetchStats(); void fetchBookings(); void fetchZpInvoices(); void fetchUnit(); }, 30_000);
+    const interval = setInterval(() => { void fetchStats(); void fetchBookings(); void fetchZpInvoices(); }, 30_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -2085,7 +2072,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   // ── MOBILE ZeniPay ─────────────────────────────────────
   if (isMobile) {
     const zpGrad = "linear-gradient(90deg,#2DBE60 0%,#15B8C9 45%,#7B4FBF 100%)";
-    const cardBalance = unitAccounts[0]?.availableCents > 0 ? (unitAccounts[0].availableCents / 100) : (platformBalance || 0);
+    const cardBalance = platformBalance || 0;
     const debitCard = unitCards[0];
     const goTab = (t: string) => { setTab(t); setIsMobile(false); };
     return (
@@ -3499,7 +3486,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 <img src="/zenipay-logo.png" alt="ZP" style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(123,79,191,0.5))" }} />
                 <div>
                   <div style={{ color: "white", fontWeight: 900, fontSize: 20 }}>ZeniPay Banking</div>
-                  <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11 }}>{BNAME} · Unit.co · FDIC $250K</div>
+                  <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11 }}>{BNAME} · ZeniPay</div>
                 </div>
               </div>
               <button onClick={() => setShow360(false)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>✕ Close</button>
@@ -3507,10 +3494,10 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             {unitAccounts[0] && (() => { const a = unitAccounts[0]; return (
               <div className="zp-360-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
                 {[
-                  { label: "Balance", value: `$${(a.balanceCents > 0 ? a.balanceCents/100 : merchantBalance).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#2DBE60" },
-                  { label: "Available", value: `$${(a.availableCents > 0 ? a.availableCents/100 : merchantBalance).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#15B8C9" },
-                  { label: "Routing #", value: a.routingNumber || "812345678", color: "#F5A623" },
-                  { label: "Account #", value: a.accountNumber || "1009825847", color: "#E5247B" },
+                  { label: "Balance", value: `$${(a.balanceCents > 0 ? a.balanceCents/100 : 0).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#2DBE60" },
+                  { label: "Available", value: `$${(a.availableCents > 0 ? a.availableCents/100 : 0).toLocaleString("en-US",{minimumFractionDigits:2})}`, color: "#15B8C9" },
+                  { label: "Routing #", value: a.routingNumber || "—", color: "#F5A623" },
+                  { label: "Account #", value: a.accountNumber || "—", color: "#E5247B" },
                 ].map(s => (
                   <div key={s.label} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", border: "1px solid rgba(255,255,255,0.12)" }}>
                     <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 9, textTransform: "uppercase" as const, letterSpacing: "0.1em", fontWeight: 700 }}>{s.label}</div>
