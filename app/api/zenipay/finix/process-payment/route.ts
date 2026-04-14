@@ -7,18 +7,21 @@ import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supaba
 /**
  * Finix Payment Processing — ALL writes via Supabase JS client (no edge function)
  * POST /api/zenipay/finix/process-payment
+ *
+ * Card tokenization is done CLIENT-SIDE via Finix.js.
+ * This route only accepts a pre-tokenized instrument_id.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
       pay_link_id, amount, currency = "USD", description,
-      customer_name, customer_email, cardNumber, expiryMonth,
-      expiryYear, cvc, postalCode, merchant_id: bodyMerchantId,
+      customer_name, customer_email, instrument_id,
+      merchant_id: bodyMerchantId,
     } = body;
 
-    if (!pay_link_id || !amount || !cardNumber || !expiryMonth || !expiryYear || !cvc || !customer_name) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!pay_link_id || !amount || !instrument_id || !customer_name) {
+      return NextResponse.json({ error: "Missing required fields (instrument_id from Finix.js tokenization required)" }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
@@ -37,9 +40,7 @@ export async function POST(req: NextRequest) {
     let finixResult;
     try {
       finixResult = await processFinixPayment({
-        cardNumber, expiryMonth, expiryYear, cvc,
-        cardholderName: customer_name,
-        postalCode: postalCode || "00000",
+        instrumentId: instrument_id,
         amount: amountNum, currency,
         description: description || `Payment ${paymentId}`,
         paymentId,

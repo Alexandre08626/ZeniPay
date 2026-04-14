@@ -365,23 +365,34 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
     const willSucceed = card.result === "Approved";
     const paymentId = uid();
 
-    // Attempt the real API call
+    // Step 1: Tokenize test card via sandbox test-certification endpoint
+    // Step 2: Process payment with the tokenized instrument_id
     try {
+      const cardKey = card.result === "Approved"
+        ? (card.brand === "Mastercard" ? "success_mc" : "success")
+        : card.result === "Declined" ? "decline" : "insufficient";
+
+      const tokenRes = await fetch("/api/finix/test-certification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ card: cardKey }),
+      });
+      const tokenData = await tokenRes.json().catch(() => ({}));
+      if (!tokenRes.ok || !tokenData.instrument_id) {
+        throw new Error(tokenData.error || "Failed to tokenize test card");
+      }
+
       const res = await fetch("/api/zenipay/finix/process-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: Math.round(parsedAmount * 100),
+          amount: parsedAmount,
           currency: "cad",
-          card_number: card.number.replace(/\s/g, ""),
-          exp_month: 12,
-          exp_year: 29,
-          cvv: "123",
+          instrument_id: tokenData.instrument_id,
           customer_name: custName,
           customer_email: custEmail,
           description,
-          sandbox: true,
-          sandbox_key: sandboxKey,
+          pay_link_id: `sandbox_${merchantId}`,
           merchant_id: merchantId,
         }),
       });

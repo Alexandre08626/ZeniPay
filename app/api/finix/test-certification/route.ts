@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createPaymentInstrument, createTransfer, generateFraudSessionId, finixRequest } from "@/lib/finix/client";
 import { FINIX_CONFIG, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/finix/config";
 import type { CertificationStepResult } from "@/lib/finix/types";
@@ -126,4 +126,61 @@ export async function GET() {
   await logToSupabase("full_report", report as unknown as Record<string, unknown>);
   console.log("[cert] Done. Passed: " + report.all_passed);
   return NextResponse.json(report);
+}
+
+/**
+ * POST /api/finix/test-certification
+ * Sandbox-only: tokenize a test card and return instrument_id.
+ * Used by SandboxPanel to get a token before calling process-payment.
+ * Body: { card: "success" | "success_mc" | "decline" | "insufficient" }
+ */
+const TEST_CARDS: Record<string, { number: string; brand: string }> = {
+  success:      { number: "4111111111111111", brand: "Visa" },
+  success_mc:   { number: "5454545454545454", brand: "Mastercard" },
+  decline:      { number: "4000000000000002", brand: "Visa" },
+  insufficient: { number: "4000000000009995", brand: "Visa" },
+};
+
+export async function POST(req: NextRequest) {
+  // Block in production
+  if (process.env.FINIX_ENV === "production") {
+    return NextResponse.json(
+      { error: "Test certification is not available in production" },
+      { status: 403 }
+    );
+  }
+
+  const { card = "success" } = await req.json();
+  const testCard = TEST_CARDS[card];
+  if (!testCard) {
+    return NextResponse.json(
+      { error: `Unknown test card: ${card}. Valid: ${Object.keys(TEST_CARDS).join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  const identityId = process.env.FINIX_MERCHANT_IDENTITY_ID;
+  if (!identityId) {
+    return NextResponse.json({ error: "FINIX_MERCHANT_IDENTITY_ID not configured" }, { status: 500 });
+  }
+
+  const inst = await createPaymentInstrument({
+    cardNumber: testCard.number,
+    expiryMonth: 12,
+    expiryYear: 2029,
+    cvc: "123",
+    name: "Sandbox Test",
+  });
+
+  if (inst.status >= 400) {
+    const err = (inst.data as Record<string, unknown>)?._embedded?.errors?.[0]?.message || `HTTP ${inst.status}`;
+    return NextResponse.json({ error: `Finix error: ${err}` }, { status: 502 });
+  }
+
+  const data = inst.data as Record<string, unknown>;
+  return NextResponse.json({
+    instrument_id: data.id,
+    brand: data.brand,
+    last4: data.last_four,
+  });
 }

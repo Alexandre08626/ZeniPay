@@ -15,12 +15,7 @@ export interface GatewayResult {
 }
 
 export async function processPayment(params: {
-  cardNumber: string;
-  expiryMonth: string;
-  expiryYear: string;
-  cvc: string;
-  cardholderName: string;
-  postalCode?: string;
+  instrumentId: string;
   amount: number;
   currency?: string;
   description?: string;
@@ -48,9 +43,11 @@ export async function processPayment(params: {
   const { processFinixPayment } = await import("./finix");
   try {
     const result = await processFinixPayment({
-      ...params,
+      instrumentId: params.instrumentId,
+      amount: params.amount,
       currency: params.currency || "USD",
       description: params.description || `ZeniPay ${params.paymentId}`,
+      paymentId: params.paymentId,
     });
     return {
       success: result.success,

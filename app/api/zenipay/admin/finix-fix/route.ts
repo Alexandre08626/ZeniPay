@@ -49,32 +49,8 @@ export async function GET(req: NextRequest) {
   const fp = await finixReq("GET", "/fee_profiles/FPmtT4MYmiAs1qjLjneQmk4d");
   R.fee_profile = fp;
 
-  // 4. Test SUCCESS payment
-  const inst = await finixReq("POST", "/payment_instruments", {
-    type: "PAYMENT_CARD", number: "4111111111111111", expiration_month: 12, expiration_year: 2029,
-    security_code: "123", name: "Finix Test", address: { postal_code: "94404" }, identity: identityId,
-  });
-  R.test_card = { id: inst.data?.id, brand: inst.data?.brand, last4: inst.data?.last_four };
-  if (inst.data?.id) {
-    const tx = await finixReq("POST", "/transfers", {
-      merchant: merchantId, amount: 100, currency: "USD", source: inst.data.id,
-      operation_key: "SALE", tags: { test: "approval_e2e", source: "zenipay" },
-    });
-    R.test_success = { id: tx.data?.id, state: tx.data?.state, amount: tx.data?.amount };
-  }
-
-  // 5. Test FAIL payment
-  const failInst = await finixReq("POST", "/payment_instruments", {
-    type: "PAYMENT_CARD", number: "4000000000000002", expiration_month: 12, expiration_year: 2029,
-    security_code: "123", name: "Fail Test", address: { postal_code: "94404" }, identity: identityId,
-  });
-  if (failInst.data?.id) {
-    const failTx = await finixReq("POST", "/transfers", {
-      merchant: merchantId, amount: 100, currency: "USD", source: failInst.data.id,
-      operation_key: "SALE", tags: { test: "approval_fail_test" },
-    });
-    R.test_fail = { id: failTx.data?.id, state: failTx.data?.state, failure_code: failTx.data?.failure_code };
-  }
+  // Test payments removed — card tokenization must go through Finix.js client-side.
+  // Use /api/finix/test-certification for sandbox test card instruments.
 
   return NextResponse.json(R);
 }
