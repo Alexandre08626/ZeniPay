@@ -4,7 +4,7 @@
  */
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-function requireEnv(name: string, ...keys: string[]): string {
+function getEnv(name: string, ...keys: string[]): string {
   for (const k of keys) {
     const v = process.env[k];
     if (v) return v;
@@ -12,14 +12,13 @@ function requireEnv(name: string, ...keys: string[]): string {
   throw new Error(`Missing ZeniPay env: ${name} (tried ${keys.join(", ")})`);
 }
 
-const SUPABASE_URL = requireEnv("Supabase URL", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
-const SUPABASE_KEY = requireEnv("Supabase Key", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
-
 let _client: SupabaseClient | null = null;
 
 export function getSupabaseAdmin(): SupabaseClient {
   if (!_client) {
-    _client = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    const url = getEnv("Supabase URL", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
+    const key = getEnv("Supabase Key", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    _client = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
   }
@@ -28,10 +27,12 @@ export function getSupabaseAdmin(): SupabaseClient {
 
 /** Direct PostgREST fetch */
 export async function pgrest(path: string): Promise<unknown[]> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const url = getEnv("Supabase URL", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
+  const key = getEnv("Supabase Key", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const res = await fetch(`${url}/rest/v1/${path}`, {
     headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
+      apikey: key,
+      Authorization: `Bearer ${key}`,
       "Cache-Control": "no-cache, no-store, must-revalidate",
       Pragma: "no-cache",
       Prefer: "count=exact",
