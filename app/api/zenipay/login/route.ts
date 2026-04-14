@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { verifyPassword } from "../../../../modules/zenipay/services/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     const md = found.merchant_data || {};
     const storedPwd = md.password || "";
 
-    if (!storedPwd || storedPwd !== password) {
+    if (!storedPwd || !(await verifyPassword(password, storedPwd))) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
