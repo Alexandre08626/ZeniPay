@@ -2091,7 +2091,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             </div>
             <div style={{ display:"flex", gap:8, alignItems:"center" }}>
               <span style={{ background:"rgba(45,190,96,0.15)", border:"1px solid rgba(45,190,96,0.35)", borderRadius:20, padding:"3px 10px", fontSize:9, fontWeight:800, color:"#2DBE60", letterSpacing:"0.1em" }}>\u25CF LIVE</span>
-              <button onClick={() => { void fetch("/api/zenipay/stats").then(r=>r.json()).then(d=>{ if(d.available_balance!==undefined) setWALLETS(w=>({...w,platform:{...w.platform,available:d.available_balance||0,pending:d.pending_balance||0,paid_out:d.paid_out||0}})); }); void fetch("/api/zenipay/bank-balance").then(r=>r.json()).then(d=>{ setUnitAccounts(d.accounts||[]); setUnitCards(d.cards||[]); }); }} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:"5px 11px", color:"rgba(255,255,255,0.6)", fontSize:12, cursor:"pointer" }}>🔄</button>
+              <button onClick={() => { void fetch("/api/zenipay/stats").then(r=>r.json()).then(d=>{ if(d.available_balance!==undefined) setWALLETS(w=>({...w,platform:{...w.platform,available:d.available_balance||0,pending:d.pending_balance||0,paid_out:d.paid_out||0}})); }); }} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:"5px 11px", color:"rgba(255,255,255,0.6)", fontSize:12, cursor:"pointer" }}>🔄</button>
               <button onClick={() => setIsMobile(false)} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:"5px 11px", color:"rgba(255,255,255,0.5)", fontSize:11, cursor:"pointer" }}>⊞</button>
             </div>
           </div>
@@ -2181,7 +2181,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 </div>
                 <div>
                   <div style={{ fontSize:12, fontFamily:"monospace", letterSpacing:"0.2em", opacity:0.9 }}>•••• •••• •••• {debitCard.attributes?.last4Digits||"5050"}</div>
-                  <div style={{ fontSize:9, opacity:0.5, marginTop:3 }}>Unit.co · Tap for 360° ↗</div>
+                  <div style={{ fontSize:9, opacity:0.5, marginTop:3 }}>Tap for details ↗</div>
                 </div>
               </div>
             ) : (
@@ -2411,7 +2411,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                     {isLive ? "● LIVE" : "● SANDBOX"}
                   </span>
                 </div>
-                <p style={{ margin: 0, fontSize: 9, color: "#94a3b8", letterSpacing: "0.06em" }}>Powered by Finix · Banking by Unit.co</p>
+                <p style={{ margin: 0, fontSize: 9, color: "#94a3b8", letterSpacing: "0.06em" }}>Powered by Finix</p>
               </div>
             </div>
             {/* Balance + Sign Out */}
@@ -3574,9 +3574,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
           <div style={{ padding: "20px 28px", flex: 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h4 style={{ margin: 0, color: "white", fontSize: 14 }}>📋 Transaction History</h4>
-              <button onClick={async()=>{const r=await fetch("/api/zenipay/bank-balance");if(r.ok){const d=await r.json();if(d.transactions)setUnitRealTxns(d.transactions);}}} style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", color:"white", borderRadius:8, padding:"5px 12px", fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                🔄 Refresh
-              </button>
+              <span />
             </div>
             {unitRealTxns.length === 0 ? (
               <div style={{ textAlign:"center" as const, color:"rgba(255,255,255,0.3)", fontSize:13, padding:"40px 0" }}>
