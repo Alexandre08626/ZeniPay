@@ -41,28 +41,12 @@ const DEFAULT_WALLETS = {
 };
 // WALLETS and TRANSACTIONS are now component state — fetched from /api/zenipay/stats
 
-// Zeniva-specific data — only shown for zeniva-001
-const ZENIVA_AGENTS: { id?: string; name: string; code: string; bookings: number; revenue: number; commission: number; pending: number; rate: string; role?: string; avatar?: string; badge?: string }[] = [
-  { id: "ag-001", name: "Louis",     code: "LOUIS", bookings: 48, revenue: 142600, commission: 99820, pending: 2840, rate: "70%", role: "Senior Travel Agent", badge: "🥇" },
-  { id: "ag-002", name: "Jason",     code: "JASON", bookings: 31, revenue: 89400,  commission: 62580, pending: 1420, rate: "70%", role: "Travel Agent",        badge: "🥈" },
-  { id: "ag-003", name: "Luca",      code: "LUCA",  bookings: 22, revenue: 52750,  commission: 36925, pending: 980,  rate: "70%", role: "Travel Agent",        badge: "🥉" },
-];
+// Zeniva-specific data — fetched from API, empty defaults
+const ZENIVA_AGENTS: { id?: string; name: string; code: string; bookings: number; revenue: number; commission: number; pending: number; rate: string; role?: string; avatar?: string; badge?: string }[] = [];
 
-const ZENIVA_INVOICES: { id: string; client: string; booking?: string; amount: number; status: string; date: string }[] = [
-  { id: "INV-2026-041", client: "Martin Tremblay",   booking: "ZNV-1041", amount: 7677,  status: "paid",    date: "2026-03-18" },
-  { id: "INV-2026-040", client: "Sarah Chen",        booking: "ZNV-1040", amount: 4290,  status: "paid",    date: "2026-03-16" },
-  { id: "INV-2026-039", client: "Famille Gagnon",    booking: "ZNV-1039", amount: 12450, status: "pending", date: "2026-03-14" },
-  { id: "INV-2026-038", client: "Pierre Beaumont",   booking: "ZNV-1038", amount: 3180,  status: "paid",    date: "2026-03-12" },
-  { id: "INV-2026-037", client: "Emily Watson",      booking: "ZNV-1037", amount: 8920,  status: "paid",    date: "2026-03-10" },
-];
+const ZENIVA_INVOICES: { id: string; client: string; booking?: string; amount: number; status: string; date: string }[] = [];
 
-const ZENIVA_PAYOUTS: { id?: string; recipient: string; type: string; amount: number; status: string; date: string; method?: string }[] = [
-  { id: "PO-2026-018", recipient: "Louis",          type: "agent",    amount: 2840,  status: "pending",  date: "2026-03-19", method: "e-Transfer" },
-  { id: "PO-2026-017", recipient: "Jason",          type: "agent",    amount: 1420,  status: "pending",  date: "2026-03-19", method: "e-Transfer" },
-  { id: "PO-2026-016", recipient: "Sunwing Airlines", type: "supplier", amount: 8940, status: "scheduled", date: "2026-03-20", method: "Wire" },
-  { id: "PO-2026-015", recipient: "Louis",          type: "agent",    amount: 4200,  status: "completed", date: "2026-03-14", method: "e-Transfer" },
-  { id: "PO-2026-014", recipient: "Air Transat",    type: "supplier", amount: 6800,  status: "completed", date: "2026-03-12", method: "Wire" },
-];
+const ZENIVA_PAYOUTS: { id?: string; recipient: string; type: string; amount: number; status: string; date: string; method?: string }[] = [];
 
 // ── UTILS ────────────────────────────────────────────
 const fmt = (n: number, compact?: boolean) =>
@@ -1811,12 +1795,8 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     } catch { /* silent */ } finally { setInvSaving(false); }
   };
   // Unit.co banking layer
-  const [unitAccounts, setUnitAccounts] = useState<{ id: string; type: string; name: string; status: string; balanceCents: number; availableCents: number; routingNumber: string; accountNumber: string; currency: string; createdAt: string }[]>([
-    { id:"11589672", type:"depositAccount", name:`ZeniPay Checking — ${BNAME}`, status:"Open", balanceCents:0, availableCents:0, routingNumber:"812345678", accountNumber:"1009825847", currency:"USD", createdAt:"2026-03-17T18:09:35.382Z" }
-  ]);
-  const [unitCards, setUnitCards] = useState<{ id: string; type: string; last4?: string; expiry?: string; status?: string; attributes: { status?: string; last4Digits?: string; expirationDate?: string; bin?: string; cardQualifier?: string } }[]>([
-    { id:"5487715", type:"businessVirtualDebitCard", last4:"5050", expiry:"2030-03", status:"Active", attributes:{ status:"Active", last4Digits:"5050", expirationDate:"2030-03" } }
-  ]);
+  const [unitAccounts, setUnitAccounts] = useState<{ id: string; type: string; name: string; status: string; balanceCents: number; availableCents: number; routingNumber: string; accountNumber: string; currency: string; createdAt: string }[]>([]);
+  const [unitCards, setUnitCards] = useState<{ id: string; type: string; last4?: string; expiry?: string; status?: string; attributes: { status?: string; last4Digits?: string; expirationDate?: string; bin?: string; cardQualifier?: string } }[]>([]);
   const [unitLoading, setUnitLoading] = useState(false);
   const [bankAction, setBankAction] = useState<"wire"|"ach"|"transfer"|"savings"|null>(null);
   const [bankActionForm, setBankActionForm] = useState<Record<string,string>>({});
