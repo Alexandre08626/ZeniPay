@@ -29,9 +29,8 @@ export interface FinixPaymentInstrument {
   type: string;
   brand: string;
   last_four: string;
-  expiration_month: number;
-  expiration_year: number;
   name: string;
+  [key: string]: unknown;
 }
 
 export interface FinixDispute {

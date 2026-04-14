@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { createPaymentInstrument, createTransfer, generateFraudSessionId } from "@/lib/finix/client";
+import { createTransfer, generateFraudSessionId } from "@/lib/finix/client";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/finix/config";
 
@@ -13,14 +13,14 @@ function getSupabase() {
 
 /**
  * POST /api/finix/charge
- * Creates a Finix Transfer with fraud_session_id + idempotency
+ * Creates a Finix Transfer with fraud_session_id + idempotency.
+ * Requires a pre-tokenized instrumentId (from Finix.js client-side tokenization).
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      instrumentId: providedInstrumentId,
-      cardNumber, expiryMonth, expiryYear, cvc, name,
+      instrumentId,
       amountCents, currency = "USD",
       fraudSessionId: providedFraudSessionId,
       idempotencyKey: providedIdempotencyKey,
@@ -31,22 +31,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "amountCents is required and must be > 0" }, { status: 400 });
     }
 
-    let instrumentId = providedInstrumentId;
-    let instrumentDetails: Record<string, unknown> = {};
-
     if (!instrumentId) {
-      if (!cardNumber || !expiryMonth || !expiryYear || !cvc) {
-        return NextResponse.json({ error: "Either instrumentId or card details required" }, { status: 400 });
-      }
-      const instRes = await createPaymentInstrument({
-        cardNumber, expiryMonth: parseInt(expiryMonth), expiryYear: parseInt(expiryYear),
-        cvc, name: name || "ZeniPay Customer",
-      });
-      if (instRes.status >= 400) {
-        return NextResponse.json({ error: "Failed to create payment instrument", details: instRes.data }, { status: instRes.status });
-      }
-      instrumentId = (instRes.data as unknown as Record<string, unknown>).id;
-      instrumentDetails = instRes.data as unknown as Record<string, unknown>;
+      return NextResponse.json({ error: "instrumentId is required (tokenize via Finix.js client-side)" }, { status: 400 });
     }
 
     const fraudSessionId = providedFraudSessionId || generateFraudSessionId();
@@ -78,7 +64,7 @@ export async function POST(req: NextRequest) {
       transfer_id: transferData.id, state: transferData.state,
       amount: amountCents, currency,
       fraud_session_id: fraudSessionId, idempotency_key: idempotencyKey,
-      instrument_id: instrumentId, instrument: instrumentDetails,
+      instrument_id: instrumentId,
       failure_code: transferData.failure_code || null,
       failure_message: transferData.failure_message || null,
     });

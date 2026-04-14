@@ -1,10 +1,38 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { createPaymentInstrument, createTransfer, generateFraudSessionId, finixRequest } from "@/lib/finix/client";
+import { createTransfer, generateFraudSessionId, finixRequest } from "@/lib/finix/client";
 import { FINIX_CONFIG, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/finix/config";
-import type { CertificationStepResult } from "@/lib/finix/types";
+import type { CertificationStepResult, FinixPaymentInstrument } from "@/lib/finix/types";
 import { createClient } from "@supabase/supabase-js";
+
+/**
+ * createPaymentInstrument — SANDBOX ONLY, lives exclusively in test-certification.
+ * This is the ONLY server-side code allowed to handle raw card data.
+ */
+async function createPaymentInstrument(params: {
+  cardNumber: string;
+  expiryMonth: number;
+  expiryYear: number;
+  cvc: string;
+  name: string;
+  postalCode?: string;
+}): Promise<{ status: number; data: FinixPaymentInstrument }> {
+  return finixRequest<FinixPaymentInstrument>({
+    method: "POST",
+    path: "/payment_instruments",
+    body: {
+      type: "PAYMENT_CARD",
+      number: params.cardNumber.replace(/\s/g, ""),
+      expiration_month: params.expiryMonth,
+      expiration_year: params.expiryYear,
+      security_code: params.cvc,
+      name: params.name,
+      address: { postal_code: params.postalCode || "94404" },
+      identity: FINIX_CONFIG.identityId,
+    },
+  });
+}
 function getSupabase() {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 }

@@ -38,27 +38,10 @@ export async function finixRequest<T = Record<string, unknown>>(opts: FinixReque
   return { status: res.status, data };
 }
 
-export async function createPaymentInstrument(params: {
-  cardNumber: string;
-  expiryMonth: number;
-  expiryYear: number;
-  cvc: string;
-  name: string;
-  postalCode?: string;
-}): Promise<{ status: number; data: FinixPaymentInstrument }> {
+export async function getPaymentInstrument(instrumentId: string): Promise<{ status: number; data: FinixPaymentInstrument }> {
   return finixRequest<FinixPaymentInstrument>({
-    method: "POST",
-    path: "/payment_instruments",
-    body: {
-      type: "PAYMENT_CARD",
-      number: params.cardNumber.replace(/\s/g, ""),
-      expiration_month: params.expiryMonth,
-      expiration_year: params.expiryYear,
-      security_code: params.cvc,
-      name: params.name,
-      address: { postal_code: params.postalCode || "94404" },
-      identity: FINIX_CONFIG.identityId,
-    },
+    method: "GET",
+    path: `/payment_instruments/${instrumentId}`,
   });
 }
 
