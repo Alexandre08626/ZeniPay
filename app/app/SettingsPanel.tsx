@@ -300,8 +300,17 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
         const json = await res.json();
         const data = json.data || {};
 
-        if (data.settings_business) {
-          setBusiness((prev) => ({ ...prev, ...data.settings_business }));
+        // settings_business is the source of truth — override ALL defaults including props
+        if (data.settings_business && typeof data.settings_business === "object") {
+          setBusiness((prev) => {
+            const saved = data.settings_business as Record<string, unknown>;
+            return {
+              ...prev,
+              ...Object.fromEntries(
+                Object.entries(saved).filter(([, v]) => v !== undefined && v !== null)
+              ),
+            } as BusinessInfo;
+          });
         }
         if (data.settings_payment) {
           setPayment((prev) => ({ ...prev, ...data.settings_payment }));
