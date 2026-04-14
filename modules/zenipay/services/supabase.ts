@@ -4,12 +4,16 @@
  */
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  throw new Error("Missing ZeniPay Supabase env: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (or NEXT_PUBLIC_ variants)");
+function requireEnv(name: string, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = process.env[k];
+    if (v) return v;
+  }
+  throw new Error(`Missing ZeniPay env: ${name} (tried ${keys.join(", ")})`);
 }
+
+const SUPABASE_URL = requireEnv("Supabase URL", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
+const SUPABASE_KEY = requireEnv("Supabase Key", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
 let _client: SupabaseClient | null = null;
 

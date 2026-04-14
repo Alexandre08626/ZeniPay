@@ -178,6 +178,10 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   const [rolledLive,   setRolledLive]   = useState<{newVal:string;oldVal:string;rolledAt:string}|null>(null);
   const [rolledSb,     setRolledSb]     = useState<{newVal:string;oldVal:string;rolledAt:string}|null>(null);
   const [notifEmail,   setNotifEmail]   = useState(true);
+  const [editingBiz,   setEditingBiz]   = useState(false);
+  const [bizForm,      setBizForm]      = useState<Record<string,string>>({});
+  const [bizSaving,    setBizSaving]    = useState(false);
+  const [bizSaved,     setBizSaved]     = useState(false);
   const [benChat,      setBenChat]      = useState<{role:"ben"|"user";text:string}[]>([
     { role:"ben", text:`Hi! I'm Ben, your ZeniPay financial AI assistant. I monitor your account 24/7, detect anomalies, and give you real-time financial intelligence. Ask me anything about your revenue, payouts, or account health.` }
   ]);
@@ -1623,6 +1627,83 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
   );
 
   // ── SETTINGS ──────────────────────────────────────────
+  const startEditBiz = () => {
+    setBizForm({
+      businessName: account.businessName || "",
+      ownerName: account.ownerName || "",
+      email: account.email || "",
+      phone: account.phone || "",
+      website: account.website || "",
+      businessType: account.businessType || "",
+      country: account.country || "",
+      monthlyVolume: account.monthlyVolume || "",
+      doingBusinessAs: (account as unknown as Record<string,string>).doingBusinessAs || "",
+      taxId: (account as unknown as Record<string,string>).taxId || "",
+      businessAddress: (account as unknown as Record<string,string>).businessAddress || "",
+      businessCity: (account as unknown as Record<string,string>).businessCity || "",
+      businessRegion: (account as unknown as Record<string,string>).businessRegion || "",
+      businessPostalCode: (account as unknown as Record<string,string>).businessPostalCode || "",
+      ownerFirstName: (account as unknown as Record<string,string>).ownerFirstName || "",
+      ownerLastName: (account as unknown as Record<string,string>).ownerLastName || "",
+      ownerTitle: (account as unknown as Record<string,string>).ownerTitle || "",
+      ownerDobMonth: (account as unknown as Record<string,string>).ownerDobMonth || "",
+      ownerDobDay: (account as unknown as Record<string,string>).ownerDobDay || "",
+      ownerDobYear: (account as unknown as Record<string,string>).ownerDobYear || "",
+      ownerAddress: (account as unknown as Record<string,string>).ownerAddress || "",
+      ownerCity: (account as unknown as Record<string,string>).ownerCity || "",
+      ownerRegion: (account as unknown as Record<string,string>).ownerRegion || "",
+      ownerPostalCode: (account as unknown as Record<string,string>).ownerPostalCode || "",
+    });
+    setEditingBiz(true);
+    setBizSaved(false);
+  };
+  const saveBizInfo = async () => {
+    setBizSaving(true);
+    try {
+      const res = await fetch("/api/zenipay/merchant-info", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ merchant_id: account.id, ...bizForm }),
+      });
+      if (res.ok) {
+        setBizSaved(true);
+        setEditingBiz(false);
+        // Refresh account data
+        window.location.reload();
+      }
+    } catch { /* silent */ }
+    setBizSaving(false);
+  };
+  const bfSet = (k: string, v: string) => setBizForm(f => ({ ...f, [k]: v }));
+
+  const BIZ_FIELDS: { key: string; label: string; ph: string; half?: boolean; select?: string[] }[] = [
+    { key: "businessName", label: "Legal Business Name", ph: "Zeniva Travel LLC" },
+    { key: "doingBusinessAs", label: "Doing Business As", ph: "Zeniva Travel" },
+    { key: "businessType", label: "Business Type", ph: "", select: ["LIMITED_LIABILITY_COMPANY","CORPORATION","SOLE_PROPRIETORSHIP","PARTNERSHIP","NON_PROFIT","GOVERNMENT_AGENCY"] },
+    { key: "taxId", label: "Tax ID / EIN", ph: "12-3456789", half: true },
+    { key: "phone", label: "Business Phone", ph: "+13322900021", half: true },
+    { key: "email", label: "Business Email", ph: "info@zeniva.ca" },
+    { key: "website", label: "Website", ph: "https://zenivatravel.com" },
+    { key: "businessAddress", label: "Business Address", ph: "8 The Green" },
+    { key: "businessCity", label: "City", ph: "Dover", half: true },
+    { key: "businessRegion", label: "State / Province", ph: "DE", half: true },
+    { key: "businessPostalCode", label: "Postal Code", ph: "19901", half: true },
+    { key: "country", label: "Country", ph: "USA", half: true },
+    { key: "monthlyVolume", label: "Est. Monthly Volume ($)", ph: "50000", half: true },
+  ];
+  const OWNER_FIELDS: { key: string; label: string; ph: string; half?: boolean }[] = [
+    { key: "ownerFirstName", label: "First Name", ph: "Alexandre", half: true },
+    { key: "ownerLastName", label: "Last Name", ph: "Dupont", half: true },
+    { key: "ownerTitle", label: "Title", ph: "CEO", half: true },
+    { key: "ownerDobMonth", label: "DOB Month", ph: "06", half: true },
+    { key: "ownerDobDay", label: "DOB Day", ph: "15", half: true },
+    { key: "ownerDobYear", label: "DOB Year", ph: "1990", half: true },
+    { key: "ownerAddress", label: "Personal Address", ph: "123 Main St" },
+    { key: "ownerCity", label: "City", ph: "Montreal", half: true },
+    { key: "ownerRegion", label: "State / Province", ph: "QC", half: true },
+    { key: "ownerPostalCode", label: "Postal Code", ph: "H2X 1Y4", half: true },
+  ];
+
   const SettingsSection = (
     <div>
       <h2 style={{ fontSize:20,fontWeight:900,margin:"0 0 24px",color:TEXT }}>Settings</h2>
@@ -1636,13 +1717,48 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
       </div>
 
       <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:16,overflow:"hidden",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
-        <div style={{ padding:"12px 18px",borderBottom:`1px solid ${BORDER}`,fontSize:11,color:MUTED,fontWeight:700,textTransform:"uppercase" as const }}>Business Info</div>
-        {[["Business Name",account.businessName],["Owner",account.ownerName],["Email",account.email],["Phone",account.phone||"—"],["Website",account.website||"—"],["Type",account.businessType||"—"],["Country",account.country],["Est. Volume",account.monthlyVolume?`$${account.monthlyVolume}/mo`:"—"],["Member Since",new Date(account.createdAt).toLocaleDateString("en-CA",{year:"numeric",month:"short",day:"numeric"})]].map(([l,v])=>(
-          <div key={l} style={{ display:"flex",justifyContent:"space-between",padding:"11px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
-            <span style={{ color:MUTED,fontSize:13 }}>{l}</span>
-            <span style={{ fontWeight:600,fontSize:13,color:TEXT }}>{v}</span>
+        <div style={{ padding:"12px 18px",borderBottom:`1px solid ${BORDER}`,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+          <span style={{ fontSize:11,color:MUTED,fontWeight:700,textTransform:"uppercase" as const }}>Business Info</span>
+          {!editingBiz && <button onClick={startEditBiz} style={{ fontSize:12,fontWeight:700,color:ZP_CYAN,background:"none",border:"none",cursor:"pointer",padding:"4px 10px" }}>Edit</button>}
+        </div>
+        {editingBiz ? (
+          <div style={{ padding:18 }}>
+            <div style={{ fontSize:13,fontWeight:700,color:TEXT,marginBottom:14 }}>Business Details</div>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20 }}>
+              {BIZ_FIELDS.map(f => (
+                <div key={f.key} style={{ gridColumn: f.half ? "auto" : "1/-1" }}>
+                  <label style={{ fontSize:11,color:MUTED,fontWeight:700,display:"block",marginBottom:5,textTransform:"uppercase" as const,letterSpacing:"0.04em" }}>{f.label}</label>
+                  {f.select
+                    ? <select value={bizForm[f.key]||""} onChange={e=>bfSet(f.key,e.target.value)} style={IS}><option value="">Choose...</option>{f.select.map(o=><option key={o} value={o}>{o.replace(/_/g," ")}</option>)}</select>
+                    : <input type="text" placeholder={f.ph} value={bizForm[f.key]||""} onChange={e=>bfSet(f.key,e.target.value)} style={IS} />
+                  }
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize:13,fontWeight:700,color:TEXT,marginBottom:14,paddingTop:8,borderTop:`1px solid ${BORDER}` }}>Owner / Control Person</div>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20 }}>
+              {OWNER_FIELDS.map(f => (
+                <div key={f.key} style={{ gridColumn: f.half ? "auto" : "1/-1" }}>
+                  <label style={{ fontSize:11,color:MUTED,fontWeight:700,display:"block",marginBottom:5,textTransform:"uppercase" as const,letterSpacing:"0.04em" }}>{f.label}</label>
+                  <input type="text" placeholder={f.ph} value={bizForm[f.key]||""} onChange={e=>bfSet(f.key,e.target.value)} style={IS} />
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"flex",gap:10 }}>
+              <button onClick={()=>setEditingBiz(false)} style={{ flex:1,padding:12,background:"#f8fafc",border:`1px solid ${BORDER}`,color:MUTED,borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer" }}>Cancel</button>
+              <button onClick={saveBizInfo} disabled={bizSaving} style={{ flex:3,padding:12,background:ZP_GRAD,color:"#fff",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer",opacity:bizSaving?0.6:1 }}>{bizSaving ? "Saving..." : "Save Business Info"}</button>
+            </div>
           </div>
-        ))}
+        ) : (
+          <>
+            {[["Business Name",account.businessName],["Owner",account.ownerName],["Email",account.email],["Phone",account.phone||"—"],["Website",account.website||"—"],["Type",account.businessType||"—"],["Country",account.country],["Est. Volume",account.monthlyVolume?`$${account.monthlyVolume}/mo`:"—"],["Member Since",new Date(account.createdAt).toLocaleDateString("en-CA",{year:"numeric",month:"short",day:"numeric"})]].map(([l,v])=>(
+              <div key={l} style={{ display:"flex",justifyContent:"space-between",padding:"11px 18px",borderBottom:`1px solid ${ROW_SEP}` }}>
+                <span style={{ color:MUTED,fontSize:13 }}>{l}</span>
+                <span style={{ fontWeight:600,fontSize:13,color:TEXT }}>{v}</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:16,overflow:"hidden",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
