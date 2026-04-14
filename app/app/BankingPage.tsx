@@ -191,7 +191,9 @@ export default function BankingPage(props: BankingProps) {
     } finally { setLoading(false); }
   };
 
-  const netBalance = platformBalance;
+  // Net balance = sum of all Supabase account balances (source of truth)
+  const accountsTotal = accounts.reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+  const netBalance = accountsTotal;
   const cardGradient = (c: CardDB) => c.card_type?.includes("mc") ? "linear-gradient(135deg, #F5A623 0%, #E5247B 50%, #7B4FBF 100%)" : "linear-gradient(135deg, #2DBE60 0%, #15B8C9 50%, #2A8FE0 100%)";
 
   /* === TOAST SYSTEM === */
@@ -228,7 +230,7 @@ export default function BankingPage(props: BankingProps) {
           </div>
           <div>
             <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7, marginBottom: 4 }}>Platform Balance</div>
-            <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.02em", color: "#B8F0FF" }}>{fmt(platformBalance)}</div>
+            <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.02em", color: "#B8F0FF" }}>{fmt(accountsTotal)}</div>
           </div>
         </div>
         <div className="bp-hero-btns" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -240,7 +242,7 @@ export default function BankingPage(props: BankingProps) {
       <div style={cardStyle}>
         <div style={{ fontWeight: 800, fontSize: 18, color: "#0F172A", marginBottom: 20 }}>{t("banking.revenueBreakdown")}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          {([[t("banking.grossRevenue"), grossRevenue, GREEN], [t("kpi.zenipayFees"), -zenipayFees, "#e74c3c"], [t("kpi.netRevenue"), netBalance, BLUE]] as [string, number, string][]).map(([lbl, val, clr]) => (
+          {([[t("banking.grossRevenue"), accountsTotal, GREEN], [t("kpi.zenipayFees"), 0, "#e74c3c"], [t("kpi.netRevenue"), netBalance, BLUE]] as [string, number, string][]).map(([lbl, val, clr]) => (
             <div key={lbl} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", borderBottom: "1px solid #F1F5F9" }}>
               <span style={{ fontWeight: 600, color: "#0F172A", fontSize: 15 }}>{lbl}</span>
               <span style={{ fontWeight: 900, color: clr, fontSize: 20, letterSpacing: "-0.02em" }}>{fmt(val)}</span>
@@ -817,7 +819,7 @@ export default function BankingPage(props: BankingProps) {
                     {[
                       { l: "Cardholder Name", v: businessName },
                       { l: "Merchant ID", v: merchantId },
-                      { l: "Account Balance", v: fmt(platformBalance) },
+                      { l: "Account Balance", v: fmt(accountsTotal) },
                       { l: "Member Since", v: linkedAcct?.created_at ? new Date(linkedAcct.created_at).toLocaleDateString() : "2026" },
                     ].map(r => (
                       <div key={r.l} style={{ padding: "10px 14px", background: "#FAFBFC", borderRadius: 10 }}>
@@ -902,9 +904,9 @@ export default function BankingPage(props: BankingProps) {
                     {[
                       { l: "Business Name", v: businessName },
                       { l: "Merchant ID", v: merchantId },
-                      { l: "Gross Revenue", v: fmt(grossRevenue) },
+                      { l: "Gross Revenue", v: fmt(accountsTotal) },
                       { l: "ZeniPay Fees", v: fmt(zenipayFees) },
-                      { l: "Net Revenue", v: fmt(platformBalance) },
+                      { l: "Net Revenue", v: fmt(accountsTotal) },
                       { l: "Total Transactions", v: String(transactions.length) },
                     ].map(r => (
                       <div key={r.l} style={{ padding: "10px 14px", background: "#FAFBFC", borderRadius: 10 }}>
