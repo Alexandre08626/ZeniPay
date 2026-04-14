@@ -28,6 +28,24 @@ interface BusinessInfo {
   website: string;
   businessType: string;
   country: string;
+  taxId: string;
+  businessAddress: string;
+  businessCity: string;
+  businessRegion: string;
+  businessPostalCode: string;
+  mcc: string;
+  annualVolume: string;
+  ownerFirstName: string;
+  ownerLastName: string;
+  ownerTitle: string;
+  ownerDobMonth: string;
+  ownerDobDay: string;
+  ownerDobYear: string;
+  ownerAddress: string;
+  ownerCity: string;
+  ownerRegion: string;
+  ownerPostalCode: string;
+  ownerOwnershipPct: string;
 }
 
 interface PaymentConfig {
@@ -229,6 +247,24 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
     website: "",
     businessType: "llc",
     country: "US",
+    taxId: "",
+    businessAddress: "",
+    businessCity: "",
+    businessRegion: "",
+    businessPostalCode: "",
+    mcc: "4722",
+    annualVolume: "",
+    ownerFirstName: "",
+    ownerLastName: "",
+    ownerTitle: "",
+    ownerDobMonth: "",
+    ownerDobDay: "",
+    ownerDobYear: "",
+    ownerAddress: "",
+    ownerCity: "",
+    ownerRegion: "",
+    ownerPostalCode: "",
+    ownerOwnershipPct: "100",
   });
 
   // Section 2: Payment Configuration
@@ -505,6 +541,118 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
                 <option value="DE">Germany</option>
               </select>
             </div>
+          </div>
+
+          {/* Tax ID & MCC */}
+          <div className="sp-field-group" style={styles.fieldGroup}>
+            <div>
+              <label style={styles.label}>Tax ID / EIN</label>
+              <input style={styles.input} value={business.taxId} onChange={(e) => setBusiness({ ...business, taxId: e.target.value })} placeholder="12-3456789" />
+            </div>
+            <div>
+              <label style={styles.label}>MCC (Merchant Category)</label>
+              <select style={{ ...styles.input, cursor: "pointer" }} value={business.mcc} onChange={(e) => setBusiness({ ...business, mcc: e.target.value })}>
+                <option value="4722">4722 — Travel Agencies</option>
+                <option value="5812">5812 — Restaurants</option>
+                <option value="5411">5411 — Grocery Stores</option>
+                <option value="5999">5999 — Retail</option>
+                <option value="7011">7011 — Hotels & Lodging</option>
+                <option value="7512">7512 — Car Rental</option>
+                <option value="4511">4511 — Airlines</option>
+                <option value="5734">5734 — Software</option>
+                <option value="7299">7299 — Other Services</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={styles.label}>Annual Card Volume (USD)</label>
+            <input style={styles.input} value={business.annualVolume} onChange={(e) => setBusiness({ ...business, annualVolume: e.target.value })} placeholder="1000000" />
+          </div>
+
+          {/* Business Address */}
+          <div style={{ marginTop: 24, marginBottom: 8, fontSize: 15, fontWeight: 700, color: "#1e293b", borderTop: "1px solid #e2e8f0", paddingTop: 20 }}>Business Address</div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={styles.label}>Street Address</label>
+            <input style={styles.input} value={business.businessAddress} onChange={(e) => setBusiness({ ...business, businessAddress: e.target.value })} placeholder="8 The Green" />
+          </div>
+          <div className="sp-field-group" style={styles.fieldGroup}>
+            <div>
+              <label style={styles.label}>City</label>
+              <input style={styles.input} value={business.businessCity} onChange={(e) => setBusiness({ ...business, businessCity: e.target.value })} placeholder="Dover" />
+            </div>
+            <div>
+              <label style={styles.label}>State / Province</label>
+              <input style={styles.input} value={business.businessRegion} onChange={(e) => setBusiness({ ...business, businessRegion: e.target.value })} placeholder="DE" />
+            </div>
+          </div>
+          <div className="sp-field-group" style={styles.fieldGroup}>
+            <div>
+              <label style={styles.label}>Postal Code</label>
+              <input style={styles.input} value={business.businessPostalCode} onChange={(e) => setBusiness({ ...business, businessPostalCode: e.target.value })} placeholder="19901" />
+            </div>
+            <div />
+          </div>
+
+          {/* Owner / Control Person */}
+          <div style={{ marginTop: 24, marginBottom: 8, fontSize: 15, fontWeight: 700, color: "#1e293b", borderTop: "1px solid #e2e8f0", paddingTop: 20 }}>Owner / Control Person</div>
+          <div className="sp-field-group" style={styles.fieldGroup}>
+            <div>
+              <label style={styles.label}>First Name</label>
+              <input style={styles.input} value={business.ownerFirstName} onChange={(e) => setBusiness({ ...business, ownerFirstName: e.target.value })} placeholder="Alexandre" />
+            </div>
+            <div>
+              <label style={styles.label}>Last Name</label>
+              <input style={styles.input} value={business.ownerLastName} onChange={(e) => setBusiness({ ...business, ownerLastName: e.target.value })} placeholder="Dupont" />
+            </div>
+          </div>
+          <div className="sp-field-group" style={styles.fieldGroup}>
+            <div>
+              <label style={styles.label}>Title</label>
+              <input style={styles.input} value={business.ownerTitle} onChange={(e) => setBusiness({ ...business, ownerTitle: e.target.value })} placeholder="CEO" />
+            </div>
+            <div>
+              <label style={styles.label}>Ownership %</label>
+              <input style={styles.input} type="number" min="0" max="100" value={business.ownerOwnershipPct} onChange={(e) => setBusiness({ ...business, ownerOwnershipPct: e.target.value })} placeholder="100" />
+            </div>
+          </div>
+          <div className="sp-field-group" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={styles.label}>DOB Month</label>
+              <input style={styles.input} value={business.ownerDobMonth} onChange={(e) => setBusiness({ ...business, ownerDobMonth: e.target.value })} placeholder="06" maxLength={2} />
+            </div>
+            <div>
+              <label style={styles.label}>DOB Day</label>
+              <input style={styles.input} value={business.ownerDobDay} onChange={(e) => setBusiness({ ...business, ownerDobDay: e.target.value })} placeholder="15" maxLength={2} />
+            </div>
+            <div>
+              <label style={styles.label}>DOB Year</label>
+              <input style={styles.input} value={business.ownerDobYear} onChange={(e) => setBusiness({ ...business, ownerDobYear: e.target.value })} placeholder="1990" maxLength={4} />
+            </div>
+          </div>
+
+          {/* Owner Personal Address */}
+          <div style={{ marginTop: 16, marginBottom: 8, fontSize: 13, fontWeight: 600, color: "#64748b" }}>Personal Address</div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={styles.label}>Street Address</label>
+            <input style={styles.input} value={business.ownerAddress} onChange={(e) => setBusiness({ ...business, ownerAddress: e.target.value })} placeholder="123 Main St" />
+          </div>
+          <div className="sp-field-group" style={styles.fieldGroup}>
+            <div>
+              <label style={styles.label}>City</label>
+              <input style={styles.input} value={business.ownerCity} onChange={(e) => setBusiness({ ...business, ownerCity: e.target.value })} placeholder="Montreal" />
+            </div>
+            <div>
+              <label style={styles.label}>State / Province</label>
+              <input style={styles.input} value={business.ownerRegion} onChange={(e) => setBusiness({ ...business, ownerRegion: e.target.value })} placeholder="QC" />
+            </div>
+          </div>
+          <div className="sp-field-group" style={styles.fieldGroup}>
+            <div>
+              <label style={styles.label}>Postal Code</label>
+              <input style={styles.input} value={business.ownerPostalCode} onChange={(e) => setBusiness({ ...business, ownerPostalCode: e.target.value })} placeholder="H2X 1Y4" />
+            </div>
+            <div />
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
