@@ -201,7 +201,9 @@ export async function POST(req: NextRequest) {
   });
 
   if (inst.status >= 400) {
-    const err = (inst.data as Record<string, unknown>)?._embedded?.errors?.[0]?.message || `HTTP ${inst.status}`;
+    const embedded = (inst.data as Record<string, unknown>)?._embedded as Record<string, unknown> | undefined;
+    const errors = embedded?.errors as Array<Record<string, unknown>> | undefined;
+    const err = errors?.[0]?.message || `HTTP ${inst.status}`;
     return NextResponse.json({ error: `Finix error: ${err}` }, { status: 502 });
   }
 
