@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     // --- Manual Add ---
     if (body.action === "manual_add") {
       const lead = {
+        id: `ZPL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         business_name: body.business_name || "Unknown Business",
         email: body.email || null,
         website: body.website || null,
@@ -156,21 +157,23 @@ export async function POST(req: NextRequest) {
     });
 
     // Save to Supabase
-    const leads = uniqueResults.filter(r => r.business_name).map(r => ({
+    const leads = uniqueResults.filter(r => r.business_name).map((r, i) => ({
+      id: `ZPL-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
       business_name: r.business_name,
       email: r.email || null,
       website: r.website || null,
       phone: r.phone || null,
       sector: r.sector || "General",
       source: r.source || "google",
-      status: "new" as const,
-      notes: null as string | null,
+      status: "new",
+      notes: null,
       description: r.description || null,
       created_at: new Date().toISOString(),
     }));
 
     if (leads.length > 0) {
-      await supabase.from("zenipay_leads").insert(leads);
+      const { error: insertErr } = await supabase.from("zenipay_leads").insert(leads);
+      if (insertErr) console.error("[Scrape] Insert error:", insertErr.message);
     }
 
     const { data: allLeads } = await supabase
