@@ -54,13 +54,22 @@ export async function PUT(req: NextRequest) {
     body.password = await hashPassword(body.password);
   }
 
-  const merged = { ...(existing?.merchant_data || {}), ...body };
+  // Use Postgres JSONB merge (||) for atomic update — prevents race conditions
+  const { error } = await supabase.rpc("merge_merchant_data", {
+    p_merchant_id: merchant_id,
+    p_data: body,
+  });
 
-  const { error } = await supabase
-    .from("zenipay_merchants")
-    .update({ merchant_data: merged, updated_at: new Date().toISOString() })
-    .eq("id", merchant_id);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Fallback to JS merge if RPC doesn't exist
+  if (error?.message?.includes("function") || error?.code === "42883") {
+    const merged = { ...(existing?.merchant_data || {}), ...body };
+    const { error: fallbackErr } = await supabase
+      .from("zenipay_merchants")
+      .update({ merchant_data: merged, updated_at: new Date().toISOString() })
+      .eq("id", merchant_id);
+    if (fallbackErr) return NextResponse.json({ error: fallbackErr.message }, { status: 500 });
+  } else if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }
