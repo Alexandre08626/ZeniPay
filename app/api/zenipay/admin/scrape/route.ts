@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, pgrest } from "../../../../../modules/zenipay/services/supabase";
+import { getSupabaseAdmin, pgrest, pgrestInsert } from "../../../../../modules/zenipay/services/supabase";
 
 // GET — load existing leads with full details (pgrest = no cache)
 export async function GET() {
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         description: body.description || null,
         created_at: new Date().toISOString(),
       };
-      await supabase.from("zenipay_leads").insert([lead]);
+      await pgrestInsert("zenipay_leads", lead);
       const allLeads = await pgrest("zenipay_leads?order=created_at.desc&limit=200");
       return NextResponse.json({ ok: true, leads: allLeads || [], new_count: 1 });
     }
@@ -155,8 +155,7 @@ export async function POST(req: NextRequest) {
     }));
 
     if (leads.length > 0) {
-      const { error: insertErr } = await supabase.from("zenipay_leads").insert(leads);
-      if (insertErr) console.error("[Scrape] Insert error:", insertErr.message);
+      try { await pgrestInsert("zenipay_leads", leads); } catch (e: any) { console.error("[Scrape] Insert error:", e.message); }
     }
 
     const allLeads = await pgrest("zenipay_leads?order=created_at.desc&limit=200");
