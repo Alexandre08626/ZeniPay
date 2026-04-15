@@ -352,7 +352,7 @@ export default function SignupPage() {
               </button>
 
               <p style={{ textAlign: "center", fontSize: 12, color: "#94A3B8", marginTop: 12, marginBottom: 0 }}>
-                {t("common.needHelp")}{" "}<a href="mailto:info@zenipay.ca" style={{ color: ZP_CYAN, fontWeight: 700, textDecoration: "none" }}>{t("common.contactSupport")}</a>
+                {t("common.needHelp")}{" "}<a href="mailto:zenipay@zeniva.ca" style={{ color: ZP_CYAN, fontWeight: 700, textDecoration: "none" }}>{t("common.contactSupport")}</a>
               </p>
             </div>
           )}

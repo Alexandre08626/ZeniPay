@@ -156,7 +156,7 @@ export default function TermsPage() {
           <ul style={{ color: "#374151", lineHeight: 1.9, fontSize: 15, paddingLeft: 24, marginTop: 8, listStyleType: "none" }}>
             <li><strong>Legal Entity:</strong> International Luxury Management Inc. (operating as &quot;ZeniPay&quot;)</li>
             <li><strong>Location:</strong> Quebec, Canada</li>
-            <li><strong>Email:</strong> <a href="mailto:info@zeniva.ca" style={{ color: "#15B8C9" }}>info@zeniva.ca</a></li>
+            <li><strong>Email:</strong> <a href="mailto:zenipay@zeniva.ca" style={{ color: "#15B8C9" }}>zenipay@zeniva.ca</a></li>
             <li><strong>Website:</strong> <a href="https://zenipay.ca" target="_blank" rel="noopener noreferrer" style={{ color: "#15B8C9" }}>zenipay.ca</a></li>
           </ul>
         </section>

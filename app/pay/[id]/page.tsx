@@ -310,7 +310,7 @@ function PayLinkContent() {
               </p>
               <button
                 type="button"
-                onClick={() => window.location.href = "mailto:info@zeniva.ca"}
+                onClick={() => window.location.href = "mailto:zenipay@zeniva.ca"}
                 style={{
                   background: "#F59E0B", color: "white",
                   padding: "10px 18px", borderRadius: 8, border: "none",

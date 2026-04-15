@@ -337,7 +337,7 @@ export default function AdminPage() {
     } else if (q.includes("lead") || q.includes("scrape") || q.includes("prospect")) {
       reply = `🎯 Lead Hunting\n\nGo to the Lead Hunter tab to:\n• Scrape business leads from Google\n• Save leads to your pipeline\n• Send ZeniPay pitch emails\n\nTip: Search for "shopify store" or "e-commerce business" to find prospects.`;
     } else if (q.includes("campaign") || q.includes("email") || q.includes("marketing")) {
-      reply = `📧 Marketing\n\nGo to the Marketing tab to:\n• Send campaigns to sandbox merchants\n• Send pitch emails to scraped leads\n• Track sent/failed counts\n\nAll emails sent via info@zeniva.ca with anti-spam compliance.`;
+      reply = `📧 Marketing\n\nGo to the Marketing tab to:\n• Send campaigns to sandbox merchants\n• Send pitch emails to scraped leads\n• Track sent/failed counts\n\nAll emails sent via zenipay@zeniva.ca with anti-spam compliance.`;
     } else if (q.includes("help") || q.includes("aide")) {
       reply = `🤖 Ben AI — Admin Commands\n\n• "clients" — merchant summary\n• "revenue" — fees & volume\n• "leads" — lead hunting tips\n• "marketing" — campaign info\n• "help" — this menu`;
     } else {
@@ -1942,7 +1942,7 @@ export default function AdminPage() {
                                     @media print{body{padding:24px}}
                                   </style></head><body>
                                     <div class="header">
-                                      <div><div class="logo">ZeniPay</div><div style="font-size:12px;color:#64748B">Payment Processing Platform</div><div style="font-size:12px;color:#64748B;margin-top:2px">info@zenipay.ca | zenipay.ca</div></div>
+                                      <div><div class="logo">ZeniPay</div><div style="font-size:12px;color:#64748B">Payment Processing Platform</div><div style="font-size:12px;color:#64748B;margin-top:2px">zenipay@zeniva.ca | zenipay.ca</div></div>
                                       <div style="text-align:right"><div class="inv-num">${inv.invoice_number}</div><div style="font-size:12px;color:#64748B">Generated: ${new Date(inv.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div></div>
                                     </div>
                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
@@ -2047,7 +2047,7 @@ export default function AdminPage() {
                   <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Email Body (HTML)</label><textarea value={marketingBody} onChange={e => { setMarketingBody(e.target.value); setSelectedTemplate(""); }} rows={12} placeholder="<h1>Accept Payments with ZeniPay</h1><p>...</p>" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, fontFamily: "monospace", boxSizing: "border-box", lineHeight: 1.5 }} /></div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <span style={{ fontSize: 12, color: "#64748b" }}>From: info@zeniva.ca</span>
+                      <span style={{ fontSize: 12, color: "#64748b" }}>From: zenipay@zeniva.ca</span>
                       <button onClick={() => setShowPreview(!showPreview)} style={{ background: showPreview ? "#7B4FBF" : "#f1f5f9", color: showPreview ? "white" : "#475569", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showPreview ? "Hide Preview" : "Preview"}</button>
                     </div>
                     <button onClick={handlePreviewAndConfirm} disabled={marketingSending || !marketingSubject || !marketingBody} style={{ background: marketingSending ? "#94a3b8" : "linear-gradient(135deg, #E5247B, #7B4FBF)", color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontWeight: 700, cursor: "pointer" }}>{marketingSending ? `Sending... ${marketingSent}` : "👁 Review & Send"}</button>
@@ -2078,7 +2078,7 @@ export default function AdminPage() {
                   {showConfirmSend && (
                     <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column" }}>
                       <h3 style={{ margin: "0 0 8px", fontWeight: 700 }}>👥 Recipients ({marketingRecipients.length})</h3>
-                      <p style={{ margin: "0 0 16px", fontSize: 12, color: "#64748b" }}>Audience: {marketingAudience} · From: info@zeniva.ca</p>
+                      <p style={{ margin: "0 0 16px", fontSize: 12, color: "#64748b" }}>Audience: {marketingAudience} · From: zenipay@zeniva.ca</p>
                       <div style={{ flex: 1, overflowY: "auto", maxHeight: 380, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
                         {marketingRecipients.length === 0 ? (
                           <p style={{ color: "#94a3b8", textAlign: "center", padding: "32px 0" }}>No recipients found for this audience</p>

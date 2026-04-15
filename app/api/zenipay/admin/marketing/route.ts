@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 import nodemailer from "nodemailer";
 
-const SMTP_USER = process.env.SMTP_USER || "info@zeniva.ca";
+const SMTP_USER = process.env.SMTP_USER || "zenipay@zeniva.ca";
 const SMTP_PASS = process.env.SMTP_PASS || "";
 const DELAY_MS = 5000; // 5 seconds between emails
 

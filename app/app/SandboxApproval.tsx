@@ -335,7 +335,7 @@ export default function SandboxApproval({ email, businessName, sandboxKey, sandb
                     </div>
                   ))}
                 </div>
-                <a href="mailto:info@zenipay.ca" style={{ display: "inline-block", background: GLASS, border: `1px solid ${BORDER}`, color: "#fff", textDecoration: "none", padding: "12px 28px", borderRadius: 12, fontSize: 14, fontWeight: 700 }}>
+                <a href="mailto:zenipay@zeniva.ca" style={{ display: "inline-block", background: GLASS, border: `1px solid ${BORDER}`, color: "#fff", textDecoration: "none", padding: "12px 28px", borderRadius: 12, fontSize: 14, fontWeight: 700 }}>
                   Contact Support
                 </a>
                 {/* DEV: Approve button (admin sets via admin panel in real life) */}

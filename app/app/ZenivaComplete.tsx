@@ -1723,7 +1723,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const { t } = useT();
   const MID = props.merchantId || (typeof window !== "undefined" ? sessionStorage.getItem("zp_client") : null) || "zeniva-001";
   const BNAME = props.businessName || (typeof window !== "undefined" ? sessionStorage.getItem("zp_client_bname") : null) || "Zeniva Travel LLC";
-  const BEMAIL = props.email || (typeof window !== "undefined" ? sessionStorage.getItem("zp_client_email") : null) || "info@zeniva.ca";
+  const BEMAIL = props.email || (typeof window !== "undefined" ? sessionStorage.getItem("zp_client_email") : null) || "zenipay@zeniva.ca";
   const BOWNER = props.ownerName || "";
   const MMODE = props.mode || (typeof window !== "undefined" ? sessionStorage.getItem("zp_client_mode") as "sandbox" | "live" : null) || "live";
   const router = useRouter();

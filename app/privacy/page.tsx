@@ -124,7 +124,7 @@ export default function PrivacyPage() {
             <li><strong>Right of Deletion:</strong> You have the right to request the deletion of your personal information, subject to our legal obligations and legitimate business interests for data retention.</li>
           </ul>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15, marginTop: 12 }}>
-            To exercise any of these rights, please contact us at <a href="mailto:info@zeniva.ca" style={{ color: "#15B8C9" }}>info@zeniva.ca</a>. We will respond to your request within 30 days as required by PIPEDA.
+            To exercise any of these rights, please contact us at <a href="mailto:zenipay@zeniva.ca" style={{ color: "#15B8C9" }}>zenipay@zeniva.ca</a>. We will respond to your request within 30 days as required by PIPEDA.
           </p>
         </section>
 
@@ -155,7 +155,7 @@ export default function PrivacyPage() {
             <li><strong>Regular Audits:</strong> We conduct regular security audits, vulnerability assessments, and penetration testing to identify and address potential security risks.</li>
           </ul>
           <p style={{ color: "#374151", lineHeight: 1.7, fontSize: 15, marginTop: 12 }}>
-            While we strive to protect your information, no method of electronic transmission or storage is 100% secure. If you discover a security vulnerability, please report it to us immediately at <a href="mailto:info@zeniva.ca" style={{ color: "#15B8C9" }}>info@zeniva.ca</a>.
+            While we strive to protect your information, no method of electronic transmission or storage is 100% secure. If you discover a security vulnerability, please report it to us immediately at <a href="mailto:zenipay@zeniva.ca" style={{ color: "#15B8C9" }}>zenipay@zeniva.ca</a>.
           </p>
         </section>
 
@@ -168,7 +168,7 @@ export default function PrivacyPage() {
           <ul style={{ color: "#374151", lineHeight: 1.9, fontSize: 15, paddingLeft: 24, marginTop: 8, listStyleType: "none" }}>
             <li><strong>Legal Entity:</strong> International Luxury Management Inc. (operating as &quot;ZeniPay&quot;)</li>
             <li><strong>Location:</strong> Quebec, Canada</li>
-            <li><strong>Email:</strong> <a href="mailto:info@zeniva.ca" style={{ color: "#15B8C9" }}>info@zeniva.ca</a></li>
+            <li><strong>Email:</strong> <a href="mailto:zenipay@zeniva.ca" style={{ color: "#15B8C9" }}>zenipay@zeniva.ca</a></li>
             <li><strong>Website:</strong> <a href="https://zenipay.ca" target="_blank" rel="noopener noreferrer" style={{ color: "#15B8C9" }}>zenipay.ca</a></li>
           </ul>
         </section>

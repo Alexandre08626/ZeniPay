@@ -20,7 +20,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError("");
 
-    const lookupEmail = (email === "info@zenivatravel.com" ? "info@zeniva.ca" : email).trim().toLowerCase();
+    const lookupEmail = (email === "info@zenivatravel.com" ? "zenipay@zeniva.ca" : email).trim().toLowerCase();
 
     try {
       const res = await fetch("/api/zenipay/login", {
@@ -156,7 +156,7 @@ export default function LoginPage() {
                 <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, letterSpacing: "0.06em" }}>
                   {t("login.passwordLabel")}
                 </label>
-                <a href="mailto:info@zenipay.ca" style={{ fontSize: 11, color: "#15B8C9", textDecoration: "none", fontWeight: 600 }}>
+                <a href="mailto:zenipay@zeniva.ca" style={{ fontSize: 11, color: "#15B8C9", textDecoration: "none", fontWeight: 600 }}>
                   {t("login.forgotPassword")}
                 </a>
               </div>
@@ -217,7 +217,7 @@ export default function LoginPage() {
         <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20, alignItems: "center" }}>
           <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("login.back")}</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
-          <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("login.support")}</a>
+          <a href="mailto:zenipay@zeniva.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("login.support")}</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
           <a href="/admin/login" style={{ color: "#CBD5E1", fontSize: 13, textDecoration: "none" }}>{t("login.admin")}</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
@@ -231,7 +231,7 @@ export default function LoginPage() {
           border: "1px solid rgba(45,190,96,0.12)", fontSize: 13, color: "#64748B",
         }}>
           {t("common.notClientYet")}{" "}
-          <a href="mailto:info@zenipay.ca" style={{ color: "#16A34A", fontWeight: 700, textDecoration: "none" }}>
+          <a href="mailto:zenipay@zeniva.ca" style={{ color: "#16A34A", fontWeight: 700, textDecoration: "none" }}>
             {t("common.getInTouch")}
           </a>
         </div>
