@@ -353,9 +353,9 @@ export default function AdminPage() {
   const [showConfirmSend, setShowConfirmSend] = useState(false);
 
   const resolveRecipients = (): {email:string;name:string}[] => {
-    if (marketingAudience === "sandbox") return CLIENTS.filter((c:any) => c.status === "sandbox" && c.email).map((c:any) => ({ email: c.email, name: c.businessName || c.business_name || "" }));
+    if (marketingAudience === "sandbox") return CLIENTS.filter((c:any) => c.status === "sandbox" && c.contact).map((c:any) => ({ email: c.contact, name: c.name || "" }));
     if (marketingAudience === "leads") return scrapedLeads.filter((l:any) => l.email && l.status === "new").map((l:any) => ({ email: l.email, name: l.business_name || "" }));
-    return CLIENTS.filter((c:any) => c.email).map((c:any) => ({ email: c.email, name: c.businessName || c.business_name || "" }));
+    return CLIENTS.filter((c:any) => c.contact).map((c:any) => ({ email: c.contact, name: c.name || "" }));
   };
 
   const handlePreviewAndConfirm = () => {
@@ -2041,7 +2041,7 @@ export default function AdminPage() {
                 <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>Compose Campaign</h3>
                 <div style={{ display: "grid", gap: 14 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                    <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Audience</label><select value={marketingAudience} onChange={e => setMarketingAudience(e.target.value)} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14 }}><option value="sandbox">Sandbox Merchants ({CLIENTS.filter((c:any) => c.status === "sandbox").length})</option><option value="leads">Scraped Leads</option><option value="all">All Merchants ({CLIENTS.length})</option></select></div>
+                    <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Audience</label><select value={marketingAudience} onChange={e => setMarketingAudience(e.target.value)} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14 }}><option value="sandbox">Sandbox Merchants ({CLIENTS.filter((c:any) => c.status === "sandbox" && c.contact).length})</option><option value="leads">Scraped Leads ({scrapedLeads.filter((l:any) => l.email).length})</option><option value="all">All Merchants ({CLIENTS.filter((c:any) => c.contact).length})</option></select></div>
                     <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Subject</label><input value={marketingSubject} onChange={e => setMarketingSubject(e.target.value)} placeholder="ZeniPay — Accept Payments Today" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} /></div>
                   </div>
                   <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Email Body (HTML)</label><textarea value={marketingBody} onChange={e => { setMarketingBody(e.target.value); setSelectedTemplate(""); }} rows={12} placeholder="<h1>Accept Payments with ZeniPay</h1><p>...</p>" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, fontFamily: "monospace", boxSizing: "border-box", lineHeight: 1.5 }} /></div>
