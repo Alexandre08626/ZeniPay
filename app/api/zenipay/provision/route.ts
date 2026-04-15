@@ -50,8 +50,8 @@ export async function POST() {
             ein: "12-3456789",
             phone: { countryCode: "1", number: "3322900021" },
             address: {
-              street: "8 The Green",
-              city: "Dover",
+              street: "895 Rue Raoul-Jobin",
+              city: "Québec",
               state: "DE",
               postalCode: "19901",
               country: "US",

@@ -25,7 +25,7 @@ function getTransporter() {
   return _transporter;
 }
 
-const PHYSICAL_ADDRESS = "Zeniva LLC · 8 The Green, Ste A · Dover, DE 19901 · USA";
+const PHYSICAL_ADDRESS = "ZeniPay · 895 Rue Raoul-Jobin, Québec, QC G1N 1S6 · Canada · 581-748-7017";
 
 function addFooter(html: string, email: string): string {
   const unsub = `mailto:unsubscribe@zenipay.ca?subject=Unsubscribe&body=Remove%20${encodeURIComponent(email)}`;

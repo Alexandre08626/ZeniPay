@@ -104,7 +104,7 @@ export async function createBusinessCustomer(params: {
         },
         address: params.address || {
           street: "1209 Orange St",
-          city: "Wilmington",
+          city: "Québec",
           state: "DE",
           postalCode: "19801",
           country: "US",

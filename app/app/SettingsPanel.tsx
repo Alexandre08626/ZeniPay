@@ -583,12 +583,12 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
           <div style={{ marginTop: 24, marginBottom: 8, fontSize: 15, fontWeight: 700, color: "#1e293b", borderTop: "1px solid #e2e8f0", paddingTop: 20 }}>Business Address</div>
           <div style={{ marginBottom: 16 }}>
             <label style={styles.label}>Street Address</label>
-            <input style={styles.input} value={business.businessAddress} onChange={(e) => setBusiness({ ...business, businessAddress: e.target.value })} placeholder="8 The Green" />
+            <input style={styles.input} value={business.businessAddress} onChange={(e) => setBusiness({ ...business, businessAddress: e.target.value })} placeholder="895 Rue Raoul-Jobin" />
           </div>
           <div className="sp-field-group" style={styles.fieldGroup}>
             <div>
               <label style={styles.label}>City</label>
-              <input style={styles.input} value={business.businessCity} onChange={(e) => setBusiness({ ...business, businessCity: e.target.value })} placeholder="Dover" />
+              <input style={styles.input} value={business.businessCity} onChange={(e) => setBusiness({ ...business, businessCity: e.target.value })} placeholder="Québec" />
             </div>
             <div>
               <label style={styles.label}>State / Province</label>
