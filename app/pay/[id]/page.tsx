@@ -323,10 +323,10 @@ function PayLinkContent() {
           )}
 
           <button
-            type="submit" disabled={loading || SANDBOX_MODE || !finixReady}
-            style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading || SANDBOX_MODE || !finixReady ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading || SANDBOX_MODE || !finixReady ? "not-allowed" : "pointer", letterSpacing: "0.02em", opacity: SANDBOX_MODE ? 0.6 : 1 }}
+            type="submit" disabled={loading}
+            style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading ? "not-allowed" : "pointer", letterSpacing: "0.02em" }}
           >
-            {SANDBOX_MODE ? `🔒 ${t("checkout.paymentDisabled")}` : !finixReady ? "Loading secure form..." : loading ? t("checkout.processing") : `Pay ${fmtMoney(amount)}`}
+            {loading ? t("checkout.processing") : `Pay ${fmtMoney(amount)}`}
           </button>
 
           <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "#94A3B8", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
