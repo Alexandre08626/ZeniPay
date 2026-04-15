@@ -54,6 +54,8 @@ const NAV = [
   { key: "api",          icon: "⌥",  label: "API & Keys",   color: ZP_CYAN   },
   { key: "billing",      icon: "💳", label: "Billing",      color: "#E5247B" },
   { key: "cashback",     icon: "💰", label: "Cashback",     color: "#10B981" },
+  { key: "marketing",   icon: "📧", label: "Marketing",    color: "#E5247B" },
+  { key: "leads",       icon: "🎯", label: "Lead Hunter",  color: "#F5A623" },
   { key: "settings",     icon: "⚙",  label: "Settings",     color: ZP_PURPLE },
 ] as const;
 type TabKey = typeof NAV[number]["key"];
@@ -108,6 +110,25 @@ export default function AdminPage() {
   // Billing state
   const [billingSearch, setBillingSearch] = useState("");
   const [billingStatusFilter, setBillingStatusFilter] = useState("all");
+
+  // Ben AI Chat state
+  const [benOpen, setBenOpen] = useState(false);
+  const [benMsg, setBenMsg] = useState("");
+  const [benChat, setBenChat] = useState<{role:string;text:string}[]>([]);
+  const [benLoading, setBenLoading] = useState(false);
+
+  // Marketing state
+  const [marketingAudience, setMarketingAudience] = useState("sandbox");
+  const [marketingSubject, setMarketingSubject] = useState("");
+  const [marketingBody, setMarketingBody] = useState("");
+  const [marketingSending, setMarketingSending] = useState(false);
+  const [marketingSent, setMarketingSent] = useState(0);
+
+  // Lead Hunter state
+  const [scrapeQuery, setScrapeQuery] = useState("shopify store accepting payments");
+  const [scrapeLoading, setScrapeLoading] = useState(false);
+  const [scrapedLeads, setScrapedLeads] = useState<any[]>([]);
+  const [leadPitchSending, setLeadPitchSending] = useState<string | null>(null);
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -184,6 +205,7 @@ export default function AdminPage() {
       .then(r => r.json())
       .then(data => { if (data.invoices) setBillingInvoices(data.invoices); })
       .catch(err => console.error("[Admin] Failed to load billing:", err));
+    fetch("/api/zenipay/admin/scrape").then(r => r.json()).then(d => setScrapedLeads(d.leads || [])).catch(() => {});
   }, [router, loadMerchants, loadStats]);
 
   const CLIENTS = [
@@ -251,6 +273,87 @@ export default function AdminPage() {
     const a = document.createElement("a");
     a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Ben AI handler
+  const handleBenSend = async () => {
+    if (!benMsg.trim()) return;
+    const userMsg = benMsg;
+    setBenMsg("");
+    setBenChat(prev => [...prev, { role: "user", text: userMsg }]);
+    setBenLoading(true);
+    await new Promise(r => setTimeout(r, 600));
+
+    const q = userMsg.toLowerCase();
+    const clientCount = CLIENTS.length;
+    const totalVolume = CLIENTS.reduce((s: number, c: any) => s + (Number(c.volume) || Number(c.balance) || 0), 0);
+    const sandboxCount = CLIENTS.filter((c: any) => c.status === "sandbox").length;
+    const liveCount = CLIENTS.filter((c: any) => c.status === "active" || c.status === "live").length;
+
+    let reply = "";
+    if (q.includes("client") || q.includes("merchant")) {
+      reply = `📊 Merchant Summary\n\n• Total Merchants: ${clientCount}\n• Live: ${liveCount}\n• Sandbox: ${sandboxCount}\n• Total Volume: $${totalVolume.toLocaleString()}\n\nUse the Clients tab to manage merchants.`;
+    } else if (q.includes("revenue") || q.includes("fee") || q.includes("money")) {
+      const fees = totalVolume * 0.029 + clientCount * 0.30;
+      reply = `💰 Revenue\n\n• Platform Volume: $${totalVolume.toLocaleString()}\n• ZeniPay Fees (2.9%+$0.30): $${fees.toFixed(2)}\n• Active Merchants: ${liveCount}`;
+    } else if (q.includes("lead") || q.includes("scrape") || q.includes("prospect")) {
+      reply = `🎯 Lead Hunting\n\nGo to the Lead Hunter tab to:\n• Scrape business leads from Google\n• Save leads to your pipeline\n• Send ZeniPay pitch emails\n\nTip: Search for "shopify store" or "e-commerce business" to find prospects.`;
+    } else if (q.includes("campaign") || q.includes("email") || q.includes("marketing")) {
+      reply = `📧 Marketing\n\nGo to the Marketing tab to:\n• Send campaigns to sandbox merchants\n• Send pitch emails to scraped leads\n• Track sent/failed counts\n\nAll emails sent via info@zeniva.ca with anti-spam compliance.`;
+    } else if (q.includes("help") || q.includes("aide")) {
+      reply = `🤖 Ben AI — Admin Commands\n\n• "clients" — merchant summary\n• "revenue" — fees & volume\n• "leads" — lead hunting tips\n• "marketing" — campaign info\n• "help" — this menu`;
+    } else {
+      reply = `📊 Quick Admin Overview\n\n• ${clientCount} merchants (${liveCount} live, ${sandboxCount} sandbox)\n• Volume: $${totalVolume.toLocaleString()}\n\nType "help" for all commands.`;
+    }
+
+    setBenChat(prev => [...prev, { role: "ben", text: reply }]);
+    setBenLoading(false);
+  };
+
+  // Marketing handler
+  const handleSendCampaign = async () => {
+    setMarketingSending(true);
+    setMarketingSent(0);
+    try {
+      const res = await fetch("/api/zenipay/admin/marketing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audience: marketingAudience, subject: marketingSubject, html_body: marketingBody }),
+      });
+      const data = await res.json();
+      setMarketingSent(data.sent || 0);
+      showToast(data.sent ? `${data.sent} emails sent!` : "Campaign sent");
+    } catch { showToast("Failed to send", "error"); }
+    setMarketingSending(false);
+  };
+
+  // Lead Hunter handlers
+  const handleScrape = async () => {
+    setScrapeLoading(true);
+    try {
+      const res = await fetch("/api/zenipay/admin/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: scrapeQuery }),
+      });
+      const data = await res.json();
+      setScrapedLeads(data.leads || []);
+      showToast(`Found ${(data.leads || []).length} leads`);
+    } catch { showToast("Scrape failed", "error"); }
+    setScrapeLoading(false);
+  };
+
+  const handleSendPitch = async (lead: any) => {
+    setLeadPitchSending(lead.id);
+    try {
+      await fetch("/api/zenipay/admin/marketing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audience: "single", to: lead.email, subject: "Accept Payments with ZeniPay — Free to Start", html_body: `<h2>Hi ${lead.business_name || "there"},</h2><p>I noticed your business <strong>${lead.website || ""}</strong> and thought ZeniPay could help you accept payments online.</p><p>ZeniPay is a modern payment platform — accept Visa, Mastercard, ACH, and more. Free to start, 2.9% + $0.30 per transaction.</p><p><a href="https://zenipay.ca/signup">Get started free →</a></p><p>– Alexandre, ZeniPay</p>` }),
+      });
+      showToast("Pitch sent to " + lead.email);
+    } catch { showToast("Failed", "error"); }
+    setLeadPitchSending(null);
   };
 
   const BG      = "#F1F5F9";
@@ -1792,6 +1895,84 @@ export default function AdminPage() {
             </div>
           )}
 
+          {/* ════════════════ MARKETING ════════════════ */}
+          {tab === "marketing" && (
+            <div style={{ display: "grid", gap: 20 }}>
+              <div style={{ background: "linear-gradient(135deg, #E5247B, #7B4FBF)", borderRadius: 16, padding: "24px 28px", color: "white" }}>
+                <h2 style={{ margin: "0 0 8px", fontWeight: 900, fontSize: 22 }}>📧 Email Marketing</h2>
+                <p style={{ margin: 0, opacity: 0.8, fontSize: 14 }}>Send campaigns to sandbox merchants or scraped leads</p>
+              </div>
+
+              {/* Compose */}
+              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>Compose Campaign</h3>
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                    <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Audience</label><select value={marketingAudience} onChange={e => setMarketingAudience(e.target.value)} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14 }}><option value="sandbox">Sandbox Merchants ({CLIENTS.filter((c:any) => c.status === "sandbox").length})</option><option value="leads">Scraped Leads</option><option value="all">All Merchants ({CLIENTS.length})</option></select></div>
+                    <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Subject</label><input value={marketingSubject} onChange={e => setMarketingSubject(e.target.value)} placeholder="ZeniPay — Accept Payments Today" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} /></div>
+                  </div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Email Body (HTML)</label><textarea value={marketingBody} onChange={e => setMarketingBody(e.target.value)} rows={10} placeholder="<h1>Accept Payments with ZeniPay</h1><p>...</p>" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, fontFamily: "monospace", boxSizing: "border-box" }} /></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>From: info@zeniva.ca · Throttle: 5s between sends</span>
+                    <button onClick={handleSendCampaign} disabled={marketingSending || !marketingSubject || !marketingBody} style={{ background: marketingSending ? "#94a3b8" : "linear-gradient(135deg, #E5247B, #7B4FBF)", color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontWeight: 700, cursor: "pointer" }}>{marketingSending ? `Sending... ${marketingSent}` : "Send Campaign"}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════ LEAD HUNTER ════════════════ */}
+          {tab === "leads" && (
+            <div style={{ display: "grid", gap: 20 }}>
+              <div style={{ background: "linear-gradient(135deg, #F5A623, #E5247B)", borderRadius: 16, padding: "24px 28px", color: "white" }}>
+                <h2 style={{ margin: "0 0 8px", fontWeight: 900, fontSize: 22 }}>🎯 Lead Hunter</h2>
+                <p style={{ margin: 0, opacity: 0.8, fontSize: 14 }}>Find businesses online and pitch them ZeniPay</p>
+              </div>
+
+              {/* Search */}
+              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <input value={scrapeQuery} onChange={e => setScrapeQuery(e.target.value)} placeholder="e.g. shopify store, e-commerce business, saas company" style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14 }} />
+                  <button onClick={handleScrape} disabled={scrapeLoading} style={{ background: scrapeLoading ? "#94a3b8" : "linear-gradient(135deg, #F5A623, #E5247B)", color: "white", border: "none", borderRadius: 10, padding: "12px 24px", fontWeight: 700, cursor: "pointer" }}>{scrapeLoading ? "Searching..." : "🔍 Search"}</button>
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                  {["shopify store", "e-commerce business", "saas company", "online store payments", "small business website"].map(q => (
+                    <button key={q} onClick={() => setScrapeQuery(q)} style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", fontSize: 11, cursor: "pointer", color: "#475569" }}>{q}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Results */}
+              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontWeight: 700 }}>Leads ({scrapedLeads.length})</h3>
+                </div>
+                {scrapedLeads.length === 0 ? (
+                  <p style={{ color: "#94a3b8", textAlign: "center", padding: "32px 0" }}>Search for businesses to find leads</p>
+                ) : (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {scrapedLeads.map((lead: any) => (
+                      <div key={lead.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{lead.business_name || "Business"}</div>
+                          <div style={{ fontSize: 12, color: "#64748b" }}>{lead.email || "No email"} · {lead.website || ""}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{lead.sector || "General"} · {lead.status}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          {lead.email && (
+                            <button onClick={() => handleSendPitch(lead)} disabled={leadPitchSending === lead.id} style={{ background: leadPitchSending === lead.id ? "#94a3b8" : "linear-gradient(135deg, #2DBE60, #15B8C9)", color: "white", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                              {leadPitchSending === lead.id ? "Sending..." : "📧 Pitch"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ════════════════ SETTINGS ════════════════ */}
           {tab === "settings" && (
             <div>
@@ -2187,6 +2368,37 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* Ben AI Floating Chat */}
+      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999 }}>
+        {benOpen && (
+          <div style={{ width: 380, height: 500, background: "#0B1B4D", borderRadius: 20, border: "1px solid rgba(255,255,255,0.15)", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", marginBottom: 12 }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #2DBE60, #15B8C9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🤖</div>
+                <div><div style={{ color: "white", fontWeight: 700, fontSize: 14 }}>Ben AI</div><div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}>Admin Assistant</div></div>
+              </div>
+              <button onClick={() => setBenOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18 }}>×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              {benChat.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, paddingTop: 40 }}>Ask Ben about clients, revenue, leads, marketing...</div>}
+              {benChat.map((m, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div style={{ background: m.role === "user" ? "linear-gradient(135deg, #15B8C9, #0B1B4D)" : "rgba(255,255,255,0.08)", color: "white", borderRadius: 12, padding: "10px 14px", maxWidth: "85%", fontSize: 13, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{m.text}</div>
+                </div>
+              ))}
+              {benLoading && <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Thinking...</div>}
+            </div>
+            <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: 8 }}>
+              <input value={benMsg} onChange={e => setBenMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && handleBenSend()} placeholder="Ask Ben..." style={{ flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 14px", color: "white", fontSize: 13, outline: "none" }} />
+              <button onClick={handleBenSend} style={{ background: "linear-gradient(135deg, #2DBE60, #15B8C9)", border: "none", borderRadius: 10, padding: "10px 16px", color: "white", fontWeight: 700, cursor: "pointer" }}>↑</button>
+            </div>
+          </div>
+        )}
+        <button onClick={() => setBenOpen(!benOpen)} style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg, #2DBE60, #15B8C9, #7B4FBF)", border: "none", cursor: "pointer", fontSize: 24, boxShadow: "0 8px 32px rgba(45,190,96,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
+          {benOpen ? "×" : "🤖"}
+        </button>
+      </div>
 
     </div>
   );
