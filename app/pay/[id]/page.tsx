@@ -15,7 +15,7 @@ const FINIX_APP_ID = process.env.NEXT_PUBLIC_FINIX_APPLICATION_ID || "";
 const FINIX_ENV = process.env.NEXT_PUBLIC_FINIX_ENV === "production" ? "production" : "sandbox";
 
 function PayLinkContent() {
-  const SANDBOX_MODE = true; // Maintenance — contact info@zeniva.ca
+  const SANDBOX_MODE = false; // Live — Finix.js tokenization active
   const { t } = useT();
 
   const params   = useSearchParams();
