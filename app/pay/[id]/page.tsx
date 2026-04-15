@@ -4,19 +4,15 @@ import { useSearchParams, useParams } from "next/navigation";
 import ZeniPayLogo from "@/components/ZeniPayLogo";
 import { useT, LangToggle } from "../../../modules/zenipay/i18n";
 
+declare global {
+  interface Window { Finix?: any; }
+}
+
 const ZP_GRAD = "linear-gradient(135deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
 const ZP_DARK = "linear-gradient(150deg, #0d1633 0%, #1a2a5e 50%, #0f2040 100%)";
 
-function formatCard(v: string) {
-  return v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
-}
-function cardType(v: string) {
-  const n = v.replace(/\D/g, "");
-  if (n.startsWith("4")) return "visa";
-  if (/^5[1-5]/.test(n) || /^2[2-7]/.test(n)) return "mastercard";
-  if (/^3[47]/.test(n)) return "amex";
-  return "generic";
-}
+const FINIX_APP_ID = process.env.NEXT_PUBLIC_FINIX_APPLICATION_ID || "";
+const FINIX_ENV = process.env.NEXT_PUBLIC_FINIX_ENV === "production" ? "production" : "sandbox";
 
 function PayLinkContent() {
   const SANDBOX_MODE = true; // Maintenance — contact info@zeniva.ca
@@ -31,21 +27,19 @@ function PayLinkContent() {
   const desc     = params.get("desc") || params.get("d") || "";
   const merchant = params.get("m") || "Merchant";
 
-  const [cardNum, setCardNum] = useState("");
   const [name,    setName]    = useState("");
   const [email,   setEmail]   = useState("");
-  const [expiry,  setExpiry]  = useState("");
-  const [cvc,     setCvc]     = useState("");
-  const [focused, setFocused] = useState<"card" | "name" | "email" | "expiry" | "cvc" | null>(null);
-  const [flipped, setFlipped] = useState(false);
+  const [focused, setFocused] = useState<"name" | "email" | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error,   setError]   = useState("");
+  const [finixReady, setFinixReady] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ paymentId?: string; transferId?: string; card?: { brand?: string; last4?: string }; state?: string } | null>(null);
   const [linkMerchantId, setLinkMerchantId] = useState<string | null>(null);
   const [particles, setParticles] = useState<{ x: number; y: number; c: string; r: number; vx: number; vy: number; a: number }[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
+  const finixFormRef = useRef<any>(null);
 
   // Fetch merchant_id from pay link
   useEffect(() => {
@@ -56,9 +50,39 @@ function PayLinkContent() {
       .catch(() => {});
   }, [id]);
 
-  const ct = cardType(cardNum);
   const fmtMoney = (n: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
+
+  // Load Finix.js and mount tokenized card fields (PCI-compliant iframes)
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://js.finix.com/v1/finix.js";
+    script.async = true;
+    script.onload = () => {
+      if (!window.Finix) return;
+      const form = window.Finix.CardTokenForm(FINIX_APP_ID, { environment: FINIX_ENV });
+      const fieldStyles = { default: { fontSize: "15px", fontFamily: "system-ui, -apple-system, sans-serif", color: "#0D1B3A" } };
+      form.field("number", {
+        selector: "#cc-number",
+        placeholder: "4111 1111 1111 1111",
+        styles: fieldStyles,
+      });
+      form.field("expiration_date", {
+        selector: "#cc-expiration",
+        placeholder: "MM / YY",
+        styles: fieldStyles,
+      });
+      form.field("security_code", {
+        selector: "#cc-cvv",
+        placeholder: "CVV",
+        styles: fieldStyles,
+      });
+      finixFormRef.current = form;
+      setFinixReady(true);
+    };
+    document.head.appendChild(script);
+    return () => { script.remove(); };
+  }, []);
 
   // Confetti on success
   useEffect(() => {
@@ -93,58 +117,79 @@ function PayLinkContent() {
 
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cardNum.replace(/\s/g, "") || !name || !expiry || !cvc) {
+    if (!name) {
       setError(t("checkout.fillAllFields")); return;
+    }
+    if (!finixFormRef.current) {
+      setError("Payment form is still loading. Please wait a moment and try again."); return;
     }
     setError(""); setLoading(true);
 
     try {
-      // Parse expiry MM/YY
-      const [expiryMonth, expiryYear] = expiry.split("/");
+      // Tokenize card via Finix.js (card data never touches our server)
+      finixFormRef.current.submit(FINIX_ENV, FINIX_APP_ID, async (err: any, res: any) => {
+        try {
+          if (err) {
+            console.error("Finix tokenization error:", err);
+            setError(err?.message || "Card tokenization failed. Please check your card details.");
+            setLoading(false);
+            return;
+          }
 
-      const res = await fetch("/api/zenipay/finix/process-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pay_link_id: id,
-          amount,
-          currency,
-          description: desc,
-          customer_name: name,
-          customer_email: email,
-          cardNumber: cardNum.replace(/\s/g, ""),
-          expiryMonth,
-          expiryYear,
-          cvc,
-          postalCode: "",
-          merchant_id: linkMerchantId || undefined,
-        }),
+          const instrumentId = res?.data?.id;
+          if (!instrumentId) {
+            setError("Card tokenization failed. Please try again.");
+            setLoading(false);
+            return;
+          }
+
+          // Send instrument ID to server (no card data)
+          const response = await fetch("/api/zenipay/finix/process-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              pay_link_id: id,
+              amount,
+              currency,
+              description: desc,
+              customer_name: name,
+              customer_email: email,
+              instrument_id: instrumentId,
+              merchant_id: linkMerchantId || undefined,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            setError(data.message || data.error || t("checkout.paymentDeclined"));
+            setLoading(false);
+            return;
+          }
+
+          // 3D Secure: redirect customer for card issuer authentication
+          if (data.requires_3ds && data.redirect_url) {
+            window.location.href = data.redirect_url;
+            return;
+          }
+
+          // Payment succeeded or pending — store result for confirmation screen
+          if (data.state === "SUCCEEDED" || data.state === "PENDING") {
+            setPaymentResult(data);
+            setSuccess(true);
+          } else {
+            setError(t("checkout.paymentCouldNotProcess"));
+          }
+        } catch (innerErr) {
+          console.error("Payment error:", innerErr);
+          setError(t("checkout.paymentFailed"));
+        } finally {
+          setLoading(false);
+        }
       });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setError(data.message || data.error || t("checkout.paymentDeclined"));
-        return;
-      }
-
-      // 3D Secure: redirect customer for card issuer authentication
-      if (data.requires_3ds && data.redirect_url) {
-        window.location.href = data.redirect_url;
-        return;
-      }
-
-      // Payment succeeded or pending — store result for confirmation screen
-      if (data.state === "SUCCEEDED" || data.state === "PENDING") {
-        setPaymentResult(data);
-        setSuccess(true);
-      } else {
-        setError(t("checkout.paymentCouldNotProcess"));
-      }
     } catch (err) {
       console.error("Payment error:", err);
       setError(t("checkout.paymentFailed"));
-    } finally {
       setLoading(false);
     }
   };
@@ -213,16 +258,10 @@ function PayLinkContent() {
         <form onSubmit={handlePay} className="zp-checkout-form" style={{ background: "#fff", borderRadius: 20, padding: "28px 28px 24px", boxShadow: "0 8px 48px rgba(0,0,0,0.3)" }}>
           <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 20px", color: "#0D1B3A" }}>{t("checkout.cardDetails")}</h2>
 
-          {/* Card number */}
+          {/* Card number (Finix.js secure iframe) */}
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.cardNumber")}</label>
-            <input
-              value={cardNum} onChange={e => setCardNum(formatCard(e.target.value))}
-              placeholder="1234 5678 9012 3456" maxLength={19}
-              onFocus={() => setFocused("card")} onBlur={() => setFocused(null)}
-              style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${focused === "card" ? "#15B8C9" : "#E2E8F0"}`, fontSize: 15, fontFamily: "monospace", outline: "none", boxSizing: "border-box", color: "#0D1B3A", background: "#F8FAFC" }}
-            />
-            {ct !== "generic" && <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>✓ {ct.charAt(0).toUpperCase() + ct.slice(1)} detected</div>}
+            <div id="cc-number" style={{ width: "100%", height: 44, borderRadius: 10, border: "1.5px solid #E2E8F0", background: "#F8FAFC", boxSizing: "border-box", overflow: "hidden" }} />
           </div>
 
           {/* Name */}
@@ -247,31 +286,15 @@ function PayLinkContent() {
             />
           </div>
 
-          {/* Expiry + CVC */}
+          {/* Expiry + CVC (Finix.js secure iframes) */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.expiry")}</label>
-              <input
-                value={expiry}
-                onChange={e => {
-                  let v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                  if (v.length > 2) v = v.slice(0, 2) + "/" + v.slice(2);
-                  setExpiry(v);
-                }}
-                placeholder="MM/YY" maxLength={5}
-                onFocus={() => setFocused("expiry")} onBlur={() => setFocused(null)}
-                style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${focused === "expiry" ? "#15B8C9" : "#E2E8F0"}`, fontSize: 14, outline: "none", boxSizing: "border-box", color: "#0D1B3A", background: "#F8FAFC" }}
-              />
+              <div id="cc-expiration" style={{ width: "100%", height: 44, borderRadius: 10, border: "1.5px solid #E2E8F0", background: "#F8FAFC", boxSizing: "border-box", overflow: "hidden" }} />
             </div>
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.cvc")}</label>
-              <input
-                value={cvc} onChange={e => setCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                placeholder="123" maxLength={4}
-                onFocus={() => { setFocused("cvc"); setFlipped(true); }}
-                onBlur={() => { setFocused(null); setFlipped(false); }}
-                style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${focused === "cvc" ? "#15B8C9" : "#E2E8F0"}`, fontSize: 14, outline: "none", boxSizing: "border-box", color: "#0D1B3A", background: "#F8FAFC" }}
-              />
+              <div id="cc-cvv" style={{ width: "100%", height: 44, borderRadius: 10, border: "1.5px solid #E2E8F0", background: "#F8FAFC", boxSizing: "border-box", overflow: "hidden" }} />
             </div>
           </div>
 
@@ -300,10 +323,10 @@ function PayLinkContent() {
           )}
 
           <button
-            type="submit" disabled={loading || SANDBOX_MODE}
-            style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading || SANDBOX_MODE ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading || SANDBOX_MODE ? "not-allowed" : "pointer", letterSpacing: "0.02em", opacity: SANDBOX_MODE ? 0.6 : 1 }}
+            type="submit" disabled={loading || SANDBOX_MODE || !finixReady}
+            style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading || SANDBOX_MODE || !finixReady ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading || SANDBOX_MODE || !finixReady ? "not-allowed" : "pointer", letterSpacing: "0.02em", opacity: SANDBOX_MODE ? 0.6 : 1 }}
           >
-            {SANDBOX_MODE ? `🔒 ${t("checkout.paymentDisabled")}` : loading ? t("checkout.processing") : `Pay ${fmtMoney(amount)}`}
+            {SANDBOX_MODE ? `🔒 ${t("checkout.paymentDisabled")}` : !finixReady ? "Loading secure form..." : loading ? t("checkout.processing") : `Pay ${fmtMoney(amount)}`}
           </button>
 
           <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "#94A3B8", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
