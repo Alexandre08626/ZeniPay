@@ -40,9 +40,9 @@ export async function processPayment(params: {
     };
   }
 
-  const { processFinixPayment } = await import("./finix");
+  const { processFinixPaymentWithInstrument } = await import("./finix");
   try {
-    const result = await processFinixPayment({
+    const result = await processFinixPaymentWithInstrument({
       instrumentId: params.instrumentId,
       amount: params.amount,
       currency: params.currency || "USD",

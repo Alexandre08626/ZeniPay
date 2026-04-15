@@ -7,23 +7,28 @@ export const dynamic = "force-dynamic";
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { getSupabaseAdmin, pgrest } from "../../../../modules/zenipay/services/supabase";
 import { hashPassword } from "../../../../modules/zenipay/services/auth";
 
 export async function GET(req: NextRequest) {
   const merchant_id = req.nextUrl.searchParams.get("merchant_id");
   if (!merchant_id) return NextResponse.json({ data: null }, { status: 400 });
 
-  const supabase = getSupabaseAdmin();
-
-  const { data, error } = await supabase
-    .from("zenipay_merchants")
-    .select("merchant_data")
-    .eq("id", merchant_id)
-    .single();
-
-  if (error) return NextResponse.json({ data: null, error: error.message });
-  return NextResponse.json({ data: data?.merchant_data || {} });
+  // Use pgrest (direct HTTP fetch, no cache) to always get fresh data
+  try {
+    const rows = await pgrest(`zenipay_merchants?id=eq.${encodeURIComponent(merchant_id)}&select=merchant_data`) as { merchant_data: Record<string, unknown> }[];
+    return NextResponse.json({ data: rows[0]?.merchant_data || {} });
+  } catch {
+    // Fallback to Supabase client
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("zenipay_merchants")
+      .select("merchant_data")
+      .eq("id", merchant_id)
+      .single();
+    if (error) return NextResponse.json({ data: null, error: error.message });
+    return NextResponse.json({ data: data?.merchant_data || {} });
+  }
 }
 
 export async function PUT(req: NextRequest) {
@@ -54,7 +59,14 @@ export async function PUT(req: NextRequest) {
     body.password = await hashPassword(body.password);
   }
 
-  const merged = { ...(existing?.merchant_data || {}), ...body };
+  // Re-read existing IMMEDIATELY before merge to avoid stale data
+  const { data: fresh } = await supabase
+    .from("zenipay_merchants")
+    .select("merchant_data")
+    .eq("id", merchant_id)
+    .single();
+
+  const merged = { ...(fresh?.merchant_data || existing?.merchant_data || {}), ...body };
 
   const { error } = await supabase
     .from("zenipay_merchants")

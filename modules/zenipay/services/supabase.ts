@@ -46,3 +46,24 @@ export async function pgrest(path: string): Promise<unknown[]> {
   }
   return res.json();
 }
+
+/** Direct PostgREST INSERT (bypasses Supabase JS client cache) */
+export async function pgrestInsert(table: string, rows: Record<string, unknown> | Record<string, unknown>[]): Promise<void> {
+  const url = getEnv("Supabase URL", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
+  const key = getEnv("Supabase Key", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const body = Array.isArray(rows) ? rows : [rows];
+  const res = await fetch(`${url}/rest/v1/${table}`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`PostgREST insert error ${res.status}: ${text}`);
+  }
+}

@@ -154,7 +154,7 @@ export default function AdminLoginPage() {
         <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20, alignItems: "center" }}>
           <a href="/" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("admin.login.back")}</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
-          <a href="mailto:info@zenipay.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("admin.login.support")}</a>
+          <a href="mailto:zenipay@zeniva.ca" style={{ color: "#94A3B8", fontSize: 13, textDecoration: "none" }}>{t("admin.login.support")}</a>
           <span style={{ color: "#CBD5E1" }}>·</span>
           <LangToggleLight />
         </div>

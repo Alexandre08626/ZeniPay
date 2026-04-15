@@ -111,7 +111,7 @@ export default function ToolsPage() {
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 17, margin: "0 0 36px", maxWidth: 400, marginLeft: "auto", marginRight: "auto" }}>{t("tools_page.ctaDesc")}</p>
         <div className="zp-tools-cta-btns" style={{ display: "flex", gap: 14, justifyContent: "center" }}>
           <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 800 }}>{t("tools_page.ctaGetStarted")}</Link>
-          <a href="mailto:info@zenipay.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>{t("tools_page.ctaTalkToSales")}</a>
+          <a href="mailto:zenipay@zeniva.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "15px 36px", borderRadius: 14, fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>{t("tools_page.ctaTalkToSales")}</a>
         </div>
       </section>
 

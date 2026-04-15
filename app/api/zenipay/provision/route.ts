@@ -50,19 +50,19 @@ export async function POST() {
             ein: "12-3456789",
             phone: { countryCode: "1", number: "3322900021" },
             address: {
-              street: "8 The Green",
-              city: "Dover",
+              street: "895 Rue Raoul-Jobin",
+              city: "Québec",
               state: "DE",
               postalCode: "19901",
               country: "US",
             },
-            email: "info@zeniva.ca",
+            email: "zenipay@zeniva.ca",
             website: "https://zenivatravel.com",
             stateOfIncorporation: "DE",
             entityType: "LLC",
             contact: {
               fullName: { first: "Alexandre", last: "Dupont" },
-              email: "info@zeniva.ca",
+              email: "zenipay@zeniva.ca",
               phone: { countryCode: "1", number: "3322900021" },
             },
             authorizedUsers: [],
@@ -74,7 +74,7 @@ export async function POST() {
         // Already exists with different filter — try listing all
         const allRes = await unitGet("/customers?page[limit]=20");
         const existing = allRes.data?.data?.find(
-          (c: { attributes?: { email?: string } }) => c.attributes?.email === "info@zeniva.ca"
+          (c: { attributes?: { email?: string } }) => c.attributes?.email === "zenipay@zeniva.ca"
         );
         if (existing) {
           customerId = existing.id;

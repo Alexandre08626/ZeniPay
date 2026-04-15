@@ -1,15 +1,12 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { processFinixPayment } from "@/modules/zenipay/gateways/finix";
+import { processFinixPayment, processFinixPaymentWithInstrument } from "@/modules/zenipay/gateways/finix";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 
 /**
  * Finix Payment Processing — ALL writes via Supabase JS client (no edge function)
  * POST /api/zenipay/finix/process-payment
- *
- * Card tokenization is done CLIENT-SIDE via Finix.js.
- * This route only accepts a pre-tokenized instrument_id.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -17,11 +14,16 @@ export async function POST(req: NextRequest) {
     const {
       pay_link_id, amount, currency = "USD", description,
       customer_name, customer_email, instrument_id,
+      // Legacy fields (deprecated — will be removed once all clients use Finix.js)
+      cardNumber, expiryMonth, expiryYear, cvc, postalCode,
       merchant_id: bodyMerchantId,
     } = body;
 
-    if (!pay_link_id || !amount || !instrument_id || !customer_name) {
-      return NextResponse.json({ error: "Missing required fields (instrument_id from Finix.js tokenization required)" }, { status: 400 });
+    if (!pay_link_id || !amount || !customer_name) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+    if (!instrument_id && !cardNumber) {
+      return NextResponse.json({ error: "Missing payment instrument or card data" }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
@@ -39,12 +41,27 @@ export async function POST(req: NextRequest) {
     // ─── 1. PROCESS PAYMENT THROUGH FINIX ────────────────────────────────
     let finixResult;
     try {
-      finixResult = await processFinixPayment({
-        instrumentId: instrument_id,
-        amount: amountNum, currency,
-        description: description || `Payment ${paymentId}`,
-        paymentId,
-      });
+      if (instrument_id) {
+        // Finix.js tokenized flow (PCI-compliant — card data never touches our server)
+        finixResult = await processFinixPaymentWithInstrument({
+          instrumentId: instrument_id,
+          amount: amountNum,
+          currency,
+          description: description || `Payment ${paymentId}`,
+          paymentId,
+        });
+      } else {
+        // Legacy server-side tokenization (deprecated — migrate to Finix.js)
+        console.warn("[DEPRECATED] Server-side card tokenization used — migrate to Finix.js");
+        finixResult = await processFinixPayment({
+          cardNumber, expiryMonth, expiryYear, cvc,
+          cardholderName: customer_name,
+          postalCode: postalCode || "00000",
+          amount: amountNum, currency,
+          description: description || `Payment ${paymentId}`,
+          paymentId,
+        });
+      }
     } catch (err: unknown) {
       console.error("[Finix] Payment processing failed");
       return NextResponse.json(

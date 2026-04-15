@@ -1682,10 +1682,10 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
     { key: "businessType", label: "Business Type", ph: "", select: ["LIMITED_LIABILITY_COMPANY","CORPORATION","SOLE_PROPRIETORSHIP","PARTNERSHIP","NON_PROFIT","GOVERNMENT_AGENCY"] },
     { key: "taxId", label: "Tax ID / EIN", ph: "12-3456789", half: true },
     { key: "phone", label: "Business Phone", ph: "+13322900021", half: true },
-    { key: "email", label: "Business Email", ph: "info@zeniva.ca" },
+    { key: "email", label: "Business Email", ph: "zenipay@zeniva.ca" },
     { key: "website", label: "Website", ph: "https://zenivatravel.com" },
-    { key: "businessAddress", label: "Business Address", ph: "8 The Green" },
-    { key: "businessCity", label: "City", ph: "Dover", half: true },
+    { key: "businessAddress", label: "Business Address", ph: "895 Rue Raoul-Jobin" },
+    { key: "businessCity", label: "City", ph: "Québec", half: true },
     { key: "businessRegion", label: "State / Province", ph: "DE", half: true },
     { key: "businessPostalCode", label: "Postal Code", ph: "19901", half: true },
     { key: "country", label: "Country", ph: "USA", half: true },
@@ -1781,7 +1781,7 @@ export default function MerchantApp({ account, mode, onSignOut, onApproved, onMo
       <div style={{ background:CARD_BG,border:`1px solid ${BORDER}`,borderRadius:16,padding:"16px 18px",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
         <div style={{ fontSize:12,fontWeight:700,color:ZP_BLUE,marginBottom:8 }}>💬 Support & Contact</div>
         <p style={{ margin:"0 0 8px",fontSize:13,color:MUTED,lineHeight:1.7 }}>Mon–Fri, 9am–6pm ET</p>
-        <a href="mailto:info@zenipay.ca" style={{ fontSize:13,color:ZP_CYAN,fontWeight:700,textDecoration:"none" }}>info@zenipay.ca</a>
+        <a href="mailto:zenipay@zeniva.ca" style={{ fontSize:13,color:ZP_CYAN,fontWeight:700,textDecoration:"none" }}>zenipay@zeniva.ca</a>
       </div>
 
       <button onClick={onSignOut} style={{ width:"100%",padding:13,borderRadius:14,background:"rgba(239,68,68,0.06)",border:"1px solid rgba(239,68,68,0.2)",color:"#EF4444",fontSize:14,fontWeight:800,cursor:"pointer" }}>Sign Out</button>

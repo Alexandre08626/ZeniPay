@@ -49,8 +49,13 @@ export async function GET(req: NextRequest) {
   const fp = await finixReq("GET", "/fee_profiles/FPmtT4MYmiAs1qjLjneQmk4d");
   R.fee_profile = fp;
 
-  // Test payments removed — card tokenization must go through Finix.js client-side.
-  // Use /api/finix/test-certification for sandbox test card instruments.
+  // Server-side payment instrument creation removed for PCI compliance.
+  // Test payments must be made through the checkout page with Finix.js tokenization.
+  R.test_payments = {
+    message: "Server-side payment instrument creation has been removed for PCI compliance",
+    note: "Test payments must be made through the checkout page using Finix.js tokenization",
+    test_url: "/pay/test-link?amount=1&currency=USD&desc=Test",
+  };
 
   return NextResponse.json(R);
 }

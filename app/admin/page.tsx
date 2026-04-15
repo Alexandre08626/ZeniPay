@@ -54,9 +54,44 @@ const NAV = [
   { key: "api",          icon: "⌥",  label: "API & Keys",   color: ZP_CYAN   },
   { key: "billing",      icon: "💳", label: "Billing",      color: "#E5247B" },
   { key: "cashback",     icon: "💰", label: "Cashback",     color: "#10B981" },
+  { key: "marketing",   icon: "📧", label: "Marketing",    color: "#E5247B" },
+  { key: "leads",       icon: "🎯", label: "Lead Hunter",  color: "#F5A623" },
   { key: "settings",     icon: "⚙",  label: "Settings",     color: ZP_PURPLE },
 ] as const;
 type TabKey = typeof NAV[number]["key"];
+
+const EMAIL_TEMPLATES = [
+  {
+    id: "welcome",
+    name: "Welcome to ZeniPay",
+    subject: "Welcome to ZeniPay, {{BUSINESS_NAME}}!",
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Welcome to ZeniPay</title></head><body style="margin:0;padding:0;background:#f4f7fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fa"><tr><td align="center" style="padding:40px 20px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)"><tr><td style="background:linear-gradient(135deg,#2DBE60,#15B8C9,#7B4FBF);padding:48px 40px;text-align:center"><img src="https://zenipay.ca/zenipay-logo-nobg.png" alt="ZeniPay" width="180" style="margin-bottom:24px"><h1 style="color:#ffffff;font-size:28px;margin:0 0 8px;font-weight:800">Welcome to ZeniPay!</h1><p style="color:rgba(255,255,255,0.9);font-size:16px;margin:0">Start accepting payments today</p></td></tr><tr><td style="padding:40px"><p style="font-size:16px;color:#0A0F1E;line-height:1.6;margin:0 0 24px">Hi {{OWNER_NAME}},</p><p style="font-size:16px;color:#334155;line-height:1.6;margin:0 0 32px">Thank you for signing up <strong>{{BUSINESS_NAME}}</strong> with ZeniPay. Your sandbox account is ready — here is what you can do right away:</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px"><tr><td style="padding:20px;background:#f0fdf4;border-radius:12px;border-left:4px solid #2DBE60;margin-bottom:12px"><strong style="color:#2DBE60;font-size:14px">Accept Cards</strong><p style="margin:4px 0 0;color:#475569;font-size:14px">Visa, Mastercard, Amex — all major cards supported instantly.</p></td></tr><tr><td style="height:12px"></td></tr><tr><td style="padding:20px;background:#f0fdfa;border-radius:12px;border-left:4px solid #15B8C9"><strong style="color:#15B8C9;font-size:14px">Instant Payouts</strong><p style="margin:4px 0 0;color:#475569;font-size:14px">Get your money fast with zero-day hold on payouts.</p></td></tr><tr><td style="height:12px"></td></tr><tr><td style="padding:20px;background:#faf5ff;border-radius:12px;border-left:4px solid #7B4FBF"><strong style="color:#7B4FBF;font-size:14px">Zero Setup Fees</strong><p style="margin:4px 0 0;color:#475569;font-size:14px">No monthly fees, no hidden charges. Pay only when you get paid.</p></td></tr></table><div style="text-align:center;margin:32px 0"><a href="https://zenipay.ca/dashboard" style="display:inline-block;background:linear-gradient(135deg,#2DBE60,#15B8C9,#7B4FBF);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:12px;font-size:16px;font-weight:700;letter-spacing:0.02em">Go to your dashboard &rarr;</a></div><p style="font-size:14px;color:#64748b;line-height:1.6;margin:24px 0 0">Need help getting started? Reply to this email or visit <a href="https://zenipay.ca/support" style="color:#15B8C9;text-decoration:none">zenipay.ca/support</a>.</p></td></tr><tr><td style="background:#0A0F1E;padding:32px 40px;text-align:center"><p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0 0 8px;line-height:1.5">ZeniPay &middot; 895 Rue Raoul-Jobin, Qu&eacute;bec, QC G1N 1S6 &middot; Canada &middot; 581-748-7017</p><p style="margin:0"><a href="https://zenipay.ca/unsubscribe" style="color:rgba(255,255,255,0.4);font-size:11px;text-decoration:underline">Unsubscribe</a></p></td></tr></table></td></tr></table></body></html>`,
+  },
+  {
+    id: "cold_outreach",
+    name: "Cold Outreach — Free to Start",
+    subject: "Accept Payments with ZeniPay — Free to Start",
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>ZeniPay for {{BUSINESS_NAME}}</title></head><body style="margin:0;padding:0;background:#f4f7fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fa"><tr><td align="center" style="padding:40px 20px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)"><tr><td style="background:#0A0F1E;padding:32px 40px;text-align:center"><img src="https://zenipay.ca/zenipay-logo-nobg.png" alt="ZeniPay" width="150" style="margin-bottom:0"></td></tr><tr><td style="padding:40px"><h1 style="font-size:24px;color:#0A0F1E;margin:0 0 20px;font-weight:800">Accept Payments — Free to Start</h1><p style="font-size:16px;color:#334155;line-height:1.6;margin:0 0 16px">Hi {{BUSINESS_NAME}} team,</p><p style="font-size:16px;color:#334155;line-height:1.6;margin:0 0 24px">We noticed <strong>{{WEBSITE}}</strong> online and thought ZeniPay could be a great fit for your payment processing. We help businesses like yours accept payments faster and cheaper.</p><h2 style="font-size:18px;color:#0A0F1E;margin:0 0 16px;font-weight:700">Why ZeniPay?</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px"><tr><td style="padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f0"><strong style="color:#0A0F1E;font-size:14px">Simple pricing</strong><span style="float:right;color:#2DBE60;font-weight:700;font-size:14px">2.9% + $0.30</span></td></tr><tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f0"><strong style="color:#0A0F1E;font-size:14px">Payouts</strong><span style="float:right;color:#15B8C9;font-weight:700;font-size:14px">Instant</span></td></tr><tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f0"><strong style="color:#0A0F1E;font-size:14px">PCI Compliant</strong><span style="float:right;color:#7B4FBF;font-weight:700;font-size:14px">Yes</span></td></tr><tr><td style="padding:8px 0"><strong style="color:#0A0F1E;font-size:14px">Setup fees</strong><span style="float:right;color:#2DBE60;font-weight:700;font-size:14px">$0</span></td></tr></table></td></tr></table><h2 style="font-size:18px;color:#0A0F1E;margin:0 0 16px;font-weight:700">ZeniPay vs Competitors</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden"><tr style="background:#0A0F1E"><td style="padding:10px 16px;color:white;font-size:12px;font-weight:700">Feature</td><td style="padding:10px 16px;color:#2DBE60;font-size:12px;font-weight:700;text-align:center">ZeniPay</td><td style="padding:10px 16px;color:#94a3b8;font-size:12px;font-weight:700;text-align:center">Stripe</td><td style="padding:10px 16px;color:#94a3b8;font-size:12px;font-weight:700;text-align:center">Square</td></tr><tr><td style="padding:10px 16px;font-size:13px;border-bottom:1px solid #f1f5f9">Rate</td><td style="padding:10px 16px;font-size:13px;text-align:center;color:#2DBE60;font-weight:700;border-bottom:1px solid #f1f5f9">2.9% + $0.30</td><td style="padding:10px 16px;font-size:13px;text-align:center;color:#64748b;border-bottom:1px solid #f1f5f9">2.9% + $0.30</td><td style="padding:10px 16px;font-size:13px;text-align:center;color:#64748b;border-bottom:1px solid #f1f5f9">2.6% + $0.10</td></tr><tr><td style="padding:10px 16px;font-size:13px;border-bottom:1px solid #f1f5f9">Payouts</td><td style="padding:10px 16px;font-size:13px;text-align:center;color:#2DBE60;font-weight:700;border-bottom:1px solid #f1f5f9">Instant</td><td style="padding:10px 16px;font-size:13px;text-align:center;color:#64748b;border-bottom:1px solid #f1f5f9">2 days</td><td style="padding:10px 16px;font-size:13px;text-align:center;color:#64748b;border-bottom:1px solid #f1f5f9">1-2 days</td></tr><tr><td style="padding:10px 16px;font-size:13px">Monthly fee</td><td style="padding:10px 16px;font-size:13px;text-align:center;color:#2DBE60;font-weight:700">$0</td><td style="padding:10px 16px;font-size:13px;text-align:center;color:#64748b">$0</td><td style="padding:10px 16px;font-size:13px;text-align:center;color:#64748b">$0</td></tr></table><div style="text-align:center;margin:32px 0"><a href="https://zenipay.ca/signup" style="display:inline-block;background:linear-gradient(135deg,#2DBE60,#15B8C9,#7B4FBF);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:12px;font-size:16px;font-weight:700">Create your free account &rarr;</a></div><p style="font-size:14px;color:#64748b;line-height:1.6;margin:24px 0 0">Questions? Just reply to this email — we are here to help.</p><p style="font-size:14px;color:#64748b;margin:8px 0 0">Best,<br><strong>Alexandre</strong><br>ZeniPay Team</p></td></tr><tr><td style="background:#0A0F1E;padding:32px 40px;text-align:center"><p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0 0 8px;line-height:1.5">ZeniPay &middot; 895 Rue Raoul-Jobin, Qu&eacute;bec, QC G1N 1S6 &middot; Canada &middot; 581-748-7017</p><p style="margin:0"><a href="https://zenipay.ca/unsubscribe" style="color:rgba(255,255,255,0.4);font-size:11px;text-decoration:underline">Unsubscribe</a></p></td></tr></table></td></tr></table></body></html>`,
+  },
+  {
+    id: "sandbox_ready",
+    name: "Your Sandbox is Ready",
+    subject: "Your ZeniPay Sandbox is Ready — Test Now!",
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Your Sandbox is Ready</title></head><body style="margin:0;padding:0;background:#f4f7fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fa"><tr><td align="center" style="padding:40px 20px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)"><tr><td style="background:linear-gradient(135deg,#15B8C9,#2DBE60);padding:40px;text-align:center"><img src="https://zenipay.ca/zenipay-logo-nobg.png" alt="ZeniPay" width="150" style="margin-bottom:20px"><h1 style="color:#ffffff;font-size:26px;margin:0 0 8px;font-weight:800">Your Sandbox is Ready!</h1><p style="color:rgba(255,255,255,0.9);font-size:15px;margin:0">Test payments without risking a cent</p></td></tr><tr><td style="padding:40px"><p style="font-size:16px;color:#334155;line-height:1.6;margin:0 0 24px">Your ZeniPay sandbox environment is active and waiting for you. Here is how to test your first payment in 3 simple steps:</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px"><tr><td style="padding:20px;background:linear-gradient(135deg,rgba(45,190,96,0.08),rgba(45,190,96,0.02));border-radius:12px;margin-bottom:12px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:top;padding-right:16px"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2DBE60,#15B8C9);color:white;font-size:16px;font-weight:800;text-align:center;line-height:36px">1</div></td><td><strong style="color:#0A0F1E;font-size:15px;display:block;margin-bottom:4px">Create a Pay Link</strong><p style="margin:0;color:#475569;font-size:14px;line-height:1.5">Go to your dashboard and create a payment link for any amount.</p></td></tr></table></td></tr><tr><td style="height:12px"></td></tr><tr><td style="padding:20px;background:linear-gradient(135deg,rgba(21,184,201,0.08),rgba(21,184,201,0.02));border-radius:12px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:top;padding-right:16px"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#15B8C9,#7B4FBF);color:white;font-size:16px;font-weight:800;text-align:center;line-height:36px">2</div></td><td><strong style="color:#0A0F1E;font-size:15px;display:block;margin-bottom:4px">Test Payment</strong><p style="margin:0;color:#475569;font-size:14px;line-height:1.5">Use these test card numbers:</p><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-top:8px;font-family:monospace;font-size:13px"><div style="margin-bottom:4px"><strong>Visa:</strong> 4000 0000 0000 0002</div><div style="margin-bottom:4px"><strong>Mastercard:</strong> 5200 0000 0000 0007</div><div><strong>Exp:</strong> 12/28 &nbsp; <strong>CVV:</strong> 123</div></div></td></tr></table></td></tr><tr><td style="height:12px"></td></tr><tr><td style="padding:20px;background:linear-gradient(135deg,rgba(123,79,191,0.08),rgba(123,79,191,0.02));border-radius:12px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:top;padding-right:16px"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7B4FBF,#E5247B);color:white;font-size:16px;font-weight:800;text-align:center;line-height:36px">3</div></td><td><strong style="color:#0A0F1E;font-size:15px;display:block;margin-bottom:4px">Go Live</strong><p style="margin:0;color:#475569;font-size:14px;line-height:1.5">Once you are satisfied, switch to live mode and start accepting real payments.</p></td></tr></table></td></tr></table><div style="text-align:center;margin:32px 0"><a href="https://zenipay.ca/dashboard" style="display:inline-block;background:linear-gradient(135deg,#2DBE60,#15B8C9,#7B4FBF);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:12px;font-size:16px;font-weight:700">Test your first payment &rarr;</a></div><p style="font-size:14px;color:#64748b;line-height:1.6;margin:24px 0 0">Need help? Our team is here — just reply to this email.</p></td></tr><tr><td style="background:#0A0F1E;padding:32px 40px;text-align:center"><p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0 0 8px;line-height:1.5">ZeniPay &middot; 895 Rue Raoul-Jobin, Qu&eacute;bec, QC G1N 1S6 &middot; Canada &middot; 581-748-7017</p><p style="margin:0"><a href="https://zenipay.ca/unsubscribe" style="color:rgba(255,255,255,0.4);font-size:11px;text-decoration:underline">Unsubscribe</a></p></td></tr></table></td></tr></table></body></html>`,
+  },
+  {
+    id: "go_live",
+    name: "Go Live Reminder",
+    subject: "Time to Go Live — Accept Real Payments",
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Go Live with ZeniPay</title></head><body style="margin:0;padding:0;background:#f4f7fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fa"><tr><td align="center" style="padding:40px 20px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)"><tr><td style="background:#0A0F1E;padding:40px;text-align:center"><img src="https://zenipay.ca/zenipay-logo-nobg.png" alt="ZeniPay" width="150" style="margin-bottom:20px"><h1 style="color:#ffffff;font-size:26px;margin:0 0 8px;font-weight:800">Time to Go Live!</h1><p style="color:rgba(255,255,255,0.7);font-size:15px;margin:0">You tested successfully — accept real payments now</p></td></tr><tr><td style="padding:40px"><div style="background:linear-gradient(135deg,rgba(45,190,96,0.1),rgba(21,184,201,0.1));border:2px solid #2DBE60;border-radius:12px;padding:20px;text-align:center;margin-bottom:28px"><div style="font-size:32px;margin-bottom:8px">&#10003;</div><p style="font-size:16px;color:#2DBE60;font-weight:700;margin:0">Sandbox Testing Complete</p><p style="font-size:14px;color:#475569;margin:8px 0 0">Your test transactions processed successfully. You are ready.</p></div><p style="font-size:16px;color:#334155;line-height:1.6;margin:0 0 24px">Switching to live mode takes about 5 minutes. Here is what changes:</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px"><tr><td style="width:50%;padding:16px;vertical-align:top"><h3 style="font-size:14px;color:#2DBE60;margin:0 0 8px">What stays the same</h3><ul style="margin:0;padding:0 0 0 16px;color:#475569;font-size:14px;line-height:1.8"><li>Same API keys format</li><li>Same dashboard</li><li>Same integration code</li><li>Same pricing: 2.9% + $0.30</li></ul></td><td style="width:50%;padding:16px;vertical-align:top"><h3 style="font-size:14px;color:#7B4FBF;margin:0 0 8px">What changes</h3><ul style="margin:0;padding:0 0 0 16px;color:#475569;font-size:14px;line-height:1.8"><li>Real transactions</li><li>Real money deposited</li><li>Instant payouts enabled</li><li>Live webhook events</li></ul></td></tr></table><div style="text-align:center;margin:32px 0"><a href="https://zenipay.ca/dashboard/settings" style="display:inline-block;background:linear-gradient(135deg,#2DBE60,#15B8C9,#7B4FBF);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:12px;font-size:16px;font-weight:700">Switch to Live Mode &rarr;</a></div><p style="font-size:14px;color:#64748b;line-height:1.6;margin:24px 0 0">Questions about going live? Reply here or check our <a href="https://zenipay.ca/docs/go-live" style="color:#15B8C9;text-decoration:none">go-live guide</a>.</p></td></tr><tr><td style="background:#0A0F1E;padding:32px 40px;text-align:center"><p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0 0 8px;line-height:1.5">ZeniPay &middot; 895 Rue Raoul-Jobin, Qu&eacute;bec, QC G1N 1S6 &middot; Canada &middot; 581-748-7017</p><p style="margin:0"><a href="https://zenipay.ca/unsubscribe" style="color:rgba(255,255,255,0.4);font-size:11px;text-decoration:underline">Unsubscribe</a></p></td></tr></table></td></tr></table></body></html>`,
+  },
+  {
+    id: "generic_pitch",
+    name: "ZeniPay for Your Business",
+    subject: "The Modern Way to Accept Payments",
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>ZeniPay for Your Business</title></head><body style="margin:0;padding:0;background:#f4f7fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fa"><tr><td align="center" style="padding:40px 20px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)"><tr><td style="padding:40px 40px 0;text-align:center"><img src="https://zenipay.ca/zenipay-logo-nobg.png" alt="ZeniPay" width="140" style="margin-bottom:32px"><h1 style="font-size:28px;color:#0A0F1E;margin:0 0 8px;font-weight:800">The modern way to<br>accept payments</h1><p style="font-size:16px;color:#64748b;margin:0 0 32px">Simple, fast, and built for businesses like {{BUSINESS_NAME}}</p></td></tr><tr><td style="padding:0 40px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="width:33%;padding:16px;text-align:center;vertical-align:top"><div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#2DBE60,#15B8C9);margin:0 auto 12px;line-height:48px;font-size:20px">&#9889;</div><strong style="color:#0A0F1E;font-size:14px;display:block;margin-bottom:4px">All Major Cards</strong><p style="color:#64748b;font-size:12px;margin:0;line-height:1.4">Visa, Mastercard, Amex, Discover</p></td><td style="width:33%;padding:16px;text-align:center;vertical-align:top"><div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#15B8C9,#7B4FBF);margin:0 auto 12px;line-height:48px;font-size:20px">&#127760;</div><strong style="color:#0A0F1E;font-size:14px;display:block;margin-bottom:4px">135+ Currencies</strong><p style="color:#64748b;font-size:12px;margin:0;line-height:1.4">Accept payments worldwide</p></td><td style="width:33%;padding:16px;text-align:center;vertical-align:top"><div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#7B4FBF,#E5247B);margin:0 auto 12px;line-height:48px;font-size:20px">&#128640;</div><strong style="color:#0A0F1E;font-size:14px;display:block;margin-bottom:4px">Zero-Day Hold</strong><p style="color:#64748b;font-size:12px;margin:0;line-height:1.4">Instant access to your funds</p></td></tr></table></td></tr><tr><td style="padding:32px 40px"><div style="background:#f8fafc;border-radius:12px;padding:24px;text-align:center;border:1px solid #e2e8f0"><p style="font-size:13px;color:#64748b;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Simple pricing</p><div style="font-size:36px;font-weight:800;color:#0A0F1E;margin:8px 0">2.9% <span style="font-size:20px;color:#64748b;font-weight:400">+</span> $0.30</div><p style="font-size:14px;color:#64748b;margin:4px 0 0">per successful transaction. No monthly fees. No hidden costs.</p></div></td></tr><tr><td style="padding:0 40px 40px"><div style="text-align:center;margin:8px 0 32px"><a href="https://zenipay.ca/signup" style="display:inline-block;background:linear-gradient(135deg,#2DBE60,#15B8C9,#7B4FBF);color:#ffffff;text-decoration:none;padding:16px 48px;border-radius:12px;font-size:16px;font-weight:700">Get started free &rarr;</a></div><p style="font-size:13px;color:#94a3b8;text-align:center;margin:0">No credit card required. Start in sandbox, go live when ready.</p></td></tr><tr><td style="background:#0A0F1E;padding:32px 40px;text-align:center"><p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0 0 8px;line-height:1.5">ZeniPay &middot; 895 Rue Raoul-Jobin, Qu&eacute;bec, QC G1N 1S6 &middot; Canada &middot; 581-748-7017</p><p style="margin:0"><a href="https://zenipay.ca/unsubscribe" style="color:rgba(255,255,255,0.4);font-size:11px;text-decoration:underline">Unsubscribe</a></p></td></tr></table></td></tr></table></body></html>`,
+  },
+];
 
 export default function AdminPage() {
   const router = useRouter();
@@ -108,6 +143,30 @@ export default function AdminPage() {
   // Billing state
   const [billingSearch, setBillingSearch] = useState("");
   const [billingStatusFilter, setBillingStatusFilter] = useState("all");
+
+  // Ben AI Chat state
+  const [benOpen, setBenOpen] = useState(false);
+  const [benMsg, setBenMsg] = useState("");
+  const [benChat, setBenChat] = useState<{role:string;text:string}[]>([]);
+  const [benLoading, setBenLoading] = useState(false);
+
+  // Marketing state
+  const [marketingAudience, setMarketingAudience] = useState("sandbox");
+  const [marketingSubject, setMarketingSubject] = useState("");
+  const [marketingBody, setMarketingBody] = useState("");
+  const [marketingSending, setMarketingSending] = useState(false);
+  const [marketingSent, setMarketingSent] = useState(0);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Lead Hunter state
+  const [scrapeQuery, setScrapeQuery] = useState("shopify store accepting payments");
+  const [scrapeLoading, setScrapeLoading] = useState(false);
+  const [scrapedLeads, setScrapedLeads] = useState<any[]>([]);
+  const [leadPitchSending, setLeadPitchSending] = useState<string | null>(null);
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [manualLead, setManualLead] = useState({ business_name: "", email: "", website: "", phone: "", sector: "E-commerce", notes: "", description: "" });
+  const [leadStatusFilter, setLeadStatusFilter] = useState<"all" | "new" | "contacted" | "converted" | "lost">("all");
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -184,6 +243,7 @@ export default function AdminPage() {
       .then(r => r.json())
       .then(data => { if (data.invoices) setBillingInvoices(data.invoices); })
       .catch(err => console.error("[Admin] Failed to load billing:", err));
+    fetch("/api/zenipay/admin/scrape").then(r => r.json()).then(d => setScrapedLeads(d.leads || [])).catch(() => {});
   }, [router, loadMerchants, loadStats]);
 
   const CLIENTS = [
@@ -251,6 +311,166 @@ export default function AdminPage() {
     const a = document.createElement("a");
     a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Ben AI handler
+  const handleBenSend = async () => {
+    if (!benMsg.trim()) return;
+    const userMsg = benMsg;
+    setBenMsg("");
+    setBenChat(prev => [...prev, { role: "user", text: userMsg }]);
+    setBenLoading(true);
+    await new Promise(r => setTimeout(r, 600));
+
+    const q = userMsg.toLowerCase();
+    const clientCount = CLIENTS.length;
+    const totalVolume = CLIENTS.reduce((s: number, c: any) => s + (Number(c.volume) || Number(c.balance) || 0), 0);
+    const sandboxCount = CLIENTS.filter((c: any) => c.status === "sandbox").length;
+    const liveCount = CLIENTS.filter((c: any) => c.status === "active" || c.status === "live").length;
+
+    let reply = "";
+    if (q.includes("client") || q.includes("merchant")) {
+      reply = `📊 Merchant Summary\n\n• Total Merchants: ${clientCount}\n• Live: ${liveCount}\n• Sandbox: ${sandboxCount}\n• Total Volume: $${totalVolume.toLocaleString()}\n\nUse the Clients tab to manage merchants.`;
+    } else if (q.includes("revenue") || q.includes("fee") || q.includes("money")) {
+      const fees = totalVolume * 0.029 + clientCount * 0.30;
+      reply = `💰 Revenue\n\n• Platform Volume: $${totalVolume.toLocaleString()}\n• ZeniPay Fees (2.9%+$0.30): $${fees.toFixed(2)}\n• Active Merchants: ${liveCount}`;
+    } else if (q.includes("lead") || q.includes("scrape") || q.includes("prospect")) {
+      reply = `🎯 Lead Hunting\n\nGo to the Lead Hunter tab to:\n• Scrape business leads from Google\n• Save leads to your pipeline\n• Send ZeniPay pitch emails\n\nTip: Search for "shopify store" or "e-commerce business" to find prospects.`;
+    } else if (q.includes("campaign") || q.includes("email") || q.includes("marketing")) {
+      reply = `📧 Marketing\n\nGo to the Marketing tab to:\n• Send campaigns to sandbox merchants\n• Send pitch emails to scraped leads\n• Track sent/failed counts\n\nAll emails sent via zenipay@zeniva.ca with anti-spam compliance.`;
+    } else if (q.includes("help") || q.includes("aide")) {
+      reply = `🤖 Ben AI — Admin Commands\n\n• "clients" — merchant summary\n• "revenue" — fees & volume\n• "leads" — lead hunting tips\n• "marketing" — campaign info\n• "help" — this menu`;
+    } else {
+      reply = `📊 Quick Admin Overview\n\n• ${clientCount} merchants (${liveCount} live, ${sandboxCount} sandbox)\n• Volume: $${totalVolume.toLocaleString()}\n\nType "help" for all commands.`;
+    }
+
+    setBenChat(prev => [...prev, { role: "ben", text: reply }]);
+    setBenLoading(false);
+  };
+
+  // Marketing — resolve recipients for preview
+  const [marketingRecipients, setMarketingRecipients] = useState<{email:string;name:string}[]>([]);
+  const [showConfirmSend, setShowConfirmSend] = useState(false);
+
+  const resolveRecipients = (): {email:string;name:string}[] => {
+    if (marketingAudience === "sandbox") return CLIENTS.filter((c:any) => c.status === "sandbox" && c.contact).map((c:any) => ({ email: c.contact, name: c.name || "" }));
+    if (marketingAudience === "leads") return scrapedLeads.filter((l:any) => l.email && l.status === "new").map((l:any) => ({ email: l.email, name: l.business_name || "" }));
+    return CLIENTS.filter((c:any) => c.contact).map((c:any) => ({ email: c.contact, name: c.name || "" }));
+  };
+
+  const handlePreviewAndConfirm = () => {
+    const recs = resolveRecipients();
+    setMarketingRecipients(recs);
+    setShowConfirmSend(true);
+    setShowPreview(true);
+  };
+
+  const handleSendCampaign = async () => {
+    setShowConfirmSend(false);
+    setMarketingSending(true);
+    setMarketingSent(0);
+    try {
+      const res = await fetch("/api/zenipay/admin/marketing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audience: marketingAudience, subject: marketingSubject, html_body: marketingBody }),
+      });
+      const data = await res.json();
+      setMarketingSent(data.sent || 0);
+      showToast(data.sent ? `${data.sent} emails sent!` : "Campaign sent");
+    } catch { showToast("Failed to send", "error"); }
+    setMarketingSending(false);
+  };
+
+  // Lead Hunter handlers
+  const handleScrape = async () => {
+    setScrapeLoading(true);
+    try {
+      const res = await fetch("/api/zenipay/admin/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: scrapeQuery }),
+      });
+      const data = await res.json();
+      setScrapedLeads(data.leads || []);
+      showToast(`Found ${data.new_count || 0} new leads (${(data.leads || []).length} total)`);
+    } catch { showToast("Scrape failed", "error"); }
+    setScrapeLoading(false);
+  };
+
+  const handleManualAddLead = async () => {
+    if (!manualLead.business_name) { showToast("Business name required", "error"); return; }
+    try {
+      const res = await fetch("/api/zenipay/admin/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "manual_add", ...manualLead }),
+      });
+      const data = await res.json();
+      setScrapedLeads(data.leads || []);
+      setManualLead({ business_name: "", email: "", website: "", phone: "", sector: "E-commerce", notes: "", description: "" });
+      setShowManualAdd(false);
+      showToast("Lead added");
+    } catch { showToast("Failed to add lead", "error"); }
+  };
+
+  const handleUpdateLeadStatus = async (id: string, status: string) => {
+    try {
+      const res = await fetch("/api/zenipay/admin/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_lead", id, status }),
+      });
+      const data = await res.json();
+      setScrapedLeads(data.leads || []);
+    } catch { showToast("Update failed", "error"); }
+  };
+
+  const handleDeleteLead = async (id: string) => {
+    try {
+      const res = await fetch("/api/zenipay/admin/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_lead", id }),
+      });
+      const data = await res.json();
+      setScrapedLeads(data.leads || []);
+      showToast("Lead deleted");
+    } catch { showToast("Delete failed", "error"); }
+  };
+
+  const handleSendPitch = async (lead: any) => {
+    setLeadPitchSending(lead.id);
+    try {
+      // Use the generic pitch template with personalization
+      const pitchHtml = EMAIL_TEMPLATES.find(t => t.id === "generic_pitch")?.html
+        .replace(/\{\{BUSINESS_NAME\}\}/g, lead.business_name || "there")
+        .replace(/\{\{WEBSITE\}\}/g, lead.website || "your website")
+        || `<h2>Hi ${lead.business_name || "there"},</h2><p>I noticed your business and thought ZeniPay could help you accept payments online.</p><p>ZeniPay is a modern payment platform — accept Visa, Mastercard, ACH, and more. Free to start, 2.9% + $0.30 per transaction.</p><p><a href="https://zenipay.ca/signup">Get started free</a></p><p>– Alexandre, ZeniPay</p>`;
+      await fetch("/api/zenipay/admin/marketing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audience: "single", to: lead.email, subject: "Accept Payments with ZeniPay — Free to Start", html_body: pitchHtml }),
+      });
+      // Update status to contacted
+      await fetch("/api/zenipay/admin/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_lead", id: lead.id, status: "contacted" }),
+      });
+      setScrapedLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: "contacted" } : l));
+      showToast("Pitch sent to " + lead.email);
+    } catch { showToast("Failed", "error"); }
+    setLeadPitchSending(null);
+  };
+
+  const handleSelectTemplate = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    const tpl = EMAIL_TEMPLATES.find(t => t.id === templateId);
+    if (tpl) {
+      setMarketingSubject(tpl.subject);
+      setMarketingBody(tpl.html);
+    }
   };
 
   const BG      = "#F1F5F9";
@@ -1722,7 +1942,7 @@ export default function AdminPage() {
                                     @media print{body{padding:24px}}
                                   </style></head><body>
                                     <div class="header">
-                                      <div><div class="logo">ZeniPay</div><div style="font-size:12px;color:#64748B">Payment Processing Platform</div><div style="font-size:12px;color:#64748B;margin-top:2px">info@zenipay.ca | zenipay.ca</div></div>
+                                      <div><div class="logo">ZeniPay</div><div style="font-size:12px;color:#64748B">Payment Processing Platform</div><div style="font-size:12px;color:#64748B;margin-top:2px">zenipay@zeniva.ca | zenipay.ca</div></div>
                                       <div style="text-align:right"><div class="inv-num">${inv.invoice_number}</div><div style="font-size:12px;color:#64748B">Generated: ${new Date(inv.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div></div>
                                     </div>
                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
@@ -1788,6 +2008,303 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════ MARKETING ════════════════ */}
+          {tab === "marketing" && (
+            <div style={{ display: "grid", gap: 20 }}>
+              <div style={{ background: "linear-gradient(135deg, #E5247B, #7B4FBF)", borderRadius: 16, padding: "24px 28px", color: "white" }}>
+                <h2 style={{ margin: "0 0 8px", fontWeight: 900, fontSize: 22 }}>Email Marketing</h2>
+                <p style={{ margin: 0, opacity: 0.8, fontSize: 14 }}>Send campaigns to sandbox merchants or scraped leads with professional templates</p>
+              </div>
+
+              {/* Template Selector */}
+              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>Email Templates</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12 }}>
+                  {EMAIL_TEMPLATES.map(tpl => (
+                    <button key={tpl.id} onClick={() => handleSelectTemplate(tpl.id)} style={{
+                      padding: "16px 14px", borderRadius: 12, border: selectedTemplate === tpl.id ? "2px solid #7B4FBF" : "1px solid #e2e8f0",
+                      background: selectedTemplate === tpl.id ? "rgba(123,79,191,0.06)" : "#f8fafc", cursor: "pointer", textAlign: "left", transition: "all 0.15s"
+                    }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 4 }}>{tpl.name}</div>
+                      <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>{tpl.subject.replace(/\{\{.*?\}\}/g, "...").slice(0, 50)}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Compose */}
+              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                <h3 style={{ margin: "0 0 16px", fontWeight: 700 }}>Compose Campaign</h3>
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                    <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Audience</label><select value={marketingAudience} onChange={e => setMarketingAudience(e.target.value)} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14 }}><option value="sandbox">Sandbox Merchants ({CLIENTS.filter((c:any) => c.status === "sandbox" && c.contact).length})</option><option value="leads">Scraped Leads ({scrapedLeads.filter((l:any) => l.email).length})</option><option value="all">All Merchants ({CLIENTS.filter((c:any) => c.contact).length})</option></select></div>
+                    <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Subject</label><input value={marketingSubject} onChange={e => setMarketingSubject(e.target.value)} placeholder="ZeniPay — Accept Payments Today" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} /></div>
+                  </div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Email Body (HTML)</label><textarea value={marketingBody} onChange={e => { setMarketingBody(e.target.value); setSelectedTemplate(""); }} rows={12} placeholder="<h1>Accept Payments with ZeniPay</h1><p>...</p>" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, fontFamily: "monospace", boxSizing: "border-box", lineHeight: 1.5 }} /></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ fontSize: 12, color: "#64748b" }}>From: zenipay@zeniva.ca</span>
+                      <button onClick={() => setShowPreview(!showPreview)} style={{ background: showPreview ? "#7B4FBF" : "#f1f5f9", color: showPreview ? "white" : "#475569", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showPreview ? "Hide Preview" : "Preview"}</button>
+                    </div>
+                    <button onClick={handlePreviewAndConfirm} disabled={marketingSending || !marketingSubject || !marketingBody} style={{ background: marketingSending ? "#94a3b8" : "linear-gradient(135deg, #E5247B, #7B4FBF)", color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontWeight: 700, cursor: "pointer" }}>{marketingSending ? `Sending... ${marketingSent}` : "👁 Review & Send"}</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview + Confirmation Panel */}
+              {showPreview && marketingBody && (
+                <div style={{ display: "grid", gridTemplateColumns: showConfirmSend ? "1fr 1fr" : "1fr", gap: 20 }}>
+                  {/* Email Preview */}
+                  <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                      <h3 style={{ margin: 0, fontWeight: 700 }}>📧 Email Preview</h3>
+                      <span style={{ fontSize: 12, color: "#94a3b8" }}>Subject: {marketingSubject || "(no subject)"}</span>
+                    </div>
+                    <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", background: "#f4f7fa" }}>
+                      <iframe
+                        srcDoc={marketingBody}
+                        style={{ width: "100%", height: 500, border: "none" }}
+                        title="Email Preview"
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Recipients + Confirm */}
+                  {showConfirmSend && (
+                    <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column" }}>
+                      <h3 style={{ margin: "0 0 8px", fontWeight: 700 }}>👥 Recipients ({marketingRecipients.length})</h3>
+                      <p style={{ margin: "0 0 16px", fontSize: 12, color: "#64748b" }}>Audience: {marketingAudience} · From: zenipay@zeniva.ca</p>
+                      <div style={{ flex: 1, overflowY: "auto", maxHeight: 380, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+                        {marketingRecipients.length === 0 ? (
+                          <p style={{ color: "#94a3b8", textAlign: "center", padding: "32px 0" }}>No recipients found for this audience</p>
+                        ) : marketingRecipients.map((r, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, #2DBE60, #15B8C9)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{(r.name || r.email)[0]?.toUpperCase() || "?"}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name || "—"}</div>
+                              <div style={{ fontSize: 11, color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.email}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", gap: 12 }}>
+                        <button onClick={() => setShowConfirmSend(false)} style={{ flex: 1, background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer", color: "#475569" }}>Cancel</button>
+                        <button onClick={handleSendCampaign} disabled={marketingSending || marketingRecipients.length === 0} style={{ flex: 1, background: marketingSending || marketingRecipients.length === 0 ? "#94a3b8" : "linear-gradient(135deg, #2DBE60, #15B8C9)", color: "white", border: "none", borderRadius: 10, padding: "12px", fontWeight: 700, cursor: "pointer" }}>
+                          {marketingSending ? `Sending... ${marketingSent}/${marketingRecipients.length}` : `✅ Confirm Send to ${marketingRecipients.length} recipients`}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ════════════════ LEAD HUNTER ════════════════ */}
+          {tab === "leads" && (
+            <div style={{ display: "grid", gap: 20 }}>
+              <div style={{ background: "linear-gradient(135deg, #F5A623, #E5247B)", borderRadius: 16, padding: "24px 28px", color: "white" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <h2 style={{ margin: "0 0 8px", fontWeight: 900, fontSize: 22 }}>Lead Hunter</h2>
+                    <p style={{ margin: 0, opacity: 0.8, fontSize: 14 }}>Find businesses online and pitch them ZeniPay</p>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 14px", fontSize: 13, fontWeight: 700 }}>
+                      {scrapedLeads.length} leads
+                    </span>
+                    <span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 14px", fontSize: 13, fontWeight: 700 }}>
+                      {scrapedLeads.filter(l => l.email).length} with email
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search + Manual Add */}
+              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                  <input value={scrapeQuery} onChange={e => setScrapeQuery(e.target.value)} placeholder="e.g. shopify store, e-commerce business, saas company" style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14 }} onKeyDown={e => e.key === "Enter" && handleScrape()} />
+                  <button onClick={handleScrape} disabled={scrapeLoading} style={{ background: scrapeLoading ? "#94a3b8" : "linear-gradient(135deg, #F5A623, #E5247B)", color: "white", border: "none", borderRadius: 10, padding: "12px 24px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{scrapeLoading ? "Searching..." : "Search"}</button>
+                  <button onClick={() => setShowManualAdd(!showManualAdd)} style={{ background: showManualAdd ? "#7B4FBF" : "#f1f5f9", color: showManualAdd ? "white" : "#475569", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 20px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontSize: 13 }}>{showManualAdd ? "Cancel" : "+ Add Lead"}</button>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {["shopify store", "e-commerce business", "saas company", "online store payments", "small business website", "freelance services", "subscription service"].map(q => (
+                    <button key={q} onClick={() => setScrapeQuery(q)} style={{ background: scrapeQuery === q ? "rgba(245,166,35,0.1)" : "#f1f5f9", border: scrapeQuery === q ? "1px solid #F5A623" : "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", fontSize: 11, cursor: "pointer", color: scrapeQuery === q ? "#F5A623" : "#475569", fontWeight: scrapeQuery === q ? 700 : 400 }}>{q}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Manual Add Form */}
+              {showManualAdd && (
+                <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", border: "2px solid #7B4FBF" }}>
+                  <h3 style={{ margin: "0 0 16px", fontWeight: 700, color: "#7B4FBF" }}>Add Lead Manually</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Business Name *</label>
+                      <input value={manualLead.business_name} onChange={e => setManualLead(p => ({ ...p, business_name: e.target.value }))} placeholder="Acme Corp" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Email</label>
+                      <input value={manualLead.email} onChange={e => setManualLead(p => ({ ...p, email: e.target.value }))} placeholder="contact@acme.com" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Website</label>
+                      <input value={manualLead.website} onChange={e => setManualLead(p => ({ ...p, website: e.target.value }))} placeholder="https://acme.com" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Phone</label>
+                      <input value={manualLead.phone} onChange={e => setManualLead(p => ({ ...p, phone: e.target.value }))} placeholder="(555) 123-4567" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Sector</label>
+                      <select value={manualLead.sector} onChange={e => setManualLead(p => ({ ...p, sector: e.target.value }))} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14 }}>
+                        {["E-commerce", "SaaS", "Professional Services", "Health & Wellness", "Education", "Travel & Hospitality", "Food & Beverage", "Fitness", "Real Estate", "Subscription", "Nonprofit", "Beauty & Personal Care", "Online Business", "Other"].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Description</label>
+                      <input value={manualLead.description} onChange={e => setManualLead(p => ({ ...p, description: e.target.value }))} placeholder="Brief description..." style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Notes</label>
+                    <textarea value={manualLead.notes} onChange={e => setManualLead(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Internal notes about this lead..." style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+                    <button onClick={handleManualAddLead} style={{ background: "linear-gradient(135deg, #7B4FBF, #E5247B)", color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontWeight: 700, cursor: "pointer" }}>Save Lead</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Filter Bar */}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {(["all", "new", "contacted", "converted", "lost"] as const).map(f => {
+                  const count = f === "all" ? scrapedLeads.length : scrapedLeads.filter(l => l.status === f).length;
+                  const colors: Record<string, string> = { all: "#475569", new: "#2DBE60", contacted: "#15B8C9", converted: "#7B4FBF", lost: "#DC2626" };
+                  return (
+                    <button key={f} onClick={() => setLeadStatusFilter(f)} style={{
+                      background: leadStatusFilter === f ? colors[f] + "18" : "#f8fafc",
+                      border: `1px solid ${leadStatusFilter === f ? colors[f] : "#e2e8f0"}`,
+                      borderRadius: 20, padding: "6px 16px", fontSize: 12, cursor: "pointer",
+                      color: leadStatusFilter === f ? colors[f] : "#64748b", fontWeight: leadStatusFilter === f ? 700 : 400
+                    }}>
+                      {f.charAt(0).toUpperCase() + f.slice(1)} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Results — Card Layout */}
+              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontWeight: 700 }}>Leads</h3>
+                </div>
+                {scrapedLeads.filter(l => leadStatusFilter === "all" || l.status === leadStatusFilter).length === 0 ? (
+                  <p style={{ color: "#94a3b8", textAlign: "center", padding: "32px 0" }}>
+                    {scrapedLeads.length === 0 ? "Search for businesses or add leads manually" : "No leads match this filter"}
+                  </p>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+                    {scrapedLeads.filter(l => leadStatusFilter === "all" || l.status === leadStatusFilter).map((lead: any) => {
+                      const statusColors: Record<string, { bg: string; fg: string }> = {
+                        new: { bg: "rgba(45,190,96,0.08)", fg: "#2DBE60" },
+                        contacted: { bg: "rgba(21,184,201,0.08)", fg: "#15B8C9" },
+                        converted: { bg: "rgba(123,79,191,0.08)", fg: "#7B4FBF" },
+                        lost: { bg: "rgba(220,38,38,0.08)", fg: "#DC2626" },
+                      };
+                      const sc = statusColors[lead.status] || statusColors.new;
+                      return (
+                        <div key={lead.id} style={{ padding: 20, background: "#f8fafc", borderRadius: 14, border: "1px solid #e2e8f0", position: "relative", transition: "box-shadow 0.15s" }}>
+                          {/* Header */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 4 }}>{lead.business_name || "Business"}</div>
+                              <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: sc.bg, color: sc.fg, border: `1px solid ${sc.fg}33`, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                                {lead.status}
+                              </span>
+                            </div>
+                            <div style={{ display: "flex", gap: 4 }}>
+                              <select
+                                value={lead.status}
+                                onChange={e => handleUpdateLeadStatus(lead.id, e.target.value)}
+                                style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 11, background: "white", cursor: "pointer", color: "#475569" }}
+                              >
+                                <option value="new">New</option>
+                                <option value="contacted">Contacted</option>
+                                <option value="converted">Converted</option>
+                                <option value="lost">Lost</option>
+                              </select>
+                              <button onClick={() => handleDeleteLead(lead.id)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", color: "#94a3b8" }} title="Delete lead">x</button>
+                            </div>
+                          </div>
+
+                          {/* Contact Info */}
+                          <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
+                            {lead.email && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                                <span style={{ color: "#94a3b8", fontSize: 11, minWidth: 14 }}>@</span>
+                                <a href={`mailto:${lead.email}`} style={{ color: "#15B8C9", textDecoration: "none", fontWeight: 500 }}>{lead.email}</a>
+                              </div>
+                            )}
+                            {lead.website && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                                <span style={{ color: "#94a3b8", fontSize: 11, minWidth: 14 }}>W</span>
+                                <a href={lead.website} target="_blank" rel="noopener noreferrer" style={{ color: "#7B4FBF", textDecoration: "none", fontWeight: 500, wordBreak: "break-all" }}>{lead.website.replace(/^https?:\/\//, "").slice(0, 40)}</a>
+                              </div>
+                            )}
+                            {lead.phone && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                                <span style={{ color: "#94a3b8", fontSize: 11, minWidth: 14 }}>T</span>
+                                <span style={{ color: "#475569" }}>{lead.phone}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Sector + Source */}
+                          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                            <span style={{ background: "#f1f5f9", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 600, color: "#64748b" }}>{lead.sector || "General"}</span>
+                            <span style={{ background: "#f1f5f9", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 600, color: "#94a3b8" }}>{lead.source}</span>
+                            {lead.created_at && <span style={{ background: "#f1f5f9", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 600, color: "#94a3b8" }}>{fmtDate(lead.created_at)}</span>}
+                          </div>
+
+                          {/* Description */}
+                          {lead.description && (
+                            <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, margin: "0 0 12px", maxHeight: 48, overflow: "hidden" }}>{lead.description}</p>
+                          )}
+
+                          {/* Notes */}
+                          {lead.notes && (
+                            <div style={{ background: "rgba(245,166,35,0.06)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#92400e", marginBottom: 12, borderLeft: "3px solid #F5A623" }}>
+                              {lead.notes}
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                            {lead.email && (
+                              <button onClick={() => handleSendPitch(lead)} disabled={leadPitchSending === lead.id} style={{
+                                background: leadPitchSending === lead.id ? "#94a3b8" : "linear-gradient(135deg, #2DBE60, #15B8C9)",
+                                color: "white", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer"
+                              }}>
+                                {leadPitchSending === lead.id ? "Sending..." : "Send Pitch"}
+                              </button>
+                            )}
+                            {!lead.email && (
+                              <span style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic", padding: "8px 0" }}>No email — add one to send pitch</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2187,6 +2704,37 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* Ben AI Floating Chat */}
+      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999 }}>
+        {benOpen && (
+          <div style={{ width: 380, height: 500, background: "#0B1B4D", borderRadius: 20, border: "1px solid rgba(255,255,255,0.15)", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", marginBottom: 12 }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #2DBE60, #15B8C9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🤖</div>
+                <div><div style={{ color: "white", fontWeight: 700, fontSize: 14 }}>Ben AI</div><div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}>Admin Assistant</div></div>
+              </div>
+              <button onClick={() => setBenOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18 }}>×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              {benChat.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, paddingTop: 40 }}>Ask Ben about clients, revenue, leads, marketing...</div>}
+              {benChat.map((m, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div style={{ background: m.role === "user" ? "linear-gradient(135deg, #15B8C9, #0B1B4D)" : "rgba(255,255,255,0.08)", color: "white", borderRadius: 12, padding: "10px 14px", maxWidth: "85%", fontSize: 13, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{m.text}</div>
+                </div>
+              ))}
+              {benLoading && <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Thinking...</div>}
+            </div>
+            <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: 8 }}>
+              <input value={benMsg} onChange={e => setBenMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && handleBenSend()} placeholder="Ask Ben..." style={{ flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 14px", color: "white", fontSize: 13, outline: "none" }} />
+              <button onClick={handleBenSend} style={{ background: "linear-gradient(135deg, #2DBE60, #15B8C9)", border: "none", borderRadius: 10, padding: "10px 16px", color: "white", fontWeight: 700, cursor: "pointer" }}>↑</button>
+            </div>
+          </div>
+        )}
+        <button onClick={() => setBenOpen(!benOpen)} style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg, #2DBE60, #15B8C9, #7B4FBF)", border: "none", cursor: "pointer", fontSize: 24, boxShadow: "0 8px 32px rgba(45,190,96,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
+          {benOpen ? "×" : "🤖"}
+        </button>
+      </div>
 
     </div>
   );
