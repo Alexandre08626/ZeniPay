@@ -348,8 +348,25 @@ export default function AdminPage() {
     setBenLoading(false);
   };
 
-  // Marketing handler
+  // Marketing — resolve recipients for preview
+  const [marketingRecipients, setMarketingRecipients] = useState<{email:string;name:string}[]>([]);
+  const [showConfirmSend, setShowConfirmSend] = useState(false);
+
+  const resolveRecipients = (): {email:string;name:string}[] => {
+    if (marketingAudience === "sandbox") return CLIENTS.filter((c:any) => c.status === "sandbox" && c.email).map((c:any) => ({ email: c.email, name: c.businessName || c.business_name || "" }));
+    if (marketingAudience === "leads") return scrapedLeads.filter((l:any) => l.email && l.status === "new").map((l:any) => ({ email: l.email, name: l.business_name || "" }));
+    return CLIENTS.filter((c:any) => c.email).map((c:any) => ({ email: c.email, name: c.businessName || c.business_name || "" }));
+  };
+
+  const handlePreviewAndConfirm = () => {
+    const recs = resolveRecipients();
+    setMarketingRecipients(recs);
+    setShowConfirmSend(true);
+    setShowPreview(true);
+  };
+
   const handleSendCampaign = async () => {
+    setShowConfirmSend(false);
     setMarketingSending(true);
     setMarketingSent(0);
     try {
@@ -2033,26 +2050,56 @@ export default function AdminPage() {
                       <span style={{ fontSize: 12, color: "#64748b" }}>From: info@zeniva.ca</span>
                       <button onClick={() => setShowPreview(!showPreview)} style={{ background: showPreview ? "#7B4FBF" : "#f1f5f9", color: showPreview ? "white" : "#475569", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showPreview ? "Hide Preview" : "Preview"}</button>
                     </div>
-                    <button onClick={handleSendCampaign} disabled={marketingSending || !marketingSubject || !marketingBody} style={{ background: marketingSending ? "#94a3b8" : "linear-gradient(135deg, #E5247B, #7B4FBF)", color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontWeight: 700, cursor: "pointer" }}>{marketingSending ? `Sending... ${marketingSent}` : "Send Campaign"}</button>
+                    <button onClick={handlePreviewAndConfirm} disabled={marketingSending || !marketingSubject || !marketingBody} style={{ background: marketingSending ? "#94a3b8" : "linear-gradient(135deg, #E5247B, #7B4FBF)", color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontWeight: 700, cursor: "pointer" }}>{marketingSending ? `Sending... ${marketingSent}` : "👁 Review & Send"}</button>
                   </div>
                 </div>
               </div>
 
-              {/* Preview Panel */}
+              {/* Preview + Confirmation Panel */}
               {showPreview && marketingBody && (
-                <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h3 style={{ margin: 0, fontWeight: 700 }}>Email Preview</h3>
-                    <span style={{ fontSize: 12, color: "#94a3b8" }}>Subject: {marketingSubject || "(no subject)"}</span>
+                <div style={{ display: "grid", gridTemplateColumns: showConfirmSend ? "1fr 1fr" : "1fr", gap: 20 }}>
+                  {/* Email Preview */}
+                  <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                      <h3 style={{ margin: 0, fontWeight: 700 }}>📧 Email Preview</h3>
+                      <span style={{ fontSize: 12, color: "#94a3b8" }}>Subject: {marketingSubject || "(no subject)"}</span>
+                    </div>
+                    <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", background: "#f4f7fa" }}>
+                      <iframe
+                        srcDoc={marketingBody}
+                        style={{ width: "100%", height: 500, border: "none" }}
+                        title="Email Preview"
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
                   </div>
-                  <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", background: "#f4f7fa" }}>
-                    <iframe
-                      srcDoc={marketingBody}
-                      style={{ width: "100%", height: 600, border: "none" }}
-                      title="Email Preview"
-                      sandbox="allow-same-origin"
-                    />
-                  </div>
+
+                  {/* Recipients + Confirm */}
+                  {showConfirmSend && (
+                    <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column" }}>
+                      <h3 style={{ margin: "0 0 8px", fontWeight: 700 }}>👥 Recipients ({marketingRecipients.length})</h3>
+                      <p style={{ margin: "0 0 16px", fontSize: 12, color: "#64748b" }}>Audience: {marketingAudience} · From: info@zeniva.ca</p>
+                      <div style={{ flex: 1, overflowY: "auto", maxHeight: 380, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+                        {marketingRecipients.length === 0 ? (
+                          <p style={{ color: "#94a3b8", textAlign: "center", padding: "32px 0" }}>No recipients found for this audience</p>
+                        ) : marketingRecipients.map((r, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, #2DBE60, #15B8C9)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{(r.name || r.email)[0]?.toUpperCase() || "?"}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name || "—"}</div>
+                              <div style={{ fontSize: 11, color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.email}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", gap: 12 }}>
+                        <button onClick={() => setShowConfirmSend(false)} style={{ flex: 1, background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer", color: "#475569" }}>Cancel</button>
+                        <button onClick={handleSendCampaign} disabled={marketingSending || marketingRecipients.length === 0} style={{ flex: 1, background: marketingSending || marketingRecipients.length === 0 ? "#94a3b8" : "linear-gradient(135deg, #2DBE60, #15B8C9)", color: "white", border: "none", borderRadius: 10, padding: "12px", fontWeight: 700, cursor: "pointer" }}>
+                          {marketingSending ? `Sending... ${marketingSent}/${marketingRecipients.length}` : `✅ Confirm Send to ${marketingRecipients.length} recipients`}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
