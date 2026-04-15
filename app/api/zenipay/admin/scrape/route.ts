@@ -1,16 +1,11 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
+import { getSupabaseAdmin, pgrest } from "../../../../../modules/zenipay/services/supabase";
 
-// GET — load existing leads with full details
+// GET — load existing leads with full details (pgrest = no cache)
 export async function GET() {
   try {
-    const supabase = getSupabaseAdmin();
-    const { data } = await supabase
-      .from("zenipay_leads")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const data = await pgrest("zenipay_leads?order=created_at.desc&limit=200");
     return NextResponse.json({ leads: data || [] });
   } catch {
     return NextResponse.json({ leads: [] });
@@ -39,11 +34,7 @@ export async function POST(req: NextRequest) {
         created_at: new Date().toISOString(),
       };
       await supabase.from("zenipay_leads").insert([lead]);
-      const { data: allLeads } = await supabase
-        .from("zenipay_leads")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
+      const allLeads = await pgrest("zenipay_leads?order=created_at.desc&limit=200");
       return NextResponse.json({ ok: true, leads: allLeads || [], new_count: 1 });
     }
 
@@ -57,22 +48,14 @@ export async function POST(req: NextRequest) {
       if (body.website !== undefined) updates.website = body.website;
       if (body.sector !== undefined) updates.sector = body.sector;
       await supabase.from("zenipay_leads").update(updates).eq("id", body.id);
-      const { data: allLeads } = await supabase
-        .from("zenipay_leads")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
+      const allLeads = await pgrest("zenipay_leads?order=created_at.desc&limit=200");
       return NextResponse.json({ ok: true, leads: allLeads || [] });
     }
 
     // --- Delete Lead ---
     if (body.action === "delete_lead" && body.id) {
       await supabase.from("zenipay_leads").delete().eq("id", body.id);
-      const { data: allLeads } = await supabase
-        .from("zenipay_leads")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
+      const allLeads = await pgrest("zenipay_leads?order=created_at.desc&limit=200");
       return NextResponse.json({ ok: true, leads: allLeads || [] });
     }
 
@@ -176,11 +159,7 @@ export async function POST(req: NextRequest) {
       if (insertErr) console.error("[Scrape] Insert error:", insertErr.message);
     }
 
-    const { data: allLeads } = await supabase
-      .from("zenipay_leads")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const allLeads = await pgrest("zenipay_leads?order=created_at.desc&limit=200");
 
     return NextResponse.json({ ok: true, leads: allLeads || [], new_count: leads.length });
   } catch (err: any) {
