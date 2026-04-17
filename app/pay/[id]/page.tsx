@@ -12,7 +12,7 @@ const ZP_GRAD = "linear-gradient(135deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)"
 const ZP_DARK = "linear-gradient(150deg, #0d1633 0%, #1a2a5e 50%, #0f2040 100%)";
 
 const FINIX_APP_ID = process.env.NEXT_PUBLIC_FINIX_APPLICATION_ID || "APtwKWGqFSEfsecvWcphUgbR";
-const FINIX_ENV = process.env.NEXT_PUBLIC_FINIX_ENV === "production" ? "production" : "sandbox";
+const FINIX_ENV = process.env.NEXT_PUBLIC_FINIX_ENV === "production" ? "live" : "sandbox";
 
 function PayLinkContent() {
   const SANDBOX_MODE = false; // Live — Finix.js tokenization active
