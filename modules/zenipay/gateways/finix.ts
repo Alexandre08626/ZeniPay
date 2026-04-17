@@ -130,6 +130,7 @@ export async function createTransfer(params: {
   description?: string;
   tags?: Record<string, string>;
   idempotencyKey?: string;
+  fraudSessionId?: string;
 }) {
   const body = {
     merchant: params.merchantId,
@@ -142,6 +143,7 @@ export async function createTransfer(params: {
     three_d_secure_authentication: {
       three_d_secure_authentication_type: "OPTIONAL",
     },
+    ...(params.fraudSessionId ? { fraud_session_id: params.fraudSessionId } : {}),
     ...(params.description ? { statement_descriptor: params.description.slice(0, 20) } : {}),
   };
   const result = await finixRequest("POST", "/transfers", body);
@@ -203,6 +205,7 @@ export async function processFinixPaymentWithInstrument(params: {
   currency?: string;
   description?: string;
   paymentId: string;
+  fraudSessionId?: string;
 }) {
   const merchantId = process.env.FINIX_MERCHANT_ID || "";
   if (!merchantId) throw new Error("FINIX_MERCHANT_ID not configured");
@@ -237,6 +240,7 @@ export async function processFinixPaymentWithInstrument(params: {
     description: `ZeniPay ${params.paymentId}`,
     tags: { payment_id: params.paymentId, source: "zeniva_travel" },
     idempotencyKey: `transfer_${params.paymentId}`,
+    fraudSessionId: params.fraudSessionId,
   });
 
   return {
