@@ -56,7 +56,7 @@ function PayLinkContent() {
   // Load Finix.js and mount tokenized card fields (PCI-compliant iframes)
   useEffect(() => {
     const script = document.createElement("script");
-    script.src = "https://js.finix.com/v1/finix.js";
+    script.src = "https://js.finix.com/v/1/finix.js";
     script.async = true;
     script.onload = () => {
       if (!window.Finix) return;
