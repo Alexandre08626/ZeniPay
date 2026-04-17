@@ -60,25 +60,39 @@ function PayLinkContent() {
     script.async = true;
     script.onload = () => {
       if (!window.Finix) return;
-      const form = window.Finix.CardTokenForm(FINIX_APP_ID, { environment: FINIX_ENV });
-      const fieldStyles = { default: { fontSize: "15px", fontFamily: "system-ui, -apple-system, sans-serif", color: "#0D1B3A" } };
-      form.field("number", {
-        selector: "#cc-number",
-        placeholder: "4111 1111 1111 1111",
-        styles: fieldStyles,
-      });
-      form.field("expiration_date", {
-        selector: "#cc-expiration",
-        placeholder: "MM / YY",
-        styles: fieldStyles,
-      });
-      form.field("security_code", {
-        selector: "#cc-cvv",
-        placeholder: "CVV",
-        styles: fieldStyles,
+      const form = window.Finix.CardTokenForm("finix-form", {
+        applicationId: FINIX_APP_ID,
+        environment: FINIX_ENV,
+        showAddress: false,
+        hideFields: ["name"],
+        showLabels: true,
+        labels: {
+          number: "CARD NUMBER",
+          expiration_date: "EXPIRY",
+          security_code: "CVC",
+        },
+        placeholders: {
+          number: "4111 1111 1111 1111",
+          expiration_date: "MM / YY",
+          security_code: "CVV",
+        },
+        onLoad: () => setFinixReady(true),
+        styles: {
+          default: {
+            fontSize: "15px",
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            color: "#0D1B3A",
+            border: "1.5px solid #E2E8F0",
+            borderRadius: "10px",
+            padding: "12px 14px",
+            backgroundColor: "#F8FAFC",
+            boxSizing: "border-box",
+          },
+          focus: { border: "1.5px solid #15B8C9" },
+          error: { border: "1.5px solid #DC2626", color: "#DC2626" },
+        },
       });
       finixFormRef.current = form;
-      setFinixReady(true);
     };
     document.head.appendChild(script);
     return () => { script.remove(); };
@@ -258,12 +272,6 @@ function PayLinkContent() {
         <form onSubmit={handlePay} className="zp-checkout-form" style={{ background: "#fff", borderRadius: 20, padding: "28px 28px 24px", boxShadow: "0 8px 48px rgba(0,0,0,0.3)" }}>
           <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 20px", color: "#0D1B3A" }}>{t("checkout.cardDetails")}</h2>
 
-          {/* Card number (Finix.js secure iframe) */}
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.cardNumber")}</label>
-            <div id="cc-number" style={{ width: "100%", height: 44, borderRadius: 10, border: "1.5px solid #E2E8F0", background: "#F8FAFC", boxSizing: "border-box", overflow: "hidden" }} />
-          </div>
-
           {/* Name */}
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.cardholderName")}</label>
@@ -286,17 +294,9 @@ function PayLinkContent() {
             />
           </div>
 
-          {/* Expiry + CVC (Finix.js secure iframes) */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.expiry")}</label>
-              <div id="cc-expiration" style={{ width: "100%", height: 44, borderRadius: 10, border: "1.5px solid #E2E8F0", background: "#F8FAFC", boxSizing: "border-box", overflow: "hidden" }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>{t("checkout.cvc")}</label>
-              <div id="cc-cvv" style={{ width: "100%", height: 44, borderRadius: 10, border: "1.5px solid #E2E8F0", background: "#F8FAFC", boxSizing: "border-box", overflow: "hidden" }} />
-            </div>
-          </div>
+          {/* Finix.js secure iframes (card number, expiry, CVC) */}
+          <div id="finix-form" style={{ marginBottom: 16 }} />
+          {!finixReady && <div style={{ padding: "10px 14px", color: "#64748B", fontSize: 13, marginBottom: 14 }}>{t("checkout.processing")}…</div>}
 
           {error && <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(220,38,38,0.08)", color: "#DC2626", fontSize: 13, marginBottom: 14, fontWeight: 600 }}>{error}</div>}
 
