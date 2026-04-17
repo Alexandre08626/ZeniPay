@@ -13,6 +13,7 @@ const ZP_DARK = "linear-gradient(150deg, #0d1633 0%, #1a2a5e 50%, #0f2040 100%)"
 
 const FINIX_APP_ID = process.env.NEXT_PUBLIC_FINIX_APPLICATION_ID || "APtwKWGqFSEfsecvWcphUgbR";
 const FINIX_ENV = process.env.NEXT_PUBLIC_FINIX_ENV === "production" ? "live" : "sandbox";
+const FINIX_MERCHANT_ID = process.env.NEXT_PUBLIC_FINIX_MERCHANT_ID || "MUcTenaz57m9JrwwRZwpSfDc";
 
 function PayLinkContent() {
   const SANDBOX_MODE = false; // Live — Finix.js tokenization active
@@ -34,6 +35,7 @@ function PayLinkContent() {
   const [success, setSuccess] = useState(false);
   const [error,   setError]   = useState("");
   const [finixReady, setFinixReady] = useState(false);
+  const [fraudSessionId, setFraudSessionId] = useState<string>("");
   const [paymentResult, setPaymentResult] = useState<{ paymentId?: string; transferId?: string; card?: { brand?: string; last4?: string }; state?: string } | null>(null);
   const [linkMerchantId, setLinkMerchantId] = useState<string | null>(null);
   const [particles, setParticles] = useState<{ x: number; y: number; c: string; r: number; vx: number; vy: number; a: number }[]>([]);
@@ -93,6 +95,15 @@ function PayLinkContent() {
         },
       });
       finixFormRef.current = form;
+
+      // Finix fraud-detection session (required for cert Step 3 on every transfer).
+      try {
+        window.Finix.Auth(FINIX_ENV, FINIX_MERCHANT_ID, (sessionKey: string) => {
+          if (sessionKey) setFraudSessionId(sessionKey);
+        });
+      } catch (e) {
+        console.error("Finix.Auth init failed:", e);
+      }
     };
     document.head.appendChild(script);
     return () => { script.remove(); };
@@ -170,6 +181,7 @@ function PayLinkContent() {
               customer_email: email,
               instrument_id: instrumentId,
               merchant_id: linkMerchantId || undefined,
+              fraud_session_id: fraudSessionId || undefined,
             }),
           });
 

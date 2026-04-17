@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     const {
       pay_link_id, amount, currency = "USD", description,
       customer_name, customer_email, instrument_id,
+      fraud_session_id,
       // Legacy fields (deprecated — will be removed once all clients use Finix.js)
       cardNumber, expiryMonth, expiryYear, cvc, postalCode,
       merchant_id: bodyMerchantId,
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
           currency,
           description: description || `Payment ${paymentId}`,
           paymentId,
+          fraudSessionId: fraud_session_id,
         });
       } else {
         // Legacy server-side tokenization (deprecated — migrate to Finix.js)
