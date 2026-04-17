@@ -218,6 +218,7 @@ export async function processFinixPaymentWithInstrument(params: {
     const identityId = process.env.FINIX_MERCHANT_IDENTITY_ID || "";
     if (!identityId) throw new Error("FINIX_MERCHANT_IDENTITY_ID not configured");
     const inst = await finixRequest("POST", "/payment_instruments", {
+      type: "TOKEN",
       token: sourceId,
       identity: identityId,
     });
