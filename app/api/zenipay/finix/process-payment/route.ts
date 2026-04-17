@@ -63,9 +63,17 @@ export async function POST(req: NextRequest) {
         });
       }
     } catch (err: unknown) {
-      console.error("[Finix] Payment processing failed");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[Finix] Payment processing failed:", msg, {
+        paymentId,
+        instrumentPrefix: instrument_id ? String(instrument_id).slice(0, 6) : null,
+        env: process.env.FINIX_ENV || "sandbox",
+        hasMerchantId: !!process.env.FINIX_MERCHANT_ID,
+        hasApiUser: !!process.env.FINIX_API_USERNAME,
+        hasApiPass: !!process.env.FINIX_API_PASSWORD,
+      });
       return NextResponse.json(
-        { error: "Payment processing failed", paymentId },
+        { error: "Payment processing failed", message: msg, paymentId },
         { status: 402 }
       );
     }
