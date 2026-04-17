@@ -207,11 +207,30 @@ export async function processFinixPaymentWithInstrument(params: {
   const merchantId = process.env.FINIX_MERCHANT_ID || "";
   if (!merchantId) throw new Error("FINIX_MERCHANT_ID not configured");
 
+  let sourceId = params.instrumentId;
+  let brand = "";
+  let last4 = "";
+
+  // Finix.js tokenization returns a token (TK...) — must be exchanged for a
+  // payment_instrument (PI...) before use as a transfer source. Tokens expire
+  // 30 minutes after creation.
+  if (sourceId.startsWith("TK")) {
+    const identityId = process.env.FINIX_MERCHANT_IDENTITY_ID || "";
+    if (!identityId) throw new Error("FINIX_MERCHANT_IDENTITY_ID not configured");
+    const inst = await finixRequest("POST", "/payment_instruments", {
+      token: sourceId,
+      identity: identityId,
+    });
+    sourceId = inst.id as string;
+    brand = inst.brand || "";
+    last4 = inst.last_four || "";
+  }
+
   const amountCents = Math.round(params.amount * 100);
 
   const transfer = await createTransfer({
     merchantId,
-    instrumentId: params.instrumentId,
+    instrumentId: sourceId,
     amountCents,
     currency: params.currency || "USD",
     description: `ZeniPay ${params.paymentId}`,
@@ -222,9 +241,9 @@ export async function processFinixPaymentWithInstrument(params: {
   return {
     success: transfer.state === "SUCCEEDED" || transfer.state === "PENDING",
     transferId: transfer.transferId || "",
-    instrumentId: params.instrumentId,
-    brand: "",  // Not available from instrument-only flow
-    last4: "",  // Not available from instrument-only flow
+    instrumentId: sourceId,
+    brand,
+    last4,
     state: transfer.state,
     amountCents: transfer.amount,
     threeDSRedirectUrl: transfer.threeDSRedirectUrl || null,
