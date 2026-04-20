@@ -19,7 +19,7 @@ function getTransporter(): nodemailer.Transporter {
   return _transporter;
 }
 
-const FROM_EMAIL = process.env.SMTP_USER || "zenipay@zeniva.ca";
+const FROM_EMAIL = process.env.SMTP_FROM || "zenipay@zeniva.ca";
 
 export type SendEmailOptions = {
   to: string | string[];
