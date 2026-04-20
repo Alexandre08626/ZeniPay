@@ -351,7 +351,10 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
     setWebhookEvents((prev) => [...events, ...prev]);
   }, [merchantId]);
 
-  // ── Process payment ────────────────────────────────
+  // ── Process payment (local simulation only) ──────────
+  // The merchant-facing sandbox panel simulates payment outcomes purely
+  // client-side. Real Finix tokenization and transfers happen on actual
+  // pay links via Finix.js. This panel never touches card data.
   const processPayment = async () => {
     const card = TEST_CARDS[selectedCard];
     const parsedAmount = parseFloat(amount);
@@ -365,102 +368,38 @@ export default function SandboxPanel({ merchantId, sandboxKey }: SandboxPanelPro
     const willSucceed = card.result === "Approved";
     const paymentId = uid();
 
-    // Step 1: Tokenize test card via sandbox test-certification endpoint
-    // Step 2: Process payment with the tokenized instrument_id
-    try {
-      const cardKey = card.result === "Approved"
-        ? (card.brand === "Mastercard" ? "success_mc" : "success")
-        : card.result === "Declined" ? "decline" : "insufficient";
+    await new Promise((r) => setTimeout(r, 400));
 
-      const tokenRes = await fetch("/api/finix/test-certification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ card: cardKey }),
-      });
-      const tokenData = await tokenRes.json().catch(() => ({}));
-      if (!tokenRes.ok || !tokenData.instrument_id) {
-        throw new Error(tokenData.error || "Failed to tokenize test card");
-      }
+    const payment: TestPayment = {
+      id: paymentId,
+      amount: parsedAmount,
+      card,
+      customerName: custName,
+      customerEmail: custEmail,
+      description,
+      status: willSucceed ? "succeeded" : "failed",
+      reason: !willSucceed
+        ? card.result === "Declined"
+          ? "card_declined"
+          : "insufficient_funds"
+        : undefined,
+      createdAt: ts(),
+    };
 
-      const res = await fetch("/api/zenipay/finix/process-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: parsedAmount,
-          currency: "cad",
-          instrument_id: tokenData.instrument_id,
-          customer_name: custName,
-          customer_email: custEmail,
-          description,
-          pay_link_id: `sandbox_${merchantId}`,
-          merchant_id: merchantId,
-        }),
-      });
+    setPayments((prev) => [payment, ...prev].slice(0, 10));
+    pushEvents(payment);
 
-      const data = await res.json().catch(() => ({}));
+    if (willSucceed) markChecklist("success");
+    else markChecklist("decline");
+    markChecklist("view_tx");
 
-      const payment: TestPayment = {
-        id: data.transaction_id || paymentId,
-        amount: parsedAmount,
-        card,
-        customerName: custName,
-        customerEmail: custEmail,
-        description,
-        status: willSucceed ? "succeeded" : "failed",
-        reason: !willSucceed
-          ? card.result === "Declined"
-            ? "card_declined"
-            : "insufficient_funds"
-          : undefined,
-        createdAt: ts(),
-      };
+    setToast(
+      willSucceed
+        ? `Payment ${payment.id} succeeded (simulated)`
+        : `Payment ${payment.id} was declined (simulated)`
+    );
 
-      setPayments((prev) => [payment, ...prev].slice(0, 10));
-      pushEvents(payment);
-
-      // Auto-check checklist items
-      if (willSucceed) markChecklist("success");
-      else markChecklist("decline");
-      markChecklist("view_tx");
-
-      setToast(
-        willSucceed
-          ? `Payment ${payment.id} succeeded`
-          : `Payment ${payment.id} was declined`
-      );
-    } catch {
-      // If API is unavailable, simulate locally
-      const payment: TestPayment = {
-        id: paymentId,
-        amount: parsedAmount,
-        card,
-        customerName: custName,
-        customerEmail: custEmail,
-        description,
-        status: willSucceed ? "succeeded" : "failed",
-        reason: !willSucceed
-          ? card.result === "Declined"
-            ? "card_declined"
-            : "insufficient_funds"
-          : undefined,
-        createdAt: ts(),
-      };
-
-      setPayments((prev) => [payment, ...prev].slice(0, 10));
-      pushEvents(payment);
-
-      if (willSucceed) markChecklist("success");
-      else markChecklist("decline");
-      markChecklist("view_tx");
-
-      setToast(
-        willSucceed
-          ? `Payment ${payment.id} succeeded (simulated)`
-          : `Payment ${payment.id} was declined (simulated)`
-      );
-    } finally {
-      setProcessing(false);
-    }
+    setProcessing(false);
   };
 
   // ── Toggle webhook event expand ────────────────────

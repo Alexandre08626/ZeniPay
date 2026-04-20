@@ -118,6 +118,10 @@ ngrok http 3000
 ## 5. API Endpoints Reference
 
 ### Process Payment (Finix)
+
+**PCI note:** card data is tokenized client-side by Finix.js. The server accepts
+only the resulting `instrument_id` — it must NEVER receive raw PAN/expiry/CVV.
+
 ```http
 POST /api/zenipay/finix/process-payment
 Content-Type: application/json
@@ -128,11 +132,10 @@ Content-Type: application/json
   "currency": "USD",
   "description": "Test payment",
   "customer_name": "John Doe",
-  "cardNumber": "4111111111111111",
-  "expiryMonth": "12",
-  "expiryYear": "25",
-  "cvc": "123",
-  "postalCode": "90210"
+  "customer_email": "jane@example.com",
+  "instrument_id": "TKxxxxxxxxxxxxxx",
+  "fraud_session_id": "fs_xxxxxxxx",
+  "merchant_id": "mer_xxxxxxxx"
 }
 ```
 

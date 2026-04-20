@@ -13,10 +13,10 @@
  *
  * PAYMENT PROCESSING:
  * ------------------
- * POST /payment_instruments
- *   → Tokenize card details and create payment instrument
- *   → Required: type, number, expiration_month, expiration_year, security_code, name, address, identity
- *   → Returns: instrument ID, brand, last_four
+ * POST /payment_instruments  (token exchange ONLY — no raw card data)
+ *   → Exchanges a Finix.js token (TK...) for a persistent payment_instrument (PI...)
+ *   → Required: type="TOKEN", token, identity
+ *   → Card data is tokenized CLIENT-SIDE by Finix.js; the server never sees it.
  *
  * POST /transfers
  *   → Create a payment transfer (charge a card)
@@ -92,34 +92,6 @@ async function finixRequest(method: string, path: string, body?: object) {
 }
 
 /**
- * Create a Payment Instrument from tokenized card data
- * In sandbox: pass card data directly (server-side tokenization allowed)
- * In production: use Finix.js on client → get instrument ID → pass here
- */
-export async function createPaymentInstrument(params: {
-  cardNumber: string;
-  expiryMonth: string;
-  expiryYear: string;
-  cvc: string;
-  cardholderName: string;
-  postalCode?: string;
-  identityId?: string;
-}) {
-  const body = {
-    type: "PAYMENT_CARD",
-    number: params.cardNumber.replace(/\s/g, ""),
-    expiration_month: parseInt(params.expiryMonth),
-    expiration_year: params.expiryYear.length === 4 ? parseInt(params.expiryYear) : parseInt(`20${params.expiryYear}`),
-    security_code: params.cvc,
-    name: params.cardholderName,
-    address: { postal_code: params.postalCode || "00000" },
-    identity: params.identityId || process.env.FINIX_MERCHANT_IDENTITY_ID || "",
-  };
-  const result = await finixRequest("POST", "/payment_instruments", body);
-  return { instrumentId: result.id as string, brand: result.brand, last4: result.last_four };
-}
-
-/**
  * Create a Transfer (charge card)
  */
 export async function createTransfer(params: {
@@ -173,26 +145,6 @@ export async function getTransfer(transferId: string) {
 export async function createReversal(transferId: string, amountCents?: number) {
   const body = amountCents ? { amount: amountCents } : {};
   return finixRequest("POST", `/transfers/${transferId}/reversals`, body);
-}
-
-/**
- * Validate card details before sending to Finix
- */
-function validateCard(params: { cardNumber: string; expiryMonth: string; expiryYear: string; cvc: string; cardholderName: string }) {
-  const num = params.cardNumber.replace(/\s/g, "");
-  // Luhn check
-  let sum = 0, alt = false;
-  for (let i = num.length - 1; i >= 0; i--) {
-    let n = parseInt(num[i], 10);
-    if (alt) { n *= 2; if (n > 9) n -= 9; }
-    sum += n;
-    alt = !alt;
-  }
-  if (sum % 10 !== 0) throw new Error("Invalid card number");
-  if (!/^\d{3,4}$/.test(params.cvc)) throw new Error("Invalid CVC");
-  const month = parseInt(params.expiryMonth);
-  if (month < 1 || month > 12) throw new Error("Invalid expiry month");
-  if (!params.cardholderName || params.cardholderName.trim().length < 2) throw new Error("Cardholder name required");
 }
 
 /**
@@ -255,57 +207,3 @@ export async function processFinixPaymentWithInstrument(params: {
   };
 }
 
-/**
- * Main ZeniPay process function (legacy — server-side card tokenization)
- * @deprecated Use processFinixPaymentWithInstrument with Finix.js tokenization instead
- */
-export async function processFinixPayment(params: {
-  cardNumber: string;
-  expiryMonth: string;
-  expiryYear: string;
-  cvc: string;
-  cardholderName: string;
-  postalCode?: string;
-  amount: number; // in dollars
-  currency?: string;
-  description?: string;
-  paymentId: string;
-}) {
-  // Validate card before processing
-  validateCard(params);
-
-  const merchantId = process.env.FINIX_MERCHANT_ID || "";
-  if (!merchantId) throw new Error("FINIX_MERCHANT_ID not configured");
-
-  // Step 1: Tokenize card
-  const { instrumentId, brand, last4 } = await createPaymentInstrument({
-    cardNumber: params.cardNumber,
-    expiryMonth: params.expiryMonth,
-    expiryYear: params.expiryYear,
-    cvc: params.cvc,
-    cardholderName: params.cardholderName,
-    postalCode: params.postalCode,
-  });
-
-  // Step 2: Charge
-  const amountCents = Math.round(params.amount * 100);
-  const transfer = await createTransfer({
-    merchantId,
-    instrumentId,
-    amountCents,
-    currency: params.currency || "USD",
-    description: `ZeniPay ${params.paymentId}`,
-    tags: { payment_id: params.paymentId, source: "zeniva_travel" },
-  });
-
-  return {
-    success: transfer.state === "SUCCEEDED" || transfer.state === "PENDING",
-    transferId: transfer.transferId || "",
-    instrumentId,
-    brand,
-    last4,
-    state: transfer.state,
-    amountCents: transfer.amount,
-    threeDSRedirectUrl: transfer.threeDSRedirectUrl || null,
-  };
-}
