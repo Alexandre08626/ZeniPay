@@ -22,11 +22,16 @@ function PayLinkContent() {
   const params   = useSearchParams();
   const { id }   = useParams<{ id: string }>();
 
-  // Support both long-form params (from create-link) and short-form (legacy)
-  const amount   = Number(params.get("amount") || params.get("a") || "0");
-  const currency = (params.get("currency") || params.get("c") || "CAD").toUpperCase();
-  const desc     = params.get("desc") || params.get("d") || "";
-  const merchant = params.get("m") || "Merchant";
+  // URL params seed the initial state; the DB values from /link-info take over
+  // once fetched so stale/tampered URLs can't override the link's real currency.
+  const urlAmount   = Number(params.get("amount") || params.get("a") || "0");
+  const urlCurrency = (params.get("currency") || params.get("c") || "CAD").toUpperCase();
+  const urlDesc     = params.get("desc") || params.get("d") || "";
+  const merchant    = params.get("m") || "Merchant";
+
+  const [amount, setAmount]     = useState<number>(urlAmount);
+  const [currency, setCurrency] = useState<string>(urlCurrency);
+  const [desc, setDesc]         = useState<string>(urlDesc);
 
   const [name,    setName]    = useState("");
   const [email,   setEmail]   = useState("");
@@ -43,12 +48,18 @@ function PayLinkContent() {
   const rafRef    = useRef<number>(0);
   const finixFormRef = useRef<any>(null);
 
-  // Fetch merchant_id from pay link
+  // Fetch the link's authoritative values from the DB. We override URL params
+  // so a stale shared URL (e.g. old currency=USD) can't force the wrong currency.
   useEffect(() => {
     if (!id) return;
     fetch(`/api/zenipay/link-info?id=${encodeURIComponent(id)}`)
       .then(r => r.json())
-      .then(d => { if (d.merchant_id) setLinkMerchantId(d.merchant_id); })
+      .then(d => {
+        if (d.merchant_id) setLinkMerchantId(d.merchant_id);
+        if (d.currency) setCurrency(String(d.currency).toUpperCase());
+        if (d.amount != null) setAmount(Number(d.amount));
+        if (d.description) setDesc(String(d.description));
+      })
       .catch(() => {});
   }, [id]);
 
