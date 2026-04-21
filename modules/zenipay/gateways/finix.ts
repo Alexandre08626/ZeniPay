@@ -107,7 +107,7 @@ export async function createTransfer(params: {
   const body = {
     merchant: params.merchantId,
     amount: params.amountCents,
-    currency: params.currency || "USD",
+    currency: params.currency || "CAD",
     source: params.instrumentId,
     operation_key: "SALE",
     idempotency_id: params.idempotencyKey || "txn_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
@@ -188,7 +188,7 @@ export async function processFinixPaymentWithInstrument(params: {
     merchantId,
     instrumentId: sourceId,
     amountCents,
-    currency: params.currency || "USD",
+    currency: params.currency || "CAD",
     description: `ZeniPay ${params.paymentId}`,
     tags: { payment_id: params.paymentId, source: "zeniva_travel" },
     idempotencyKey: `transfer_${params.paymentId}`,

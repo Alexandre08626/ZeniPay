@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      pay_link_id, amount, currency = "USD", description,
+      pay_link_id, amount, currency = "CAD", description,
       customer_name, customer_email, instrument_id,
       fraud_session_id,
       merchant_id: bodyMerchantId,

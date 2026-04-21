@@ -10,7 +10,7 @@ const ZP_BLUE   = "#2A8FE0";
 const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD   = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
 
-const fmt     = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+const fmt     = (n: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 const fmtDate = (s: string) => { try { const d = new Date(s); return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }); } catch { return "—"; } };
 const fmtDateTime = (s: string) => { try { const d = new Date(s); return isNaN(d.getTime()) ? "—" : d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return "—"; } };
 

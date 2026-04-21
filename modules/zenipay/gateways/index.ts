@@ -45,7 +45,7 @@ export async function processPayment(params: {
     const result = await processFinixPaymentWithInstrument({
       instrumentId: params.instrumentId,
       amount: params.amount,
-      currency: params.currency || "USD",
+      currency: params.currency || "CAD",
       description: params.description || `ZeniPay ${params.paymentId}`,
       paymentId: params.paymentId,
     });

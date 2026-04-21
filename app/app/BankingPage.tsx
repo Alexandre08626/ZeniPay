@@ -7,7 +7,7 @@ const GREEN = "#2DBE60";
 const PURPLE = "#7B4FBF";
 const GOLD = "#F5A623";
 const fmt = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+  new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 
 type Account = { id: string; merchant_id: string; account_type: string; account_name: string; account_number: string; routing_number: string; balance: number; status: string; is_primary: boolean; currency?: string; goal_amount?: number; goal_deadline?: string; created_at?: string; updated_at?: string };
 type Transfer = { id: string; transfer_type: string; recipient_name: string; amount: number; fee: number; status: string; memo: string; created_at: string };
@@ -260,7 +260,7 @@ export default function BankingPage(props: BankingProps) {
       const name = form.account_name || form.account_type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
       await post("create_account", { account_type: form.account_type, account_name: name, ...(form.account_type === "multi_currency" ? { currency: form.currency } : {}), ...(form.account_type === "goal" ? { goal_amount: Number(form.goal_amount), goal_deadline: form.goal_deadline } : {}) });
       setShowForm(false);
-      setForm({ account_type: "business_checking", account_name: "", currency: "USD", goal_amount: "", goal_deadline: "" });
+      setForm({ account_type: "business_checking", account_name: "", currency: "CAD", goal_amount: "", goal_deadline: "" });
     };
     return (
       <div style={{ animation: "slideUp 0.3s ease forwards" }}>
@@ -781,7 +781,7 @@ export default function BankingPage(props: BankingProps) {
                         { l: "Routing Number", v: linkedAcct.routing_number || "812345678" },
                         { l: "Account Type", v: linkedAcct.account_type.replace(/_/g, " ").replace(/\b\w/g, (ch: string) => ch.toUpperCase()) },
                         { l: "Balance", v: fmt(Number(linkedAcct.balance) || 0) },
-                        { l: "Currency", v: linkedAcct.currency || "USD" },
+                        { l: "Currency", v: linkedAcct.currency || "CAD" },
                       ].map(r => (
                         <div key={r.l} style={{ padding: "10px 14px", background: "#FAFBFC", borderRadius: 10 }}>
                           <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{r.l}</div>
@@ -871,7 +871,7 @@ export default function BankingPage(props: BankingProps) {
                   <button onClick={() => setSelectedAccount(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 10, width: 36, height: 36, color: "white", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                 </div>
                 <p style={{ margin: "20px 0 0", fontWeight: 900, fontSize: 42, letterSpacing: "-2px" }}>{fmt(Number(a.balance) || 0)}</p>
-                <p style={{ margin: "4px 0 0", fontSize: 12, opacity: 0.6 }}>Available Balance · {a.currency || "USD"}</p>
+                <p style={{ margin: "4px 0 0", fontSize: 12, opacity: 0.6 }}>Available Balance · {a.currency || "CAD"}</p>
               </div>
 
               <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -883,7 +883,7 @@ export default function BankingPage(props: BankingProps) {
                       { l: "Account Number", v: a.account_number || "—" },
                       { l: "Routing Number", v: a.routing_number || "812345678" },
                       { l: "Account Type", v: a.account_type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) },
-                      { l: "Currency", v: a.currency || "USD" },
+                      { l: "Currency", v: a.currency || "CAD" },
                       { l: "Status", v: a.status.charAt(0).toUpperCase() + a.status.slice(1) },
                       { l: "Primary Account", v: a.is_primary ? "Yes" : "No" },
                       { l: "Interest Rate", v: a.account_type.includes("savings") ? "0.5% APY" : "N/A" },

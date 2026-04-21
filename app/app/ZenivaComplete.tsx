@@ -35,10 +35,10 @@ const CARD_GRAD = "linear-gradient(135deg, #E5247B 0%, #F5A623 40%, #7B4FBF 100%
 
 // ── Default wallets — overwritten by live API on mount ────────────────
 const DEFAULT_WALLETS = {
-  platform:   { available: 0, pending: 0, paid: 0, currency: "USD" },
-  agent:      { available: 0, pending: 0, paid: 0, currency: "USD" },
-  influencer: { available: 0, pending: 0, paid: 0, currency: "USD" },
-  supplier:   { available: 0, pending: 0, paid: 0, currency: "USD" },
+  platform:   { available: 0, pending: 0, paid: 0, currency: "CAD" },
+  agent:      { available: 0, pending: 0, paid: 0, currency: "CAD" },
+  influencer: { available: 0, pending: 0, paid: 0, currency: "CAD" },
+  supplier:   { available: 0, pending: 0, paid: 0, currency: "CAD" },
 };
 // WALLETS and TRANSACTIONS are now component state — fetched from /api/zenipay/stats
 
@@ -53,7 +53,7 @@ const ZENIVA_PAYOUTS: { id?: string; recipient: string; type: string; amount: nu
 const fmt = (n: number, compact?: boolean) =>
   compact
     ? n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `$${(n / 1000).toFixed(0)}k` : `$${n}`
-    : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+    : new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 
 // ── BANK CARDS — Logo Watermark Design ──────────────────────────────
 function BankCard({
@@ -281,8 +281,8 @@ function WalletCard({ name, data, icon, color, onOpen }: { name: string; data: {
 // ── Invoice Detail Modal ────────────────────────────────────────────────────
 function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string; merchant_name?: string; merchant_email?: string }; onClose: () => void }) {
   const invNum = invoice.invoice_number || invoice.id;
-  const cur = invoice.currency || "USD";
-  const fmtC = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(n);
+  const cur = invoice.currency || "CAD";
+  const fmtC = (n: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: cur }).format(n);
   const subtotal = invoice.subtotal ?? invoice.total;
   const tax = invoice.tax ?? 0;
   const merchantDisplayName = invoice.merchant_name || "ZeniPay Merchant";
@@ -807,7 +807,7 @@ function PayoutsPanel({ agents, platformBalance, merchantId, mode }: { agents: A
           recipient_name: selectedAgent!.name,
           recipient_id: selectedAgent?.id,
           amount: Number(amount),
-          currency: "USD",
+          currency: "CAD",
           method: method === "instant" ? "instant" : "ach",
           from_wallet: "platform",
           note: note || "Payout",
@@ -1786,7 +1786,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
       const amt = parseFloat(invForm.amount) || 0;
       const taxAmt = parseFloat(invForm.tax) || 0;
       const total = amt + taxAmt;
-      const invoiceData = { id: invId, invoice_number: invId, merchant_id: MID, customer_name: invForm.customer_name, customer_email: invForm.customer_email, items: JSON.stringify([{ description: invForm.description || "Service", qty: 1, unit_price: amt, total: amt }]), subtotal: amt, tax: taxAmt, total, currency: "USD", status: invForm.status, notes: invForm.notes, merchant_name: BNAME, merchant_email: BEMAIL, created_at: now, updated_at: now };
+      const invoiceData = { id: invId, invoice_number: invId, merchant_id: MID, customer_name: invForm.customer_name, customer_email: invForm.customer_email, items: JSON.stringify([{ description: invForm.description || "Service", qty: 1, unit_price: amt, total: amt }]), subtotal: amt, tax: taxAmt, total, currency: "CAD", status: invForm.status, notes: invForm.notes, merchant_name: BNAME, merchant_email: BEMAIL, created_at: now, updated_at: now };
       const r = await fetch("/api/zenipay/merchant-data?merchant_id=" + encodeURIComponent(MID), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ _direct_invoice: invoiceData }) });
       if (r.ok) {
         setShowNewInv(false);
@@ -1838,7 +1838,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
             customer: String(t.customer || ""),
             booking: String(t.description || t.id || ""),
             amount: Number(t.amount || 0),
-            currency: String(t.currency || "USD"),
+            currency: String(t.currency || "CAD"),
             method: "card",
             gateway: "Finix",
             status: String(t.status || "pending"),
@@ -1919,7 +1919,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     return {
       id: i + 1,
       type: t.status === "succeeded" ? "success" : t.status === "failed" ? "alert" : "success",
-      text: `${t.status === "succeeded" ? "✅" : t.status === "failed" ? "❌" : "⏳"} ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(t.amount)} — ${t.customer || t.booking || t.id}`,
+      text: `${t.status === "succeeded" ? "✅" : t.status === "failed" ? "❌" : "⏳"} ${new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format(t.amount)} — ${t.customer || t.booking || t.id}`,
       time: timeStr,
     };
   });
@@ -3265,7 +3265,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                   }}>
                     <span style={{ fontSize: 13, fontWeight: (row.type.startsWith("total") || row.type === "net") ? 800 : 500, color: "#374151" }}>{row.label}</span>
                     <span style={{ fontWeight: 800, fontSize: 13, color: row.amount > 0 ? GREEN : row.amount < 0 ? RED : BLUE }}>
-                      {row.amount > 0 ? "+" : ""}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(row.amount)}
+                      {row.amount > 0 ? "+" : ""}{new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(row.amount)}
                     </span>
                   </div>
                 ))}

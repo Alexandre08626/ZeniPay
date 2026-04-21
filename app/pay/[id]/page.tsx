@@ -24,7 +24,7 @@ function PayLinkContent() {
 
   // Support both long-form params (from create-link) and short-form (legacy)
   const amount   = Number(params.get("amount") || params.get("a") || "0");
-  const currency = (params.get("currency") || params.get("c") || "USD").toUpperCase();
+  const currency = (params.get("currency") || params.get("c") || "CAD").toUpperCase();
   const desc     = params.get("desc") || params.get("d") || "";
   const merchant = params.get("m") || "Merchant";
 

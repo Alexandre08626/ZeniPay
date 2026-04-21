@@ -59,7 +59,7 @@ export async function createTransfer(params: {
   const body: FinixTransferRequest = {
     merchant: FINIX_CONFIG.merchantId,
     amount: params.amountCents,
-    currency: params.currency || "USD",
+    currency: params.currency || "CAD",
     source: params.instrumentId,
     operation_key: "SALE",
     fraud_session_id: params.fraudSessionId,

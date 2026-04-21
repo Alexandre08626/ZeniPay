@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     // ─── 4. Build recent_transactions ───────────────────────────────────
     const recentTransactions = tablePays.slice(0, 50).map(p => ({
       id: p.id, customer: p.customer_name || "—", amount: Number(p.amount),
-      currency: p.currency || "USD", status: p.status,
+      currency: p.currency || "CAD", status: p.status,
       description: p.description || "", date: p.created_at,
       gateway: "ZeniPay", card_brand: p.card_brand || "", card_last4: p.card_last4 || "",
     }));
