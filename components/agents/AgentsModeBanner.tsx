@@ -1,25 +1,33 @@
-// Opt-in entry-point banner for ZeniPay Agents (the "other mode").
+// Opt-in entry-point banner for ZeniPay Agents.
 //
-// Gated by NEXT_PUBLIC_AGENTS_ENABLED (default: disabled). Renders nothing
-// when the flag is false, when the user dismisses it, or when it's
-// server-rendered (we need window for localStorage + for the distinct
-// styling not to flash). Dismissal persists per merchant in localStorage.
+// Matches the existing ZeniPay merchant dashboard aesthetic: white card,
+// ZeniPay brand gradient (green → cyan → purple), light/fintech feel.
 //
-// This component is designed to be dropped into the existing merchant
-// dashboard without modifying any existing UI logic — it just mounts and
-// gets out of the way.
+// Gated by NEXT_PUBLIC_AGENTS_ENABLED. Dismissal persists per merchant in
+// localStorage. Renders null when disabled or dismissed — never disrupts the
+// existing merchant UI.
 
 "use client";
 
 import React, { useEffect, useState } from "react";
 
 const DISMISS_KEY = "zp_agents_banner_dismissed_v1";
-const LIME = "#a3ff91";
+
+// ZeniPay palette (matches app/app/ZenivaComplete.tsx)
+const ZP_GREEN = "#2DBE60";
+const ZP_CYAN = "#15B8C9";
+const ZP_PURPLE = "#7B4FBF";
+const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
+
+const CARD_BG = "#ffffff";
+const BORDER = "#e2e8f0";
+const TEXT = "#0f172a";
+const MUTED = "#64748b";
 
 export interface AgentsModeBannerProps {
-  /** If provided, used as the localStorage namespace so dismissal is per-org. */
+  /** Per-merchant namespace for dismissal. */
   merchantId?: string;
-  /** Where the CTA sends the user. Default: /agents */
+  /** CTA destination. Default: /agents */
   href?: string;
 }
 
@@ -35,7 +43,7 @@ export function AgentsModeBanner({ merchantId, href = "/agents" }: AgentsModeBan
     try {
       setDismissed(localStorage.getItem(storageKey) === "1");
     } catch {
-      // ignore SSR / disabled localStorage
+      /* ignore */
     }
   }, [storageKey]);
 
@@ -55,68 +63,92 @@ export function AgentsModeBanner({ merchantId, href = "/agents" }: AgentsModeBan
       role="region"
       aria-label="ZeniPay Agents — new mode available"
       style={{
-        margin: "16px 0",
-        padding: "14px 18px",
-        borderRadius: 14,
-        background: "linear-gradient(135deg, #0A0F1E 0%, #08110b 100%)",
-        border: `1px solid ${LIME}33`,
+        margin: "0 0 20px",
+        padding: "16px 20px",
+        borderRadius: 16,
+        background: CARD_BG,
+        border: `1px solid ${BORDER}`,
+        boxShadow: "0 1px 4px rgba(15,23,42,0.04)",
         display: "flex",
         alignItems: "center",
-        gap: 14,
+        gap: 16,
         flexWrap: "wrap",
-        boxShadow: `0 0 0 1px ${LIME}10 inset`,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
+      {/* Left accent bar in ZeniPay gradient */}
       <span
         aria-hidden
         style={{
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          background: `${LIME}1a`,
-          color: LIME,
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 4,
+          background: ZP_GRAD,
+        }}
+      />
+
+      {/* Icon tile */}
+      <span
+        aria-hidden
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          background: ZP_GRAD,
+          color: "#ffffff",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+          fontSize: 20,
           fontWeight: 800,
-          fontSize: 14,
           flexShrink: 0,
+          boxShadow: "0 2px 10px rgba(45,190,96,0.25)",
         }}
       >
-        ◆
+        🤖
       </span>
+
       <div style={{ flex: 1, minWidth: 220 }}>
         <p
           style={{
             margin: 0,
             fontSize: 10,
             letterSpacing: "0.12em",
-            color: LIME,
-            fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+            textTransform: "uppercase",
+            fontWeight: 800,
+            background: ZP_GRAD,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
           }}
         >
-          NEW MODE — ZENIPAY AGENTS
+          New Mode — ZeniPay Agents
         </p>
-        <p style={{ margin: "4px 0 0", fontSize: 14, color: "#e5e7eb", fontWeight: 600 }}>
-          Accept payments from AI agents. Programmable wallets, policies, and audit trails.
+        <p style={{ margin: "4px 0 0", fontSize: 15, color: TEXT, fontWeight: 700 }}>
+          Accept payments from AI agents
+        </p>
+        <p style={{ margin: "2px 0 0", fontSize: 12, color: MUTED }}>
+          Programmable wallets, policies, and audit trails for your AI fleet.
         </p>
       </div>
 
       <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
         <a
           href={href}
+          data-testid="agents-mode-enter"
           style={{
-            background: LIME,
-            color: "#0A0F1E",
-            padding: "9px 18px",
-            borderRadius: 999,
+            background: ZP_GRAD,
+            color: "#ffffff",
+            padding: "10px 18px",
+            borderRadius: 10,
             textDecoration: "none",
             fontWeight: 700,
             fontSize: 13,
             whiteSpace: "nowrap",
+            boxShadow: "0 4px 12px rgba(45,190,96,0.25)",
           }}
-          data-testid="agents-mode-enter"
         >
           Open AI Agent Wallet →
         </a>
@@ -125,11 +157,11 @@ export function AgentsModeBanner({ merchantId, href = "/agents" }: AgentsModeBan
           onClick={dismiss}
           aria-label="Dismiss"
           style={{
-            background: "transparent",
-            color: "rgba(255,255,255,0.55)",
-            border: "1px solid rgba(255,255,255,0.15)",
-            padding: "9px 14px",
-            borderRadius: 999,
+            background: "#f8fafc",
+            color: MUTED,
+            border: `1px solid ${BORDER}`,
+            padding: "10px 14px",
+            borderRadius: 10,
             fontSize: 13,
             fontWeight: 600,
             cursor: "pointer",

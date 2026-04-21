@@ -1,6 +1,5 @@
-// Layout shell for the /agents/* tree. Entirely isolated from the existing
-// /app (merchant) and /admin routes. Anything we build for the ZeniPay Agents
-// product lives inside this subtree.
+// Layout shell for the /agents/* tree. Matches the existing ZeniPay
+// merchant dashboard aesthetic: white/light background, ZeniPay palette.
 
 import React from "react";
 
@@ -14,9 +13,9 @@ export default function AgentsLayout({ children }: { children: React.ReactNode }
     <div
       style={{
         minHeight: "100vh",
-        background: "#05070E",
-        color: "#e5e7eb",
-        fontFamily: "system-ui, -apple-system, sans-serif",
+        background: "#f0f4f8",
+        color: "#0f172a",
+        fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
       }}
     >
       {children}
