@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
  */
 
 import { NextRequest } from "next/server";
-import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
+import { pgrest } from "../../../../../modules/zenipay/services/supabase";
 
 const EMPTY_RESPONSE = {
   totalRevenue: 0,
@@ -23,40 +23,31 @@ const EMPTY_RESPONSE = {
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
-
     const merchant_id = req.nextUrl.searchParams.get("merchant_id");
 
-    // ── 1. Payments from zenipay_payments table (filter in JS for PGRST204) ──
-    const { data: allPayments } = await supabase
-      .from("zenipay_payments")
-      .select("id, amount, status, merchant_id, created_at, customer_name, description")
-      .order("created_at", { ascending: false });
-
-    const tablePays = merchant_id
-      ? (allPayments || []).filter((p: { merchant_id?: string }) => p.merchant_id === merchant_id)
-      : (allPayments || []);
+    // ── 1. Payments from zenipay_payments table (via pgrest — bypass Next.js fetch cache) ──
+    const paymentsPath = merchant_id
+      ? `zenipay_payments?merchant_id=eq.${encodeURIComponent(merchant_id)}&select=id,amount,status,merchant_id,created_at,customer_name,description&order=created_at.desc`
+      : `zenipay_payments?select=id,amount,status,merchant_id,created_at,customer_name,description&order=created_at.desc`;
+    const tablePays = await pgrest(paymentsPath) as Array<{ id: string; amount: number; status: string; merchant_id?: string; created_at: string; customer_name?: string; description?: string }>;
 
     // ── 2. Payments from merchant_data.transactions (same merge as stats) ──
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let mdQuery = supabase.from("zenipay_merchants").select("merchant_data");
-    if (merchant_id) mdQuery = mdQuery.eq("id", merchant_id);
-    const { data: merchants } = await mdQuery;
+    const merchantsPath = merchant_id
+      ? `zenipay_merchants?id=eq.${encodeURIComponent(merchant_id)}&select=merchant_data`
+      : `zenipay_merchants?select=merchant_data`;
+    const merchants = await pgrest(merchantsPath) as Array<{ merchant_data: { transactions?: unknown[] } | string }>;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mdTxns: any[] = [];
+    const mdTxns: Array<{ id: string; amount: number; status?: string; createdAt?: string; customer_name?: string; description?: string }> = [];
     for (const m of (merchants || [])) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const txns: any[] = Array.isArray(m.merchant_data?.transactions)
-        ? m.merchant_data.transactions
-        : (typeof m.merchant_data === "string" ? JSON.parse(m.merchant_data)?.transactions || [] : []);
+      const md = typeof m.merchant_data === "string" ? JSON.parse(m.merchant_data) : m.merchant_data;
+      const txns = Array.isArray(md?.transactions) ? md.transactions : [];
       for (const t of txns) mdTxns.push(t);
     }
 
     // ── 3. Merge both sources, deduplicate by id ──
     const existingIds = new Set((tablePays || []).map((p: { id: string }) => p.id));
     const merged = [
-      ...(tablePays || []).map((p: { id: string; amount: number; status: string; created_at: string; customer_name: string; description: string }) => ({
+      ...(tablePays || []).map(p => ({
         id: p.id, amount: Number(p.amount), status: p.status, created_at: p.created_at,
         customer_name: p.customer_name || "", description: p.description || "",
       })),
@@ -76,17 +67,13 @@ export async function GET(req: NextRequest) {
     const totalExpenses = zenipayFees;
     const netProfit = totalRevenue - totalExpenses;
 
-    // ── 5. Journal entries from accounting_entries table ──
-    const { data: allEntries } = await supabase
-      .from("zenipay_accounting_entries")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
+    // ── 5. Journal entries from accounting_entries table (pgrest, no cache) ──
+    const allEntries = await pgrest(`zenipay_accounting_entries?select=*&order=created_at.desc&limit=100`) as Array<{ payment_id?: string; [k: string]: unknown }>;
 
     const mergedIds = new Set(merged.map(p => p.id));
     const entries = merchant_id
-      ? (allEntries || []).filter((e: { payment_id?: string }) => e.payment_id && mergedIds.has(e.payment_id))
-      : (allEntries || []);
+      ? allEntries.filter(e => e.payment_id && mergedIds.has(e.payment_id))
+      : allEntries;
 
     return Response.json({
       totalRevenue,
