@@ -7,6 +7,7 @@ import SettingsPanel from "./SettingsPanel";
 import KeysPanel from "./KeysPanel";
 import SandboxPanel from "./SandboxPanel";
 import { useT, LangToggle } from "../../modules/zenipay/i18n";
+import { AgentsModeBanner } from "../../components/agents/AgentsModeBanner";
 
 // ═══════════════════════════════════════════════════════
 //  ZeniPay — The Financial Core of Zeniva Travel
@@ -2437,6 +2438,9 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
 
       {/* ── CONTENT ── */}
       <div className="zp-content-area" style={{ maxWidth: 1600, margin: "0 auto", padding: "24px 28px" }}>
+
+        {/* Entry point to ZeniPay Agents — additive, gated by NEXT_PUBLIC_AGENTS_ENABLED */}
+        <AgentsModeBanner merchantId={MID} />
 
         {/* ════ OVERVIEW ════ */}
         {tab === "overview" && (
