@@ -85,28 +85,13 @@ export async function debitWallet(
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
     throw new WalletError("invalid_amount", `amount must be positive integer cents, got ${amountCents}`);
   }
-  const db = getAgentsDb();
-  // Atomic: decrement only if balance >= amount. Returns zero rows if the
-  // predicate fails, which we interpret as insufficient balance.
-  const { data, error } = await db.rpc("agent_wallet_debit", {
-    p_wallet_id: walletId,
-    p_amount_cents: amountCents,
-  });
-  if (error) {
-    // Fallback: if the RPC doesn't exist yet (migration not shipped), emulate.
-    if (/function .* does not exist/i.test(error.message)) {
-      return debitWalletFallback(walletId, amountCents);
-    }
-    throw new WalletError("db_error", error.message);
-  }
-  const newBalance = Array.isArray(data) ? data[0]?.new_balance_cents : (data as { new_balance_cents?: number })?.new_balance_cents;
-  if (newBalance == null) {
-    throw new WalletError("insufficient_balance", `wallet ${walletId}: insufficient balance for ${amountCents}`);
-  }
-  return Number(newBalance);
+  // Phase 1: optimistic-lock UPDATE via PostgREST. Good enough for our
+  // concurrency profile. When we hit contention we'll replace this with a
+  // Postgres function doing a SELECT ... FOR UPDATE inside a txn.
+  return debitWalletOptimistic(walletId, amountCents);
 }
 
-async function debitWalletFallback(walletId: string, amountCents: number): Promise<number> {
+async function debitWalletOptimistic(walletId: string, amountCents: number): Promise<number> {
   const db = getAgentsDb();
   const { data: before, error: readErr } = await db
     .from("agent_wallets")
