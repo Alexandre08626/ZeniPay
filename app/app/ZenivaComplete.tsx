@@ -27,6 +27,7 @@ const GOLD = "#F5A623";
 const RED = "#EF4444";
 const GLASS = "rgba(255,255,255,0.06)";
 const GLASS_BORDER = "rgba(255,255,255,0.12)";
+const IS_PROD_FINIX = process.env.NEXT_PUBLIC_FINIX_ENV === "production";
 // ZeniPay gradient: green→cyan→purple (matches wordmark)
 const ZP_GRAD = "linear-gradient(90deg, #2DBE60 0%, #15B8C9 45%, #7B4FBF 100%)";
 // Card gradient: pink/magenta → orange → purple (wallet body)
@@ -560,7 +561,7 @@ function WalletModal({ name, data, icon, color, onClose, businessName = "ZeniPay
                 {isPlatform && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginTop: 6 }}>
                     <span style={{ color: "rgba(255,255,255,0.4)" }}>Processor</span>
-                    <span style={{ fontWeight: 700, color: "#60a5fa" }}>Finix (Sandbox)</span>
+                    <span style={{ fontWeight: 700, color: "#60a5fa" }}>Finix ({IS_PROD_FINIX ? "Live" : "Sandbox"})</span>
                   </div>
                 )}
               </div>
@@ -1933,7 +1934,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const grossBalance = merchantBalance > 0 ? merchantBalance : (WALLETS.platform.available + WALLETS.agent.available + WALLETS.influencer.available + WALLETS.supplier.available);
   const platformBalance = grossBalance - zenipayFees;
   const successRate = TRANSACTIONS.length > 0 ? Math.round(TRANSACTIONS.filter(t => t.status === "succeeded" || t.status === "completed").length / TRANSACTIONS.length * 100) : 0;
-  const isLive = MMODE === "live";
+  const isLive = IS_PROD_FINIX || MMODE === "live";
   // In sandbox mode, add Setup & Go Live tabs just above Settings
   // Build a label map that uses i18n translations (inside the component)
   const tabLabelMap: Record<string, string> = {
@@ -1957,7 +1958,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   };
   const translateTab = (tab: { id: string; icon: string; label: string }) => ({ ...tab, label: tabLabelMap[tab.id] || tab.label });
 
-  const activeTabs = MMODE === "sandbox" && !isZeniva
+  const activeTabs = !isLive && !isZeniva
     ? [
         ...TABS.filter(t => t.id !== "settings" && t.id !== "keys").map(translateTab),
         { id: "sandbox-test", icon: "🧪", label: t("nav.sandbox") },
@@ -2103,7 +2104,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
           <div style={{ position:"absolute", bottom:-40, left:-20, width:140, height:140, borderRadius:"50%", background:"radial-gradient(circle,rgba(123,79,191,0.12) 0%,transparent 70%)", pointerEvents:"none" }} />
           <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:6 }}>Merchant Revenue</div>
           <div style={{ fontSize:42, fontWeight:900, letterSpacing:"-1.5px", lineHeight:1 }}>{fmt(totalRevenue)}</div>
-          <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:4 }}>USD · Real-time · {STATS.env==="production"?"🟢 Live":"🟡 Sandbox"}</div>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:4 }}>USD · Real-time · {isLive?"🟢 Live":"🟡 Sandbox"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:1, marginTop:18, background:"rgba(255,255,255,0.05)", borderRadius:16, overflow:"hidden" }}>
             {[{label:"Total Revenue",value:fmt(totalRevenue),color:"#2DBE60"},{label:"ZeniPay Fees",value:fmt(zenipayFees),color:"#F5A623"},{label:"Net Revenue",value:fmt((totalRevenue)-zenipayFees),color:"#2A8FE0"}].map((s,i)=>(
               <div key={i} style={{ padding:"11px 6px", textAlign:"center", borderRight:i<2?"1px solid rgba(255,255,255,0.07)":"none" }}>
@@ -3454,17 +3455,17 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         )}
 
         {/* ════ SANDBOX TEST ENVIRONMENT ════ */}
-        {tab === "sandbox-test" && (
+        {!isLive && tab === "sandbox-test" && (
           <SandboxPanel merchantId={MID} sandboxKey={STATS.sandboxKey} />
         )}
 
         {/* ════ SETUP (Sandbox) ════ */}
-        {tab === "setup" && (
+        {!isLive && tab === "setup" && (
           <SetupWizard accountId={MID} onComplete={() => setTab("onboarding-status")} />
         )}
 
         {/* ════ GO LIVE / ONBOARDING STATUS (Sandbox) ════ */}
-        {tab === "onboarding-status" && (
+        {!isLive && tab === "onboarding-status" && (
           <OnboardingStatus accountId={MID} onGoLive={() => {
             if (typeof window !== "undefined") {
               sessionStorage.setItem("zp_client_mode", "live");

@@ -19,7 +19,9 @@ const STATUS_BG:    Record<string, string> = { active: "rgba(22,163,74,0.08)", p
 
 const CLIENTS_DEFAULT: never[] = [];
 
-const GATEWAY_STATUS = { accountId: "MUcTenaz57m9JrwwRZwpSfDc", webhook: "https://zenipay.ca/api/zenipay/webhooks/finix", fees: "2.90% + $0.30/tx" };
+const IS_PROD_FINIX = process.env.NEXT_PUBLIC_FINIX_ENV === "production";
+
+const GATEWAY_STATUS = { accountId: IS_PROD_FINIX ? "MUk4zVL1MevHw3VkieE6nq81" : "MUcTenaz57m9JrwwRZwpSfDc", webhook: "https://zenipay.ca/api/zenipay/webhooks/finix", fees: "2.90% + $0.30/tx" };
 const BANK_STATUS    = { routing: "812345678", account: "••••5847", balance: 0, customerId: "4647873" };
 
 const PLATFORM_ACCOUNT = {
@@ -689,9 +691,9 @@ export default function AdminPage() {
         </div>
 
         {sidebarOpen && (
-          <div style={{ margin: "12px 10px 4px", padding: "6px 10px", borderRadius: 10, background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.2)", display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706" }} />
-            <div style={{ fontSize: 10, color: "#D97706", fontWeight: 700 }}>{t("admin.sandboxFinixActive")}</div>
+          <div style={{ margin: "12px 10px 4px", padding: "6px 10px", borderRadius: 10, background: IS_PROD_FINIX ? "rgba(22,163,74,0.08)" : "rgba(217,119,6,0.07)", border: `1px solid ${IS_PROD_FINIX ? "rgba(22,163,74,0.25)" : "rgba(217,119,6,0.2)"}`, display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: IS_PROD_FINIX ? "#16A34A" : "#D97706" }} />
+            <div style={{ fontSize: 10, color: IS_PROD_FINIX ? "#16A34A" : "#D97706", fontWeight: 700 }}>{IS_PROD_FINIX ? "Live · Finix Active" : t("admin.sandboxFinixActive")}</div>
           </div>
         )}
 
@@ -750,8 +752,8 @@ export default function AdminPage() {
             <span className="admin-header-title-extra" style={{ fontSize: 12, color: MUTED }}>ZeniPay Platform</span>
           </div>
           <div className="admin-header-right" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div className="admin-sandbox-badge" style={{ padding: "5px 14px", borderRadius: 8, background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.18)", fontSize: 11, fontWeight: 700, color: "#D97706", display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706", display: "inline-block" }} /> {t("admin.sandboxMode")}
+            <div className="admin-sandbox-badge" style={{ padding: "5px 14px", borderRadius: 8, background: IS_PROD_FINIX ? "rgba(22,163,74,0.08)" : "rgba(217,119,6,0.07)", border: `1px solid ${IS_PROD_FINIX ? "rgba(22,163,74,0.22)" : "rgba(217,119,6,0.18)"}`, fontSize: 11, fontWeight: 700, color: IS_PROD_FINIX ? "#16A34A" : "#D97706", display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: IS_PROD_FINIX ? "#16A34A" : "#D97706", display: "inline-block" }} /> {IS_PROD_FINIX ? "LIVE MODE" : t("admin.sandboxMode")}
             </div>
             <div style={{ width: 34, height: 34, borderRadius: 10, background: ZP_GRAD, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 14 }}>A</div>
           </div>
@@ -763,13 +765,13 @@ export default function AdminPage() {
           {tab === "overview" && (
             <div>
               {/* Alert banner */}
-              <div className="admin-alert-banner" style={{ marginBottom: 20, padding: "12px 18px", borderRadius: 12, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.2)", display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ fontSize: 20 }}>⚠️</div>
+              <div className="admin-alert-banner" style={{ marginBottom: 20, padding: "12px 18px", borderRadius: 12, background: IS_PROD_FINIX ? "rgba(22,163,74,0.06)" : "rgba(217,119,6,0.05)", border: `1px solid ${IS_PROD_FINIX ? "rgba(22,163,74,0.22)" : "rgba(217,119,6,0.2)"}`, display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ fontSize: 20 }}>{IS_PROD_FINIX ? "✅" : "⚠️"}</div>
                 <div style={{ flex: 1 }}>
-                  <span style={{ fontWeight: 700, color: "#B45309", fontSize: 13 }}>{t("admin.overview.alertTitle")}</span>
-                  <span style={{ color: "#92400E", fontSize: 13, marginLeft: 8 }}>{t("admin.overview.alertSub")}</span>
+                  <span style={{ fontWeight: 700, color: IS_PROD_FINIX ? "#15803D" : "#B45309", fontSize: 13 }}>{IS_PROD_FINIX ? "Finix Gateway — Live Mode" : t("admin.overview.alertTitle")}</span>
+                  <span style={{ color: IS_PROD_FINIX ? "#166534" : "#92400E", fontSize: 13, marginLeft: 8 }}>{IS_PROD_FINIX ? "— Production payments active." : t("admin.overview.alertSub")}</span>
                 </div>
-                <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ padding: "6px 16px", borderRadius: 8, background: "#D97706", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>{t("admin.overview.finixDashboard")}</a>
+                <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ padding: "6px 16px", borderRadius: 8, background: IS_PROD_FINIX ? "#16A34A" : "#D97706", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>{t("admin.overview.finixDashboard")}</a>
               </div>
 
               {/* Pending Approvals Banner */}
@@ -1629,15 +1631,17 @@ export default function AdminPage() {
                     <div style={{ fontWeight: 800, fontSize: 15 }}>{t("admin.bank.paymentProcessor")}</div>
                     <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{t("admin.bank.incomingGateway")}</div>
                   </div>
-                  <div style={{ ...badge("sandbox") }}><span style={{ fontSize: 7 }}>◎</span> Sandbox</div>
+                  <div style={{ ...badge(IS_PROD_FINIX ? "live" : "sandbox") }}><span style={{ fontSize: 7 }}>{IS_PROD_FINIX ? "●" : "◎"}</span> {IS_PROD_FINIX ? "Live" : "Sandbox"}</div>
                 </div>
-                <div style={{ padding: "10px 16px", borderRadius: 10, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.2)", marginBottom: 16, fontSize: 13, color: "#92400E", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>⚠️</span> {t("admin.bank.finixSandboxWarning")}
-                </div>
+                {!IS_PROD_FINIX && (
+                  <div style={{ padding: "10px 16px", borderRadius: 10, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.2)", marginBottom: 16, fontSize: 13, color: "#92400E", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>⚠️</span> {t("admin.bank.finixSandboxWarning")}
+                  </div>
+                )}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 16 }}>
                   {[
                     { k: "Account ID",       v: GATEWAY_STATUS.accountId,     color: ZP_CYAN   },
-                    { k: "Environment",      v: "Sandbox",                    color: "#D97706" },
+                    { k: "Environment",      v: IS_PROD_FINIX ? "Live"        : "Sandbox",     color: IS_PROD_FINIX ? ZP_GREEN : "#D97706" },
                     { k: "Merchant Fee",     v: "2.90% + $0.30/tx",           color: ZP_GREEN  },
                     { k: "Interchange",      v: "1.75%",                      color: "#D97706" },
                     { k: "Finix Fee",        v: "0.15% + $0.15/tx",           color: "#EF4444" },
@@ -1652,7 +1656,7 @@ export default function AdminPage() {
                   ))}
                 </div>
                 <a href="https://dashboard.finix.com" target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "10px 24px", borderRadius: 10, background: ZP_GRAD, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 12px rgba(45,190,96,0.25)" }}>
-                  {t("admin.bank.completeLiveOnboarding")}
+                  {IS_PROD_FINIX ? "Open Finix Dashboard →" : t("admin.bank.completeLiveOnboarding")}
                 </a>
               </div>
             </div>
