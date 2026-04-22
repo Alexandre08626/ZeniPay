@@ -19,6 +19,9 @@ import { logEvent } from "../audit-log";
 import type { PolicyCheckResult } from "../types";
 import { evaluate as evalApprovalPolicy, type ApprovalPolicyRow } from "../approvals/policy-evaluator";
 import { createRequest as createApprovalRequest, findUsableApproval } from "../approvals/request-manager";
+import { createClient } from "@supabase/supabase-js";
+import { ZeniCoreClient, InsufficientFundsError, ZeniCoreError } from "@/lib/zenicore/client";
+import type { Currency } from "@/lib/zenicore/types";
 
 export type CardDecision =
   | "approved"
@@ -273,9 +276,51 @@ export async function authorizeCardSpend(input: AuthorizeInput): Promise<Authori
     });
   }
 
+  // ZeniCore hold (PR 7): replaces the legacy agent-wallet debit. A card-auth
+  // hold leaves the funds in the zenicore agent_wallet account and increments
+  // pending_debit_micro. The actual debit posts on settle_card_auth, triggered
+  // by the stripe-issuing webhook when Stripe delivers the matching
+  // issuing_transaction.created event.
+  let zenicoreTxGroupId: string | null = null;
   try {
-    await debitWallet(walletId!, input.amountCents);
+    const zcSupabase = createClient(
+      process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const zc = new ZeniCoreClient(zcSupabase);
+    const agentId = c.agent_id ?? "";
+    const merchantRef = input.merchantName ?? input.merchantNetworkId ?? "(unknown)";
+    const authRef = input.externalAuthId ?? input.idempotencyKey ?? `${c.id}_${Date.now()}`;
+    const { txGroupId } = await zc.holdForCardAuth({
+      agentId,
+      cardId: c.id,
+      amount: (input.amountCents / 100).toFixed(2),
+      currency: input.currency as Currency,
+      merchantRef,
+      authRef,
+      idempotencyKey: input.idempotencyKey ?? `hold_${authRef}`,
+      postedBy: `card_auth:${c.id}`,
+    });
+    zenicoreTxGroupId = txGroupId;
   } catch (err) {
+    if (err instanceof InsufficientFundsError) {
+      return finalize(db, {
+        cardId: c.id, organizationId: c.organization_id, input, decision: "declined_balance",
+        reason: "insufficient_funds",
+        checks: [{ rule: "wallet_balance", pass: false, detail: err.message }],
+        t0, signalsAgeSeconds, agentId: c.agent_id, walletId,
+      });
+    }
+    if (err instanceof ZeniCoreError) {
+      return finalize(db, {
+        cardId: c.id, organizationId: c.organization_id, input, decision: "declined_balance",
+        reason: "zenicore_hold_failed",
+        checks: [{ rule: "wallet_balance", pass: false, detail: err.message }],
+        t0, signalsAgeSeconds, agentId: c.agent_id, walletId,
+      });
+    }
+    // Unexpected — don't silently approve.
     const reason = err instanceof WalletError ? err.code : "wallet_debit_failed";
     return finalize(db, {
       cardId: c.id, organizationId: c.organization_id, input, decision: "declined_balance",
@@ -283,6 +328,9 @@ export async function authorizeCardSpend(input: AuthorizeInput): Promise<Authori
       t0, signalsAgeSeconds, agentId: c.agent_id, walletId,
     });
   }
+  // Keep the legacy debit off the hot path but preserve the import so type-
+  // checks pass and we keep the fallback handler above reachable.
+  void debitWallet;
 
   // 6. Write agent_transactions + card_authorizations.
   const { data: tx } = await db
@@ -299,6 +347,7 @@ export async function authorizeCardSpend(input: AuthorizeInput): Promise<Authori
       protocol_used: "card_issuing_v1",
       policy_check_result: {
         approved: true, reason: "approved",
+        zenicore_tx_group: zenicoreTxGroupId,
         checks: [...checks, { rule: "wallet_balance", pass: true }],
       },
       idempotency_key: input.idempotencyKey ?? null,
@@ -312,6 +361,7 @@ export async function authorizeCardSpend(input: AuthorizeInput): Promise<Authori
     checks: [...checks, { rule: "wallet_balance", pass: true }],
     t0, signalsAgeSeconds, agentId: c.agent_id, walletId,
     transactionId: tx?.id ?? null,
+    zenicoreTxGroupId,
   });
 }
 
@@ -335,6 +385,7 @@ interface FinalizeArgs {
   walletId: string | null;
   transactionId?: string | null;
   approvalRequestId?: string | null;
+  zenicoreTxGroupId?: string | null;
 }
 
 async function finalize(
@@ -349,7 +400,8 @@ async function finalize(
     latency_ms: latencyMs,
     signals_age_seconds: a.signalsAgeSeconds,
     approval_request_id: a.approvalRequestId ?? null,
-    version: "v1",
+    zenicore_tx_group: a.zenicoreTxGroupId ?? null,
+    version: "v2",
   };
 
   let cardAuthId = "";
