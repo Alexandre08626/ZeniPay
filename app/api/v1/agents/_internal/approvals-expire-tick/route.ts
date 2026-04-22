@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { expireStale } from "@/lib/agents/approvals/request-manager";
 
 export async function POST(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = process.env.AGENTS_APPROVAL_CRON_SECRET || process.env.CRON_SECRET;
   if (process.env.NODE_ENV === "production" && cronSecret) {
     const got = req.headers.get("authorization") ?? "";
     if (got !== `Bearer ${cronSecret}`) {

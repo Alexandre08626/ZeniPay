@@ -26,7 +26,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const email = body?.email ? String(body.email) : `user-${auth.userId.slice(0, 8)}`;
 
-  const uri = provisioningUri({ secret, account: email, issuer: "ZeniPay Agents" });
+  const issuer = process.env.AGENTS_APPROVAL_TOTP_ISSUER || "ZeniPay Agents";
+  const uri = provisioningUri({ secret, account: email, issuer });
 
   await logEvent({
     organizationId: auth.organizationId,
