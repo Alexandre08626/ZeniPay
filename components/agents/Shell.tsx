@@ -24,6 +24,7 @@ const NAV = [
   { href: "/agents/approvals", label: "Approvals", icon: "✅", badge: true },
   { href: "/agents/agents", label: "Agents", icon: "🤖" },
   { href: "/agents/transactions", label: "Transactions", icon: "📋" },
+  { href: "/agents/accounting", label: "Accounting", icon: "📒" },
   { href: "/agents/api-keys", label: "API Keys", icon: "🔑" },
 ];
 
