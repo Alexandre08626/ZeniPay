@@ -15,11 +15,27 @@ import { createHash } from "node:crypto";
 import type { AuditEntry, MerkleProof, MerkleProofStep } from "./types";
 
 export function canonicalEntry(e: AuditEntry): string {
-  // Sort top-level keys alphabetically. Payload stays as-is (it's already
-  // JSONB-stable from Postgres). If in the future callers need per-payload
-  // canonicalisation we can sort recursively — for now the auditor guide
-  // documents: "use the entry exactly as it appears in the NDJSON line".
-  return JSON.stringify(e, Object.keys(e).sort());
+  // Deterministic recursive serialisation: sorts object keys at every level.
+  // We CANNOT use JSON.stringify's array-replacer shortcut — it filters keys
+  // at every nesting level, which would strip payload fields. Arrays keep
+  // their order (JSON arrays are ordered by contract).
+  return canonicalJson(e as unknown);
+}
+
+function canonicalJson(v: unknown): string {
+  if (v === null) return "null";
+  if (typeof v === "number") return Number.isFinite(v) ? JSON.stringify(v) : "null";
+  if (typeof v === "string" || typeof v === "boolean") return JSON.stringify(v);
+  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(",")}]`;
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    const keys = Object.keys(o).sort();
+    const parts = keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(o[k])}`);
+    return `{${parts.join(",")}}`;
+  }
+  // undefined / bigint / function — treat as null (audit log columns don't
+  // produce these, but we defensively don't crash).
+  return "null";
 }
 
 export function hashLeaf(e: AuditEntry): Buffer {
