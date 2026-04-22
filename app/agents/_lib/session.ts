@@ -60,8 +60,18 @@ export async function apiFetch<T = unknown>(
   headers.set("content-type", "application/json");
   const res = await fetch(path, { ...init, headers });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${body}`);
+    const raw = await res.text();
+    // Prefer the structured shape { error: { code, message } } used by the
+    // accounting routes; fall back to raw text for older routes.
+    let msg = raw;
+    try {
+      const parsed = JSON.parse(raw) as { error?: string | { code?: string; message?: string } };
+      if (typeof parsed.error === "string") msg = parsed.error;
+      else if (parsed.error && typeof parsed.error === "object" && parsed.error.message) {
+        msg = parsed.error.message;
+      }
+    } catch { /* not JSON, keep raw */ }
+    throw new Error(`${res.status} ${msg}`);
   }
   return (await res.json()) as T;
 }

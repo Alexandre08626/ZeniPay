@@ -7,14 +7,15 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { authenticate, unauthorized } from "../../_lib/auth";
+import { authenticate } from "../../_lib/auth";
+import { errorResponse, serverError } from "@/app/api/v1/agents/accounting/_lib/errors";
 import { seedOrgAccounting } from "@/lib/agents/accounting/gl-seeder";
 import { logEvent } from "@/lib/agents/audit-log";
 
 export async function POST(req: NextRequest) {
-  const auth = await authenticate(req);
-  if (!auth) return unauthorized();
   try {
+    const auth = await authenticate(req);
+    if (!auth) return errorResponse("unauthorized", "unauthorized");
     const result = await seedOrgAccounting(auth.organizationId, auth.userId ?? null);
     await logEvent({
       organizationId: auth.organizationId,
@@ -24,7 +25,5 @@ export async function POST(req: NextRequest) {
       payload: { ...result },
     });
     return NextResponse.json(result);
-  } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "seed_failed" }, { status: 500 });
-  }
+  } catch (e) { return serverError(e); }
 }
