@@ -17,7 +17,7 @@ import {
 } from "./theme";
 import { readSession, clearSession, apiFetch } from "@/app/agents/_lib/session";
 
-const NAV = [
+const NAV: Array<{ href: string; label: string; icon: string; badge?: boolean; fraudBadge?: boolean }> = [
   { href: "/agents/dashboard", label: "Overview", icon: "📊" },
   { href: "/agents/treasury", label: "Treasury", icon: "💼" },
   { href: "/agents/cards", label: "Cards", icon: "💳" },
@@ -25,6 +25,8 @@ const NAV = [
   { href: "/agents/agents", label: "Agents", icon: "🤖" },
   { href: "/agents/transactions", label: "Transactions", icon: "📋" },
   { href: "/agents/accounting", label: "Accounting", icon: "📒" },
+  { href: "/agents/fraud", label: "Fraud", icon: "🚨", fraudBadge: true },
+  { href: "/agents/audit", label: "Audit", icon: "🔐" },
   { href: "/agents/api-keys", label: "API Keys", icon: "🔑" },
 ];
 
@@ -33,6 +35,7 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
   const pathname = usePathname();
   const [email, setEmail] = useState<string>("");
   const [pendingApprovals, setPendingApprovals] = useState<number>(0);
+  const [openFraud, setOpenFraud] = useState<number>(0);
 
   useEffect(() => {
     const s = readSession();
@@ -54,6 +57,23 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
     };
     void tick();
     const id = setInterval(tick, 15_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  // Poll the fraud-alerts badge every 30s. Counts only open+critical for
+  // urgency signalling; the page itself shows the full counts.
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const r = await apiFetch<{ counts: { by_status?: Record<string, number>; by_severity?: Record<string, number> } }>(
+          "/api/v1/agents/fraud/alerts?status=open&severity=critical",
+        );
+        if (!cancelled) setOpenFraud((r.counts?.by_status?.open ?? 0));
+      } catch { /* ignore */ }
+    };
+    void tick();
+    const id = setInterval(tick, 30_000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
@@ -132,6 +152,14 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
                     display: "inline-flex", alignItems: "center", justifyContent: "center",
                     letterSpacing: "0",
                   }}>{pendingApprovals}</span>
+                )}
+                {n.fraudBadge && openFraud > 0 && (
+                  <span style={{
+                    minWidth: 20, height: 20, padding: "0 6px",
+                    borderRadius: 999, background: "#DC2626",
+                    color: "#fff", fontSize: 10, fontWeight: 800,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  }}>{openFraud}</span>
                 )}
               </Link>
             );
