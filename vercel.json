@@ -1,13 +1,9 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/ben-auto-reply",
-      "schedule": "*/5 * * * *"
-    }
+    { "path": "/api/cron/ben-auto-reply", "schedule": "*/5 * * * *" },
+    { "path": "/api/v1/agents/_internal/approvals-expire-tick", "schedule": "0 * * * *" }
   ],
   "functions": {
-    "app/api/cron/ben-auto-reply/route.ts": {
-      "maxDuration": 30
-    }
+    "app/api/cron/ben-auto-reply/route.ts": { "maxDuration": 30 }
   }
 }

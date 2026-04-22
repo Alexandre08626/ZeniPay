@@ -17,6 +17,8 @@ import { getAgentsDb } from "../supabase-client";
 import { debitWallet, WalletError } from "../wallet-engine";
 import { logEvent } from "../audit-log";
 import type { PolicyCheckResult } from "../types";
+import { evaluate as evalApprovalPolicy, type ApprovalPolicyRow } from "../approvals/policy-evaluator";
+import { createRequest as createApprovalRequest, findUsableApproval } from "../approvals/request-manager";
 
 export type CardDecision =
   | "approved"
@@ -241,13 +243,33 @@ export async function authorizeCardSpend(input: AuthorizeInput): Promise<Authori
     });
   }
 
-  // 5. Balance check + atomic debit (Phase 1 wallet-engine).
+  // 5. Balance check (pre-debit).
   if (Number(wallet.balance_cents) < input.amountCents) {
     return finalize(db, {
       cardId: c.id, organizationId: c.organization_id, input, decision: "declined_balance",
       reason: "insufficient_balance",
       checks: [{ rule: "wallet_balance", pass: false, detail: `${wallet.balance_cents} < ${input.amountCents}` }],
       t0, signalsAgeSeconds, agentId: c.agent_id, walletId,
+    });
+  }
+
+  // 5b. Approval policies — between balance-OK and the wallet debit.
+  //     Cheap read (indexed on organization_id + active + priority); target <200ms.
+  const approvalOutcome = await checkApprovalRequirement({
+    db, organizationId: c.organization_id, cardId: c.id,
+    amountCents: input.amountCents, currency: input.currency,
+    merchantCategory: input.merchantCategory, merchantName: input.merchantName,
+    merchantCountry: input.merchantCountry, anomalyScore: zScore,
+    occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
+    agentId: c.agent_id,
+  });
+  if (approvalOutcome.needs_approval) {
+    return finalize(db, {
+      cardId: c.id, organizationId: c.organization_id, input, decision: "pending_approval",
+      reason: `approval_pending:${approvalOutcome.reason}`,
+      checks: [...checks, { rule: "policy_active", pass: true, detail: `approval_request=${approvalOutcome.approval_request_id ?? "n/a"}` }],
+      t0, signalsAgeSeconds, agentId: c.agent_id, walletId,
+      approvalRequestId: approvalOutcome.approval_request_id,
     });
   }
 
@@ -312,6 +334,7 @@ interface FinalizeArgs {
   agentId: string | null;
   walletId: string | null;
   transactionId?: string | null;
+  approvalRequestId?: string | null;
 }
 
 async function finalize(
@@ -325,6 +348,7 @@ async function finalize(
     checks: a.checks,
     latency_ms: latencyMs,
     signals_age_seconds: a.signalsAgeSeconds,
+    approval_request_id: a.approvalRequestId ?? null,
     version: "v1",
   };
 
@@ -345,6 +369,7 @@ async function finalize(
         decision: a.decision,
         decision_reason: decisionReason,
         transaction_id: a.transactionId ?? null,
+        approval_request_id: a.approvalRequestId ?? null,
         idempotency_key: a.input.idempotencyKey ?? null,
         occurred_at: a.input.occurredAt ?? new Date().toISOString(),
       })
@@ -383,4 +408,97 @@ function asStringArray(v: unknown): string[] {
 }
 function asNumber(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+// ---------------------------------------------------------------------------
+// Approval policy check — indexed single-query read + optional insert.
+// Contract: must complete <200ms so Stripe's 1500ms p95 budget is preserved.
+// ---------------------------------------------------------------------------
+interface ApprovalCheckInput {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any;
+  organizationId: string;
+  cardId: string;
+  amountCents: number;
+  currency: string;
+  merchantCategory?: string;
+  merchantName?: string;
+  merchantCountry?: string;
+  anomalyScore: number | null;
+  occurredAt: Date;
+  agentId: string | null;
+}
+
+interface ApprovalCheckOutcome {
+  needs_approval: boolean;
+  reason: string;
+  approval_request_id: string | null;
+}
+
+async function checkApprovalRequirement(i: ApprovalCheckInput): Promise<ApprovalCheckOutcome> {
+  // Retry-bypass: if the agent already got a matching approval inside the
+  // 5-min / ±10% window, auto-pass without asking again.
+  const usable = await findUsableApproval({
+    organizationId: i.organizationId,
+    cardId: i.cardId,
+    merchantName: i.merchantName,
+    amountCents: i.amountCents,
+  });
+  if (usable) {
+    await logEvent({
+      organizationId: i.organizationId,
+      actorType: "system",
+      eventType: "approval.used_for_retry",
+      payload: { request_id: usable.id, card_id: i.cardId, amount_cents: i.amountCents },
+    });
+    return { needs_approval: false, reason: "approval_reused_within_window", approval_request_id: usable.id };
+  }
+
+  // Load active policies for this org (indexed on organization_id, priority).
+  const { data } = await i.db
+    .from("approval_policies")
+    .select("id, organization_id, name, trigger_type, trigger_config, approver_type, approver_config, timeout_seconds, default_action, active, priority")
+    .eq("organization_id", i.organizationId)
+    .eq("active", true)
+    .order("priority", { ascending: true });
+  const policies = (data ?? []) as ApprovalPolicyRow[];
+
+  const evalResult = evalApprovalPolicy(
+    {
+      amountCents: i.amountCents,
+      currency: i.currency,
+      merchantCategory: i.merchantCategory,
+      merchantName: i.merchantName,
+      merchantCountry: i.merchantCountry,
+      occurredAt: i.occurredAt,
+      anomalyScore: i.anomalyScore,
+    },
+    policies,
+  );
+  if (!evalResult.requires_approval) {
+    return { needs_approval: false, reason: "no_policy_matched", approval_request_id: null };
+  }
+
+  // Create the request. Atomicity note: if authorize.ts crashes right after
+  // this insert but before writing card_authorizations, the request will be
+  // orphan-pending; the hourly TTL cron expires it safely.
+  const req = await createApprovalRequest({
+    organizationId: i.organizationId,
+    policyId: evalResult.matched_policy_id!,
+    subjectType: "card_authorization",
+    subjectRef: i.cardId,
+    requestedByAgentId: i.agentId,
+    requestedAmountCents: i.amountCents,
+    requestedCurrency: i.currency,
+    context: {
+      card_id: i.cardId,
+      merchant: i.merchantName,
+      merchant_category: i.merchantCategory,
+      merchant_country: i.merchantCountry,
+      anomaly_score: i.anomalyScore,
+      required_signatures: evalResult.required_signatures,
+    },
+    timeoutSeconds: evalResult.timeout_seconds || 900,
+  });
+  return { needs_approval: true, reason: evalResult.reason, approval_request_id: req.id };
 }
