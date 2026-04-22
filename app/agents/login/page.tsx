@@ -33,7 +33,7 @@ export default function AgentsLogin() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "provision failed");
-      writeSession({ organizationId: data.organization_id, email });
+      writeSession({ organizationId: data.organization_id, email, userId: data.user_id });
       router.replace("/agents/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed");

@@ -15,12 +15,13 @@ import {
   ZP_GRAD,
   ZP_GREEN,
 } from "./theme";
-import { readSession, clearSession } from "@/app/agents/_lib/session";
+import { readSession, clearSession, apiFetch } from "@/app/agents/_lib/session";
 
 const NAV = [
   { href: "/agents/dashboard", label: "Overview", icon: "📊" },
   { href: "/agents/treasury", label: "Treasury", icon: "💼" },
   { href: "/agents/cards", label: "Cards", icon: "💳" },
+  { href: "/agents/approvals", label: "Approvals", icon: "✅", badge: true },
   { href: "/agents/agents", label: "Agents", icon: "🤖" },
   { href: "/agents/transactions", label: "Transactions", icon: "📋" },
   { href: "/agents/api-keys", label: "API Keys", icon: "🔑" },
@@ -30,6 +31,7 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
   const router = useRouter();
   const pathname = usePathname();
   const [email, setEmail] = useState<string>("");
+  const [pendingApprovals, setPendingApprovals] = useState<number>(0);
 
   useEffect(() => {
     const s = readSession();
@@ -39,6 +41,20 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
     }
     setEmail(s.email);
   }, [router]);
+
+  // Poll the approvals inbox badge every 15s (cheap indexed count).
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const r = await apiFetch<{ pending_count: number }>("/api/v1/agents/approvals?limit=1");
+        if (!cancelled) setPendingApprovals(r.pending_count ?? 0);
+      } catch { /* ignore */ }
+    };
+    void tick();
+    const id = setInterval(tick, 15_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   const logout = () => {
     clearSession();
@@ -105,7 +121,17 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
                   marginBottom: 2,
                 }}
               >
-                <span style={{ fontSize: 15 }}>{n.icon}</span> {n.label}
+                <span style={{ fontSize: 15 }}>{n.icon}</span>
+                <span style={{ flex: 1 }}>{n.label}</span>
+                {n.badge && pendingApprovals > 0 && (
+                  <span style={{
+                    minWidth: 20, height: 20, padding: "0 6px",
+                    borderRadius: 999, background: "#DC2626",
+                    color: "#fff", fontSize: 10, fontWeight: 800,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    letterSpacing: "0",
+                  }}>{pendingApprovals}</span>
+                )}
               </Link>
             );
           })}
