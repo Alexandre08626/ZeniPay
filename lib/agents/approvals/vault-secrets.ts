@@ -17,51 +17,37 @@
 // at rest by Vault (AES-256-GCM).
 
 import { getAgentsDb } from "../supabase-client";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-
-let _publicDb: SupabaseClient | null = null;
-function getPublicDb(): SupabaseClient {
-  if (_publicDb) return _publicDb;
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("supabase env missing for vault access");
-  // Vault lives in the `vault` schema; we talk to it via RPC functions
-  // exposed in public for convenience. Use default schema client.
-  _publicDb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  return _publicDb;
-}
 
 export interface StoreSecretResult {
   vault_secret_id: string;
 }
 
-/** Insert a secret into Vault and return its id. */
+/** Insert a secret into Vault via the agents.vault_create_secret
+ *  SECURITY-DEFINER wrapper. The `vault` schema is not exposed to PostgREST
+ *  on our project, so calling `schema("vault")` directly fails. The wrapper
+ *  lives in `agents` (which IS exposed) and proxies to vault.create_secret. */
 export async function storeSecret(plaintext: string, name: string, description?: string): Promise<StoreSecretResult> {
-  const db = getPublicDb();
-  // supabase_vault exposes vault.create_secret(secret, name, description) RPC.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (db as any).schema("vault").rpc("create_secret", {
-    new_secret: plaintext,
-    new_name: name,
-    new_description: description ?? "",
+  const db = getAgentsDb();
+  const { data, error } = await db.rpc("vault_create_secret", {
+    p_secret: plaintext,
+    p_name: name,
+    p_description: description ?? "",
   });
   if (error) throw new Error(`vault.create_secret failed: ${error.message}`);
+  if (!data) throw new Error("vault.create_secret returned no id");
   return { vault_secret_id: String(data) };
 }
 
-/** Decrypt a Vault secret by id. Service-role only. */
+/** Decrypt a Vault secret by id. Service-role only (the wrapper is
+ *  SECURITY DEFINER and REVOKEd from public). */
 export async function readSecret(vaultSecretId: string): Promise<string> {
-  const db = getPublicDb();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (db as any)
-    .schema("vault")
-    .from("decrypted_secrets")
-    .select("decrypted_secret")
-    .eq("id", vaultSecretId)
-    .maybeSingle();
+  const db = getAgentsDb();
+  const { data, error } = await db.rpc("vault_read_secret", {
+    p_vault_secret_id: vaultSecretId,
+  });
   if (error) throw new Error(`vault.decrypted_secrets read failed: ${error.message}`);
   if (!data) throw new Error(`vault secret ${vaultSecretId} not found`);
-  return String((data as { decrypted_secret: string }).decrypted_secret);
+  return String(data);
 }
 
 /** Register (or rotate) a user's TOTP secret. Writes to vault + pointer row. */
