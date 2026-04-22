@@ -1,244 +1,593 @@
+// ZeniPay Agents — public landing page.
+//
+// Target audience: CFOs managing fleets of AI agents, investors evaluating
+// ZeniPay Agents as infrastructure. The page lives at `/` (the domain's
+// root); existing merchant-product marketing has moved to `/merchant`.
+//
+// A signed-in merchant user hitting `/` gets auto-redirected to their
+// dashboard at `/app/overview` (detected via `sessionStorage.zp_client`,
+// set by `/app/login`). Signed-in Agents users are NOT auto-redirected —
+// they may intentionally navigate here to show the product to a prospect.
+
 "use client";
-import Image from "next/image";
+
+import { useEffect } from "react";
 import Link from "next/link";
-import Nav from "./components/Nav";
-import { useT } from "../modules/zenipay/i18n";
+import { useRouter } from "next/navigation";
+import MarketingNav from "./components/MarketingNav";
+import {
+  color,
+  gradientSignature,
+  spacing,
+  radius,
+  shadow,
+  font,
+  fontSize,
+  fontWeight,
+  transition,
+} from "@/lib/design-system/tokens";
 
-const ZP_GREEN = "#2DBE60";
-const ZP_CYAN = "#15B8C9";
-const ZP_BLUE = "#2A8FE0";
-const ZP_PURPLE = "#7B4FBF";
-const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
-const DARK = "#0A0F1E";
-const DARK2 = "#111827";
-const GLASS = "rgba(255,255,255,0.05)";
+export default function AgentsLandingPage() {
+  const router = useRouter();
 
-export default function ZeniPayLanding() {
-  const { t } = useT();
+  // Auto-redirect signed-in merchant users to their dashboard — they didn't
+  // mean to land on the marketing page.
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && sessionStorage.getItem("zp_client")) {
+        router.replace("/app/overview");
+      }
+    } catch {
+      /* private mode, ignore */
+    }
+  }, [router]);
+
   return (
-    <div style={{ background: DARK, color: "#fff", minHeight: "100vh", overflowX: "hidden" }}>
+    <div
+      className="zp-root"
+      style={{
+        minHeight: "100vh",
+        background: color.white,
+        color: color.textBody,
+        fontFamily: font.sans,
+      }}
+    >
+      <MarketingNav active="product" />
+      <Hero />
+      <PlatformStripPlaceholder />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Hero
+// ---------------------------------------------------------------------------
+function Hero() {
+  return (
+    <section
+      style={{
+        maxWidth: 1200,
+        margin: "0 auto",
+        padding: `${spacing[9]} ${spacing[5]} ${spacing[8]}`,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 820,
+          margin: "0 auto",
+          textAlign: "center",
+        }}
+      >
+        <AnnounceBadge />
+
+        <h1
+          style={{
+            fontFamily: font.serif,
+            fontWeight: fontWeight.semibold,
+            fontSize: "clamp(44px, 7vw, 80px)",
+            lineHeight: 1.05,
+            letterSpacing: "-0.04em",
+            color: color.textHeading,
+            marginTop: spacing[5],
+            marginBottom: spacing[5],
+          }}
+        >
+          The bank for{" "}
+          <span
+            className="zp-gradient-text"
+            style={{
+              display: "inline-block",
+              backgroundImage: gradientSignature,
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+            }}
+          >
+            AI agents
+          </span>
+          ,
+          <br />
+          at enterprise scale.
+        </h1>
+
+        <p
+          style={{
+            maxWidth: 620,
+            margin: `${spacing[5]} auto 0`,
+            fontFamily: font.sans,
+            fontSize: fontSize.lg.size,
+            lineHeight: fontSize.lg.line,
+            color: color.textBody,
+          }}
+        >
+          Issue virtual cards, fund treasury in seven currencies, auto-categorize
+          every charge, and give your CFO a SOC2-grade audit trail. Purpose-built
+          for teams running a fleet of autonomous agents.
+        </p>
+
+        <div
+          style={{
+            marginTop: spacing[6],
+            display: "flex",
+            gap: spacing[3],
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <Link
+            href="/contact"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: spacing[2],
+              padding: `${spacing[3]} ${spacing[5]}`,
+              borderRadius: radius.sm,
+              background: color.textHeading,
+              color: color.white,
+              textDecoration: "none",
+              fontFamily: font.sans,
+              fontSize: fontSize.base.size,
+              fontWeight: fontWeight.semibold,
+              boxShadow: shadow.md,
+              transition: transition.base,
+            }}
+          >
+            Request access
+            <span aria-hidden style={{ transform: "translateY(-0.5px)" }}>→</span>
+          </Link>
+          <Link
+            href="/agents/login"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: spacing[2],
+              padding: `${spacing[3]} ${spacing[5]}`,
+              borderRadius: radius.sm,
+              background: color.white,
+              color: color.textHeading,
+              textDecoration: "none",
+              border: `1px solid ${color.border}`,
+              fontFamily: font.sans,
+              fontSize: fontSize.base.size,
+              fontWeight: fontWeight.medium,
+              transition: transition.base,
+            }}
+          >
+            View the platform
+          </Link>
+        </div>
+
+        <p
+          style={{
+            marginTop: spacing[5],
+            fontFamily: font.sans,
+            fontSize: fontSize.xs.size,
+            color: color.textSubtle,
+            letterSpacing: "0.02em",
+          }}
+        >
+          7 pillars live in production · SOC2 evidence exports available today
+        </p>
+      </div>
+
+      <DashboardPreview />
+    </section>
+  );
+}
+
+function AnnounceBadge() {
+  return (
+    <Link
+      href="/security"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: spacing[2],
+        padding: `${spacing[1]} ${spacing[3]}`,
+        borderRadius: radius.pill,
+        background: color.white,
+        border: `1px solid ${color.border}`,
+        boxShadow: shadow.sm,
+        fontFamily: font.sans,
+        fontSize: fontSize.xs.size,
+        fontWeight: fontWeight.medium,
+        color: color.textBody,
+        textDecoration: "none",
+        transition: transition.base,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: radius.pill,
+          background: color.success,
+          boxShadow: `0 0 0 3px ${color.successBg}`,
+        }}
+      />
+      New — Signed audit export with Merkle-root tamper evidence
+      <span style={{ color: color.textMuted }}>→</span>
+    </Link>
+  );
+}
+
+/**
+ * In-page browser-chrome mockup of the Agents dashboard. Pure HTML/CSS —
+ * no screenshot, no external asset, renders crisply at any size.
+ */
+function DashboardPreview() {
+  return (
+    <div
+      style={{
+        maxWidth: 1080,
+        margin: `${spacing[8]} auto 0`,
+        borderRadius: radius.lg,
+        border: `1px solid ${color.border}`,
+        background: color.white,
+        boxShadow: shadow.lg,
+        overflow: "hidden",
+      }}
+    >
+      <BrowserChrome url="zenipay.ca/agents/treasury" />
+      <TreasuryPreview />
+    </div>
+  );
+}
+
+function BrowserChrome({ url }: { url: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: spacing[2],
+        padding: `${spacing[2]} ${spacing[4]}`,
+        background: color.surface,
+        borderBottom: `1px solid ${color.border}`,
+      }}
+    >
+      <div style={{ display: "flex", gap: 6 }}>
+        <span style={{ width: 10, height: 10, borderRadius: radius.pill, background: "#e5e5e5" }} />
+        <span style={{ width: 10, height: 10, borderRadius: radius.pill, background: "#e5e5e5" }} />
+        <span style={{ width: 10, height: 10, borderRadius: radius.pill, background: "#e5e5e5" }} />
+      </div>
+      <div
+        style={{
+          marginLeft: spacing[3],
+          padding: `4px ${spacing[3]}`,
+          borderRadius: radius.sm,
+          background: color.white,
+          border: `1px solid ${color.border}`,
+          fontFamily: font.mono,
+          fontSize: fontSize.xs.size,
+          color: color.textMuted,
+        }}
+      >
+        {url}
+      </div>
+    </div>
+  );
+}
+
+function TreasuryPreview() {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "220px 1fr",
+        minHeight: 420,
+        background: color.white,
+      }}
+      className="treasury-preview-grid"
+    >
+      {/* Sidebar */}
+      <aside
+        style={{
+          borderRight: `1px solid ${color.border}`,
+          padding: spacing[4],
+          background: color.white,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: spacing[2], marginBottom: spacing[5] }}>
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: radius.sm,
+              background: gradientSignature,
+              color: color.white,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: fontWeight.black,
+              fontSize: 13,
+            }}
+          >
+            Z
+          </div>
+          <span
+            style={{
+              fontFamily: font.sans,
+              fontWeight: fontWeight.bold,
+              fontSize: fontSize.sm.size,
+              color: color.textHeading,
+            }}
+          >
+            ZeniPay Agents
+          </span>
+        </div>
+        <PreviewNavItem label="Overview" icon="•" />
+        <PreviewNavItem label="Treasury" icon="•" active />
+        <PreviewNavItem label="Cards" icon="•" />
+        <PreviewNavItem label="Approvals" icon="•" badge="3" />
+        <PreviewNavItem label="Accounting" icon="•" />
+        <PreviewNavItem label="Fraud" icon="•" />
+        <PreviewNavItem label="Audit" icon="•" />
+      </aside>
+
+      {/* Content */}
+      <main style={{ padding: spacing[5] }}>
+        <div
+          style={{
+            fontFamily: font.sans,
+            fontSize: fontSize.xs.size,
+            color: color.textMuted,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            fontWeight: fontWeight.semibold,
+            marginBottom: spacing[2],
+          }}
+        >
+          Treasury · USD
+        </div>
+        <div
+          style={{
+            fontFamily: font.sans,
+            fontSize: fontSize.h3.size,
+            lineHeight: fontSize.h3.line,
+            letterSpacing: fontSize.h3.tracking,
+            fontWeight: fontWeight.semibold,
+            color: color.textHeading,
+            marginBottom: spacing[5],
+          }}
+        >
+          $2,485,210<span style={{ color: color.textMuted, fontWeight: fontWeight.medium }}>.43</span>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: spacing[3],
+            marginBottom: spacing[5],
+          }}
+        >
+          <PreviewStat label="Agents" value="48" delta="+4" />
+          <PreviewStat label="Cards live" value="126" delta="+12" />
+          <PreviewStat label="Alerts · 24h" value="2" delta="−1" negative />
+        </div>
+
+        {/* Balance distribution table */}
+        <div
+          style={{
+            border: `1px solid ${color.border}`,
+            borderRadius: radius.md,
+            background: color.white,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: `${spacing[3]} ${spacing[4]}`,
+              borderBottom: `1px solid ${color.border}`,
+              fontFamily: font.sans,
+              fontSize: fontSize.xs.size,
+              fontWeight: fontWeight.semibold,
+              color: color.textMuted,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              display: "flex",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>Wallet</span>
+            <span>Balance</span>
+          </div>
+          {[
+            { label: "USD primary", value: "$1,842,900.00" },
+            { label: "EUR hedge", value: "€412,000.00" },
+            { label: "GBP ops", value: "£94,250.00" },
+            { label: "CAD reserves", value: "CA$220,600.00" },
+          ].map((row) => (
+            <div
+              key={row.label}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: `${spacing[3]} ${spacing[4]}`,
+                borderBottom: `1px solid ${color.border}`,
+                fontFamily: font.sans,
+                fontSize: fontSize.sm.size,
+                color: color.textBody,
+              }}
+            >
+              <span>{row.label}</span>
+              <span
+                style={{
+                  fontFamily: font.mono,
+                  color: color.textHeading,
+                  fontWeight: fontWeight.medium,
+                }}
+              >
+                {row.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </main>
+
       <style>{`
         @media (max-width: 768px) {
-          .zp-hero-logo { max-width: 160px !important; }
-          .zp-flow-arrow { display: none !important; }
-          .zp-flow-pills { justify-content: center !important; }
-          .zp-hero-btns { flex-direction: column !important; width: 100% !important; }
-          .zp-hero-btns a { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
-          .zp-stats-bar { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; }
-          .zp-feature-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; }
-          .zp-step-grid { grid-template-columns: 1fr !important; }
-          .zp-section { padding-top: 48px !important; padding-bottom: 48px !important; }
-          .zp-cta-btns { flex-direction: column !important; width: 100% !important; }
-          .zp-cta-btns a { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
+          .treasury-preview-grid { grid-template-columns: 1fr !important; }
+          .treasury-preview-grid aside { display: none; }
         }
       `}</style>
-      <Nav />
-
-      {/* Hero */}
-      <section style={{
-        minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-        textAlign: "center", padding: "120px 5% 80px",
-        background: `radial-gradient(ellipse 80% 60% at 50% -10%, rgba(45,190,96,0.12) 0%, transparent 70%), ${DARK}`,
-      }}>
-        <div style={{ maxWidth: 860 }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 40 }}>
-            <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={920} height={255} className="zp-hero-logo" style={{ objectFit: "contain", maxWidth: "100%" }} priority />
-          </div>
-
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            background: GLASS, border: "1px solid rgba(45,190,96,0.3)",
-            borderRadius: 24, padding: "6px 16px", marginBottom: 32,
-          }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: ZP_GREEN, display: "inline-block" }} />
-            <span style={{ fontSize: 11, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              {t("landing.heroBadge")}
-            </span>
-          </div>
-
-          <h1 style={{ fontSize: "clamp(40px, 6vw, 74px)", fontWeight: 900, lineHeight: 1.08, margin: "0 0 24px", letterSpacing: "-2px" }}>
-            {t("landing.heroTitle1")}<br />
-            {t("landing.heroTitle2")}<br />
-            <span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              {t("landing.heroTitle3")}
-            </span>
-          </h1>
-
-          <p style={{ fontSize: "clamp(16px, 2vw, 20px)", color: "rgba(255,255,255,0.65)", lineHeight: 1.65, margin: "0 auto 20px", maxWidth: 640 }}>
-            {t("landing.heroDesc1")} <strong style={{ color: "#fff" }}>{t("landing.heroDescProcessor")}</strong> {t("landing.heroDescAnd")} <strong style={{ color: "#fff" }}>{t("landing.heroDescBank")}</strong> {t("landing.heroDescRest")} <strong style={{ color: ZP_CYAN }}>{t("landing.heroDescZeniCard")}</strong>{t("landing.heroDescEnd")}
-          </p>
-
-          {/* The flow — visual pill chain */}
-          <div className="zp-flow-pills" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap", margin: "0 auto 40px", maxWidth: 700 }}>
-            {[
-              { label: t("landing.flowCustomerPays"), sub: t("landing.flowCustomerPaysSub"), color: ZP_GREEN },
-              { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
-              { label: t("landing.flowProcesses"), sub: t("landing.flowProcessesSub"), color: ZP_CYAN },
-              { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
-              { label: t("landing.flowFunds"), sub: t("landing.flowFundsSub"), color: ZP_PURPLE },
-              { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
-              { label: t("landing.flowManage"), sub: t("landing.flowManageSub"), color: ZP_BLUE },
-            ].map((s, i) => s.sub ? (
-              <div key={i} style={{ background: s.color + "18", border: `1px solid ${s.color}44`, borderRadius: 12, padding: "8px 14px", textAlign: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.label}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{s.sub}</div>
-              </div>
-            ) : (
-              <div key={i} className="zp-flow-arrow" style={{ fontSize: 18, color: s.color, fontWeight: 700 }}>→</div>
-            ))}
-          </div>
-
-          <div className="zp-hero-btns" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 36px", fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(45,190,96,0.25)" }}>
-              {t("landing.ctaGetStarted")}
-            </Link>
-            <a href="mailto:zenipay@zeniva.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>
-              {t("landing.ctaTalkToSales")}
-            </a>
-          </div>
-
-          <p style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
-            {t("landing.trustLine")}
-          </p>
-        </div>
-      </section>
-
-      {/* Stats bar */}
-      <section className="zp-stats-bar" style={{
-        background: GLASS, borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)",
-        padding: "40px 5%",
-        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, textAlign: "center",
-      }}>
-        {[
-          { num: "99.99%", label: t("landing.statUptime") },
-          { num: "<200ms", label: t("landing.statProcessing") },
-          { num: "135+", label: t("landing.statCurrencies") },
-          { num: "0 days", label: t("landing.statHold") },
-          { num: "PCI DSS", label: t("landing.statPCI") },
-        ].map(s => (
-          <div key={s.label}>
-            <div style={{ fontSize: 28, fontWeight: 900, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.num}</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{s.label}</div>
-          </div>
-        ))}
-      </section>
-
-      {/* What is ZeniCard */}
-      <section className="zp-section" style={{ padding: "100px 5%", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 64 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(21,184,201,0.1)", border: "1px solid rgba(21,184,201,0.3)", borderRadius: 24, padding: "6px 16px", marginBottom: 20 }}>
-            <span style={{ fontSize: 12, color: ZP_CYAN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("landing.zeniCardBadge")}</span>
-          </div>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>
-            {t("landing.zeniCardTitle")}
-          </h2>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 17, maxWidth: 600, margin: "0 auto" }}>
-            {t("landing.zeniCardDesc")}
-          </p>
-        </div>
-
-        <div className="zp-feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
-          {[
-            { icon: "💳", title: t("landing.featurePaymentsTitle"), desc: t("landing.featurePaymentsDesc"), color: ZP_GREEN, href: "/payments" },
-            { icon: "🏦", title: t("landing.featureBankTitle"), desc: t("landing.featureBankDesc"), color: ZP_CYAN, href: "/tools" },
-            { icon: "⚡", title: t("landing.featureZeroTitle"), desc: t("landing.featureZeroDesc"), color: ZP_PURPLE, href: "/payouts" },
-            { icon: "🃏", title: t("landing.featureDebitTitle"), desc: t("landing.featureDebitDesc"), color: ZP_BLUE, href: "/tools" },
-            { icon: "📒", title: t("landing.featureAccountingTitle"), desc: t("landing.featureAccountingDesc"), color: "#F5A623", href: "/tools" },
-            { icon: "👥", title: t("landing.featurePaySuppliersTitle"), desc: t("landing.featurePaySuppliersDesc"), color: "#E5247B", href: "/payouts" },
-          ].map(f => (
-            <Link key={f.title} href={f.href} style={{ textDecoration: "none" }}>
-              <div style={{
-                background: GLASS, border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 20, padding: 32, cursor: "pointer",
-                transition: "border-color 0.2s, transform 0.2s",
-              }}
-                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = f.color + "44"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}>
-                <div style={{ fontSize: 32, marginBottom: 16 }}>{f.icon}</div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 12px", color: f.color }}>{f.title}</h3>
-                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section style={{
-        padding: "80px 5%",
-        background: `radial-gradient(ellipse 60% 40% at 50% 50%, rgba(42,143,224,0.08) 0%, transparent 70%)`,
-      }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
-          <h2 style={{ fontSize: "clamp(24px, 3.5vw, 42px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>
-            {t("landing.howItWorksTitle")}
-          </h2>
-          <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 64, fontSize: 16 }}>
-            {t("landing.howItWorksDesc")}
-          </p>
-          <div className="zp-step-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 32 }}>
-            {[
-              { step: "01", icon: "🏦", title: t("landing.step01Title"), desc: t("landing.step01Desc") },
-              { step: "02", icon: "🔌", title: t("landing.step02Title"), desc: t("landing.step02Desc") },
-              { step: "03", icon: "⚡", title: t("landing.step03Title"), desc: t("landing.step03Desc") },
-            ].map(s => (
-              <div key={s.step} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "32px 24px" }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.15em", marginBottom: 12 }}>STEP {s.step}</div>
-                <div style={{ fontSize: 28, marginBottom: 12 }}>{s.icon}</div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 12px" }}>{s.title}</h3>
-                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="zp-section" style={{
-        padding: "100px 5%", textAlign: "center",
-        background: `linear-gradient(135deg, rgba(45,190,96,0.08) 0%, rgba(123,79,191,0.08) 100%)`,
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-      }}>
-        <h2 style={{ fontSize: "clamp(28px, 4vw, 52px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
-          {t("landing.ctaSectionTitle")}
-        </h2>
-        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, margin: "0 auto 40px", maxWidth: 480 }}>
-          {t("landing.ctaSectionDesc")}
-        </p>
-        <div className="zp-cta-btns" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700 }}>
-            {t("landing.ctaSectionBtn")}
-          </Link>
-          <a href="mailto:zenipay@zeniva.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700, border: "1px solid rgba(255,255,255,0.15)" }}>
-            {t("landing.ctaTalkToSales")}
-          </a>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer style={{
-        background: DARK2, borderTop: "1px solid rgba(255,255,255,0.06)",
-        padding: "48px 5%", display: "flex", justifyContent: "space-between",
-        alignItems: "center", flexWrap: "wrap", gap: 24,
-      }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
-          <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={110} height={32} style={{ objectFit: "contain" }} />
-        </Link>
-        <div style={{ display: "flex", gap: 24 }}>
-          {[
-            { label: t("landing.footerPayments"), href: "/payments" },
-            { label: t("landing.footerPayouts"), href: "/payouts" },
-            { label: t("landing.footerTools"), href: "/tools" },
-            { label: t("landing.footerDocs"), href: "/docs" },
-            { label: t("landing.footerTerms"), href: "/terms" },
-            { label: t("landing.footerPrivacy"), href: "/privacy" },
-          ].map(item => (
-            <Link key={item.href} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>
-          ))}
-        </div>
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>
-          {t("common.copyrightLong")}
-        </p>
-      </footer>
     </div>
+  );
+}
+
+function PreviewNavItem({
+  label,
+  icon,
+  active,
+  badge,
+}: {
+  label: string;
+  icon: string;
+  active?: boolean;
+  badge?: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: `${spacing[2]} ${spacing[3]}`,
+        marginBottom: spacing[1],
+        borderRadius: radius.sm,
+        background: active ? color.surface : "transparent",
+        color: active ? color.textHeading : color.textBody,
+        fontFamily: font.sans,
+        fontSize: fontSize.sm.size,
+        fontWeight: active ? fontWeight.semibold : fontWeight.medium,
+      }}
+    >
+      <span style={{ display: "inline-flex", alignItems: "center", gap: spacing[2] }}>
+        <span style={{ color: color.textSubtle }}>{icon}</span>
+        {label}
+      </span>
+      {badge && (
+        <span
+          style={{
+            padding: "1px 6px",
+            borderRadius: radius.pill,
+            background: color.danger,
+            color: color.white,
+            fontSize: 10,
+            fontWeight: fontWeight.bold,
+          }}
+        >
+          {badge}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PreviewStat({
+  label,
+  value,
+  delta,
+  negative,
+}: {
+  label: string;
+  value: string;
+  delta: string;
+  negative?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${color.border}`,
+        borderRadius: radius.md,
+        padding: spacing[3],
+      }}
+    >
+      <div
+        style={{
+          fontFamily: font.sans,
+          fontSize: fontSize.xs.size,
+          color: color.textMuted,
+          fontWeight: fontWeight.semibold,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          marginBottom: spacing[1],
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: spacing[2] }}>
+        <span
+          style={{
+            fontFamily: font.sans,
+            fontSize: fontSize.h5.size,
+            fontWeight: fontWeight.semibold,
+            color: color.textHeading,
+          }}
+        >
+          {value}
+        </span>
+        <span
+          style={{
+            fontFamily: font.sans,
+            fontSize: fontSize.xs.size,
+            color: negative ? color.danger : color.success,
+            fontWeight: fontWeight.semibold,
+          }}
+        >
+          {delta}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Commit 2.2 will replace this with: pillars + product screenshots + pricing
+// teaser + footer. Leaving a structural placeholder so the page renders
+// cleanly on Commit 2.1's preview.
+function PlatformStripPlaceholder() {
+  return (
+    <section
+      id="platform"
+      style={{
+        padding: `${spacing[9]} ${spacing[5]}`,
+        borderTop: `1px solid ${color.border}`,
+        background: color.surface,
+        textAlign: "center",
+      }}
+    >
+      <p
+        style={{
+          fontFamily: font.sans,
+          fontSize: fontSize.sm.size,
+          color: color.textMuted,
+          margin: 0,
+        }}
+      >
+        Platform highlights, pillars, and pricing coming on the next deploy.
+      </p>
+    </section>
   );
 }

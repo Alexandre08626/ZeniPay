@@ -23,11 +23,11 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   metadataBase: new URL("https://zenipay.ca"),
   title: {
-    default: "ZeniPay — Accept Payments. Move Money. Scale Your Business.",
+    default: "ZeniPay Agents — The bank for AI agents at enterprise scale.",
     template: "%s | ZeniPay",
   },
   description:
-    "ZeniPay is modern payment and financial infrastructure for Canadian and American businesses. Accept credit cards, debit, ACH, process payouts, manage invoices — all in one platform. The Stripe alternative built for Canada.",
+    "ZeniPay Agents gives CFOs a complete banking stack for fleets of AI agents — virtual cards, multi-currency treasury, expense categorization, approval workflows, fraud detection, and a SOC2-grade signed audit trail.",
   keywords: [
     "payment gateway Canada",
     "payment processing Canada",
