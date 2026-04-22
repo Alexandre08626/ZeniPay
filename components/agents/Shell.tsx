@@ -20,8 +20,9 @@ import { readSession, clearSession } from "@/app/agents/_lib/session";
 const NAV = [
   { href: "/agents/dashboard", label: "Overview", icon: "📊" },
   { href: "/agents/treasury", label: "Treasury", icon: "💼" },
+  { href: "/agents/cards", label: "Cards", icon: "💳" },
   { href: "/agents/agents", label: "Agents", icon: "🤖" },
-  { href: "/agents/transactions", label: "Transactions", icon: "💳" },
+  { href: "/agents/transactions", label: "Transactions", icon: "📋" },
   { href: "/agents/api-keys", label: "API Keys", icon: "🔑" },
 ];
 

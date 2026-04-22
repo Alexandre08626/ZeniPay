@@ -35,20 +35,25 @@ interface TxRow {
   created_at: string;
 }
 
+interface CardRow { id: string; status: string }
+
 export default function AgentsDashboard() {
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [txs, setTxs] = useState<TxRow[]>([]);
+  const [cards, setCards] = useState<CardRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const [a, t] = await Promise.all([
+        const [a, t, c] = await Promise.all([
           apiFetch<{ agents: AgentRow[] }>("/api/v1/agents/agents"),
           apiFetch<{ transactions: TxRow[] }>("/api/v1/agents/transactions?limit=10"),
+          apiFetch<{ cards: CardRow[] }>("/api/v1/agents/cards").catch(() => ({ cards: [] })),
         ]);
         setAgents(a.agents);
         setTxs(t.transactions);
+        setCards(c.cards);
       } catch {
         /* handled in render */
       } finally {
@@ -62,17 +67,15 @@ export default function AgentsDashboard() {
   const monthSpend = txs
     .filter((t) => t.status === "authorized" || t.status === "captured")
     .reduce((s, t) => s + t.amount_cents, 0);
-  const successRate = txs.length === 0 ? 100 : Math.round(
-    (txs.filter((t) => t.status !== "denied" && t.status !== "failed").length / txs.length) * 100,
-  );
+  const activeCards = cards.filter((c) => c.status === "active").length;
 
   return (
     <Shell title="Overview">
       <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", marginBottom: 20 }}>
         <Metric label="Active agents" value={String(activeAgents)} sub={`${agents.length} total`} color={ZP_GREEN} />
         <Metric label="Total balance" value={fmtUSD(totalBalance)} sub="across all wallets" color={ZP_CYAN} />
-        <Metric label="Recent spend" value={fmtUSD(monthSpend)} sub="last 10 tx" color={ZP_PURPLE} />
-        <Metric label="Success rate" value={`${successRate}%`} sub="recent window" color={ZP_BLUE} />
+        <Metric label="Active cards" value={String(activeCards)} sub={`${cards.length} issued`} color={ZP_PURPLE} />
+        <Metric label="Recent spend" value={fmtUSD(monthSpend)} sub="last 10 tx" color={ZP_BLUE} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
