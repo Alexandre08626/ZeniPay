@@ -1,244 +1,955 @@
+// /merchant — dedicated ZeniPay Merchant marketing page.
+//
+// Stripe-level polish for the revenue-generating Finix-backed product. Replaces
+// the dark-mode legacy landing that was moved here in Phase 2.1. Same
+// SELF-CONTAINED constraint as the 2-products root: no @/components imports,
+// inline styles only, only next/link + next/navigation. Fonts flow via
+// globals.css CSS vars loaded in layout.tsx.
+
 "use client";
-import Image from "next/image";
+
+import { useEffect, type CSSProperties } from "react";
 import Link from "next/link";
-import Nav from "../components/Nav";
-import { useT } from "../../modules/zenipay/i18n";
+import { useRouter } from "next/navigation";
 
-const ZP_GREEN = "#2DBE60";
-const ZP_CYAN = "#15B8C9";
-const ZP_BLUE = "#2A8FE0";
-const ZP_PURPLE = "#7B4FBF";
-const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
-const DARK = "#0A0F1E";
-const DARK2 = "#111827";
-const GLASS = "rgba(255,255,255,0.05)";
+// Tokens — intentionally duplicated from lib/design-system/tokens.ts.
+const T = {
+  white: "#ffffff",
+  surface: "#f8f9fa",
+  border: "#e2e8f0",
+  textHeading: "#0a0a0a",
+  textBody: "#525252",
+  textMuted: "#737373",
+  textSubtle: "#a3a3a3",
+  brandGreen: "#2dbe60",
+  brandCyan: "#15b8c9",
+  brandPurple: "#7b4fbf",
+  success: "#16a34a",
+  successBg: "#dcfce7",
+  info: "#0891b2",
+  infoBg: "#cffafe",
+  gradient: "linear-gradient(135deg, #2dbe60 0%, #15b8c9 50%, #7b4fbf 100%)",
+  fontSans: 'var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
+  fontSerif: 'var(--font-fraunces), Fraunces, Georgia, serif',
+  fontMono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  shadowSm: "0 1px 2px rgba(0,0,0,0.04)",
+  shadowMd: "0 4px 12px rgba(0,0,0,0.06)",
+  shadowLg: "0 10px 30px rgba(0,0,0,0.08)",
+};
 
-export default function ZeniPayLanding() {
-  const { t } = useT();
+export default function MerchantLanding() {
+  const router = useRouter();
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && sessionStorage.getItem("zp_client")) {
+        router.replace("/app/overview");
+      }
+    } catch { /* ignore */ }
+  }, [router]);
+
   return (
-    <div style={{ background: DARK, color: "#fff", minHeight: "100vh", overflowX: "hidden" }}>
-      <style>{`
-        @media (max-width: 768px) {
-          .zp-hero-logo { max-width: 160px !important; }
-          .zp-flow-arrow { display: none !important; }
-          .zp-flow-pills { justify-content: center !important; }
-          .zp-hero-btns { flex-direction: column !important; width: 100% !important; }
-          .zp-hero-btns a { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
-          .zp-stats-bar { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; }
-          .zp-feature-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; }
-          .zp-step-grid { grid-template-columns: 1fr !important; }
-          .zp-section { padding-top: 48px !important; padding-bottom: 48px !important; }
-          .zp-cta-btns { flex-direction: column !important; width: 100% !important; }
-          .zp-cta-btns a { width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
-        }
-      `}</style>
-      <Nav />
-
-      {/* Hero */}
-      <section style={{
-        minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-        textAlign: "center", padding: "120px 5% 80px",
-        background: `radial-gradient(ellipse 80% 60% at 50% -10%, rgba(45,190,96,0.12) 0%, transparent 70%), ${DARK}`,
-      }}>
-        <div style={{ maxWidth: 860 }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 40 }}>
-            <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={920} height={255} className="zp-hero-logo" style={{ objectFit: "contain", maxWidth: "100%" }} priority />
-          </div>
-
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            background: GLASS, border: "1px solid rgba(45,190,96,0.3)",
-            borderRadius: 24, padding: "6px 16px", marginBottom: 32,
-          }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: ZP_GREEN, display: "inline-block" }} />
-            <span style={{ fontSize: 11, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              {t("landing.heroBadge")}
-            </span>
-          </div>
-
-          <h1 style={{ fontSize: "clamp(40px, 6vw, 74px)", fontWeight: 900, lineHeight: 1.08, margin: "0 0 24px", letterSpacing: "-2px" }}>
-            {t("landing.heroTitle1")}<br />
-            {t("landing.heroTitle2")}<br />
-            <span style={{ background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              {t("landing.heroTitle3")}
-            </span>
-          </h1>
-
-          <p style={{ fontSize: "clamp(16px, 2vw, 20px)", color: "rgba(255,255,255,0.65)", lineHeight: 1.65, margin: "0 auto 20px", maxWidth: 640 }}>
-            {t("landing.heroDesc1")} <strong style={{ color: "#fff" }}>{t("landing.heroDescProcessor")}</strong> {t("landing.heroDescAnd")} <strong style={{ color: "#fff" }}>{t("landing.heroDescBank")}</strong> {t("landing.heroDescRest")} <strong style={{ color: ZP_CYAN }}>{t("landing.heroDescZeniCard")}</strong>{t("landing.heroDescEnd")}
-          </p>
-
-          {/* The flow — visual pill chain */}
-          <div className="zp-flow-pills" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap", margin: "0 auto 40px", maxWidth: 700 }}>
-            {[
-              { label: t("landing.flowCustomerPays"), sub: t("landing.flowCustomerPaysSub"), color: ZP_GREEN },
-              { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
-              { label: t("landing.flowProcesses"), sub: t("landing.flowProcessesSub"), color: ZP_CYAN },
-              { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
-              { label: t("landing.flowFunds"), sub: t("landing.flowFundsSub"), color: ZP_PURPLE },
-              { label: "→", sub: "", color: "rgba(255,255,255,0.2)" },
-              { label: t("landing.flowManage"), sub: t("landing.flowManageSub"), color: ZP_BLUE },
-            ].map((s, i) => s.sub ? (
-              <div key={i} style={{ background: s.color + "18", border: `1px solid ${s.color}44`, borderRadius: 12, padding: "8px 14px", textAlign: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.label}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{s.sub}</div>
-              </div>
-            ) : (
-              <div key={i} className="zp-flow-arrow" style={{ fontSize: 18, color: s.color, fontWeight: 700 }}>→</div>
-            ))}
-          </div>
-
-          <div className="zp-hero-btns" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 36px", fontSize: 15, fontWeight: 800, boxShadow: "0 8px 32px rgba(45,190,96,0.25)" }}>
-              {t("landing.ctaGetStarted")}
-            </Link>
-            <a href="mailto:zenipay@zeniva.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)" }}>
-              {t("landing.ctaTalkToSales")}
-            </a>
-          </div>
-
-          <p style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
-            {t("landing.trustLine")}
-          </p>
-        </div>
-      </section>
-
-      {/* Stats bar */}
-      <section className="zp-stats-bar" style={{
-        background: GLASS, borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)",
-        padding: "40px 5%",
-        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, textAlign: "center",
-      }}>
-        {[
-          { num: "99.99%", label: t("landing.statUptime") },
-          { num: "<200ms", label: t("landing.statProcessing") },
-          { num: "135+", label: t("landing.statCurrencies") },
-          { num: "0 days", label: t("landing.statHold") },
-          { num: "PCI DSS", label: t("landing.statPCI") },
-        ].map(s => (
-          <div key={s.label}>
-            <div style={{ fontSize: 28, fontWeight: 900, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.num}</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{s.label}</div>
-          </div>
-        ))}
-      </section>
-
-      {/* What is ZeniCard */}
-      <section className="zp-section" style={{ padding: "100px 5%", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 64 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(21,184,201,0.1)", border: "1px solid rgba(21,184,201,0.3)", borderRadius: 24, padding: "6px 16px", marginBottom: 20 }}>
-            <span style={{ fontSize: 12, color: ZP_CYAN, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("landing.zeniCardBadge")}</span>
-          </div>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>
-            {t("landing.zeniCardTitle")}
-          </h2>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 17, maxWidth: 600, margin: "0 auto" }}>
-            {t("landing.zeniCardDesc")}
-          </p>
-        </div>
-
-        <div className="zp-feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
-          {[
-            { icon: "💳", title: t("landing.featurePaymentsTitle"), desc: t("landing.featurePaymentsDesc"), color: ZP_GREEN, href: "/payments" },
-            { icon: "🏦", title: t("landing.featureBankTitle"), desc: t("landing.featureBankDesc"), color: ZP_CYAN, href: "/tools" },
-            { icon: "⚡", title: t("landing.featureZeroTitle"), desc: t("landing.featureZeroDesc"), color: ZP_PURPLE, href: "/payouts" },
-            { icon: "🃏", title: t("landing.featureDebitTitle"), desc: t("landing.featureDebitDesc"), color: ZP_BLUE, href: "/tools" },
-            { icon: "📒", title: t("landing.featureAccountingTitle"), desc: t("landing.featureAccountingDesc"), color: "#F5A623", href: "/tools" },
-            { icon: "👥", title: t("landing.featurePaySuppliersTitle"), desc: t("landing.featurePaySuppliersDesc"), color: "#E5247B", href: "/payouts" },
-          ].map(f => (
-            <Link key={f.title} href={f.href} style={{ textDecoration: "none" }}>
-              <div style={{
-                background: GLASS, border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 20, padding: 32, cursor: "pointer",
-                transition: "border-color 0.2s, transform 0.2s",
-              }}
-                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = f.color + "44"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}>
-                <div style={{ fontSize: 32, marginBottom: 16 }}>{f.icon}</div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 12px", color: f.color }}>{f.title}</h3>
-                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section style={{
-        padding: "80px 5%",
-        background: `radial-gradient(ellipse 60% 40% at 50% 50%, rgba(42,143,224,0.08) 0%, transparent 70%)`,
-      }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
-          <h2 style={{ fontSize: "clamp(24px, 3.5vw, 42px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1px" }}>
-            {t("landing.howItWorksTitle")}
-          </h2>
-          <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 64, fontSize: 16 }}>
-            {t("landing.howItWorksDesc")}
-          </p>
-          <div className="zp-step-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 32 }}>
-            {[
-              { step: "01", icon: "🏦", title: t("landing.step01Title"), desc: t("landing.step01Desc") },
-              { step: "02", icon: "🔌", title: t("landing.step02Title"), desc: t("landing.step02Desc") },
-              { step: "03", icon: "⚡", title: t("landing.step03Title"), desc: t("landing.step03Desc") },
-            ].map(s => (
-              <div key={s.step} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "32px 24px" }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: ZP_GREEN, letterSpacing: "0.15em", marginBottom: 12 }}>STEP {s.step}</div>
-                <div style={{ fontSize: 28, marginBottom: 12 }}>{s.icon}</div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 12px" }}>{s.title}</h3>
-                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="zp-section" style={{
-        padding: "100px 5%", textAlign: "center",
-        background: `linear-gradient(135deg, rgba(45,190,96,0.08) 0%, rgba(123,79,191,0.08) 100%)`,
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-      }}>
-        <h2 style={{ fontSize: "clamp(28px, 4vw, 52px)", fontWeight: 900, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
-          {t("landing.ctaSectionTitle")}
-        </h2>
-        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 18, margin: "0 auto 40px", maxWidth: 480 }}>
-          {t("landing.ctaSectionDesc")}
-        </p>
-        <div className="zp-cta-btns" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/signup" style={{ background: ZP_GRAD, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700 }}>
-            {t("landing.ctaSectionBtn")}
-          </Link>
-          <a href="mailto:zenipay@zeniva.ca" style={{ background: GLASS, color: "#fff", textDecoration: "none", padding: "16px 40px", borderRadius: 14, fontSize: 16, fontWeight: 700, border: "1px solid rgba(255,255,255,0.15)" }}>
-            {t("landing.ctaTalkToSales")}
-          </a>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer style={{
-        background: DARK2, borderTop: "1px solid rgba(255,255,255,0.06)",
-        padding: "48px 5%", display: "flex", justifyContent: "space-between",
-        alignItems: "center", flexWrap: "wrap", gap: 24,
-      }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
-          <Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={110} height={32} style={{ objectFit: "contain" }} />
-        </Link>
-        <div style={{ display: "flex", gap: 24 }}>
-          {[
-            { label: t("landing.footerPayments"), href: "/payments" },
-            { label: t("landing.footerPayouts"), href: "/payouts" },
-            { label: t("landing.footerTools"), href: "/tools" },
-            { label: t("landing.footerDocs"), href: "/docs" },
-            { label: t("landing.footerTerms"), href: "/terms" },
-            { label: t("landing.footerPrivacy"), href: "/privacy" },
-          ].map(item => (
-            <Link key={item.href} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>
-          ))}
-        </div>
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>
-          {t("common.copyrightLong")}
-        </p>
-      </footer>
+    <div
+      className="zp-root"
+      style={{
+        minHeight: "100vh",
+        background: T.white,
+        color: T.textBody,
+        fontFamily: T.fontSans,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <TopBar />
+      <Hero />
+      <Stats />
+      <Capabilities />
+      <DashboardPreview />
+      <Industries />
+      <ClosingCta />
+      <FooterBar />
     </div>
   );
 }
+
+function TopBar() {
+  return (
+    <header
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        background: "rgba(255, 255, 255, 0.8)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        borderBottom: `1px solid ${T.border}`,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          padding: "16px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 24,
+        }}
+      >
+        <Link
+          href="/"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            textDecoration: "none",
+            color: T.textHeading,
+            fontFamily: T.fontSans,
+            fontSize: 18,
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          <BrandGlyph />
+          ZeniPay
+          <span
+            style={{
+              marginLeft: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              color: T.info,
+              background: T.infoBg,
+              padding: "2px 8px",
+              borderRadius: 999,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            Merchant
+          </span>
+        </Link>
+
+        <nav className="merchant-nav-links" style={{ display: "none", alignItems: "center", gap: 24 }}>
+          <Link href="/merchant" style={{ ...navLinkStyle, color: T.textHeading, fontWeight: 600 }}>Merchant</Link>
+          <Link href="/agents/overview" style={navLinkStyle}>AI Agents</Link>
+          <Link href="/pricing" style={navLinkStyle}>Pricing</Link>
+          <Link href="/security" style={navLinkStyle}>Security</Link>
+        </nav>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Link href="/login" style={{ ...navLinkStyle, padding: "8px 12px" }}>Sign in</Link>
+          <Link
+            href="/signup"
+            style={{
+              fontFamily: T.fontSans,
+              fontSize: 14,
+              fontWeight: 600,
+              color: T.white,
+              background: T.textHeading,
+              textDecoration: "none",
+              padding: "8px 16px",
+              borderRadius: 6,
+              boxShadow: T.shadowSm,
+            }}
+          >
+            Get started
+          </Link>
+        </div>
+      </div>
+      <style>{`
+        @media (min-width: 768px) {
+          .merchant-nav-links { display: flex !important; }
+        }
+      `}</style>
+    </header>
+  );
+}
+
+const navLinkStyle: CSSProperties = {
+  fontFamily: T.fontSans,
+  fontSize: 14,
+  fontWeight: 500,
+  color: T.textBody,
+  textDecoration: "none",
+};
+
+function BrandGlyph() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 24,
+        height: 24,
+        borderRadius: 6,
+        background: T.gradient,
+        color: T.white,
+        fontSize: 13,
+        fontWeight: 800,
+        letterSpacing: "-0.02em",
+      }}
+    >
+      Z
+    </span>
+  );
+}
+
+function Hero() {
+  return (
+    <section
+      style={{
+        maxWidth: 1100,
+        margin: "0 auto",
+        padding: "64px 24px 48px",
+        textAlign: "center",
+      }}
+    >
+      <div style={{ marginBottom: 16 }}>
+        <Link
+          href="/"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontFamily: T.fontSans,
+            fontSize: 13,
+            fontWeight: 500,
+            color: T.textMuted,
+            textDecoration: "none",
+          }}
+        >
+          ← Both products
+        </Link>
+      </div>
+      <h1
+        style={{
+          margin: 0,
+          fontFamily: T.fontSerif,
+          fontSize: "clamp(44px, 7vw, 72px)",
+          lineHeight: 1.05,
+          letterSpacing: "-0.04em",
+          fontWeight: 600,
+          color: T.textHeading,
+        }}
+      >
+        Accept payments.
+        <br />
+        <span
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${T.brandCyan} 0%, ${T.brandPurple} 100%)`,
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
+          }}
+        >
+          Move money.
+        </span>{" "}
+        Grow.
+      </h1>
+      <p
+        style={{
+          margin: "24px auto 0",
+          maxWidth: 620,
+          fontFamily: T.fontSans,
+          fontSize: 19,
+          lineHeight: 1.55,
+          color: T.textBody,
+        }}
+      >
+        ZeniPay Merchant is production-ready payment infrastructure for Canadian and
+        American businesses. Cards, ACH, instant payouts, invoicing, pay links — all on
+        one dashboard, with Finix-backed processing under the hood.
+      </p>
+
+      <div
+        style={{
+          marginTop: 32,
+          display: "flex",
+          gap: 12,
+          justifyContent: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <Link
+          href="/signup"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "14px 28px",
+            borderRadius: 6,
+            background: T.textHeading,
+            color: T.white,
+            textDecoration: "none",
+            fontFamily: T.fontSans,
+            fontSize: 16,
+            fontWeight: 600,
+            boxShadow: T.shadowMd,
+          }}
+        >
+          Start accepting payments
+          <span aria-hidden>→</span>
+        </Link>
+        <Link
+          href="/app/overview"
+          style={{
+            padding: "14px 28px",
+            borderRadius: 6,
+            background: T.white,
+            color: T.textHeading,
+            textDecoration: "none",
+            border: `1px solid ${T.border}`,
+            fontFamily: T.fontSans,
+            fontSize: 16,
+            fontWeight: 500,
+          }}
+        >
+          Open the dashboard
+        </Link>
+      </div>
+      <p
+        style={{
+          marginTop: 20,
+          fontFamily: T.fontSans,
+          fontSize: 13,
+          color: T.textSubtle,
+        }}
+      >
+        Live in production · PCI DSS Level 1 · Finix-powered processor
+      </p>
+    </section>
+  );
+}
+
+function Stats() {
+  const stats = [
+    { num: "99.99%", label: "Uptime target" },
+    { num: "<200ms", label: "Processing latency" },
+    { num: "135+",   label: "Currencies supported" },
+    { num: "0 days", label: "Hold period on payouts" },
+    { num: "PCI L1", label: "Compliance" },
+  ];
+  return (
+    <section
+      style={{
+        padding: "32px 24px 48px",
+        borderTop: `1px solid ${T.border}`,
+        borderBottom: `1px solid ${T.border}`,
+        background: T.surface,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1100,
+          margin: "0 auto",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+          gap: 24,
+          textAlign: "center",
+        }}
+      >
+        {stats.map((s) => (
+          <div key={s.label}>
+            <div
+              style={{
+                fontFamily: T.fontSans,
+                fontSize: 28,
+                lineHeight: 1.1,
+                fontWeight: 700,
+                color: T.textHeading,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {s.num}
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                fontFamily: T.fontSans,
+                fontSize: 13,
+                color: T.textMuted,
+              }}
+            >
+              {s.label}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Capabilities() {
+  const items = [
+    { title: "Accept cards + ACH",  body: "Visa, Mastercard, Amex, debit + ACH bank transfers. Tokenized with Finix.js; PANs never touch your servers." },
+    { title: "Instant payouts",     body: "RTP / FedNow / ACH / wire. Pay employees, contractors, suppliers in minutes, not days." },
+    { title: "Pay links + QR",      body: "Generate a hosted checkout link or QR in seconds. Track status per customer." },
+    { title: "Invoicing",           body: "Branded invoices with automated reminders. Customer pays online, funds settle directly." },
+    { title: "Multi-wallet",        body: "Segregate customer funds, reserves, operating capital, and payouts. One dashboard, many balances." },
+    { title: "Real-time analytics", body: "Volume, auth rates, decline reasons, refund velocity — by merchant, product, or timeframe." },
+    { title: "Refunds + disputes",  body: "One-click refunds. Dispute evidence collection. Chargeback defense baked in." },
+    { title: "Developer API",       body: "REST + webhooks. Idempotency keys, signed payloads, OpenAPI spec. Fits into your stack." },
+  ];
+
+  return (
+    <section style={{ padding: "80px 24px" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ maxWidth: 640, marginBottom: 48 }}>
+          <div
+            style={{
+              fontFamily: T.fontSans,
+              fontSize: 12,
+              fontWeight: 600,
+              color: T.textMuted,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 12,
+            }}
+          >
+            Capabilities
+          </div>
+          <h2
+            style={{
+              margin: 0,
+              fontFamily: T.fontSerif,
+              fontSize: 40,
+              lineHeight: 1.15,
+              letterSpacing: "-0.03em",
+              fontWeight: 600,
+              color: T.textHeading,
+            }}
+          >
+            One dashboard for every money movement your business makes.
+          </h2>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 16,
+          }}
+        >
+          {items.map((i) => (
+            <article
+              key={i.title}
+              style={{
+                background: T.white,
+                border: `1px solid ${T.border}`,
+                borderRadius: 8,
+                padding: 20,
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontFamily: T.fontSans,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: T.textHeading,
+                }}
+              >
+                {i.title}
+              </h3>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  fontFamily: T.fontSans,
+                  fontSize: 14,
+                  lineHeight: 1.55,
+                  color: T.textBody,
+                }}
+              >
+                {i.body}
+              </p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DashboardPreview() {
+  return (
+    <section
+      style={{
+        background: T.surface,
+        borderTop: `1px solid ${T.border}`,
+        borderBottom: `1px solid ${T.border}`,
+        padding: "80px 24px",
+      }}
+    >
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        <div
+          className="preview-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1.4fr",
+            gap: 48,
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontFamily: T.fontSans,
+                fontSize: 12,
+                fontWeight: 600,
+                color: T.textMuted,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: 12,
+              }}
+            >
+              Inside the dashboard
+            </div>
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: T.fontSerif,
+                fontSize: 36,
+                lineHeight: 1.15,
+                letterSpacing: "-0.03em",
+                fontWeight: 600,
+                color: T.textHeading,
+              }}
+            >
+              Every transaction. Every payout. Every dispute. One view.
+            </h2>
+            <p
+              style={{
+                margin: "16px 0 24px",
+                fontFamily: T.fontSans,
+                fontSize: 16,
+                lineHeight: 1.55,
+                color: T.textBody,
+              }}
+            >
+              Drill down per customer, per day, per product. Export to QuickBooks or Xero with
+              one click. Your CFO sleeps at night.
+            </p>
+            <Link
+              href="/app/overview"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "12px 20px",
+                borderRadius: 6,
+                background: T.textHeading,
+                color: T.white,
+                textDecoration: "none",
+                fontFamily: T.fontSans,
+                fontSize: 15,
+                fontWeight: 600,
+                boxShadow: T.shadowSm,
+              }}
+            >
+              Open the dashboard
+              <span aria-hidden>→</span>
+            </Link>
+          </div>
+
+          <DashboardMock />
+        </div>
+
+        <style>{`
+          @media (max-width: 900px) {
+            .preview-grid { grid-template-columns: 1fr !important; }
+          }
+        `}</style>
+      </div>
+    </section>
+  );
+}
+
+function DashboardMock() {
+  return (
+    <div
+      style={{
+        background: T.white,
+        border: `1px solid ${T.border}`,
+        borderRadius: 12,
+        boxShadow: T.shadowLg,
+        overflow: "hidden",
+      }}
+    >
+      <BrowserChrome url="zenipay.ca/app/overview" />
+      <div style={{ padding: 20 }}>
+        <div
+          style={{
+            fontFamily: T.fontSans,
+            fontSize: 11,
+            fontWeight: 600,
+            color: T.textMuted,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: 8,
+          }}
+        >
+          Net volume · Last 30 days
+        </div>
+        <div
+          style={{
+            fontFamily: T.fontSans,
+            fontSize: 32,
+            fontWeight: 700,
+            color: T.textHeading,
+            letterSpacing: "-0.03em",
+          }}
+        >
+          $284,942<span style={{ color: T.textMuted, fontWeight: 500 }}>.18</span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            marginTop: 4,
+            fontFamily: T.fontSans,
+            fontSize: 12,
+            color: T.textMuted,
+          }}
+        >
+          <span style={{ color: T.success, fontWeight: 600 }}>↑ 18.4% vs prior</span>
+          <span>·</span>
+          <span>1,286 transactions</span>
+        </div>
+
+        <div
+          style={{
+            marginTop: 20,
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 12,
+          }}
+        >
+          <MockStat label="Auth rate"      value="98.2%"   delta="+0.4" />
+          <MockStat label="Avg. ticket"    value="$221.56" delta="+$12" />
+          <MockStat label="Refund ratio"   value="0.9%"    delta="−0.1" negative />
+        </div>
+
+        <div
+          style={{
+            marginTop: 20,
+            border: `1px solid ${T.border}`,
+            borderRadius: 8,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.3fr 1fr auto",
+              padding: "8px 12px",
+              background: T.surface,
+              borderBottom: `1px solid ${T.border}`,
+              fontFamily: T.fontSans,
+              fontSize: 11,
+              fontWeight: 600,
+              color: T.textMuted,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            <span>Customer</span>
+            <span>Method</span>
+            <span>Amount</span>
+          </div>
+          {[
+            { c: "Dubois Imports",    m: "Visa •••• 4242",     a: "$1,248.00", when: "2m ago" },
+            { c: "Montréal Café Co.", m: "ACH",                 a: "$312.50",   when: "14m ago" },
+            { c: "Lachine Logistics", m: "Mastercard •• 1203",  a: "$4,902.12", when: "1h ago" },
+            { c: "Laval Design LLC",  m: "Visa •• 7891",        a: "$199.99",   when: "3h ago" },
+          ].map((r) => (
+            <div
+              key={r.c + r.when}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.3fr 1fr auto",
+                padding: "10px 12px",
+                borderBottom: `1px solid ${T.border}`,
+                fontFamily: T.fontSans,
+                fontSize: 13,
+                color: T.textBody,
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div style={{ color: T.textHeading, fontWeight: 600 }}>{r.c}</div>
+                <div style={{ fontSize: 11, color: T.textMuted }}>{r.when}</div>
+              </div>
+              <span style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textBody }}>{r.m}</span>
+              <span style={{ fontFamily: T.fontMono, fontWeight: 600, color: T.textHeading }}>{r.a}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MockStat({ label, value, delta, negative }: { label: string; value: string; delta: string; negative?: boolean }) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${T.border}`,
+        borderRadius: 8,
+        padding: 12,
+        background: T.white,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: T.fontSans,
+          fontSize: 11,
+          fontWeight: 600,
+          color: T.textMuted,
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
+        <span style={{ fontFamily: T.fontSans, fontSize: 18, fontWeight: 600, color: T.textHeading }}>
+          {value}
+        </span>
+        <span
+          style={{
+            fontFamily: T.fontSans,
+            fontSize: 11,
+            fontWeight: 600,
+            color: negative ? "#dc2626" : T.success,
+          }}
+        >
+          {delta}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function BrowserChrome({ url }: { url: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "10px 16px",
+        background: T.surface,
+        borderBottom: `1px solid ${T.border}`,
+      }}
+    >
+      <div style={{ display: "flex", gap: 6 }}>
+        <span style={{ width: 10, height: 10, borderRadius: 999, background: "#e5e5e5" }} />
+        <span style={{ width: 10, height: 10, borderRadius: 999, background: "#e5e5e5" }} />
+        <span style={{ width: 10, height: 10, borderRadius: 999, background: "#e5e5e5" }} />
+      </div>
+      <div
+        style={{
+          marginLeft: 12,
+          padding: "4px 12px",
+          borderRadius: 6,
+          background: T.white,
+          border: `1px solid ${T.border}`,
+          fontFamily: T.fontMono,
+          fontSize: 12,
+          color: T.textMuted,
+        }}
+      >
+        {url}
+      </div>
+    </div>
+  );
+}
+
+function Industries() {
+  const items = [
+    { name: "Travel & hospitality",  line: "Complex itineraries, multi-party payouts, long booking windows." },
+    { name: "Professional services", line: "Invoicing, retainer billing, milestone-based releases." },
+    { name: "E-commerce",            line: "High-volume auth, PCI tokenization, international checkout." },
+    { name: "Marketplaces",          line: "Split payments, contributor payouts, managed liability." },
+  ];
+  return (
+    <section style={{ padding: "80px 24px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ maxWidth: 600, marginBottom: 40 }}>
+          <div
+            style={{
+              fontFamily: T.fontSans,
+              fontSize: 12,
+              fontWeight: 600,
+              color: T.textMuted,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 12,
+            }}
+          >
+            Who it&rsquo;s for
+          </div>
+          <h2
+            style={{
+              margin: 0,
+              fontFamily: T.fontSerif,
+              fontSize: 36,
+              lineHeight: 1.15,
+              letterSpacing: "-0.03em",
+              fontWeight: 600,
+              color: T.textHeading,
+            }}
+          >
+            Built for businesses who need payments, not a platform demo.
+          </h2>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 16,
+          }}
+        >
+          {items.map((i) => (
+            <div
+              key={i.name}
+              style={{
+                background: T.white,
+                border: `1px solid ${T.border}`,
+                borderRadius: 8,
+                padding: 20,
+              }}
+            >
+              <h3 style={{ margin: 0, fontFamily: T.fontSans, fontSize: 15, fontWeight: 600, color: T.textHeading }}>
+                {i.name}
+              </h3>
+              <p style={{ margin: "6px 0 0", fontFamily: T.fontSans, fontSize: 14, lineHeight: 1.5, color: T.textBody }}>
+                {i.line}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ClosingCta() {
+  return (
+    <section
+      style={{
+        padding: "80px 24px",
+        background: T.surface,
+        borderTop: `1px solid ${T.border}`,
+        borderBottom: `1px solid ${T.border}`,
+        textAlign: "center",
+      }}
+    >
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <h2
+          style={{
+            margin: 0,
+            fontFamily: T.fontSerif,
+            fontSize: 36,
+            lineHeight: 1.15,
+            letterSpacing: "-0.03em",
+            fontWeight: 600,
+            color: T.textHeading,
+          }}
+        >
+          Start accepting payments in minutes.
+        </h2>
+        <p
+          style={{
+            margin: "16px auto 32px",
+            fontFamily: T.fontSans,
+            fontSize: 17,
+            lineHeight: 1.55,
+            color: T.textBody,
+            maxWidth: 560,
+          }}
+        >
+          Fill out the onboarding flow, connect your bank account, start taking cards
+          the same day. Competitive per-transaction pricing. No monthly minimums.
+        </p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <Link
+            href="/signup"
+            style={{
+              padding: "14px 28px",
+              borderRadius: 6,
+              background: T.textHeading,
+              color: T.white,
+              textDecoration: "none",
+              fontFamily: T.fontSans,
+              fontSize: 16,
+              fontWeight: 600,
+              boxShadow: T.shadowMd,
+            }}
+          >
+            Get started
+          </Link>
+          <Link
+            href="/pricing"
+            style={{
+              padding: "14px 28px",
+              borderRadius: 6,
+              background: T.white,
+              color: T.textHeading,
+              textDecoration: "none",
+              border: `1px solid ${T.border}`,
+              fontFamily: T.fontSans,
+              fontSize: 16,
+              fontWeight: 500,
+            }}
+          >
+            See pricing
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FooterBar() {
+  return (
+    <footer style={{ background: T.white, padding: "48px 24px 32px" }}>
+      <div
+        style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 24,
+          flexWrap: "wrap",
+        }}
+      >
+        <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none", color: T.textHeading }}>
+          <BrandGlyph />
+          <span style={{ fontFamily: T.fontSans, fontSize: 16, fontWeight: 700 }}>ZeniPay</span>
+        </Link>
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          <Link href="/" style={footerLink}>Overview</Link>
+          <Link href="/agents/overview" style={footerLink}>AI Agents</Link>
+          <Link href="/pricing" style={footerLink}>Pricing</Link>
+          <Link href="/security" style={footerLink}>Security</Link>
+          <Link href="/contact" style={footerLink}>Contact</Link>
+          <Link href="/legal/privacy" style={footerLink}>Privacy</Link>
+          <Link href="/legal/terms" style={footerLink}>Terms</Link>
+        </div>
+        <p style={{ margin: 0, fontFamily: T.fontSans, fontSize: 13, color: T.textMuted }}>
+          © {new Date().getFullYear()} ILM Inc. Built in Québec.
+        </p>
+      </div>
+    </footer>
+  );
+}
+
+const footerLink: CSSProperties = {
+  fontFamily: T.fontSans,
+  fontSize: 13,
+  fontWeight: 500,
+  color: T.textBody,
+  textDecoration: "none",
+};
