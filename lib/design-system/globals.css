@@ -1,0 +1,182 @@
+/*
+ * Tailwind directives — utilities only. Base layer (preflight) is disabled
+ * in tailwind.config.ts to avoid resetting the existing inline-styled
+ * merchant product. `@tailwind components` and `@tailwind utilities` are
+ * both included so components/ui can declare custom utility classes if
+ * needed.
+ */
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * ZeniPay global styles.
+ *
+ * 1. A narrow, MERCHANT-SAFE reset — no aggressive `* { margin: 0 }` that
+ *    would break the existing Finix merchant pages rendering via inline
+ *    styles. We reset ONLY what the marketing pages need (body margin,
+ *    heading spacing, link colors).
+ *
+ * 2. Design-token CSS variables on :root — mirrors `lib/design-system/tokens.ts`.
+ *    Anything that wants these values without importing TS (Tailwind config,
+ *    plain CSS, dashboard pages eventually) reads var(--zp-*).
+ *
+ * 3. Font-family default → Inter. `app/layout.tsx` provides the --font-inter
+ *    variable via next/font. Fallback chain is system-native so pages render
+ *    correctly even if the CSS var isn't set (test environments).
+ */
+
+:root {
+  /* Color — neutrals */
+  --zp-white: #ffffff;
+  --zp-surface: #f8f9fa;
+  --zp-border: #e2e8f0;
+  --zp-border-strong: #cbd5e1;
+
+  --zp-text-heading: #0a0a0a;
+  --zp-text-body: #525252;
+  --zp-text-muted: #737373;
+  --zp-text-subtle: #a3a3a3;
+
+  /* Color — brand */
+  --zp-brand-green: #2dbe60;
+  --zp-brand-cyan: #15b8c9;
+  --zp-brand-purple: #7b4fbf;
+  --zp-gradient-signature: linear-gradient(135deg, #2dbe60 0%, #15b8c9 50%, #7b4fbf 100%);
+
+  /* Color — feedback */
+  --zp-success: #16a34a;
+  --zp-success-bg: #dcfce7;
+  --zp-warn: #d97706;
+  --zp-warn-bg: #fef3c7;
+  --zp-danger: #dc2626;
+  --zp-danger-bg: #fee2e2;
+  --zp-info: #0891b2;
+  --zp-info-bg: #cffafe;
+
+  /* Spacing — 8pt */
+  --zp-space-0: 0;
+  --zp-space-1: 4px;
+  --zp-space-2: 8px;
+  --zp-space-3: 12px;
+  --zp-space-4: 16px;
+  --zp-space-5: 24px;
+  --zp-space-6: 32px;
+  --zp-space-7: 40px;
+  --zp-space-8: 48px;
+  --zp-space-9: 64px;
+  --zp-space-10: 80px;
+  --zp-space-11: 96px;
+  --zp-space-12: 128px;
+
+  /* Radius */
+  --zp-radius-xs: 4px;
+  --zp-radius-sm: 6px;
+  --zp-radius-md: 8px;
+  --zp-radius-lg: 12px;
+  --zp-radius-xl: 16px;
+  --zp-radius-pill: 999px;
+
+  /* Shadow */
+  --zp-shadow-none: none;
+  --zp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --zp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --zp-shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --zp-shadow-focus: 0 0 0 3px rgba(21, 184, 201, 0.2);
+
+  /* Transition */
+  --zp-transition-fast: all 120ms ease-out;
+  --zp-transition-base: all 150ms ease-out;
+  --zp-transition-slow: all 240ms ease-out;
+
+  /* Typography */
+  --zp-font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --zp-font-serif: var(--font-fraunces), "Fraunces", Georgia, serif;
+  --zp-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --zp-weight-regular: 400;
+  --zp-weight-medium: 500;
+  --zp-weight-semibold: 600;
+  --zp-weight-bold: 700;
+  --zp-weight-black: 800;
+}
+
+/*
+ * Minimal reset — opt-in via explicit selectors. We intentionally do NOT
+ * apply a global `* { box-sizing: border-box }` since the existing
+ * merchant product has 1000+ inline styles that assume the default
+ * `content-box` in places. Marketing pages use `.zp-root` wrapper that
+ * opts them into the modern reset.
+ */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  color: var(--zp-text-body);
+  background: var(--zp-white);
+  font-family: var(--zp-font-sans);
+  font-feature-settings: "cv11", "ss01", "ss03";
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scope-bounded marketing reset — only elements inside .zp-root get this. */
+.zp-root,
+.zp-root *,
+.zp-root *::before,
+.zp-root *::after {
+  box-sizing: border-box;
+}
+
+.zp-root h1,
+.zp-root h2,
+.zp-root h3,
+.zp-root h4,
+.zp-root h5,
+.zp-root h6 {
+  margin: 0;
+  color: var(--zp-text-heading);
+  font-weight: var(--zp-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.zp-root p {
+  margin: 0;
+}
+
+.zp-root a {
+  color: inherit;
+  text-decoration: none;
+  transition: var(--zp-transition-base);
+}
+
+.zp-root button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.zp-root img,
+.zp-root svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* Focus ring — always visible on keyboard nav. Scoped to .zp-root so
+ * existing merchant pages keep their native outline. */
+.zp-root :focus-visible {
+  outline: none;
+  box-shadow: var(--zp-shadow-focus);
+  border-radius: var(--zp-radius-sm);
+}
+
+/* Utility: applies the signature gradient as text fill. Use on max ONE
+ * accent phrase per page. */
+.zp-gradient-text {
+  background: var(--zp-gradient-signature);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

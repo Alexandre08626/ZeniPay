@@ -1,14 +1,33 @@
 import type { Metadata } from "next";
+import { Inter, Fraunces } from "next/font/google";
 import LangWrapper from "./components/LangWrapper";
+import "@/lib/design-system/globals.css";
+
+// Self-hosted via next/font — no runtime CDN, no layout shift.
+// `variable` exposes them as CSS custom props consumed by globals.css /
+// tailwind.config.ts / tokens.ts.
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-fraunces",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://zenipay.ca"),
   title: {
-    default: "ZeniPay — Accept Payments. Move Money. Scale Your Business.",
+    default: "ZeniPay Agents — The bank for AI agents at enterprise scale.",
     template: "%s | ZeniPay",
   },
   description:
-    "ZeniPay is modern payment and financial infrastructure for Canadian and American businesses. Accept credit cards, debit, ACH, process payouts, manage invoices — all in one platform. The Stripe alternative built for Canada.",
+    "ZeniPay Agents gives CFOs a complete banking stack for fleets of AI agents — virtual cards, multi-currency treasury, expense categorization, approval workflows, fraud detection, and a SOC2-grade signed audit trail.",
   keywords: [
     "payment gateway Canada",
     "payment processing Canada",
@@ -213,7 +232,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en-CA">
+    <html lang="en-CA" className={`${inter.variable} ${fraunces.variable}`}>
       <head>
         <script
           type="application/ld+json"
@@ -224,8 +243,10 @@ export default function RootLayout({
         style={{
           margin: 0,
           padding: 0,
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          // Global body font-family now flows from globals.css :root
+          // --zp-font-sans (which resolves to Inter). We set it inline
+          // too for a belt-and-suspenders default.
+          fontFamily: "var(--zp-font-sans)",
         }}
       >
         <LangWrapper>{children}</LangWrapper>
