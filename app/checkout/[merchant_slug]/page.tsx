@@ -29,12 +29,34 @@ async function getMerchant(slug: string): Promise<MerchantRow | null> {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (supabase as any).schema("zenicards").from("merchants")
-    .select("id, name, slug, merchant_category, fee_flat_micro, fee_bps, allowed_currencies, active")
-    .eq("slug", slug)
-    .maybeSingle();
-  return (data as MerchantRow | null) ?? null;
+  // zenicards schema isn't PostgREST-exposed — route through the
+  // public.zcards_get_merchants SECURITY DEFINER wrapper and filter
+  // by slug client-side. Merchant count is <50 in realistic scenarios.
+  const { data } = await supabase.rpc("zcards_get_merchants");
+  const rows = (data ?? []) as Array<{
+    id: string;
+    name: string;
+    slug: string;
+    zenicore_payout_account_id: string;
+    fee_flat_micro: string | number;
+    fee_bps: number;
+    active: boolean;
+    merchant_category: string | null;
+    allowed_currencies: string[];
+    created_at: string;
+  }>;
+  const hit = rows.find((r) => r.slug === slug);
+  if (!hit) return null;
+  return {
+    id: hit.id,
+    name: hit.name,
+    slug: hit.slug,
+    merchant_category: hit.merchant_category,
+    fee_flat_micro: String(hit.fee_flat_micro),
+    fee_bps: hit.fee_bps,
+    allowed_currencies: hit.allowed_currencies.map((c) => c.trim()),
+    active: hit.active,
+  };
 }
 
 export default async function PayPage({ params }: { params: Promise<{ merchant_slug: string }> | { merchant_slug: string } }) {

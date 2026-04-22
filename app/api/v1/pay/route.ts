@@ -54,8 +54,10 @@ export async function POST(req: NextRequest) {
     if (!url || !key) return errorResponse("server_error", "supabase_env_missing");
     const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any).schema("zenicards").rpc("charge_card", {
+    // zenicards schema isn't PostgREST-exposed — route through the
+    // public.zcards_charge_card SECURITY DEFINER wrapper (migration
+    // 20260422184457_zenicore_zenicards_public_wrappers).
+    const { data, error } = await supabase.rpc("zcards_charge_card", {
       p_card_number_full: card_number_full,
       p_cvv_plaintext: cvv_plaintext,
       p_expiry_month: expiry_month,
@@ -67,8 +69,15 @@ export async function POST(req: NextRequest) {
       p_idempotency_key: idempotency_key,
     });
     if (error) return errorResponse("server_error", error.message);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const row = (data as any[])?.[0];
+    const row = (data as Array<{
+      success: boolean;
+      transaction_id: string | null;
+      zenicore_tx_group: string | null;
+      fee_charged_units: number | null;
+      net_to_merchant_units: number | null;
+      error_code: string | null;
+      error_message: string | null;
+    }>)?.[0];
     if (!row) return errorResponse("server_error", "charge_card returned no row");
 
     // RPC returns { success, transaction_id, zenicore_tx_group, fee_charged_units,

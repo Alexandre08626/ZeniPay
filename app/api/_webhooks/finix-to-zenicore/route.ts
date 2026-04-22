@@ -74,8 +74,9 @@ export async function POST(req: NextRequest) {
   }
   const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).schema("zenicore").rpc("ingest_finix_transfer", {
+  // zenicore schema isn't PostgREST-exposed — route through the
+  // public.zc_ingest_finix_transfer SECURITY DEFINER wrapper.
+  const { data, error } = await supabase.rpc("zc_ingest_finix_transfer", {
     p_finix_event_id:    envelope.event_id,
     p_finix_event_type:  envelope.event_type,
     p_finix_transfer_id: envelope.transfer_id,
@@ -89,8 +90,8 @@ export async function POST(req: NextRequest) {
       status: 500, headers: { "content-type": "application/json" },
     });
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const row = (data as any[])?.[0] ?? { status: "received", tx_group: null, reason: null };
+  const row = (data as Array<{ status: string; tx_group: string | null; reason: string | null }>)?.[0]
+    ?? { status: "received", tx_group: null, reason: null };
   return NextResponse.json({ ok: true, status: row.status, tx_group: row.tx_group, reason: row.reason });
 }
 
