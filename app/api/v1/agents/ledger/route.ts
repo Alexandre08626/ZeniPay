@@ -62,24 +62,31 @@ export async function GET(req: NextRequest) {
   } catch (e) { return serverError(e); }
 }
 
+// The zenicore schema isn't exposed to PostgREST, so we route through the
+// public.zc_get_tx_groups / public.zc_get_journal SECURITY DEFINER wrappers
+// (migration 20260422184457_zenicore_zenicards_public_wrappers). Same data
+// shape; the wrappers do the org scoping internally.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function listOrgJournalEntries(supabase: any, orgId: string, limit: number) {
-  // Pull tx_groups for the org, then the journal rows for those groups.
-  const { data: groups } = await supabase.schema("zenicore").from("tx_groups")
-    .select("id").eq("organization_id", orgId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  const { data: groups } = await supabase.rpc("zc_get_tx_groups", {
+    p_organization_id: orgId,
+    p_limit: limit,
+  });
   const txIds = ((groups ?? []) as Array<{ id: string }>).map((g) => g.id);
   if (txIds.length === 0) return [];
-  const { data: rows } = await supabase.schema("zenicore").from("journal")
-    .select("id, tx_group, seq, posted_at, account_id, direction, amount_micro, currency, memo, ref_type, ref_id, posted_by")
-    .in("tx_group", txIds)
-    .order("seq", { ascending: false })
-    .limit(limit * 2);   // each tx has N journal rows; cap at 2× for safety
-  return (rows ?? []) as Array<{
-    id: string; tx_group: string; seq: number; posted_at: string;
-    account_id: string; direction: "debit" | "credit"; amount_micro: string;
+
+  // zc_get_journal doesn't accept a tx_group filter; pull the most recent
+  // `limit*2` entries for the org and filter client-side to rows that
+  // belong to our tx_groups. Cheap at MVP volumes (hundreds of rows).
+  const { data: rows } = await supabase.rpc("zc_get_journal", {
+    p_organization_id: orgId,
+    p_limit: limit * 2,
+  });
+  const txIdSet = new Set(txIds);
+  return ((rows ?? []) as Array<{
+    id: string; tx_group: string; seq: number | string; posted_at: string;
+    account_id: string; direction: "debit" | "credit"; amount_micro: number | string;
     currency: string; memo: string; ref_type: string | null; ref_id: string | null;
     posted_by: string;
-  }>;
+  }>).filter((r) => txIdSet.has(r.tx_group));
 }

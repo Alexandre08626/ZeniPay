@@ -5,10 +5,13 @@
 // All paths require the authenticated session (agents API key OR dashboard
 // session with org id). GET never returns the full PAN or CVV. POST returns
 // the full PAN + CVV plaintext ONCE — displayed to the CFO, never persisted
-// client-side. PATCH flips status via a direct UPDATE; the underlying
-// zenicore account is NOT released here (existing holds stay until they
-// naturally expire / settle — that's correct: canceling a card shouldn't
-// refund in-flight auths).
+// client-side. PATCH flips status through the public.zcards_update_status
+// wrapper (no refund of in-flight holds — canceling a card doesn't free
+// pending_debit).
+//
+// The `zenicards` schema is not exposed to PostgREST, so every call routes
+// through the public.zcards_* SECURITY DEFINER wrappers shipped in
+// migration 20260422184457_zenicore_zenicards_public_wrappers.
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +32,26 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+interface ZcCardRow {
+  id: string;
+  card_number_last4: string;
+  expiry_month: number;
+  expiry_year: number;
+  organization_id: string;
+  agent_id: string | null;
+  zenicore_account_id: string;
+  status: string;
+  spending_limit_per_tx_micro: string | number | null;
+  spending_limit_daily_micro: string | number | null;
+  spending_limit_monthly_micro: string | number | null;
+  allowed_merchant_types: string[];
+  balance_micro: string | number;
+  currency: string;
+  created_at: string;
+  canceled_at: string | null;
+  created_by: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // GET — list org's cards. No PAN/CVV.
 // ---------------------------------------------------------------------------
@@ -38,32 +61,17 @@ export async function GET(req: NextRequest) {
     if (!auth) return errorResponse("unauthorized", "unauthorized");
 
     const supabase = getSupabase();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any).schema("zenicards").from("cards")
-      .select("id, card_number_last4, expiry_month, expiry_year, organization_id, agent_id, zenicore_account_id, status, spending_limit_per_tx_micro, spending_limit_daily_micro, spending_limit_monthly_micro, allowed_merchant_types, created_at, canceled_at, bin_range_id")
-      .eq("organization_id", auth.organizationId)
-      .order("created_at", { ascending: false })
-      .limit(500);
+    const { data, error } = await supabase.rpc("zcards_get_cards", {
+      p_organization_id: auth.organizationId,
+    });
     if (error) return errorResponse("server_error", error.message);
 
-    // Pull the bin-range meta for display (product_tier, currency).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: bins } = await (supabase as any).schema("zenicards").from("bin_ranges")
-      .select("id, bin_prefix, name, product_tier, currency")
-      .eq("active", true);
-    const binById = new Map<string, { bin_prefix: string; name: string; product_tier: string; currency: string }>(
-      ((bins ?? []) as Array<{ id: string; bin_prefix: string; name: string; product_tier: string; currency: string }>)
-        .map((b) => [b.id, b]),
-    );
-
-    const cards = ((data ?? []) as Array<{
-      id: string; card_number_last4: string; expiry_month: number; expiry_year: number;
-      organization_id: string; agent_id: string | null; zenicore_account_id: string;
-      status: string; spending_limit_per_tx_micro: string | null;
-      spending_limit_daily_micro: string | null; spending_limit_monthly_micro: string | null;
-      allowed_merchant_types: string[]; created_at: string; canceled_at: string | null;
-      bin_range_id: string;
-    }>).map((c) => ({
+    // The zcards_get_cards wrapper does NOT join bin_ranges (no wrapper
+    // exists for that table). The BIN prefix can still be inferred from
+    // the `currency` column + the 6-digit prefix convention: 991001/991002/
+    // 991003 are CAD, 991101 is USD. For now the UI shows "BIN 991xxx" —
+    // good enough; we can add zcards_get_bin_ranges() later if needed.
+    const cards = ((data ?? []) as ZcCardRow[]).map((c) => ({
       id: c.id,
       last4: c.card_number_last4,
       expiry_month: c.expiry_month,
@@ -74,7 +82,9 @@ export async function GET(req: NextRequest) {
       limit_per_tx_micro: c.spending_limit_per_tx_micro,
       limit_daily_micro: c.spending_limit_daily_micro,
       allowed_merchant_types: c.allowed_merchant_types,
-      bin: binById.get(c.bin_range_id) ?? null,
+      currency: c.currency.trim(),
+      balance_micro: c.balance_micro,
+      bin: null,   // bin_ranges not reachable through a public wrapper yet
       created_at: c.created_at,
       canceled_at: c.canceled_at,
     }));
@@ -110,8 +120,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabase();
     const postedBy = auth.userId ? `user:${auth.userId}` : auth.apiKeyId ? `api_key:${auth.apiKeyId}` : "zenipay_system";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any).schema("zenicards").rpc("issue_card", {
+    const { data, error } = await supabase.rpc("zcards_issue_card", {
       p_organization_id: auth.organizationId,
       p_agent_id: agent_id,
       p_product_tier: product_tier,
@@ -121,8 +130,15 @@ export async function POST(req: NextRequest) {
       p_created_by: postedBy,
     });
     if (error) return errorResponse("server_error", error.message);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const row = (data as any[])?.[0];
+    const row = (data as Array<{
+      card_id: string;
+      card_number_full: string;
+      card_number_last4: string;
+      expiry_month: number;
+      expiry_year: number;
+      cvv_plaintext: string;
+      zenicore_account_id: string;
+    }>)?.[0];
     if (!row) return errorResponse("server_error", "issue_card returned no row");
 
     await logEvent({
@@ -171,27 +187,30 @@ export async function PATCH(req: NextRequest) {
     }
 
     const supabase = getSupabase();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: card } = await (supabase as any).schema("zenicards").from("cards")
-      .select("id, status").eq("id", card_id).eq("organization_id", auth.organizationId)
-      .maybeSingle();
-    if (!card) return errorResponse("not_found", "card_not_found");
-    const current = (card as { status: string }).status;
+
+    // Org-scope the card by loading it first through zcards_get_cards and
+    // verifying the card belongs to the caller's org. Cheap (~hundreds of
+    // cards at worst) and avoids trusting the client.
+    const { data: listed, error: listErr } = await supabase.rpc("zcards_get_cards", {
+      p_organization_id: auth.organizationId,
+    });
+    if (listErr) return errorResponse("server_error", listErr.message);
+    const owned = ((listed ?? []) as Array<{ id: string; status: string }>)
+      .find((c) => c.id === card_id);
+    if (!owned) return errorResponse("not_found", "card_not_found");
+    const current = owned.status;
     if (current === "canceled") return errorResponse("unprocessable", "card_already_canceled");
 
-    let next: string;
-    if (action === "pause")       next = "paused";
-    else if (action === "resume") next = "active";
-    else                          next = "canceled";
+    const next = action === "pause" ? "paused"
+               : action === "resume" ? "active"
+               : "canceled";
 
-    const patch: Record<string, unknown> = { status: next };
-    if (action === "cancel") patch.canceled_at = new Date().toISOString();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: updated, error } = await (supabase as any).schema("zenicards").from("cards")
-      .update(patch).eq("id", card_id).eq("organization_id", auth.organizationId)
-      .select("id, status, canceled_at").maybeSingle();
+    const { data: updated, error } = await supabase.rpc("zcards_update_status", {
+      p_card_id: card_id,
+      p_new_status: next,
+    });
     if (error) return errorResponse("server_error", error.message);
+    const updatedRow = (updated as Array<{ id: string; status: string; updated_at: string }>)?.[0] ?? null;
 
     await logEvent({
       organizationId: auth.organizationId,
@@ -201,6 +220,10 @@ export async function PATCH(req: NextRequest) {
       payload: { card_id, action, prev_status: current, next_status: next },
     });
 
-    return NextResponse.json({ card: updated });
+    return NextResponse.json({
+      card: updatedRow
+        ? { id: updatedRow.id, status: updatedRow.status, canceled_at: next === "canceled" ? updatedRow.updated_at : null }
+        : null,
+    });
   } catch (e) { return serverError(e); }
 }
