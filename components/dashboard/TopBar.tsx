@@ -8,7 +8,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { Bell, Search, ChevronDown, LogOut, Settings as SettingsIcon, ArrowRightLeft } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
@@ -23,7 +23,6 @@ export interface TopBarProps {
 }
 
 export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
-  const router = useRouter();
   const pathname = usePathname() ?? "";
   const searchRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -53,10 +52,13 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpen]);
 
-  const switchTo = (target: DashboardMode) => {
-    if (target === mode) return;
-    router.push(target === "merchant" ? "/app/overview" : "/agents/overview");
-  };
+  // Keep merchant and agents strictly separate — no prominent switcher
+  // that suggests they share a session. Cross-navigation lives in the
+  // user-menu dropdown and routes to the authenticated operator
+  // dashboard (`/agents/dashboard`), never to the marketing
+  // `/agents/overview` page.
+  const crossTarget = mode === "merchant" ? "/agents/dashboard" : "/app/overview";
+  const crossLabel  = mode === "merchant" ? "Switch to Agents"  : "Switch to Merchant";
 
   const initial = (userLabel?.[0] ?? userEmail?.[0] ?? "Z").toUpperCase();
 
@@ -76,7 +78,7 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
       }}
     >
       <Link
-        href={mode === "merchant" ? "/app/overview" : "/agents/overview"}
+        href={mode === "merchant" ? "/app/overview" : "/agents/dashboard"}
         aria-label="ZeniPay home"
         style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none", minWidth: 140 }}
       >
@@ -96,8 +98,38 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
         </span>
       </Link>
 
-      {/* Product switcher */}
-      <ProductSwitcher mode={mode} onSwitch={switchTo} />
+      {/* Mode badge — shows which side of the bank you're in, but does NOT
+          let you switch in one click (cross-nav lives in the user menu). */}
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          height: 26,
+          padding: "0 10px",
+          borderRadius: zp.radius.pill,
+          background:
+            mode === "merchant"
+              ? "rgba(21,184,201,0.10)"
+              : "rgba(123,79,191,0.10)",
+          color: mode === "merchant" ? zp.brand.cyan : zp.brand.violet,
+          fontSize: 11,
+          fontWeight: zp.weight.semibold,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: mode === "merchant" ? zp.brand.cyan : zp.brand.violet,
+          }}
+        />
+        {mode === "merchant" ? "Merchant" : "Agents"}
+      </span>
 
       {/* Search */}
       <div style={{ position: "relative", flex: 1, maxWidth: 440 }}>
@@ -237,12 +269,12 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
               Settings
             </Link>
             <Link
-              href={mode === "merchant" ? "/agents/overview" : "/app/overview"}
+              href={crossTarget}
               role="menuitem"
               style={menuItemStyle}
             >
               <ArrowRightLeft size={14} style={{ marginRight: 8, verticalAlign: "-2px" }} />
-              Switch to {mode === "merchant" ? "Agents" : "Merchant"}
+              {crossLabel}
             </Link>
             <div style={{ height: 1, background: zp.surface.border, margin: "6px 2px" }} />
             <button
@@ -269,63 +301,6 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
       </div>
       <style>{hidePathname(pathname)}</style>
     </header>
-  );
-}
-
-function ProductSwitcher({ mode, onSwitch }: { mode: DashboardMode; onSwitch: (m: DashboardMode) => void }) {
-  return (
-    <div
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        height: 36,
-        padding: 3,
-        background: zp.surface.bg2,
-        border: `1px solid ${zp.surface.border}`,
-        borderRadius: zp.radius.pill,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Gradient ring that sits behind the active pill */}
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 2,
-          borderRadius: zp.radius.pill,
-          background: "transparent",
-          pointerEvents: "none",
-        }}
-      />
-      {(["merchant", "agents"] as DashboardMode[]).map((m) => {
-        const active = m === mode;
-        return (
-          <button
-            key={m}
-            onClick={() => onSwitch(m)}
-            style={{
-              padding: "0 14px",
-              height: 30,
-              borderRadius: zp.radius.pill,
-              border: "none",
-              cursor: "pointer",
-              color: active ? "#fff" : zp.text.muted,
-              background: active ? zp.gradient.main : "transparent",
-              fontWeight: active ? zp.weight.semibold : zp.weight.medium,
-              fontSize: 12,
-              letterSpacing: "0.02em",
-              textTransform: "capitalize" as const,
-              fontFamily: zp.font.sans,
-              transition: zp.motion.base,
-              boxShadow: active ? "0 2px 8px rgba(21,184,201,0.3)" : "none",
-            }}
-          >
-            {m}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
