@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { createHmac } from "crypto";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
+import { FundingClient } from "@/lib/zenicore/funding-client";
+import type { Currency } from "@/lib/zenicore/types";
 
 function verifySignature(body: string, signature: string, secret: string): boolean {
   if (!secret || !signature) return false;
@@ -59,7 +61,22 @@ export async function POST(request: Request) {
     switch (eventType) {
       case "transfer.succeeded":
       case "TRANSFER_SUCCEEDED":
-      case "TRANSFER.SUCCEEDED": {
+      case "TRANSFER.SUCCEEDED":
+      case "transfer.updated":
+      case "TRANSFER_UPDATED":
+      case "TRANSFER.UPDATED": {
+        // PR 8 Money IN: if this transfer is an Agents treasury-fund SALE
+        // (tagged by /api/v1/agents/treasury/fund/card), route it to the
+        // ZeniCore funding ingestor instead of the merchant invoice flow.
+        // Idempotent — if Finix redelivers the same transfer_id, the
+        // wrapper returns state='duplicate' and we just log it.
+        const isUpdatedEvent = /UPDATED/i.test(eventType);
+        const treasuryFundResult = await tryRouteTreasuryFund({
+          supabase, data, transferId, state, isUpdatedEvent,
+          eventId: (payload.id as string) || "",
+        });
+        if (treasuryFundResult === "handled") break;
+
         if (transferId) {
           // Update payment status
           await supabase
@@ -275,4 +292,88 @@ export async function POST(request: Request) {
     console.error("[Webhook] Processing error:", err);
     return Response.json({ received: true, error: "Processing error logged" });
   }
+}
+
+// ---------------------------------------------------------------------------
+// PR 8 — treasury-fund SALE bridge.
+//
+// Finix transfers originated by POST /api/v1/agents/treasury/fund/card carry
+// tags.zenipay_purpose = "agents_treasury_fund" + zenipay_organization_id +
+// zenipay_funding_source_id. When the final SUCCEEDED event arrives, we call
+// zc_ingest_funding_event to credit the treasury. Duplicate deliveries are
+// swallowed by the wrapper (state='duplicate') so this handler is safe to
+// retry.
+//
+// Returns "handled" if the event matched a treasury fund purpose (we
+// short-circuit the merchant flow), or "skipped" otherwise.
+
+async function tryRouteTreasuryFund(ctx: {
+  supabase: ReturnType<typeof getSupabaseAdmin>;
+  data: Record<string, unknown>;
+  transferId: string;
+  state: string;
+  isUpdatedEvent: boolean;
+  eventId: string;
+}): Promise<"handled" | "skipped"> {
+  const { supabase, data, transferId, state, isUpdatedEvent, eventId } = ctx;
+  const tags = (data.tags && typeof data.tags === "object")
+    ? (data.tags as Record<string, unknown>)
+    : {};
+  const purpose = typeof tags.zenipay_purpose === "string" ? tags.zenipay_purpose : "";
+  if (purpose !== "agents_treasury_fund") return "skipped";
+
+  // UPDATED events that don't reflect terminal success yet — ignore for now;
+  // the next SUCCEEDED delivery will credit.
+  if (isUpdatedEvent && state !== "SUCCEEDED") return "handled";
+
+  const organizationId = typeof tags.zenipay_organization_id === "string"
+    ? tags.zenipay_organization_id : "";
+  const fundingSourceId = typeof tags.zenipay_funding_source_id === "string"
+    ? tags.zenipay_funding_source_id : "";
+  const amountCents = typeof data.amount === "number" ? (data.amount as number) : null;
+  const currency = (typeof data.currency === "string" ? data.currency : "CAD") as Currency;
+
+  if (!organizationId || !transferId || amountCents == null) {
+    await supabase.from("finix_payment_logs").insert({
+      id: `fpl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      payment_id: transferId || eventId || "unknown",
+      event: "agents_treasury_fund.malformed",
+      data: { tags, data, reason: "missing_required_fields" },
+      created_at: new Date().toISOString(),
+    }).then(() => {}, () => { /* logging is best-effort */ });
+    return "handled";
+  }
+
+  if (state !== "SUCCEEDED") return "handled"; // Non-terminal; wait.
+
+  try {
+    const fc = new FundingClient(supabase);
+    const result = await fc.ingestFundingEvent({
+      rail: "card",
+      organizationId,
+      fundingSourceId: fundingSourceId || null,
+      externalEventId: transferId,
+      amount: amountCents / 100,
+      currency,
+      rawPayload: data,
+      postedBy: "finix_webhook",
+    });
+    await supabase.from("finix_payment_logs").insert({
+      id: `fpl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      payment_id: transferId,
+      event: `agents_treasury_fund.${result.state}`,
+      data: { event_id: result.eventId, tx_group: result.txGroup, reason: result.reason },
+      created_at: new Date().toISOString(),
+    }).then(() => {}, () => { /* best-effort */ });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await supabase.from("finix_payment_logs").insert({
+      id: `fpl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      payment_id: transferId,
+      event: "agents_treasury_fund.error",
+      data: { error: message, tags, raw: data },
+      created_at: new Date().toISOString(),
+    }).then(() => {}, () => { /* best-effort */ });
+  }
+  return "handled";
 }

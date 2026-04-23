@@ -19,8 +19,8 @@ import { readSession, clearSession, apiFetch } from "@/app/agents/_lib/session";
 
 const NAV: Array<{ href: string; label: string; icon: string; badge?: boolean; fraudBadge?: boolean }> = [
   { href: "/agents/dashboard", label: "Overview", icon: "📊" },
-  { href: "/agents/treasury", label: "Treasury", icon: "💼" },
   { href: "/agents/ledger", label: "Ledger", icon: "🏦" },
+  { href: "/agents/treasury", label: "Treasury", icon: "💰" },
   { href: "/agents/zenicards", label: "ZeniCards", icon: "💳" },
   { href: "/agents/cards", label: "External cards", icon: "🪪" },
   { href: "/agents/approvals", label: "Approvals", icon: "✅", badge: true },

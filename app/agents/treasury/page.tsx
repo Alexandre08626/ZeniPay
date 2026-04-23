@@ -1,419 +1,341 @@
-// /agents/treasury — CFO command center for treasury.
-// Multi-currency balances, funding sources, fund modal, recent movements.
+// /agents/treasury — PR 8 new landing.
+//
+// Four tiles over zc_get_accounts + zc_list_funding_events:
+//   1. Treasury balance (sum of owner_type='org_treasury' accounts)
+//   2. Total funded this month (sum of credited funding_events this month)
+//   3. Pending funding events (state in received|validated)
+//   4. Funding sources count
+//
+// Three quick-action tiles: Add funds, Manage sources, History.
+// Teal accent (#15B8C9) to differentiate from the other agents pages.
 
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { Shell, Card, Metric } from "@/components/agents/Shell";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { Shell } from "@/components/agents/Shell";
 import { apiFetch } from "../_lib/session";
-import {
-  BORDER, ROW_SEP, TEXT, MUTED, LIGHT,
-  ZP_GRAD, ZP_GREEN, ZP_CYAN, ZP_PURPLE, ZP_BLUE,
-  fmtUSD, fmtDate,
-} from "@/components/agents/theme";
 
-type Currency = "USD" | "CAD" | "EUR" | "USDC";
-interface Treasury   { id: string; default_currency: Currency; credit_limit_cents: number; credit_used_cents: number; status: string; }
-interface Balance    { id: string; currency: Currency; balance_cents: number; pending_cents: number; usd_equivalent_cents: number; }
-interface Totals     { total_balance_cents_usd: number; credit_limit_cents: number; credit_used_cents: number; credit_available_cents: number; }
-interface FundingSrc { id: string; type: string; nickname: string; status: string; is_default: boolean; details: Record<string,unknown>; created_at: string; }
-interface Transfer   { id: string; from_wallet_type: string; to_wallet_type: string; amount_cents: number; currency: string; note: string | null; created_at: string; }
+const TEAL = "#15B8C9";
+const BORDER = "#e2e8f0";
+const TEXT = "#0f172a";
+const MUTED = "#64748b";
 
-const CURRENCY_COLORS: Record<Currency, string> = {
-  USD: ZP_GREEN,
-  CAD: ZP_BLUE,
-  EUR: ZP_PURPLE,
-  USDC: ZP_CYAN,
-};
+interface FundingEvent {
+  id: string;
+  rail: string;
+  funding_source_id: string | null;
+  external_event_id: string;
+  amount_micro: string;
+  currency: string;
+  state: "received" | "validated" | "credited" | "rejected" | "duplicate" | "failed";
+  tx_group: string | null;
+  reason: string | null;
+  created_at: string;
+}
 
-const fmtCurrency = (cents: number, currency: string) => {
-  const map: Record<string, { locale: string; currency: string }> = {
-    USD: { locale: "en-US", currency: "USD" },
-    CAD: { locale: "en-CA", currency: "CAD" },
-    EUR: { locale: "de-DE", currency: "EUR" },
-    USDC: { locale: "en-US", currency: "USD" },
-  };
-  const c = map[currency] ?? { locale: "en-US", currency: "USD" };
-  const formatted = new Intl.NumberFormat(c.locale, { style: "currency", currency: c.currency }).format(cents / 100);
-  return currency === "USDC" ? formatted.replace("$", "") + " USDC" : formatted;
-};
+interface FundingSource {
+  id: string;
+  rail: string;
+  currency: string;
+  label: string;
+  status: string;
+  finix_last4: string | null;
+}
 
-export default function TreasuryPage() {
-  const [treasury, setTreasury] = useState<Treasury | null>(null);
-  const [balances, setBalances] = useState<Balance[]>([]);
-  const [totals, setTotals] = useState<Totals | null>(null);
-  const [sources, setSources] = useState<FundingSrc[]>([]);
-  const [transfers, setTransfers] = useState<Transfer[]>([]);
+interface AccountRow {
+  id: string;
+  owner_type: string;
+  currency: string;
+  balance_micro: string | number;
+}
+
+const MICRO = BigInt(1_000_000);
+function microToUnits(m: string | number): number {
+  const s = String(m);
+  const neg = s.startsWith("-");
+  const abs = neg ? s.slice(1) : s;
+  try {
+    const bi = BigInt(abs);
+    const units = Number(bi / MICRO) + Number(bi % MICRO) / 1_000_000;
+    return neg ? -units : units;
+  } catch {
+    return 0;
+  }
+}
+
+function fmtMoney(n: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-CA", { style: "currency", currency }).format(n);
+  } catch {
+    return `${n.toFixed(2)} ${currency}`;
+  }
+}
+
+function startOfMonth(): Date {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+export default function TreasuryLandingPage() {
+  const [sources, setSources] = useState<FundingSource[]>([]);
+  const [events, setEvents] = useState<FundingEvent[]>([]);
+  const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fundOpen, setFundOpen] = useState(false);
-  const [addSrcOpen, setAddSrcOpen] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [t, w] = await Promise.all([
-        apiFetch<{ treasury: Treasury; balances: Balance[]; totals: Totals | null; funding_sources: FundingSrc[] }>(
-          "/api/v1/agents/treasury",
-        ),
-        apiFetch<{ wallet: { id: string; balance_cents: number }; transfers: Transfer[] }>("/api/v1/agents/org-wallet"),
-      ]);
-      setTreasury(t.treasury);
-      setBalances(t.balances);
-      setTotals(t.totals);
-      setSources(t.funding_sources);
-      setTransfers(w.transfers);
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [src, evt, ledger] = await Promise.all([
+          apiFetch<{ funding_sources: FundingSource[] }>("/api/v1/agents/treasury/fund-sources"),
+          apiFetch<{ funding_events: FundingEvent[] }>("/api/v1/agents/treasury/events?limit=200"),
+          apiFetch<{ snapshot: Array<{ currency: string; treasury_micro: string }> }>("/api/v1/agents/ledger"),
+        ]);
+        if (cancelled) return;
+        setSources(src.funding_sources ?? []);
+        setEvents(evt.funding_events ?? []);
+        setAccounts((ledger.snapshot ?? []).map((s) => ({
+          id: `treasury_${s.currency}`,
+          owner_type: "org_treasury",
+          currency: s.currency,
+          balance_micro: s.treasury_micro,
+        })));
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, []);
 
-  const totalUsd = totals?.total_balance_cents_usd ?? 0;
-  const creditUsd = totals?.credit_available_cents ?? 0;
+  const treasuryByCurrency = accounts
+    .filter((a) => a.owner_type === "org_treasury")
+    .reduce<Record<string, number>>((acc, a) => {
+      acc[a.currency] = (acc[a.currency] ?? 0) + microToUnits(a.balance_micro);
+      return acc;
+    }, {});
+
+  const primaryTreasuryCurrency =
+    Object.keys(treasuryByCurrency).find((c) => treasuryByCurrency[c] > 0) ??
+    Object.keys(treasuryByCurrency)[0] ??
+    "CAD";
+  const primaryTreasuryAmount = treasuryByCurrency[primaryTreasuryCurrency] ?? 0;
+
+  const monthStart = startOfMonth().getTime();
+  const fundedThisMonth = events
+    .filter((e) => e.state === "credited" && new Date(e.created_at).getTime() >= monthStart)
+    .reduce<Record<string, number>>((acc, e) => {
+      acc[e.currency] = (acc[e.currency] ?? 0) + microToUnits(e.amount_micro);
+      return acc;
+    }, {});
+  const fundedDisplayCurrency = Object.keys(fundedThisMonth)[0] ?? primaryTreasuryCurrency;
+  const fundedDisplayAmount = fundedThisMonth[fundedDisplayCurrency] ?? 0;
+
+  const pendingEvents = events.filter((e) => e.state === "received" || e.state === "validated").length;
+  const sourcesCount = sources.length;
 
   return (
     <Shell title="Treasury">
-      {/* Hero card — master USD-equivalent balance + gradient */}
-      <Card style={{ marginBottom: 16, padding: 0, overflow: "hidden", borderLeft: "none" }}>
-        <div style={{ background: ZP_GRAD, padding: "28px 28px", color: "#fff", position: "relative", overflow: "hidden" }}>
-          <span aria-hidden style={{ position: "absolute", right: -60, top: -60, width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-          <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.12em", opacity: 0.85, fontWeight: 700, textTransform: "uppercase" }}>
-            ZeniPay · Organization treasury · USD-equivalent
-          </p>
-          <p style={{ margin: "6px 0 0", fontSize: 44, fontWeight: 900, letterSpacing: "-1.2px", lineHeight: 1 }}>
-            {fmtUSD(totalUsd)}
-          </p>
-          <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.8 }}>
-            {balances.length} {balances.length === 1 ? "currency" : "currencies"} · {sources.length} funding {sources.length === 1 ? "source" : "sources"} · credit available {fmtUSD(creditUsd)}
-          </p>
-          <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-            <button
-              onClick={() => setFundOpen(true)}
-              style={{ background: "#fff", color: "#0f172a", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: "pointer" }}
-            >
-              + Fund treasury
-            </button>
-            <button
-              onClick={() => setAddSrcOpen(true)}
-              style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", padding: "10px 18px", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-            >
-              Add funding source
-            </button>
-            <span style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", fontFamily: "ui-monospace" }}>
-              {treasury?.id ?? "provisioning…"}
-            </span>
-          </div>
-        </div>
-      </Card>
-
-      {/* Per-currency balances */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12, marginBottom: 16 }}>
-        {loading && balances.length === 0 ? (
-          <Card><p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Loading balances…</p></Card>
-        ) : balances.length === 0 ? (
-          <Card><p style={{ color: MUTED, fontSize: 13, margin: 0 }}>No balances yet. Fund the treasury to seed one.</p></Card>
-        ) : (
-          balances.map((b) => (
-            <Metric
-              key={b.id}
-              label={b.currency}
-              value={fmtCurrency(b.balance_cents, b.currency)}
-              sub={b.currency === "USD" ? undefined : `≈ ${fmtUSD(b.usd_equivalent_cents)} USD`}
-              color={CURRENCY_COLORS[b.currency] ?? ZP_GREEN}
-            />
-          ))
-        )}
+      {/* Hero banner */}
+      <div style={{
+        background: `linear-gradient(135deg, ${TEAL} 0%, #0EA5B9 100%)`,
+        color: "#fff", borderRadius: 16, padding: "22px 24px", marginBottom: 18,
+        boxShadow: "0 6px 20px rgba(21,184,201,0.25)",
+      }}>
+        <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.12em", opacity: 0.85, fontWeight: 700, textTransform: "uppercase" }}>
+          Treasury · Money IN
+        </p>
+        <p style={{ margin: "4px 0 0", fontSize: 22, fontWeight: 900, letterSpacing: "-0.4px" }}>
+          Fund once. Distribute to agents. Track every cent.
+        </p>
+        <p style={{ margin: "6px 0 0", fontSize: 13, opacity: 0.9, maxWidth: 620 }}>
+          Multi-rail funding (card today · ACH / wire / USDC rolling out). Every credit lands in a
+          tamper-evident ZeniCore tx_group you can inspect on the ledger.
+        </p>
       </div>
 
-      {/* Funding sources table */}
-      <Card style={{ marginBottom: 16, padding: 0 }}>
-        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${BORDER}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Funding sources</h3>
-          <button
-            onClick={() => setAddSrcOpen(true)}
-            style={{ background: "transparent", color: ZP_GREEN, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-          >
-            + Add source
-          </button>
+      {/* 4 tiles */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+        gap: 12, marginBottom: 18,
+      }}>
+        <Tile
+          label="Treasury balance"
+          value={loading ? "…" : fmtMoney(primaryTreasuryAmount, primaryTreasuryCurrency)}
+          sub={`${Object.keys(treasuryByCurrency).length || 0} currencies`}
+          accent={TEAL}
+        />
+        <Tile
+          label="Funded this month"
+          value={loading ? "…" : fmtMoney(fundedDisplayAmount, fundedDisplayCurrency)}
+          sub={`${events.filter((e) => e.state === "credited" && new Date(e.created_at).getTime() >= monthStart).length} credited events`}
+          accent={TEAL}
+        />
+        <Tile
+          label="Pending events"
+          value={loading ? "…" : String(pendingEvents)}
+          sub="Awaiting webhook confirmation"
+          accent="#F5A623"
+        />
+        <Tile
+          label="Funding sources"
+          value={loading ? "…" : String(sourcesCount)}
+          sub={`${sources.filter((s) => s.status === "verified").length} verified`}
+          accent={TEAL}
+        />
+      </div>
+
+      {err && (
+        <div style={{
+          marginBottom: 18, padding: "12px 16px", borderRadius: 12,
+          background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
+          color: "#DC2626", fontSize: 13, fontWeight: 600,
+        }}>
+          Failed to load treasury data: {err}
         </div>
-        {sources.length === 0 ? (
-          <p style={{ padding: 24, color: MUTED, fontSize: 13, margin: 0 }}>
-            None yet. Add a funding source (Finix card, ZeniPay merchant wallet, wire, USDC) to enable treasury top-ups.
+      )}
+
+      {/* Quick actions */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))",
+        gap: 12, marginBottom: 18,
+      }}>
+        <QuickLink
+          href="/agents/treasury/fund"
+          title="+ Add funds"
+          subtitle="Top up via card (ACH/wire/USDC coming)"
+          accent={TEAL}
+          primary
+        />
+        <QuickLink
+          href="/agents/treasury/sources"
+          title="Manage sources"
+          subtitle={`${sourcesCount} source${sourcesCount === 1 ? "" : "s"} registered`}
+          accent={TEAL}
+        />
+        <QuickLink
+          href="/agents/treasury/history"
+          title="Funding history"
+          subtitle={`${events.length} event${events.length === 1 ? "" : "s"} logged`}
+          accent={TEAL}
+        />
+      </div>
+
+      {/* Recent events */}
+      <div style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14, overflow: "hidden" }}>
+        <div style={{
+          padding: "14px 18px", borderBottom: `1px solid ${BORDER}`,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: TEXT }}>Recent funding events</h3>
+          <Link href="/agents/treasury/history" style={{ fontSize: 12, fontWeight: 700, color: TEAL, textDecoration: "none" }}>
+            View all →
+          </Link>
+        </div>
+        {events.length === 0 ? (
+          <p style={{ padding: "22px 18px", margin: 0, color: MUTED, fontSize: 13 }}>
+            No funding events yet. {sourcesCount === 0 ? (
+              <Link href="/agents/treasury/sources" style={{ color: TEAL, fontWeight: 700 }}>Register a funding source</Link>
+            ) : (
+              <Link href="/agents/treasury/fund" style={{ color: TEAL, fontWeight: 700 }}>Add your first funds</Link>
+            )}.
           </p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                {["Nickname", "Type", "Status", "Default", "Added", ""].map((h) => (
-                  <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 10, fontWeight: 800, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${BORDER}` }}>
-                    {h}
-                  </th>
+                {["When", "Rail", "Amount", "State"].map((h) => (
+                  <th key={h} style={thStyle}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {sources.map((s) => (
-                <tr key={s.id} style={{ borderBottom: `1px solid ${ROW_SEP}` }}>
-                  <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: TEXT }}>{s.nickname}</td>
-                  <td style={{ padding: "12px 16px", fontSize: 12, color: MUTED, fontFamily: "ui-monospace" }}>{s.type}</td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <StatusPill status={s.status} />
+              {events.slice(0, 6).map((e) => (
+                <tr key={e.id} style={{ borderTop: `1px solid ${BORDER}` }}>
+                  <td style={tdStyle}>{new Date(e.created_at).toLocaleString()}</td>
+                  <td style={tdStyle}>{railIcon(e.rail)} {e.rail}</td>
+                  <td style={{ ...tdStyle, fontWeight: 800, color: TEXT }}>
+                    {fmtMoney(microToUnits(e.amount_micro), e.currency)}
                   </td>
-                  <td style={{ padding: "12px 16px", fontSize: 12, color: MUTED }}>{s.is_default ? "✓" : "—"}</td>
-                  <td style={{ padding: "12px 16px", fontSize: 12, color: MUTED }}>{fmtDate(s.created_at)}</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                    <button
-                      onClick={async () => {
-                        if (!confirm(`Delete "${s.nickname}"?`)) return;
-                        await apiFetch(`/api/v1/agents/funding-sources/${s.id}`, { method: "DELETE" });
-                        await load();
-                      }}
-                      style={{ background: "transparent", border: `1px solid rgba(220,38,38,0.3)`, color: "#DC2626", padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      Remove
-                    </button>
-                  </td>
+                  <td style={tdStyle}><StatePill state={e.state} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </Card>
-
-      {/* Recent movements */}
-      <Card style={{ padding: 0 }}>
-        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${BORDER}` }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Recent movements</h3>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: MUTED }}>
-            Treasury top-ups + distributions to agent wallets.
-          </p>
-        </div>
-        {transfers.length === 0 ? (
-          <p style={{ padding: 20, color: MUTED, fontSize: 13, margin: 0 }}>No transfers yet.</p>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc" }}>
-                {["When", "From", "To", "Amount", "Note"].map((h) => (
-                  <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 10, fontWeight: 800, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${BORDER}` }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {transfers.map((t) => (
-                <tr key={t.id} style={{ borderBottom: `1px solid ${ROW_SEP}` }}>
-                  <td style={{ padding: "10px 16px", fontSize: 12, color: MUTED }}>{fmtDate(t.created_at)}</td>
-                  <td style={{ padding: "10px 16px", fontSize: 11, color: TEXT, fontFamily: "ui-monospace" }}>{t.from_wallet_type}</td>
-                  <td style={{ padding: "10px 16px", fontSize: 11, color: TEXT, fontFamily: "ui-monospace" }}>{t.to_wallet_type}</td>
-                  <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 800, color: TEXT }}>{fmtCurrency(t.amount_cents, t.currency)}</td>
-                  <td style={{ padding: "10px 16px", fontSize: 12, color: MUTED }}>{t.note ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
-
-      {fundOpen && <FundModal sources={sources} onClose={() => setFundOpen(false)} onDone={async () => { setFundOpen(false); await load(); }} />}
-      {addSrcOpen && <AddSourceModal onClose={() => setAddSrcOpen(false)} onDone={async () => { setAddSrcOpen(false); await load(); }} />}
+      </div>
     </Shell>
   );
 }
 
-function StatusPill({ status }: { status: string }) {
-  const m: Record<string, { bg: string; fg: string }> = {
-    verified:               { bg: "rgba(45,190,96,0.12)", fg: "#16A34A" },
-    pending_verification:   { bg: "rgba(245,166,35,0.12)", fg: "#D97706" },
-    disabled:               { bg: "#f1f5f9", fg: "#64748b" },
-    failed_verification:    { bg: "rgba(220,38,38,0.1)", fg: "#DC2626" },
-  };
-  const c = m[status] ?? { bg: "#f1f5f9", fg: "#64748b" };
+function Tile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent: string }) {
   return (
-    <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 10px", borderRadius: 999, background: c.bg, color: c.fg, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-      {status.replace("_", " ")}
+    <div style={{
+      background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14,
+      padding: "16px 18px", borderLeft: `4px solid ${accent}`,
+    }}>
+      <p style={{ margin: 0, fontSize: 10, fontWeight: 800, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        {label}
+      </p>
+      <p style={{ margin: "6px 0 2px", fontSize: 22, fontWeight: 900, color: TEXT, letterSpacing: "-0.4px" }}>
+        {value}
+      </p>
+      {sub && <p style={{ margin: 0, fontSize: 11, color: MUTED }}>{sub}</p>}
+    </div>
+  );
+}
+
+function QuickLink({ href, title, subtitle, accent, primary }: { href: string; title: string; subtitle: string; accent: string; primary?: boolean }) {
+  return (
+    <Link href={href} style={{
+      display: "block", padding: "16px 18px", borderRadius: 14, textDecoration: "none",
+      background: primary ? `linear-gradient(135deg, ${accent}, #0EA5B9)` : "#fff",
+      color: primary ? "#fff" : TEXT,
+      border: primary ? "none" : `1px solid ${BORDER}`,
+      boxShadow: primary ? "0 6px 16px rgba(21,184,201,0.25)" : "0 1px 2px rgba(0,0,0,0.02)",
+    }}>
+      <p style={{ margin: 0, fontSize: 15, fontWeight: 800, letterSpacing: "-0.2px" }}>
+        {title}
+      </p>
+      <p style={{ margin: "4px 0 0", fontSize: 12, opacity: primary ? 0.85 : 1, color: primary ? undefined : MUTED }}>
+        {subtitle}
+      </p>
+    </Link>
+  );
+}
+
+function StatePill({ state }: { state: string }) {
+  const map: Record<string, { bg: string; fg: string }> = {
+    credited: { bg: "rgba(45,190,96,0.12)", fg: "#16A34A" },
+    received: { bg: "rgba(245,166,35,0.12)", fg: "#D97706" },
+    validated: { bg: "rgba(245,166,35,0.12)", fg: "#D97706" },
+    rejected: { bg: "rgba(220,38,38,0.1)", fg: "#DC2626" },
+    failed: { bg: "rgba(220,38,38,0.1)", fg: "#DC2626" },
+    duplicate: { bg: "#f1f5f9", fg: "#64748b" },
+  };
+  const c = map[state] ?? { bg: "#f1f5f9", fg: "#64748b" };
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 800, padding: "2px 10px", borderRadius: 999,
+      background: c.bg, color: c.fg, textTransform: "uppercase", letterSpacing: "0.04em",
+    }}>
+      {state}
     </span>
   );
 }
 
-function FundModal({ sources, onClose, onDone }: { sources: FundingSrc[]; onClose: () => void; onDone: () => void }) {
-  const verified = useMemo(() => sources.filter((s) => s.status === "verified"), [sources]);
-  const [sourceId, setSourceId] = useState<string>(verified[0]?.id ?? "");
-  const [amount, setAmount] = useState("100");
-  const [currency, setCurrency] = useState<Currency>("USD");
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr("");
-    setLoading(true);
-    try {
-      const idempotencyKey = `treasury-fund-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      await apiFetch("/api/v1/agents/treasury/fund", {
-        method: "POST",
-        headers: { "Idempotency-Key": idempotencyKey },
-        body: JSON.stringify({
-          funding_source_id: sourceId,
-          amount_cents: Math.round(Number(amount) * 100),
-          currency,
-        }),
-      });
-      onDone();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title="Fund treasury" onClose={onClose}>
-      <form onSubmit={submit}>
-        <p style={{ margin: "0 0 12px", color: MUTED, fontSize: 12 }}>
-          Move money from a verified funding source into the org treasury. Idempotent — safe to retry.
-        </p>
-        <Label>SOURCE</Label>
-        <select
-          value={sourceId}
-          onChange={(e) => setSourceId(e.target.value)}
-          required
-          style={inputStyle()}
-        >
-          <option value="">— select —</option>
-          {verified.map((s) => (
-            <option key={s.id} value={s.id}>{s.nickname} ({s.type})</option>
-          ))}
-        </select>
-        {verified.length === 0 && (
-          <p style={{ fontSize: 11, color: "#D97706", marginTop: 4 }}>
-            No verified sources. Add one first.
-          </p>
-        )}
-        <Label>AMOUNT</Label>
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100" style={inputStyle()} />
-        <Label>CURRENCY</Label>
-        <select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)} style={inputStyle()}>
-          <option value="USD">USD</option>
-          <option value="CAD" disabled>CAD (Phase 3)</option>
-          <option value="EUR" disabled>EUR (Phase 3)</option>
-          <option value="USDC" disabled>USDC (Phase 3)</option>
-        </select>
-        {err && <ErrorBox message={err} />}
-        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button type="button" onClick={onClose} style={btnSecondary()}>Cancel</button>
-          <button type="submit" disabled={loading || !sourceId || !amount} style={btnPrimary(loading)}>
-            {loading ? "Sending…" : `Fund ${fmtUSD(Math.round(Number(amount || 0) * 100))}`}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
+function railIcon(rail: string): string {
+  return rail === "card" ? "💳" : rail === "ach" ? "🏦" : rail === "wire" ? "🌐" : rail === "usdc_onchain" ? "🪙" : "•";
 }
 
-function AddSourceModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [type, setType] = useState<"finix_card" | "zenipay_merchant_wallet" | "wire_ach" | "usdc_wallet">("zenipay_merchant_wallet");
-  const [nickname, setNickname] = useState("");
-  const [merchantId, setMerchantId] = useState("");
-  const [instrumentId, setInstrumentId] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr(""); setLoading(true);
-    try {
-      const details: Record<string, unknown> = {};
-      if (type === "finix_card") details.instrument_id = instrumentId;
-      if (type === "zenipay_merchant_wallet") details.merchant_id = merchantId;
-      await apiFetch("/api/v1/agents/funding-sources", {
-        method: "POST",
-        body: JSON.stringify({ type, nickname: nickname || type, details }),
-      });
-      onDone();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title="Add funding source" onClose={onClose}>
-      <form onSubmit={submit}>
-        <Label>TYPE</Label>
-        <select value={type} onChange={(e) => setType(e.target.value as typeof type)} style={inputStyle()}>
-          <option value="zenipay_merchant_wallet">ZeniPay merchant wallet</option>
-          <option value="finix_card">Finix card (tokenized)</option>
-          <option value="wire_ach">Wire / ACH (pending verification)</option>
-          <option value="usdc_wallet">USDC wallet (pending verification)</option>
-        </select>
-        <Label>NICKNAME</Label>
-        <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="e.g. Main ops account" style={inputStyle()} />
-
-        {type === "zenipay_merchant_wallet" && (
-          <>
-            <Label>ZENIPAY MERCHANT ID</Label>
-            <input value={merchantId} onChange={(e) => setMerchantId(e.target.value)} placeholder="zeniva-001" style={inputStyle()} required />
-            <p style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>
-              Pulls USD from this merchant&apos;s ZeniPay balance on each top-up.
-            </p>
-          </>
-        )}
-        {type === "finix_card" && (
-          <>
-            <Label>FINIX INSTRUMENT ID</Label>
-            <input value={instrumentId} onChange={(e) => setInstrumentId(e.target.value)} placeholder="PI_..." style={inputStyle()} required />
-            <p style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>
-              Tokenize a card with Finix.js client-side first, then paste the instrument id here.
-            </p>
-          </>
-        )}
-        {(type === "wire_ach" || type === "usdc_wallet") && (
-          <p style={{ marginTop: 10, padding: "10px 12px", background: "rgba(245,166,35,0.08)", border: "1px solid rgba(245,166,35,0.25)", borderRadius: 8, color: "#92400E", fontSize: 12 }}>
-            Wire/USDC sources land in <code>pending_verification</code>. Phase 3 adds the matching verification rail.
-          </p>
-        )}
-
-        {err && <ErrorBox message={err} />}
-        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button type="button" onClick={onClose} style={btnSecondary()}>Cancel</button>
-          <button type="submit" disabled={loading} style={btnPrimary(loading)}>
-            {loading ? "Adding…" : "Add source"}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-// ───────────────────────── shared atoms ─────────────────────────
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "92vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
-        <div style={{ padding: "18px 20px", borderBottom: `1px solid ${BORDER}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, color: LIGHT, cursor: "pointer" }}>×</button>
-        </div>
-        <div style={{ padding: 20 }}>{children}</div>
-      </div>
-    </div>
-  );
-}
-function Label({ children }: { children: React.ReactNode }) {
-  return <label style={{ display: "block", fontSize: 10, fontWeight: 800, color: MUTED, letterSpacing: "0.08em", marginTop: 10 }}>{children}</label>;
-}
-function ErrorBox({ message }: { message: string }) {
-  return <div style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(220,38,38,0.08)", color: "#DC2626", fontSize: 12, fontWeight: 700, marginTop: 10 }}>{message}</div>;
-}
-function inputStyle(): React.CSSProperties {
-  return { width: "100%", padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${BORDER}`, fontSize: 14, outline: "none", margin: "6px 0 4px", boxSizing: "border-box", background: "#f8fafc", color: TEXT };
-}
-function btnPrimary(loading: boolean): React.CSSProperties {
-  return { background: loading ? "#94a3b8" : ZP_GRAD, color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: loading ? "not-allowed" : "pointer", flex: 1 };
-}
-function btnSecondary(): React.CSSProperties {
-  return { background: "#f1f5f9", color: MUTED, border: `1px solid ${BORDER}`, padding: "10px 18px", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer", flex: 1 };
-}
+const thStyle: React.CSSProperties = {
+  textAlign: "left", padding: "10px 16px", fontSize: 10, fontWeight: 800,
+  color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em",
+};
+const tdStyle: React.CSSProperties = {
+  padding: "12px 16px", fontSize: 13, color: TEXT,
+};
