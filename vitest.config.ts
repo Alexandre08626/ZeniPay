@@ -3,7 +3,7 @@ import path from "path";
 
 export default defineConfig({
   test: {
-    include: ["lib/agents/**/*.test.ts", "lib/zenicore/**/*.test.ts"],
+    include: ["lib/agents/**/*.test.ts", "lib/zenicore/**/*.test.ts", "tests/**/*.test.ts"],
     environment: "node",
     globals: false,
     coverage: {
