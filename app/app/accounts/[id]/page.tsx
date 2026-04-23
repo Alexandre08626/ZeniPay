@@ -1,40 +1,33 @@
-// /app/accounts/[id] — per-account detail view.
-//
-// Four tabs:
-//   Activity   — transactions filtered to this account (payments +
-//                transfers that reference from_account_id / to_account_id).
-//   Details    — routing, SWIFT, masked account #, download ACH instructions.
-//   Statements — monthly PDF statements (mock list — no generator yet).
-//   Settings   — rename, set-as-primary, close account (via banking-ops).
+// /app/accounts/[id] — account detail page on the new DashboardShell.
 
 "use client";
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { BankingShell, BankingCard, BankingButton } from "../../BankingShell";
-import { banking, fmtCurrency, fmtDate } from "@/lib/design-system/banking-tokens";
-
-const { color: C, fontWeight: FW, radius: R } = banking;
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronLeft, SendHorizontal, Copy, Printer } from "lucide-react";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { BalanceHero } from "@/components/dashboard/BalanceHero";
+import { BankingCard } from "@/components/dashboard/BankingCard";
+import { DataTable } from "@/components/dashboard/DataTable";
+import { GradientButton } from "@/components/dashboard/GradientButton";
+import zp from "@/lib/design-system/zenipay-brand";
 
 interface Account {
-  id: string; merchant_id: string; account_type: string; account_name: string;
-  account_number: string; routing_number: string; balance: number; status: string;
-  is_primary: boolean; currency?: string; created_at?: string;
+  id: string; account_type: string; account_name: string;
+  account_number: string; routing_number: string; balance: number;
+  status: string; is_primary: boolean; currency?: string; created_at?: string;
 }
 interface Transfer {
   id: string; transfer_type: string; recipient_name: string;
-  amount: number; fee: number; status: string; memo: string; created_at: string;
-  from_account_id?: string; to_account_id?: string;
+  amount: number; fee: number; status: string; memo: string;
+  created_at: string; from_account_id?: string; to_account_id?: string;
 }
 interface Payment { id: string; amount: number; currency: string; status: string; description: string; date: string }
 
 type Tab = "activity" | "details" | "statements" | "settings";
 
-function readMerchantId(): string {
-  if (typeof window === "undefined") return "";
-  return sessionStorage.getItem("zp_client") || "";
-}
+function mid() { return typeof window === "undefined" ? "" : sessionStorage.getItem("zp_client") || ""; }
 
 export default function AccountDetailPage() {
   const params = useParams();
@@ -47,7 +40,6 @@ export default function AccountDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("activity");
 
-  // Sync tab with URL hash on mount (links from /app/accounts use #details).
   useEffect(() => {
     if (typeof window === "undefined") return;
     const hash = window.location.hash.replace("#", "") as Tab;
@@ -55,82 +47,73 @@ export default function AccountDetailPage() {
   }, []);
 
   const load = useCallback(async () => {
-    const mid = readMerchantId();
-    if (!mid || !accountId) return;
+    if (!mid() || !accountId) return;
     setLoading(true);
     try {
-      const [bankingRes, statsRes] = await Promise.all([
-        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
-        fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
+      const [banking, stats] = await Promise.all([
+        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid())}`).then((r) => r.json()),
+        fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(mid())}`).then((r) => r.json()),
       ]);
-      const accounts: Account[] = bankingRes.accounts ?? [];
-      setAccount(accounts.find((a) => a.id === accountId) ?? null);
-      setTransfers((bankingRes.transfers ?? []).filter((t: Transfer) => t.from_account_id === accountId || t.to_account_id === accountId));
-      setPayments(statsRes.recent_transactions ?? []);
-    } finally {
-      setLoading(false);
-    }
+      const acc = (banking.accounts ?? []).find((a: Account) => a.id === accountId);
+      setAccount(acc ?? null);
+      setTransfers((banking.transfers ?? []).filter((t: Transfer) => t.from_account_id === accountId || t.to_account_id === accountId));
+      setPayments(stats.recent_transactions ?? []);
+    } finally { setLoading(false); }
   }, [accountId]);
+
   useEffect(() => { void load(); }, [load]);
 
   const activity = useMemo(() => {
     const rows = [
       ...payments.map((p) => ({ id: p.id, date: p.date, desc: p.description || "Payment received", amount: Number(p.amount || 0), positive: true, kind: "Payment" })),
-      ...transfers.map((t) => ({ id: t.id, date: t.created_at, desc: `${capitalize(t.transfer_type)} to ${t.recipient_name || "—"}`, amount: -(Number(t.amount || 0) + Number(t.fee || 0)), positive: false, kind: "Transfer" })),
+      ...transfers.map((t) => ({ id: t.id, date: t.created_at, desc: `${capitalize(t.transfer_type)} → ${t.recipient_name || "—"}`, amount: -(Number(t.amount || 0) + Number(t.fee || 0)), positive: false, kind: "Transfer" })),
     ];
     rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return rows;
   }, [payments, transfers]);
 
-  const isSavings = account?.account_type?.includes("savings");
-  const accent = isSavings ? C.accountSecondary : C.accountPrimary;
-
-  const postBanking = async (action: string, body: Record<string, unknown> = {}) => {
-    const mid = readMerchantId();
+  const post = async (action: string, body: Record<string, unknown> = {}) => {
     await fetch("/api/zenipay/banking-ops", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, merchant_id: mid, account_id: accountId, ...body }),
+      body: JSON.stringify({ action, merchant_id: mid(), account_id: accountId, ...body }),
     });
+    await load();
   };
 
-  if (!accountId) {
-    return <BankingShell title="Account"><p style={{ color: C.textMuted }}>Missing account id.</p></BankingShell>;
-  }
+  const isSavings = account?.account_type?.includes("savings");
 
   return (
-    <BankingShell
-      title={account?.account_name || "Account"}
-      subtitle={account ? capitalize(account.account_type.replace(/_/g, " ")) : "Loading…"}
-      actions={
-        <>
-          <BankingButton as="link" href="/app/accounts" variant="ghost" size="sm">← All accounts</BankingButton>
-          <BankingButton as="link" href={`/app/wallets?from=${encodeURIComponent(accountId)}`} variant="primary" size="sm">Send money</BankingButton>
-        </>
-      }
-    >
-      {/* Header block with balance + quick actions */}
-      <BankingCard style={{ padding: 0, overflow: "hidden", marginBottom: 20, borderLeft: "none" }}>
-        <div style={{ padding: "26px 28px", background: `linear-gradient(135deg, ${accent} 0%, #072B22 100%)`, color: "#fff" }}>
-          <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.12em", opacity: 0.8, fontWeight: FW.bold, textTransform: "uppercase" }}>
-            Available balance
-          </p>
-          <p style={{ ...banking.amount.hero, margin: "8px 0 0", color: "#fff", fontSize: 44 }}>
-            {loading && !account
-              ? <span style={{ opacity: 0.6 }}>…</span>
-              : fmtCurrency(Number(account?.balance || 0), account?.currency || "CAD")}
-          </p>
-          <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.85 }}>
-            Opened {account?.created_at ? fmtDate(account.created_at) : "—"} ·{" "}
-            <span style={{ fontFamily: banking.font.mono }}>•••• {(account?.account_number || "").slice(-4) || "————"}</span>
-          </p>
-        </div>
-      </BankingCard>
+    <DashboardShell mode="merchant">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+        <Link href="/app/accounts" style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.muted, textDecoration: "none",
+        }}>
+          <ChevronLeft size={14} /> All accounts
+        </Link>
+        <GradientButton href={`/app/wallets?from=${encodeURIComponent(accountId)}`} variant="primary" size="md" icon={<SendHorizontal size={14} />}>
+          Send money
+        </GradientButton>
+      </div>
 
-      {/* Tabs */}
-      <nav style={{
-        display: "flex", gap: 2, borderBottom: `1px solid ${C.borderSoft}`,
-        marginBottom: 18,
-      }}>
+      <BalanceHero
+        eyebrow={account ? capitalize(account.account_type.replace(/_/g, " ")) : "Loading…"}
+        label={account?.account_name || "Account"}
+        amount={Number(account?.balance || 0)}
+        currency={account?.currency || "CAD"}
+        subtitle={
+          <span>
+            <span style={{ fontFamily: zp.font.mono }}>•••• {(account?.account_number || "").slice(-4) || "————"}</span>
+            {account?.created_at && <>  ·  opened {zp.fmtDate(account.created_at)}</>}
+          </span>
+        }
+        accent={isSavings ? "violet" : "cyan"}
+        cosmic={false}
+        actions={[]}
+        sparklineData={[]}
+      />
+
+      <nav style={{ display: "flex", gap: 2, borderBottom: `1px solid ${zp.surface.border}`, marginTop: 22, marginBottom: 18 }}>
         {(["activity", "details", "statements", "settings"] as Tab[]).map((t) => {
           const active = tab === t;
           return (
@@ -141,12 +124,15 @@ export default function AccountDetailPage() {
                 if (typeof window !== "undefined") window.history.replaceState(null, "", `#${t}`);
               }}
               style={{
-                padding: "12px 18px", borderRadius: `${R.sm} ${R.sm} 0 0`,
-                border: "none", background: "transparent",
-                color: active ? C.accountPrimary : C.textMuted,
-                fontWeight: FW.bold, fontSize: 13, cursor: "pointer",
-                borderBottom: `3px solid ${active ? C.accountPrimary : "transparent"}`,
-                marginBottom: -1, textTransform: "capitalize" as const,
+                padding: "12px 18px", border: "none", background: "transparent",
+                color: active ? zp.text.primary : zp.text.muted,
+                fontWeight: active ? zp.weight.semibold : zp.weight.medium,
+                fontSize: 13, cursor: "pointer",
+                borderBottom: `2px solid ${active ? (isSavings ? zp.brand.violet : zp.brand.cyan) : "transparent"}`,
+                marginBottom: -1,
+                textTransform: "capitalize" as const,
+                fontFamily: zp.font.sans,
+                transition: zp.motion.base,
               }}
             >
               {t}
@@ -155,98 +141,85 @@ export default function AccountDetailPage() {
         })}
       </nav>
 
-      {/* Content */}
       {tab === "activity" && (
-        <BankingCard style={{ padding: 0 }}>
-          {activity.length === 0 ? (
-            <p style={{ padding: "36px 20px", margin: 0, color: C.textMuted, textAlign: "center" as const }}>
-              No activity for this account yet.
-            </p>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {["Date", "Description", "Type", "Amount"].map((h) => (
-                    <th key={h} style={thStyle}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {activity.slice(0, 50).map((r) => (
-                  <tr key={r.id} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-                    <td style={tdStyle}>{fmtDate(r.date)}</td>
-                    <td style={{ ...tdStyle, color: C.textPrimary }}>{r.desc}</td>
-                    <td style={tdStyle}>
-                      <span style={r.positive ? kindBadgeIncome : kindBadgeTransfer}>{r.kind}</span>
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: "right" as const, ...banking.amount.base,
-                      color: r.positive ? C.incomePositive : C.textPrimary }}>
-                      {r.positive ? "+" : "−"}{fmtCurrency(Math.abs(r.amount), account?.currency || "CAD")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+        <BankingCard padding="none" accent="neutral">
+          <DataTable
+            rows={activity}
+            loading={loading && activity.length === 0}
+            rowKey={(r) => r.id}
+            columns={[
+              { key: "date", header: "Date", cell: (r) => zp.fmtDate(r.date), width: 140 },
+              { key: "desc", header: "Description", cell: (r) => r.desc },
+              { key: "kind", header: "Type", cell: (r) => <KindPill kind={r.kind} positive={r.positive} />, width: 120 },
+              {
+                key: "amount", header: "Amount", mono: true, align: "right", width: 160,
+                cell: (r) => (
+                  <span style={{ color: r.positive ? zp.semantic.success : zp.text.primary, fontWeight: zp.weight.semibold }}>
+                    {r.positive ? "+" : "−"}{zp.fmtCurrency(Math.abs(r.amount), account?.currency || "CAD")}
+                  </span>
+                ),
+              },
+            ]}
+            empty="No activity on this account yet."
+          />
         </BankingCard>
       )}
 
       {tab === "details" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
           <BankingCard>
-            <div style={fieldLabel}>Account holder</div>
-            <div style={{ ...fieldValue, fontWeight: FW.bold }}>{account?.account_name || "—"}</div>
-            <div style={{ ...fieldLabel, marginTop: 14 }}>Account number</div>
-            <div style={{ ...fieldValue, fontFamily: banking.font.mono }}>{account?.account_number || "—"}</div>
-            <div style={{ ...fieldLabel, marginTop: 14 }}>Routing / Transit</div>
-            <div style={{ ...fieldValue, fontFamily: banking.font.mono }}>{account?.routing_number || "—"}</div>
-            <div style={{ ...fieldLabel, marginTop: 14 }}>Currency</div>
-            <div style={fieldValue}>{account?.currency || "CAD"}</div>
+            <Label>Account holder</Label>
+            <Value bold>{account?.account_name || "—"}</Value>
+            <Label style={{ marginTop: 14 }}>Account number</Label>
+            <Value mono>{account?.account_number || "—"}</Value>
+            <Label style={{ marginTop: 14 }}>Routing / Transit</Label>
+            <Value mono>{account?.routing_number || "—"}</Value>
+            <Label style={{ marginTop: 14 }}>Currency</Label>
+            <Value>{account?.currency || "CAD"}</Value>
           </BankingCard>
           <BankingCard>
-            <div style={{ fontSize: 14, fontWeight: FW.bold, color: C.textPrimary, marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginBottom: 8 }}>
               Receive money
             </div>
-            <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 12px" }}>
-              Share these coordinates with anyone who needs to send you an ACH transfer, wire, or Interac e-transfer.
+            <p style={{ fontSize: 12, color: zp.text.muted, margin: "0 0 14px" }}>
+              Share these coordinates to receive ACH, wires, or Interac e-transfers.
             </p>
-            <BankingButton
-              variant="secondary" size="sm"
-              onClick={() => {
-                if (!account) return;
-                const text = `Account name: ${account.account_name}\nAccount number: ${account.account_number}\nRouting: ${account.routing_number}\nCurrency: ${account.currency || "CAD"}`;
-                if (navigator.clipboard) navigator.clipboard.writeText(text);
-              }}
-            >
-              Copy wire instructions
-            </BankingButton>
-            <BankingButton
-              variant="ghost" size="sm" style={{ marginLeft: 6 }}
-              onClick={() => window.print()}
-            >
-              Print / PDF
-            </BankingButton>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <GradientButton
+                variant="secondary" size="sm" icon={<Copy size={12} />}
+                onClick={() => {
+                  if (!account) return;
+                  const txt = `Account name: ${account.account_name}\nAccount #: ${account.account_number}\nRouting: ${account.routing_number}\nCurrency: ${account.currency || "CAD"}`;
+                  if (navigator.clipboard) navigator.clipboard.writeText(txt);
+                }}
+              >
+                Copy wire instructions
+              </GradientButton>
+              <GradientButton variant="ghost" size="sm" icon={<Printer size={12} />} onClick={() => window.print()}>
+                Print / PDF
+              </GradientButton>
+            </div>
           </BankingCard>
         </div>
       )}
 
       {tab === "statements" && (
         <BankingCard>
-          <div style={{ fontSize: 14, fontWeight: FW.bold, color: C.textPrimary, marginBottom: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginBottom: 4 }}>
             Monthly statements
           </div>
-          <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 14px" }}>
+          <p style={{ fontSize: 12, color: zp.text.muted, margin: "0 0 14px" }}>
             Statements are generated on the 1st of each month.
           </p>
-          {statementsPlaceholder(account).map((m) => (
-            <div key={m.month} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: `1px solid ${C.borderSoft}` }}>
+          {placeholderMonths().map((m) => (
+            <div key={m.month} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: `1px solid ${zp.surface.border}` }}>
               <div>
-                <div style={{ fontSize: 13, color: C.textPrimary, fontWeight: FW.bold }}>{m.month}</div>
-                <div style={{ fontSize: 11, color: C.textMuted }}>{m.range}</div>
+                <div style={{ fontSize: 13, color: zp.text.primary, fontWeight: zp.weight.semibold }}>{m.month}</div>
+                <div style={{ fontSize: 11, color: zp.text.muted }}>{m.range}</div>
               </div>
-              <BankingButton variant="ghost" size="sm" onClick={() => alert("Statement download will unlock after first full month of activity.")}>
+              <GradientButton variant="ghost" size="sm" onClick={() => alert("Statement download unlocks after first full month.")}>
                 Download PDF
-              </BankingButton>
+              </GradientButton>
             </div>
           ))}
         </BankingCard>
@@ -254,75 +227,64 @@ export default function AccountDetailPage() {
 
       {tab === "settings" && (
         <BankingCard>
-          <div style={{ fontSize: 14, fontWeight: FW.bold, color: C.textPrimary, marginBottom: 14 }}>
+          <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginBottom: 10 }}>
             Account settings
           </div>
           <SettingsRow
-            label="Account name"
-            value={account?.account_name || "—"}
+            label="Account name" value={account?.account_name || "—"}
             action={
-              <BankingButton variant="secondary" size="sm" onClick={async () => {
+              <GradientButton variant="secondary" size="sm" onClick={async () => {
                 const name = prompt("New account name", account?.account_name || "");
-                if (name && name !== account?.account_name) {
-                  await postBanking("update_account", { account_name: name });
-                  await load();
-                }
-              }}>Rename</BankingButton>
+                if (name && name !== account?.account_name) await post("update_account", { account_name: name });
+              }}>Rename</GradientButton>
             }
           />
           <SettingsRow
-            label="Primary account"
-            value={account?.is_primary ? "Yes" : "No"}
-            action={
-              !account?.is_primary ? (
-                <BankingButton variant="secondary" size="sm" onClick={async () => {
-                  await postBanking("update_account", { is_primary: true });
-                  await load();
-                }}>Set as primary</BankingButton>
-              ) : (
-                <span style={{ fontSize: 12, color: C.textMuted }}>Default for transfers</span>
-              )
-            }
+            label="Primary account" value={account?.is_primary ? "Yes" : "No"}
+            action={!account?.is_primary ? (
+              <GradientButton variant="secondary" size="sm" onClick={() => post("update_account", { is_primary: true })}>Set as primary</GradientButton>
+            ) : <span style={{ fontSize: 12, color: zp.text.muted }}>Default for transfers</span>}
           />
           <SettingsRow
-            label="Status"
-            value={account?.status || "—"}
-            action={
-              account?.status === "active" ? (
-                <BankingButton variant="secondary" size="sm" onClick={async () => {
-                  if (confirm("Freeze this account? You can unfreeze it later.")) {
-                    await postBanking("freeze_account", { freeze: true });
-                    await load();
-                  }
-                }}>Freeze</BankingButton>
-              ) : (
-                <BankingButton variant="secondary" size="sm" onClick={async () => {
-                  await postBanking("freeze_account", { freeze: false });
-                  await load();
-                }}>Unfreeze</BankingButton>
-              )
-            }
+            label="Status" value={account?.status || "—"}
+            action={account?.status === "active" ? (
+              <GradientButton variant="secondary" size="sm" onClick={() => {
+                if (confirm("Freeze this account? You can unfreeze later.")) void post("freeze_account", { freeze: true });
+              }}>Freeze</GradientButton>
+            ) : (
+              <GradientButton variant="secondary" size="sm" onClick={() => post("freeze_account", { freeze: false })}>Unfreeze</GradientButton>
+            )}
           />
           <SettingsRow
-            label="Close account"
-            value="Permanently close. Balance must be $0."
+            label="Close account" value="Permanently close. Balance must be $0."
             action={
-              <BankingButton
+              <GradientButton
                 variant="danger" size="sm"
                 disabled={Number(account?.balance || 0) > 0}
                 onClick={async () => {
                   if (!confirm("Close this account? This cannot be undone.")) return;
-                  await postBanking("update_account", { status: "closed" });
+                  await post("update_account", { status: "closed" });
                   router.push("/app/accounts");
                 }}
               >
                 Close account
-              </BankingButton>
+              </GradientButton>
             }
           />
         </BankingCard>
       )}
-    </BankingShell>
+    </DashboardShell>
+  );
+}
+
+function KindPill({ kind, positive }: { kind: string; positive: boolean }) {
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: zp.weight.semibold, padding: "3px 10px", borderRadius: zp.radius.pill,
+      background: positive ? zp.semantic.successBg : zp.surface.bg3,
+      color: positive ? zp.semantic.success : zp.text.muted,
+      letterSpacing: "0.06em", textTransform: "uppercase" as const,
+    }}>{kind}</span>
   );
 }
 
@@ -330,55 +292,51 @@ function SettingsRow({ label, value, action }: { label: string; value: string; a
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "14px 0", borderTop: `1px solid ${C.borderSoft}`, gap: 12, flexWrap: "wrap",
+      padding: "14px 0", borderTop: `1px solid ${zp.surface.border}`, gap: 12, flexWrap: "wrap",
     }}>
       <div style={{ minWidth: 200 }}>
-        <div style={{ fontSize: 13, fontWeight: FW.bold, color: C.textPrimary }}>{label}</div>
-        <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{value}</div>
+        <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{label}</div>
+        <div style={{ fontSize: 12, color: zp.text.muted, marginTop: 2 }}>{value}</div>
       </div>
       {action}
     </div>
   );
 }
 
-function statementsPlaceholder(_a: Account | null): Array<{ month: string; range: string }> {
+function Label({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted,
+      letterSpacing: "0.1em", textTransform: "uppercase" as const, ...style,
+    }}>{children}</div>
+  );
+}
+
+function Value({ children, bold, mono }: { children: React.ReactNode; bold?: boolean; mono?: boolean }) {
+  return (
+    <div style={{
+      fontSize: 13, color: zp.text.primary, marginTop: 4,
+      fontWeight: bold ? zp.weight.semibold : zp.weight.regular,
+      fontFamily: mono ? zp.font.mono : undefined,
+    }}>{children}</div>
+  );
+}
+
+function placeholderMonths(): Array<{ month: string; range: string }> {
   const now = new Date();
   const months = [];
   for (let i = 0; i < 3; i++) {
-    const start = new Date(now.getFullYear(), now.getMonth() - i - 1, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() - i, 0);
+    const s = new Date(now.getFullYear(), now.getMonth() - i - 1, 1);
+    const e = new Date(now.getFullYear(), now.getMonth() - i, 0);
     months.push({
-      month: start.toLocaleString("en-CA", { month: "long", year: "numeric" }),
-      range: `${fmtDate(start)} — ${fmtDate(end)}`,
+      month: s.toLocaleString("en-CA", { month: "long", year: "numeric" }),
+      range: `${zp.fmtDate(s)} — ${zp.fmtDate(e)}`,
     });
   }
   return months;
 }
 
-const fieldLabel: React.CSSProperties = {
-  fontSize: 10, fontWeight: FW.bold, color: C.textMuted,
-  letterSpacing: "0.1em", textTransform: "uppercase",
-};
-const fieldValue: React.CSSProperties = {
-  fontSize: 13, color: C.textPrimary, marginTop: 4,
-};
-const thStyle: React.CSSProperties = {
-  textAlign: "left", padding: "12px 20px", fontSize: 10, fontWeight: FW.bold,
-  color: C.textMuted, letterSpacing: "0.08em", textTransform: "uppercase",
-};
-const tdStyle: React.CSSProperties = {
-  padding: "12px 20px", fontSize: 13, color: C.textSecondary,
-};
-const kindBadgeIncome: React.CSSProperties = {
-  fontSize: 10, fontWeight: FW.bold, padding: "3px 10px", borderRadius: 999,
-  background: C.accentSoft, color: C.incomePositive,
-};
-const kindBadgeTransfer: React.CSSProperties = {
-  fontSize: 10, fontWeight: FW.bold, padding: "3px 10px", borderRadius: 999,
-  background: C.surfaceInset, color: C.textSecondary,
-};
-
 function capitalize(s: string): string {
   if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 }

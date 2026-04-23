@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Inter, Fraunces } from "next/font/google";
+import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import LangWrapper from "./components/LangWrapper";
 import "@/lib/design-system/globals.css";
 
 // Self-hosted via next/font — no runtime CDN, no layout shift.
 // `variable` exposes them as CSS custom props consumed by globals.css /
-// tailwind.config.ts / tokens.ts.
+// tailwind.config.ts / tokens.ts / zenipay-brand.ts.
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
@@ -18,6 +18,15 @@ const fraunces = Fraunces({
   display: "swap",
   variable: "--font-fraunces",
   weight: ["400", "500", "600", "700"],
+});
+
+// JetBrains Mono — used for amounts, IDs, and hash previews in the
+// product dashboard (introduced by PR 20).
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jetbrains-mono",
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -232,7 +241,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en-CA" className={`${inter.variable} ${fraunces.variable}`}>
+    <html lang="en-CA" className={`${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable}`}>
       <head>
         <script
           type="application/ld+json"
