@@ -172,6 +172,153 @@ body {
   border-radius: var(--zp-radius-sm);
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+ * PR 20 — ZeniPay product-dashboard brand layer.
+ *
+ * The `tokens.ts` + variables above power the marketing surface (landing,
+ * /merchant, /checkout). The variables below power the PRODUCT surface —
+ * /app/* and /agents/* — running LIGHT-mode first (white page) with the
+ * official green→cyan→violet gradient used sparingly as a brand
+ * signifier. Hero balance / ledger blocks sit on a dark-ink gradient
+ * card for drama on the white page.
+ *
+ * Consumers in TS pull from `lib/design-system/zenipay-brand.ts`. CSS-only
+ * consumers read these vars. Keep the two in sync.
+ * ──────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Brand colour stops */
+  --zp-b-green:        #10B981;
+  --zp-b-green-soft:   #5FD068;
+  --zp-b-cyan:         #15B8C9;
+  --zp-b-cyan-soft:    #5CB3FF;
+  --zp-b-violet:       #7B4FBF;
+  --zp-b-violet-soft:  #9B59F6;
+  --zp-b-pink:         #FF6B9D;
+  --zp-b-orange:       #FFA500;
+
+  /* Signature gradients (use sparingly) */
+  --zp-g-main:       linear-gradient(90deg, #10B981 0%, #15B8C9 50%, #7B4FBF 100%);
+  --zp-g-logo-text:  linear-gradient(90deg, #10B981 0%, #15B8C9 35%, #7B4FBF 100%);
+  --zp-g-radial:     radial-gradient(circle, #15B8C9 0%, #7B4FBF 100%);
+  --zp-g-card:       linear-gradient(135deg, #0F1735 0%, #1A1B3A 100%);
+  /* Dark hero cards for dramatic balance/ledger blocks on the white page */
+  --zp-g-hero-merchant: linear-gradient(135deg, #0A0B1F 0%, #13213A 50%, rgba(21,184,201,0.18) 100%);
+  --zp-g-hero-agents:   linear-gradient(135deg, #0A0B1F 0%, #1A1238 50%, rgba(123,79,191,0.28) 100%);
+  --zp-g-hero-ledger:   linear-gradient(135deg, #0A0B1F 0%, #0E1F30 50%, rgba(21,184,201,0.25) 100%);
+  /* Subtle brand tints usable on white cards (active sidebar row, etc) */
+  --zp-g-tint-cyan:   linear-gradient(135deg, rgba(21,184,201,0.10) 0%, rgba(21,184,201,0.02) 100%);
+  --zp-g-tint-violet: linear-gradient(135deg, rgba(123,79,191,0.10) 0%, rgba(123,79,191,0.02) 100%);
+  --zp-g-tint-green:  linear-gradient(135deg, rgba(16,185,129,0.10) 0%, rgba(16,185,129,0.02) 100%);
+
+  /* Light-first surfaces */
+  --zp-bg-0:            #FFFFFF;
+  --zp-bg-1:            #FFFFFF;
+  --zp-bg-2:            #F8FAFC;
+  --zp-bg-3:            #F1F5F9;
+  --zp-b-border:        #E2E8F0;
+  --zp-b-border-hover:  #CBD5E1;
+  --zp-b-border-brand:  rgba(21,184,201,0.42);
+  --zp-b-overlay:       rgba(15,23,42,0.42);
+  /* Dark hero-card ink colours, used on BalanceHero + similar showcase blocks */
+  --zp-hero-ink:        #0A0B1F;
+  --zp-hero-ink-soft:   #12132E;
+
+  /* Text on white surfaces; `inverse` is used on the dark hero cards */
+  --zp-t-primary:      #0A0B1F;
+  --zp-t-muted:        #475569;
+  --zp-t-dim:          #94A3B8;
+  --zp-t-inverse:      #F4F4F8;
+  --zp-t-inverse-muted:#9CA3C8;
+
+  /* Semantic feedback */
+  --zp-sem-success:    #10B981;
+  --zp-sem-success-bg: rgba(16,185,129,0.12);
+  --zp-sem-warn:       #FFA500;
+  --zp-sem-warn-bg:    rgba(255,165,0,0.12);
+  --zp-sem-danger:     #FF5A6C;
+  --zp-sem-danger-bg:  rgba(255,90,108,0.12);
+  --zp-sem-info:       #15B8C9;
+  --zp-sem-info-bg:    rgba(21,184,201,0.12);
+
+  /* Elevation on a white page (lighter shadows, still pronounced) */
+  --zp-elev-sm:    0 1px 2px rgba(15,23,42,0.06);
+  --zp-elev-md:    0 4px 16px rgba(15,23,42,0.08), 0 0 0 1px var(--zp-b-border);
+  --zp-elev-lg:    0 18px 48px rgba(15,23,42,0.12), 0 0 0 1px var(--zp-b-border);
+  --zp-elev-hero-ink: 0 24px 60px rgba(10,11,31,0.35), 0 0 0 1px rgba(255,255,255,0.05);
+  --zp-glow-cyan:    0 0 32px rgba(21,184,201,0.18);
+  --zp-glow-violet:  0 0 32px rgba(123,79,191,0.18);
+  --zp-glow-green:   0 0 32px rgba(16,185,129,0.18);
+
+  /* Dashboard fonts (JetBrains Mono loaded by app/layout.tsx) */
+  --zp-font-sans-dashboard:    var(--font-inter), 'Inter', system-ui, sans-serif;
+  --zp-font-display-dashboard: var(--font-fraunces), 'Fraunces', Georgia, serif;
+  --zp-font-mono-dashboard:    var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+
+/* Dashboard surface — opts into the brand palette. Pages mark their tree
+ * with `class="zp-dashboard"` to pick up the brand background + focus
+ * ring defaults without affecting unrelated /app/* tabs that haven't
+ * migrated yet. */
+.zp-dashboard {
+  background: var(--zp-bg-0);
+  color: var(--zp-t-primary);
+  font-family: var(--zp-font-sans-dashboard);
+  min-height: 100vh;
+  color-scheme: light;
+}
+.zp-dashboard :focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(21,184,201,0.35);
+  border-radius: 6px;
+}
+
+/* Number primitive — apply via className="zp-num" on every balance / id /
+ * hash cell so digits align across rows. */
+.zp-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+}
+.zp-mono {
+  font-family: var(--zp-font-mono-dashboard);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Brand gradient text — swap in for `.zp-gradient-text` when consumers
+ * want the ZP green→cyan→violet stop list instead of the marketing
+ * gradient. */
+.zp-brand-text {
+  background: var(--zp-g-logo-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Pulsing indicator (system status / chain verified). */
+@keyframes zp-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.45); }
+  70%  { box-shadow: 0 0 0 9px rgba(16,185,129,0); }
+  100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
+.zp-pulse-green {
+  animation: zp-pulse 2.4s ease-out infinite;
+}
+
+/* Shimmer across primary CTAs (use on a ::after layered element). */
+@keyframes zp-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Floating particle — for <CosmicBackground>. */
+@keyframes zp-float {
+  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: var(--zp-dot-o, 0.3); }
+  50%  { transform: translate3d(0, -12px, 0) scale(1.06); opacity: calc(var(--zp-dot-o, 0.3) * 1.25); }
+  100% { transform: translate3d(0, 0, 0) scale(1); opacity: var(--zp-dot-o, 0.3); }
+}
+
+/* ── end PR 20 brand layer ─────────────────────────────────────────────── */
+
+
 /* Utility: applies the signature gradient as text fill. Use on max ONE
  * accent phrase per page. */
 .zp-gradient-text {
