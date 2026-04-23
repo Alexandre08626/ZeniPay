@@ -24,9 +24,11 @@ Legend
 | /app/transactions            | NEW    | Unified feed with URL-synced filters                                     | /api/zenipay/banking-ops, /api/zenipay/stats     |
 | /app/contacts                | NEW    | Beneficiaries table + add modal                                          | /api/zenipay/banking-ops (save_contact, delete)  |
 | /app/banking                 | OLD    | Legacy "banking" tab (BankingPage inside ZenivaComplete)                 | /api/zenipay/banking-ops                          |
-| /app/invoices                | OLD    | Invoice list, auto-invoice rules, create, send, mark paid (CRITICAL)     | ZenivaComplete internals + invoicing logic       |
-| /app/pay-links               | OLD    | Payment links list + create (CRITICAL for the public /pay landing)       | ZenivaComplete internals                          |
-| /app/settings                | OLD    | Profile / Business / Team / API keys / Notifications / Billing           | ZenivaComplete internals                          |
+| /app/invoices                | NEW    | Invoice list + stats tiles + detail side-sheet + create modal            | /api/zenipay/stats, /api/zenipay/merchant-data   |
+| /app/pay-links               | NEW    | Payment links dashboard + create modal + toast                           | /api/zenipay/create-link                          |
+| /app/settings                | NEW    | Profile / Business / API keys / Notifications / Security                 | /api/zenipay/merchant-info                        |
+| /app/cards                   | NEW    | Cards grid with ZeniCard-style visuals + issue modal + freeze/unfreeze   | /api/zenipay/banking-ops (apply_card, toggle_card, update_card_limit) |
+| /app/wallets                 | NEW    | Send / Receive with contact dropdown, saved contacts list, copy wire     | /api/zenipay/banking-ops (send_transfer)         |
 | /app/accounting              | OLD    | Accounting + exports (QuickBooks / Xero / CSV / PDF)                     | ZenivaComplete internals                          |
 | /app/analytics               | OLD    | Analytics tab                                                            | ZenivaComplete internals                          |
 | /app/financing               | OLD    | Financing tab (stretch)                                                  | ZenivaComplete internals                          |
@@ -35,9 +37,7 @@ Legend
 | /app/go-live                 | OLD    | Go-live onboarding flow                                                  | ZenivaComplete internals                          |
 | /app/setup                   | OLD    | Setup wizard                                                             | ZenivaComplete internals                          |
 | /app/onboarding-status       | OLD    | Onboarding status page                                                   | ZenivaComplete internals                          |
-| /app/keys                    | OLD    | Legacy API keys tab                                                      | ZenivaComplete internals                          |
-| /app/wallets                 | OLD    | Send / receive / contacts tab (via [tab] catch-all → BankingPage)        | /api/zenipay/banking-ops                          |
-| /app/cards                   | OLD    | Cards list + issue (via [tab] catch-all → BankingPage)                   | /api/zenipay/banking-ops, /api/zenipay/cards/*   |
+| /app/keys                    | OLD    | Legacy API keys tab — superseded by /app/settings#api                    | ZenivaComplete internals                          |
 | /app/[tab]                   | N/A    | Catch-all that returns AppRouter → ZenivaComplete for any `tab`          | depends on tab                                   |
 | /app/page.tsx (root)         | N/A    | Hosts AppRouter that boots ZenivaComplete                                | /api/zenipay/merchant-info, /api/zenipay/stats   |
 
@@ -72,24 +72,26 @@ chrome matches, interior needs updating to the signature components.
 | /agents/api-keys                             | SHELL   | Agents API key management                                                  |
 | /agents/settings + sub-routes                | SHELL   | Agent settings (profile, approvals, etc.)                                  |
 
-## Session scope (realistic)
+## Coverage status
 
-This session ships:
+As of hotfix PR 20.3, every merchant surface the sidebar points at is
+now on DashboardShell:
 
-- Part 1 — this audit (DONE).
-- Part 2 — new DashboardShell routed pages for the Alex-named critical
-  surfaces: **/app/invoices** and **/app/pay-links**. Additional
-  routed pages for **/app/cards**, **/app/wallets**, **/app/settings**.
-  Smaller merchant tabs (analytics, financing, cashback, ben-ai,
-  accounting, go-live, setup, onboarding-status, keys) keep routing
-  through ZenivaComplete for the moment — they are flagged for a
-  ZenivaComplete refactor PR.
-- Part 3 — interior reskin for the investor-demo pages on /agents/*:
-  overview, treasury + sub-routes, ledger, zenicards. The other
-  /agents/* pages already inherit the new shell from PR 20 Part 5 and
-  render correctly at the chrome level; their interiors reuse `Card` +
-  `Metric` from the new wrapper, so they are visually consistent with
-  the brand. Individual page polish is continued in a follow-up.
+  * /app/overview, /app/accounts (+ [id]), /app/transactions,
+    /app/contacts — PR 20 Parts 2-4.
+  * /app/invoices, /app/pay-links, /app/settings — PR 20.1 Part 2.
+  * /app/cards, /app/wallets — **this hotfix** (PR 20.3).
+
+Legacy ZenivaComplete tabs that do NOT appear in the DashboardShell
+sidebar (analytics, financing, cashback, ben-ai, go-live, setup,
+onboarding-status, banking, keys) keep routing through the [tab]
+catch-all for now. They are not linked from anywhere the investor
+demo touches; a dedicated ZenivaComplete-strip PR will fold them in.
+
+/agents/* pages inherit DashboardShell + BankingCard via
+components/agents/Shell.tsx (PR 20 Part 5). Interior polish
+(BalanceHero on /agents/ledger, CountUp on balances, LiveIndicator)
+continues as a follow-up.
 
 ## Explicitly out of scope
 
