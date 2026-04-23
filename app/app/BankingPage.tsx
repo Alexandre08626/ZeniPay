@@ -25,7 +25,7 @@ interface BankingProps {
   merchantId: string;
 }
 
-const SECTIONS = ["Overview", "Accounts", "Cards", "Send Money", "Transactions", "Fee Schedule", "Money Flow", "Settings"] as const;
+const SECTIONS = ["Overview", "Accounts", "Cards", "Send Money", "Contacts", "Transactions", "Fee Schedule", "Money Flow", "Settings"] as const;
 type Section = typeof SECTIONS[number];
 
 const ACCT_TYPES = ["business_checking", "business_savings", "personal_checking", "personal_savings", "goal", "multi_currency"] as const;
@@ -69,6 +69,7 @@ const SECTION_ICONS: Record<string, string> = {
   Accounts: "\u{1F4CA}",
   Cards: "\u{1F4B3}",
   "Send Money": "\u{1F4E8}",
+  Contacts: "\u{1F464}",
   Transactions: "\u{1F4C4}",
   "Fee Schedule": "\u{1F4B0}",
   "Money Flow": "\u{1F504}",
@@ -144,6 +145,7 @@ export default function BankingPage(props: BankingProps) {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [selectedCard, setSelectedCard] = useState<CardDB | null>(null);
   const [revealCard, setRevealCard] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
   const toastIdRef = useRef(0);
 
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
@@ -418,9 +420,22 @@ export default function BankingPage(props: BankingProps) {
     const update = (k: string, v: string) => setF(p => ({ ...p, [k]: v }));
     const contactSelect = (
       <div style={{ marginBottom: 18 }}>
-        <label style={labelStyle}>Saved Contacts</label>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Saved Contacts</label>
+          <button
+            type="button"
+            onClick={() => setAddContactOpen(true)}
+            style={{
+              background: "transparent", border: `1px dashed ${BLUE}`, color: BLUE,
+              borderRadius: 8, padding: "4px 12px", fontSize: 11, fontWeight: 800,
+              cursor: "pointer", letterSpacing: "0.03em",
+            }}
+          >
+            + Add contact
+          </button>
+        </div>
         <select style={inputStyle} onChange={e => { const c = contacts.find(x => x.id === e.target.value); if (c) setF(p => ({ ...p, recipient: c.name, routing_number: c.routing_number || "", account_number: c.account_number || "", bank_name: c.bank_name || "", swift_code: c.swift_code || "" })); }}>
-          <option value="">Select a contact...</option>
+          <option value="">{contacts.length === 0 ? "No contacts saved yet — add one" : "Select a contact..."}</option>
           {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
@@ -480,6 +495,93 @@ export default function BankingPage(props: BankingProps) {
           </div>
           <button style={btnPrimary()} onClick={submit} disabled={loading || !f.amount}>{loading ? "Sending..." : `Send ${f.amount ? fmt(Number(f.amount)) : "Money"}`}</button>
         </div>
+      </div>
+    );
+  };
+
+  const ContactsSection = () => {
+    const del = async (id: string) => {
+      if (!confirm("Delete this contact?")) return;
+      await post("delete_contact", { contact_id: id });
+    };
+    return (
+      <div style={{ ...cardStyle, animation: "slideUp 0.3s ease forwards" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#0F172A" }}>Beneficiary contacts</h2>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748B" }}>
+              Save the people and businesses you pay so you can send money in one click from &ldquo;Send Money&rdquo;.
+            </p>
+          </div>
+          <button
+            onClick={() => setAddContactOpen(true)}
+            style={{
+              background: "linear-gradient(135deg, #15B8C9, #7B4FBF)", color: "#fff", border: "none",
+              borderRadius: 12, padding: "12px 22px", fontWeight: 800, fontSize: 14, cursor: "pointer",
+            }}
+          >
+            + Add beneficiary contact
+          </button>
+        </div>
+
+        {contacts.length === 0 ? (
+          <div style={{
+            border: "1px dashed #CBD5E1", borderRadius: 16, padding: "40px 24px",
+            textAlign: "center" as const, background: "#F8FAFC",
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>👥</div>
+            <p style={{ margin: "0 0 6px", fontWeight: 800, color: "#0F172A", fontSize: 15 }}>No contacts yet</p>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>
+              Add your first beneficiary to speed up future transfers.
+            </p>
+            <button
+              onClick={() => setAddContactOpen(true)}
+              style={btnPrimary()}
+            >
+              + Add your first contact
+            </button>
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" as const }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 640 }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #F1F5F9" }}>
+                  {["Name", "Type", "Bank / Details", "Account / Email", ""].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "12px 14px", fontWeight: 700, color: "#94A3B8", fontSize: 11, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {contacts.map(c => {
+                  const typeLabel =
+                    c.swift_code ? "SWIFT / International" :
+                    (c.routing_number || "").startsWith("interac:") ? "Interac e-Transfer" :
+                    (c.routing_number || "").includes("-") ? "Domestic (CA)" : "US ACH";
+                  const acctDisplay =
+                    (c.routing_number || "").startsWith("interac:")
+                      ? (c.routing_number || "").replace("interac:", "")
+                      : (c.account_number ? `••${(c.account_number).slice(-4)}` : "—");
+                  return (
+                    <tr key={c.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                      <td style={{ padding: "12px 14px", fontWeight: 700, color: "#0F172A" }}>{c.name}</td>
+                      <td style={{ padding: "12px 14px", color: "#64748B" }}>{typeLabel}</td>
+                      <td style={{ padding: "12px 14px", color: "#64748B" }}>{c.bank_name || c.swift_code || "—"}</td>
+                      <td style={{ padding: "12px 14px", fontFamily: "'SF Mono', monospace", color: "#64748B" }}>{acctDisplay}</td>
+                      <td style={{ padding: "12px 14px", textAlign: "right" as const }}>
+                        <button
+                          onClick={() => del(c.id)}
+                          style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     );
   };
@@ -658,6 +760,7 @@ export default function BankingPage(props: BankingProps) {
       case "Accounts": return <AccountsSection />;
       case "Cards": return <CardsSection />;
       case "Send Money": return <SendMoney />;
+      case "Contacts": return <ContactsSection />;
       case "Transactions": return <TransactionsSection />;
       case "Fee Schedule": return <FeeSchedule />;
       case "Money Flow": return <MoneyFlow />;
@@ -681,7 +784,7 @@ export default function BankingPage(props: BankingProps) {
           {SECTIONS.map(s => {
             const sectionLabel: Record<string, string> = {
               Overview: t("banking.overview"), Accounts: t("banking.accounts"), Cards: t("banking.cards"),
-              "Send Money": t("banking.sendMoney"), Transactions: t("banking.transactions"),
+              "Send Money": t("banking.sendMoney"), Contacts: "Contacts", Transactions: t("banking.transactions"),
               "Fee Schedule": t("banking.feeSchedule"), "Money Flow": t("banking.moneyFlow"), Settings: t("banking.settings"),
             };
             return (
@@ -978,6 +1081,170 @@ export default function BankingPage(props: BankingProps) {
           </div>
         );
       })()}
+
+      {addContactOpen && (
+        <AddContactModal
+          onClose={() => setAddContactOpen(false)}
+          onSaved={async (payload) => {
+            await post("save_contact", payload);
+            setAddContactOpen(false);
+          }}
+          loading={loading}
+        />
+      )}
+    </div>
+  );
+}
+
+type ContactType = "domestic_ca" | "interac" | "us_ach" | "swift";
+
+function AddContactModal({
+  onClose, onSaved, loading,
+}: {
+  onClose: () => void;
+  onSaved: (payload: Record<string, unknown>) => void | Promise<void>;
+  loading: boolean;
+}) {
+  const [type, setType] = useState<ContactType>("domestic_ca");
+  const [name, setName] = useState("");
+  // Domestic CA
+  const [institution, setInstitution] = useState("");
+  const [transit, setTransit] = useState("");
+  const [account, setAccount] = useState("");
+  // Interac
+  const [interacEmail, setInteracEmail] = useState("");
+  // US ACH
+  const [usRouting, setUsRouting] = useState("");
+  const [usAccount, setUsAccount] = useState("");
+  // SWIFT
+  const [bankName, setBankName] = useState("");
+  const [swift, setSwift] = useState("");
+  const [iban, setIban] = useState("");
+
+  const MODAL_LABEL: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: "#64748B", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.05em" };
+  const MODAL_INPUT: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 14, boxSizing: "border-box", background: "#FAFBFC", color: "#0F172A", outline: "none" };
+
+  const canSubmit =
+    name.trim().length >= 2 &&
+    ((type === "domestic_ca" && institution && transit && account) ||
+     (type === "interac" && /.+@.+\..+/.test(interacEmail)) ||
+     (type === "us_ach" && usRouting && usAccount) ||
+     (type === "swift" && bankName && swift && iban));
+
+  const submit = () => {
+    let payload: Record<string, unknown> = { name: name.trim() };
+    if (type === "domestic_ca") {
+      payload = { ...payload, bank_name: "", routing_number: `${institution}-${transit}`, account_number: account, swift: "", contact_type: "domestic" };
+    } else if (type === "interac") {
+      // Encode the Interac target in routing_number (table has no email column).
+      payload = { ...payload, bank_name: "Interac", routing_number: `interac:${interacEmail.trim()}`, account_number: "", swift: "", contact_type: "interac" };
+    } else if (type === "us_ach") {
+      payload = { ...payload, bank_name: "", routing_number: usRouting, account_number: usAccount, swift: "", contact_type: "us_ach" };
+    } else if (type === "swift") {
+      payload = { ...payload, bank_name: bankName, routing_number: "", account_number: iban, swift, contact_type: "international" };
+    }
+    void onSaved(payload);
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 520, maxHeight: "92vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}
+      >
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ margin: 0, fontWeight: 900, fontSize: 18 }}>Add beneficiary contact</h2>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748B" }}>Save this person or business for future transfers.</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, color: "#94A3B8", cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ padding: 24 }}>
+          <label style={MODAL_LABEL}>Recipient name</label>
+          <input
+            style={MODAL_INPUT}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Dubai Supplier Co."
+          />
+
+          <label style={{ ...MODAL_LABEL, marginTop: 18 }}>Transfer type</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+            {([
+              { id: "domestic_ca", label: "🇨🇦 Domestic (CA bank)", desc: "Institution + transit + account" },
+              { id: "interac",     label: "💌 Interac e-Transfer",   desc: "Send by email" },
+              { id: "us_ach",      label: "🇺🇸 US ACH",               desc: "Routing + account" },
+              { id: "swift",       label: "🌐 SWIFT wire",            desc: "Bank + SWIFT + IBAN" },
+            ] as Array<{ id: ContactType; label: string; desc: string }>).map(opt => {
+              const active = type === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setType(opt.id)}
+                  style={{
+                    padding: "10px 12px", borderRadius: 10, cursor: "pointer", textAlign: "left" as const,
+                    border: `1.5px solid ${active ? "#15B8C9" : "#E2E8F0"}`,
+                    background: active ? "rgba(21,184,201,0.08)" : "#FAFBFC",
+                  }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: 13, color: "#0F172A" }}>{opt.label}</div>
+                  <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{opt.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          {type === "domestic_ca" && (
+            <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div><label style={MODAL_LABEL}>Institution # (3 digits)</label><input style={MODAL_INPUT} value={institution} onChange={(e) => setInstitution(e.target.value)} placeholder="001" maxLength={3} /></div>
+              <div><label style={MODAL_LABEL}>Transit # (5 digits)</label><input style={MODAL_INPUT} value={transit} onChange={(e) => setTransit(e.target.value)} placeholder="12345" maxLength={5} /></div>
+              <div style={{ gridColumn: "1 / -1" }}><label style={MODAL_LABEL}>Account number</label><input style={MODAL_INPUT} value={account} onChange={(e) => setAccount(e.target.value)} placeholder="1234567" /></div>
+            </div>
+          )}
+          {type === "interac" && (
+            <div style={{ marginTop: 14 }}>
+              <label style={MODAL_LABEL}>Recipient email</label>
+              <input type="email" style={MODAL_INPUT} value={interacEmail} onChange={(e) => setInteracEmail(e.target.value)} placeholder="recipient@email.com" />
+            </div>
+          )}
+          {type === "us_ach" && (
+            <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div><label style={MODAL_LABEL}>Routing (ABA, 9 digits)</label><input style={MODAL_INPUT} value={usRouting} onChange={(e) => setUsRouting(e.target.value)} placeholder="021000021" maxLength={9} /></div>
+              <div><label style={MODAL_LABEL}>Account number</label><input style={MODAL_INPUT} value={usAccount} onChange={(e) => setUsAccount(e.target.value)} placeholder="Account #" /></div>
+            </div>
+          )}
+          {type === "swift" && (
+            <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ gridColumn: "1 / -1" }}><label style={MODAL_LABEL}>Bank name</label><input style={MODAL_INPUT} value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HSBC UK" /></div>
+              <div><label style={MODAL_LABEL}>SWIFT / BIC</label><input style={MODAL_INPUT} value={swift} onChange={(e) => setSwift(e.target.value)} placeholder="HBUKGB4B" /></div>
+              <div><label style={MODAL_LABEL}>IBAN or account</label><input style={MODAL_INPUT} value={iban} onChange={(e) => setIban(e.target.value)} placeholder="GB29NWBK60161331926819" /></div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: "12px 20px", borderRadius: 12, border: "1px solid #E2E8F0", background: "#fff", color: "#0F172A", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!canSubmit || loading}
+              style={{
+                flex: 1, padding: "12px 20px", borderRadius: 12, border: "none",
+                background: canSubmit && !loading ? "linear-gradient(135deg, #15B8C9, #7B4FBF)" : "#94A3B8",
+                color: "#fff", fontWeight: 800, fontSize: 14, cursor: canSubmit && !loading ? "pointer" : "not-allowed",
+              }}
+            >
+              {loading ? "Saving..." : "Save contact"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

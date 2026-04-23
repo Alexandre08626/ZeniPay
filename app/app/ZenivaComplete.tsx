@@ -1554,7 +1554,6 @@ const TABS = [
   { id: "wallets", icon: "🏦", label: "Banking" },
   { id: "paylinks", icon: "🔗", label: "Pay Links" },
   { id: "invoices", icon: "📄", label: "Invoices" },
-  { id: "payouts", icon: "💸", label: "Payouts" },
   { id: "financing", icon: "🏛️", label: "Financing" },
   { id: "analytics", icon: "📈", label: "Analytics" },
   { id: "ai", icon: "🤖", label: "Ben AI" },
@@ -2120,7 +2119,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         <div style={{ margin:"16px 16px 0", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
           {[
             { icon:"💸", label:"Pay", color:"#2DBE60", bg:"rgba(45,190,96,0.12)", action:()=>goTab("paylinks") },
-            { icon:"📤", label:"Payout", color:"#2A8FE0", bg:"rgba(42,143,224,0.12)", action:()=>goTab("payouts") },
+            { icon:"🏦", label:"Banking", color:"#2A8FE0", bg:"rgba(42,143,224,0.12)", action:()=>goTab("wallets") },
             { icon:"🧾", label:"Invoice", color:"#F5A623", bg:"rgba(245,166,35,0.12)", action:()=>goTab("invoices") },
             { icon:"📊", label:"Stats", color:"#7B4FBF", bg:"rgba(123,79,191,0.12)", action:()=>goTab("analytics") },
           ].map((a,i)=>(
@@ -2247,7 +2246,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
             {[
               {icon:"🏛️",label:"Wallets",tab:"wallets"},{icon:"🔗",label:"Pay Links",tab:"paylinks"},
-              {icon:"💸",label:"Payouts",tab:"payouts"},{icon:"👤",label:"Agents",tab:"agents"},
+              {icon:"🧾",label:"Invoices",tab:"invoices"},{icon:"👤",label:"Agents",tab:"agents"},
               {icon:"📚",label:"Accounting",tab:"accounting"},{icon:"🤖",label:"Ben AI",tab:"ai"},
             ].map((item,i)=>(
               <button key={i} onClick={()=>goTab(item.tab)} style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:16, padding:"14px 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:6, cursor:"pointer", WebkitTapHighlightColor:"transparent" }}>
@@ -2589,7 +2588,6 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
               {[
                 { label: t("quickActions.createPayLink"), icon: "🔗", tab: "paylinks", color: BLUE },
                 { label: t("quickActions.viewBanking"), icon: "🏦", tab: "wallets", color: GREEN },
-                { label: t("quickActions.sendPayout"), icon: "💸", tab: "payouts", color: PURPLE },
                 { label: t("quickActions.viewAnalytics"), icon: "📈", tab: "analytics", color: GOLD },
                 { label: t("quickActions.apiKeys"), icon: "🔑", tab: "keys", color: BLUE2 },
                 { label: t("nav.settings"), icon: "⚙️", tab: "settings", color: "#64748b" },
@@ -2822,12 +2820,6 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
           </div>
         )}
 
-        {/* ════ PAYOUTS ════ */}
-        {tab === "payouts" && (
-          <PayoutsPanel agents={AGENTS} platformBalance={platformBalance} merchantId={MID} mode={MMODE} />
-        )}
-
-        
         {/* ════ AGENTS ════ */}
         {tab === "agents" && (
           <div>
