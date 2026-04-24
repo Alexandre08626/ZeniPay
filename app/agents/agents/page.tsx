@@ -161,7 +161,7 @@ function CreateAgentModal({
   const [err, setErr] = useState("");
 
   // Filter the template hub:
-  //   * hide Ben / Max / Jade / Kai — they are the default roster.
+  //   * hide Zara / Victor / Eva / Ben — they are the default roster.
   //   * hide templates already created in the merchant's org.
   const alreadyCreated = new Set(existingAgentNames.map((n) => n.trim().toLowerCase()));
   const pickable = AVAILABLE_TEMPLATES.filter((t) =>
@@ -222,7 +222,7 @@ function CreateAgentModal({
         <>
           <p style={{ margin: "0 0 16px", fontSize: 13, color: MUTED }}>
             Pick a pre-built template or create a custom agent. Fleet cap
-            is 12 agents total. Ben, Max, Jade, and Kai come pre-installed
+            is 12 agents total. Zara, Victor, Eva, and Ben come pre-installed
             and don&rsquo;t count toward the picker.
           </p>
 

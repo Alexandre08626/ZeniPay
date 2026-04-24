@@ -354,18 +354,21 @@ function Chip({ label, accent, ghost, emphasize }: { label: string; accent: stri
   );
 }
 
-// Default roster shown to every merchant on /agents/dashboard,
-// /agents/agents, and /agents/overview. Alex's pick of the four core
-// ops agents (Finance / Compliance / Success / Revenue). The other
-// eight templates are gated behind the "New agent" picker below.
+// Roster v2 — official ZeniPay financial agent fleet (12 specialists).
+// DEMO_ROSTER = the 4 vitrine agents shown on the marketing landing
+// (/agents/overview) and as the empty-state pre-roster on the
+// /agents/dashboard demo. AVAILABLE_TEMPLATES holds the other 8 that
+// merchants can self-install via the "New agent" picker.
+//
+// Net change vs v1: dropped Max, Jade, Luna; added Zara, Victor, Eva.
 export const DEMO_ROSTER: AgentCardData[] = [
-  { name: "Ben",   role: "Finance Agent",           accent: "#7B4FBF", balance: 4200.00, currency: "CAD", status: "active", last4: "4821", limit: 10000, spent: 5800, txCount: 87, lastActivity: "just now", primaryLabel: "Example" },
-  { name: "Max",   role: "Compliance & Risk",       accent: "#FFA500", balance: 2150.00, currency: "CAD", status: "active", last4: "1186", limit: 5000,  spent: 1420, txCount: 34, lastActivity: "6m ago",   primaryLabel: "Example" },
-  { name: "Jade",  role: "Agent Success",           accent: "#10B981", balance: 780.50,  currency: "CAD", status: "active", last4: "7703", limit: 2500,  spent: 1130, txCount: 22, lastActivity: "12m ago",  primaryLabel: "Example" },
-  { name: "Kai",   role: "Revenue Intelligence",    accent: "#0EA5E9", balance: 3120.00, currency: "CAD", status: "active", last4: "5404", limit: 6000,  spent: 2680, txCount: 51, lastActivity: "1h ago",   primaryLabel: "Example" },
+  { name: "Zara",   role: "Banker",            accent: "#15B8C9", balance: 2400.00, currency: "USD", status: "active", last4: "1042", limit: 8000,  spent: 4920, txCount: 38, lastActivity: "just now", primaryLabel: "Example" },
+  { name: "Victor", role: "Accountant",        accent: "#7B4FBF", balance: 1800.00, currency: "USD", status: "active", last4: "8217", limit: 4000,  spent: 1610, txCount: 24, lastActivity: "8m ago",    primaryLabel: "Example" },
+  { name: "Eva",    role: "Financial Advisor", accent: "#10B981", balance: 3100.00, currency: "USD", status: "active", last4: "3590", limit: 6000,  spent: 2240, txCount: 19, lastActivity: "22m ago",   primaryLabel: "Example" },
+  { name: "Ben",    role: "Finance Agent",     accent: "#FFA500", balance: 4200.00, currency: "USD", status: "active", last4: "4821", limit: 10000, spent: 5800, txCount: 87, lastActivity: "1h ago",    primaryLabel: "Example" },
 ];
 
-// Additional agent templates — available through the "New agent" flow.
+// Other 8 agent templates — available through the "New agent" picker.
 // Combined with DEMO_ROSTER, a merchant can deploy up to 12 specialists.
 export interface AgentTemplate {
   slug: string;                  // matches /public/agents/<slug>.png
@@ -377,14 +380,14 @@ export interface AgentTemplate {
 }
 
 export const AVAILABLE_TEMPLATES: AgentTemplate[] = [
-  { slug: "marco", name: "Marco", role: "Lead Hunter",       description: "Scrapes inbound channels + qualifies leads 24/7.",           accent: "#15B8C9", defaultLimit: 2000 },
-  { slug: "sofia", name: "Sofia", role: "Email Marketing",   description: "Writes and sends unique AI emails per lead, every language.", accent: "#FF6B9D", defaultLimit: 1500 },
-  { slug: "atlas", name: "Atlas", role: "Security Agent",    description: "24/7 service + SSH + cert watchdog with auto-remediation.",   accent: "#64748B", defaultLimit: 1200 },
-  { slug: "luna",  name: "Luna",  role: "Voice & SMS",       description: "Inbound/outbound voice and SMS — Twilio-backed, AI-reply.",   accent: "#06B6D4", defaultLimit: 1000 },
-  { slug: "mia",   name: "Mia",   role: "Social Media",      description: "5 AI posts a day across IG, TikTok, FB with approval flow.",  accent: "#A855F7", defaultLimit: 800  },
-  { slug: "leo",   name: "Leo",   role: "Analytics",         description: "Conversion / pipeline / ROI insights that feed other agents.", accent: "#8B5CF6", defaultLimit: 600  },
-  { slug: "rex",   name: "Rex",   role: "Platform Engineer", description: "Bug detection, API monitoring, daily health reports.",        accent: "#059669", defaultLimit: 1500 },
-  { slug: "vera",  name: "Vera",  role: "Risk Oversight",    description: "Second-line compliance — pairs with Max on high-risk flows.", accent: "#F59E0B", defaultLimit: 800  },
+  { slug: "marco", name: "Marco", role: "Lead Hunter",          description: "Scrapes inbound channels + qualifies B2B leads 24/7.",       accent: "#15B8C9", defaultLimit: 2000 },
+  { slug: "sofia", name: "Sofia", role: "Email Marketing",      description: "Writes and sends unique AI emails per lead, every language.", accent: "#FF6B9D", defaultLimit: 1500 },
+  { slug: "atlas", name: "Atlas", role: "Security Agent",       description: "Fraud detection + 24/7 service + cert watchdog.",            accent: "#64748B", defaultLimit: 1200 },
+  { slug: "vera",  name: "Vera",  role: "Compliance & Risk",    description: "Regulatory checks + second-line compliance.",                accent: "#F59E0B", defaultLimit: 800  },
+  { slug: "leo",   name: "Leo",   role: "Analytics",            description: "Conversion / pipeline / ROI insights that feed other agents.", accent: "#8B5CF6", defaultLimit: 600  },
+  { slug: "rex",   name: "Rex",   role: "Platform Engineer",    description: "Bug detection, API monitoring, daily health reports.",        accent: "#059669", defaultLimit: 1500 },
+  { slug: "mia",   name: "Mia",   role: "Social Media",         description: "5 AI posts a day across IG, TikTok, FB with approval flow.",  accent: "#A855F7", defaultLimit: 800  },
+  { slug: "kai",   name: "Kai",   role: "Revenue Intelligence", description: "Sales forecasting + pipeline scoring + revenue ops.",        accent: "#0EA5E9", defaultLimit: 6000 },
 ];
 
 /** Slugs already in the default roster. Used by the picker to hide them. */

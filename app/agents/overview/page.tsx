@@ -36,11 +36,13 @@ interface DemoAgent {
   status: "active" | "idle";
 }
 
+// Roster v2 vitrine — the 4 financial agents we lead with on the
+// landing page. Static numbers, plausible/investor-ready.
 const ROSTER: DemoAgent[] = [
-  { name: "Marco", role: "Lead Hunter",     accent: "#15B8C9", balance: 1240.00, limit: 2000, spent: 760,   last4: "7712", txCount: 42, lastActivity: "2m ago",  status: "active" },
-  { name: "Sofia", role: "Email Marketing", accent: "#FF6B9D", balance: 380.50,  limit: 1500, spent: 1119.5, last4: "2081", txCount: 18, lastActivity: "14m ago", status: "active" },
-  { name: "Ben",   role: "Finance Agent",   accent: "#7B4FBF", balance: 4200.00, limit: 10000, spent: 5800, last4: "4821", txCount: 87, lastActivity: "just now", status: "active" },
-  { name: "Atlas", role: "Security Agent",  accent: "#10B981", balance: 890.00,  limit: 1200, spent: 310,   last4: "9933", txCount: 11, lastActivity: "1h ago",  status: "active" },
+  { name: "Zara",   role: "Banker",            accent: "#15B8C9", balance: 2400.00, limit: 8000,  spent: 4920, last4: "1042", txCount: 38, lastActivity: "just now", status: "active" },
+  { name: "Victor", role: "Accountant",        accent: "#7B4FBF", balance: 1800.00, limit: 4000,  spent: 1610, last4: "8217", txCount: 24, lastActivity: "8m ago",   status: "active" },
+  { name: "Eva",    role: "Financial Advisor", accent: "#10B981", balance: 3100.00, limit: 6000,  spent: 2240, last4: "3590", txCount: 19, lastActivity: "22m ago",  status: "active" },
+  { name: "Ben",    role: "Finance Agent",     accent: "#FFA500", balance: 4200.00, limit: 10000, spent: 5800, last4: "4821", txCount: 87, lastActivity: "1h ago",   status: "active" },
 ];
 
 export default function AgentsOverviewPage() {

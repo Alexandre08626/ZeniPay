@@ -265,10 +265,10 @@ function SectionB() {
 
 function VisualAgents() {
   const AGENTS = [
-    { name: "Marco",  role: "Lead Hunter",     bal: "$1,240.00", status: "active" },
-    { name: "Sofia",  role: "Email Marketing", bal: "$380.50",   status: "active" },
-    { name: "Ben",    role: "Finance Agent",   bal: "$4,200.00", status: "active" },
-    { name: "Atlas",  role: "Security Agent",  bal: "$890.00",   status: "active" },
+    { name: "Zara",   role: "Banker",            bal: "$2,400.00", status: "active" },
+    { name: "Victor", role: "Accountant",        bal: "$1,800.00", status: "active" },
+    { name: "Eva",    role: "Financial Advisor", bal: "$3,100.00", status: "active" },
+    { name: "Ben",    role: "Finance Agent",     bal: "$4,200.00", status: "active" },
   ];
   return (
     <div style={{
@@ -286,7 +286,7 @@ function VisualAgents() {
         ))}
         <div style={{ padding: "14px 18px", borderTop: `2px solid ${zp.surface.border}`, background: zp.surface.bg2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 11, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.1em", textTransform: "uppercase" }}>Total fleet balance</span>
-          <span style={{ ...zp.amountStyle.large, fontSize: 18, color: zp.brand.cyan }}>$6,710.50 USD</span>
+          <span style={{ ...zp.amountStyle.large, fontSize: 18, color: zp.brand.cyan }}>$11,500.00 USD</span>
         </div>
       </div>
     </div>
@@ -330,10 +330,10 @@ function BridgeSection() {
           </div>
           <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, maxWidth: 840, marginLeft: "auto", marginRight: "auto" }}>
             {[
-              { name: "Marco", bal: "$1,240" },
-              { name: "Ben",   bal: "$4,200" },
-              { name: "Sofia", bal: "$380"   },
-              { name: "Atlas", bal: "$890"   },
+              { name: "Zara",   bal: "$2,400" },
+              { name: "Victor", bal: "$1,800" },
+              { name: "Eva",    bal: "$3,100" },
+              { name: "Ben",    bal: "$4,200" },
             ].map((a) => (
               <div key={a.name} style={{ padding: "14px 16px", borderRadius: zp.radius.md, background: "#fff", border: `1px solid ${zp.surface.border}`, borderLeft: `3px solid ${zp.brand.violet}`, display: "flex", alignItems: "center", gap: 10, boxShadow: zp.elevation.sm }}>
                 <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", background: zp.surface.bg2, flexShrink: 0 }}>
