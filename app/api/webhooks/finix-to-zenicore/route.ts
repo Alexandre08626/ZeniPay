@@ -1,4 +1,9 @@
-// POST /api/_webhooks/finix-to-zenicore
+// POST /api/webhooks/finix-to-zenicore
+//
+// NOTE: moved out of `_webhooks/` — Next.js App Router treats
+// `_`-prefixed folders as private (non-routed). The old path was
+// silently returning 404. Finix dashboard endpoint URL must be
+// updated to this new path.
 //
 // Bridges Finix transfer events into the ZeniCore ledger. HMAC-verified
 // (header X-Finix-Signature = hex(HMAC-SHA256(raw_body, FINIX_WEBHOOK_SECRET))).

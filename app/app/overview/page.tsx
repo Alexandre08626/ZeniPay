@@ -18,6 +18,7 @@ import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
 import { KybBanner } from "./KybBanner";
 import { FinixBalanceTile } from "./FinixBalanceTile";
+import { YourCardsStrip } from "./YourCardsStrip";
 
 interface Account {
   id: string;
@@ -51,6 +52,7 @@ interface Payment {
 interface Payout { id: string; status?: string }
 interface Invoice { id: string; total?: number; status?: string }
 interface CardRow { id: string; status?: string }
+interface MerchantCardRow { id: string; status: "active" | "frozen" | "cancelled" }
 
 function readMerchantId(): string {
   if (typeof window === "undefined") return "";
@@ -98,6 +100,7 @@ export default function OverviewPage() {
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [cards, setCards] = useState<CardRow[]>([]);
+  const [merchantCards, setMerchantCards] = useState<MerchantCardRow[]>([]);
   const [activityFeed, setActivityFeed] = useState<ActivityRow[]>([]);
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
@@ -116,14 +119,16 @@ export default function OverviewPage() {
     if (!mid) return;
     setLoading(true);
     try {
-      const [banking, stats, activity] = await Promise.all([
+      const [banking, stats, activity, merchCards] = await Promise.all([
         fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
         fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
         fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid)}&limit=20`).then((r) => r.json()),
+        fetch(`/api/v1/merchant/cards?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()).catch(() => ({ cards: [] })),
       ]);
       setAccounts(banking.accounts ?? []);
       setTransfers(banking.transfers ?? []);
       setCards(banking.cards ?? []);
+      setMerchantCards((merchCards.cards ?? []) as MerchantCardRow[]);
       setPayments(stats.recent_transactions ?? []);
       setPayouts(stats.recent_payouts ?? []);
       setInvoices(stats.recent_invoices ?? []);
@@ -143,7 +148,9 @@ export default function OverviewPage() {
   const openInvoices = useMemo(() => invoices.filter((i) => i.status !== "paid"), [invoices]);
   const openInvoicesTotal = openInvoices.reduce((s, i) => s + Number(i.total || 0), 0);
   const pendingPayouts = payouts.filter((p) => p.status !== "completed" && p.status !== "failed").length;
-  const activeCards = cards.filter((c) => (c.status ?? "active") === "active").length;
+  const activeCards = merchantCards.length > 0
+    ? merchantCards.filter((c) => c.status === "active").length
+    : cards.filter((c) => (c.status ?? "active") === "active").length;
 
   const activity: UnifiedRow[] = useMemo(
     () => activityFeed.slice(0, 10).map<UnifiedRow>((a) => ({
@@ -216,6 +223,8 @@ export default function OverviewPage() {
           <AddAccountCard />
         </div>
       </section>
+
+      <YourCardsStrip />
 
       {/* Recent activity */}
       <section style={{ marginBottom: 20 }}>
