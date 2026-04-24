@@ -9,14 +9,32 @@ export async function GET(req: NextRequest) {
   const mid = req.nextUrl.searchParams.get("merchant_id");
   if (!mid) return NextResponse.json({ error: "Missing merchant_id" }, { status: 400 });
   const s = getSupabaseAdmin();
-  const [accounts, transfers, cards, contacts, notifs] = await Promise.all([
+  // `ledger` covers money movements recorded outside `zenipay_transfers`
+  // (e.g. `fund_agent_treasury` debits from the merchant→treasury
+  // bridge). `customer_payment` rows are omitted because the same event
+  // is already returned by /api/zenipay/stats `recent_transactions`.
+  const [accounts, transfers, cards, contacts, notifs, ledger] = await Promise.all([
     s.from("zenipay_accounts").select("*").eq("merchant_id", mid).order("is_primary", { ascending: false }),
     s.from("zenipay_transfers").select("*").eq("merchant_id", mid).order("created_at", { ascending: false }).limit(100),
     s.from("zenipay_cards").select("*").eq("merchant_id", mid).order("created_at", { ascending: false }),
     s.from("zenipay_contacts").select("*").eq("merchant_id", mid).order("name"),
     s.from("zenipay_notification_settings").select("*").eq("merchant_id", mid).single(),
+    s.from("zenipay_ledger")
+      .select("*")
+      .eq("merchant_id", mid)
+      .neq("event_type", "customer_payment")
+      .order("created_at", { ascending: false })
+      .limit(200),
   ]);
-  return NextResponse.json({ accounts: accounts.data || [], transfers: transfers.data || [], cards: cards.data || [], contacts: contacts.data || [], notifications: notifs.data || {}, fees: FEES });
+  return NextResponse.json({
+    accounts: accounts.data || [],
+    transfers: transfers.data || [],
+    cards: cards.data || [],
+    contacts: contacts.data || [],
+    notifications: notifs.data || {},
+    ledger: ledger.data || [],
+    fees: FEES,
+  });
 }
 
 export async function POST(req: NextRequest) {

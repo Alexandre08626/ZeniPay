@@ -84,6 +84,7 @@ export default function TransactionsPage() {
       const payments = stats.recent_transactions ?? [];
       const transfers = banking.transfers ?? [];
       const payouts = stats.recent_payouts ?? [];
+      const ledger = banking.ledger ?? [];
       const merged: UnifiedRow[] = [
         ...payments.map((p: { id: string; customer: string; amount: number; currency: string; status: string; description: string; date: string }) => ({
           id: p.id, kind: "income" as TxKind, date: p.date,
@@ -116,6 +117,21 @@ export default function TransactionsPage() {
           amount: -(Number(p.amount || 0)), currency: "CAD",
           status: p.status || "processing", accountId: null,
           raw: p as unknown as Record<string, unknown>,
+        })),
+        // `zenipay_ledger` entries outside `customer_payment` — covers
+        // agent-treasury funding debits and any other money movement
+        // that isn't stored as a `zenipay_transfers` row.
+        ...ledger.map((l: { id: string; event_type: string; direction: "debit" | "credit"; amount: number | string; currency: string; note: string | null; reference: string | null; created_at: string }) => ({
+          id: l.id,
+          kind: (l.direction === "credit" ? "income" : "transfer") as TxKind,
+          date: l.created_at,
+          description: l.note || ledgerLabel(l.event_type),
+          counterparty: ledgerCounterparty(l.event_type),
+          amount: (l.direction === "credit" ? 1 : -1) * Number(l.amount || 0),
+          currency: l.currency || "CAD",
+          status: "completed",
+          accountId: null,
+          raw: l as unknown as Record<string, unknown>,
         })),
       ];
       merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -355,4 +371,23 @@ const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer", min
 function capitalize(s: string): string {
   if (!s) return "";
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
+}
+
+function ledgerLabel(eventType: string): string {
+  switch (eventType) {
+    case "fund_agent_treasury": return "Fund agent treasury";
+    case "transfer_to_agent":   return "Transfer to agent";
+    case "refund":              return "Refund";
+    case "fee":                 return "Fee";
+    case "payout":              return "Payout";
+    default:                    return capitalize(eventType);
+  }
+}
+
+function ledgerCounterparty(eventType: string): string {
+  switch (eventType) {
+    case "fund_agent_treasury":
+    case "transfer_to_agent":   return "Agent treasury";
+    default:                    return "—";
+  }
 }

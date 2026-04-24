@@ -24,6 +24,11 @@ interface Transfer {
   created_at: string; from_account_id?: string; to_account_id?: string;
 }
 interface Payment { id: string; amount: number; currency: string; status: string; description: string; date: string }
+interface LedgerEntry {
+  id: string; event_type: string; direction: "debit" | "credit";
+  amount: number | string; currency: string;
+  note: string | null; reference: string | null; created_at: string;
+}
 
 type Tab = "activity" | "details" | "statements" | "settings";
 
@@ -37,6 +42,7 @@ export default function AccountDetailPage() {
   const [account, setAccount] = useState<Account | null>(null);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("activity");
 
@@ -58,6 +64,11 @@ export default function AccountDetailPage() {
       setAccount(acc ?? null);
       setTransfers((banking.transfers ?? []).filter((t: Transfer) => t.from_account_id === accountId || t.to_account_id === accountId));
       setPayments(stats.recent_transactions ?? []);
+      // `zenipay_ledger` rows (e.g. agent-treasury debits). We surface
+      // them on the primary account's activity tab — the ledger row
+      // itself doesn't carry an account_id, so we attribute it to the
+      // account paying the bill (i.e. the primary one).
+      setLedger(acc?.is_primary ? (banking.ledger ?? []) : []);
     } finally { setLoading(false); }
   }, [accountId]);
 
@@ -67,10 +78,22 @@ export default function AccountDetailPage() {
     const rows = [
       ...payments.map((p) => ({ id: p.id, date: p.date, desc: p.description || "Payment received", amount: Number(p.amount || 0), positive: true, kind: "Payment" })),
       ...transfers.map((t) => ({ id: t.id, date: t.created_at, desc: `${capitalize(t.transfer_type)} → ${t.recipient_name || "—"}`, amount: -(Number(t.amount || 0) + Number(t.fee || 0)), positive: false, kind: "Transfer" })),
+      ...ledger.map((l) => {
+        const positive = l.direction === "credit";
+        const amt = Number(l.amount || 0);
+        return {
+          id: l.id,
+          date: l.created_at,
+          desc: l.note || ledgerEventLabel(l.event_type),
+          amount: positive ? amt : -amt,
+          positive,
+          kind: ledgerEventLabel(l.event_type),
+        };
+      }),
     ];
     rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return rows;
-  }, [payments, transfers]);
+  }, [payments, transfers, ledger]);
 
   const post = async (action: string, body: Record<string, unknown> = {}) => {
     await fetch("/api/zenipay/banking-ops", {
@@ -339,4 +362,15 @@ function placeholderMonths(): Array<{ month: string; range: string }> {
 function capitalize(s: string): string {
   if (!s) return "";
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
+}
+
+function ledgerEventLabel(eventType: string): string {
+  switch (eventType) {
+    case "fund_agent_treasury": return "Agent treasury";
+    case "transfer_to_agent":   return "Transfer to agent";
+    case "refund":              return "Refund";
+    case "fee":                 return "Fee";
+    case "payout":              return "Payout";
+    default:                    return capitalize(eventType);
+  }
 }
