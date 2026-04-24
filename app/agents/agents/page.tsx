@@ -4,9 +4,11 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Shell, Card } from "@/components/agents/Shell";
+import { Shell } from "@/components/agents/Shell";
+import { AgentCard, DEMO_ROSTER, type AgentCardData } from "@/components/agents/AgentCard";
 import { apiFetch } from "../_lib/session";
-import { BORDER, ROW_SEP, TEXT, MUTED, LIGHT, ZP_GRAD, ZP_GREEN, fmtUSD, fmtDate } from "@/components/agents/theme";
+import { BORDER, TEXT, MUTED, LIGHT, ZP_GRAD, ZP_GREEN } from "@/components/agents/theme";
+import zp from "@/lib/design-system/zenipay-brand";
 
 interface AgentRow {
   id: string;
@@ -35,19 +37,54 @@ export default function AgentsListPage() {
   };
   useEffect(() => { void refresh(); }, []);
 
+  const realCards: AgentCardData[] = agents.map((a) => ({
+    id: a.id,
+    name: a.name,
+    role: a.agent_type || "AI agent",
+    balance: (a.wallet?.balance_cents ?? 0) / 100,
+    currency: a.wallet?.currency || "CAD",
+    status: (a.status as AgentCardData["status"]) || "active",
+    last4: syntheticLast4(a.id),
+    primaryLabel: "Open agent",
+  }));
+
+  const showDemo = !loading && agents.length === 0;
+
   return (
     <Shell title="Agents">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <p style={{ color: MUTED, margin: 0, fontSize: 13 }}>
-          {agents.length} {agents.length === 1 ? "agent" : "agents"}
-        </p>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "flex-end",
+        marginBottom: 18, flexWrap: "wrap", gap: 12,
+      }}>
+        <div>
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: zp.brand.violet,
+            letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4,
+          }}>
+            {showDemo ? "Example fleet · Preview" : "Your fleet · ZeniCore live"}
+          </div>
+          <h2 style={{
+            margin: 0, fontFamily: zp.font.display, fontSize: 22,
+            fontWeight: 700, letterSpacing: "-0.02em", color: TEXT,
+          }}>
+            {showDemo
+              ? "This is what your fleet could look like."
+              : `${agents.length} ${agents.length === 1 ? "agent" : "agents"} ready to spend.`}
+          </h2>
+          {showDemo && (
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: MUTED, maxWidth: 560 }}>
+              These four agents are just a preview. Create your own — each
+              gets its own wallet, card, and audit trail.
+            </p>
+          )}
+        </div>
         <button
           onClick={() => setShowCreate(true)}
           style={{
             background: ZP_GRAD,
             color: "#fff",
             border: "none",
-            padding: "10px 18px",
+            padding: "11px 20px",
             borderRadius: 10,
             fontWeight: 700,
             fontSize: 13,
@@ -59,96 +96,19 @@ export default function AgentsListPage() {
         </button>
       </div>
 
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        {loading ? (
-          <p style={{ color: MUTED, padding: 20, fontSize: 13 }}>Loading…</p>
-        ) : agents.length === 0 ? (
-          <div style={{ padding: "48px 20px", textAlign: "center" }}>
-            <div style={{ fontSize: 38, marginBottom: 8 }}>🤖</div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: TEXT, margin: "0 0 6px" }}>No agents yet</p>
-            <p style={{ color: MUTED, margin: "0 0 14px", fontSize: 13 }}>
-              Create your first agent to get a wallet, keypair, and a default policy.
-            </p>
-            <button
-              onClick={() => setShowCreate(true)}
-              style={{
-                background: ZP_GRAD,
-                color: "#fff",
-                border: "none",
-                padding: "10px 18px",
-                borderRadius: 10,
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: "pointer",
-              }}
-            >
-              + Create agent
-            </button>
-          </div>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc" }}>
-                {["Name", "Type", "Balance", "Status", "Created", ""].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      textAlign: "left",
-                      padding: "10px 16px",
-                      fontSize: 10,
-                      fontWeight: 800,
-                      color: MUTED,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      borderBottom: `1px solid ${BORDER}`,
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {agents.map((a) => (
-                <tr key={a.id} style={{ borderBottom: `1px solid ${ROW_SEP}` }}>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{a.name}</div>
-                    <div style={{ fontSize: 10, color: LIGHT, fontFamily: "ui-monospace" }}>{a.id}</div>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: 12, color: MUTED }}>{a.agent_type}</td>
-                  <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: TEXT }}>
-                    {a.wallet ? fmtUSD(a.wallet.balance_cents) : "—"}
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 800,
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        background: a.status === "active" ? "rgba(45,190,96,0.12)" : "#f1f5f9",
-                        color: a.status === "active" ? "#16A34A" : "#64748b",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {a.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: 12, color: MUTED }}>{fmtDate(a.created_at)}</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                    <Link
-                      href={`/agents/agents/${a.id}`}
-                      style={{ fontSize: 12, color: ZP_GREEN, fontWeight: 700, textDecoration: "none" }}
-                    >
-                      Open →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+      {loading ? (
+        <p style={{ color: MUTED, padding: 20, fontSize: 13 }}>Loading…</p>
+      ) : (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 18,
+        }}>
+          {(showDemo ? DEMO_ROSTER : realCards).map((c) => (
+            <AgentCard key={c.id ?? c.name} data={c} />
+          ))}
+        </div>
+      )}
 
       {showCreate && (
         <CreateAgentModal
@@ -171,6 +131,14 @@ export default function AgentsListPage() {
       )}
     </Shell>
   );
+}
+
+// Hash an agent id into a stable 4-digit "account tail" so the big card
+// has a banking flourish even before a real card is issued.
+function syntheticLast4(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return (h % 10_000).toString().padStart(4, "0");
 }
 
 function CreateAgentModal({
