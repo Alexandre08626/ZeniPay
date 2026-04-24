@@ -19,18 +19,14 @@ import {
 import { MarketingNav, MarketingFooter } from "@/app/components/marketing/MarketingNav";
 import zp from "@/lib/design-system/zenipay-brand";
 
-const ROSTER: Array<{ name: string; role: string; bal?: string; status?: "active" | "idle" }> = [
-  { name: "Marco", role: "Lead Hunter",         bal: "$1,240.00", status: "active" },
-  { name: "Sofia", role: "Email Marketing",     bal: "$380.50",   status: "active" },
-  { name: "Ben",   role: "Finance Agent",       bal: "$4,200.00", status: "active" },
-  { name: "Luna",  role: "Voice & SMS",         bal: "$195.00",   status: "active" },
-  { name: "Atlas", role: "Security Agent",      bal: "$890.00",   status: "active" },
-  { name: "Mia",   role: "Social Media",        bal: "$320.00",   status: "idle"   },
-  { name: "Leo",   role: "Analytics",           status: "active" },
-  { name: "Rex",   role: "Platform Engineer",   status: "active" },
-  { name: "Vera",  role: "Compliance & Risk",   status: "active" },
-  { name: "Nova",  role: "Agent Success",       status: "active" },
-  { name: "Kai",   role: "Revenue Intelligence", status: "active" },
+// Demo roster — kept tight to the four agents Alex wants on the AI
+// Wallet marketing page. Adding more here will also widen the fleet
+// demo card and the roster showcase grid below.
+const ROSTER: Array<{ name: string; role: string; bal: string; status: "active" | "idle" }> = [
+  { name: "Marco", role: "Lead Hunter",     bal: "$1,240.00", status: "active" },
+  { name: "Sofia", role: "Email Marketing", bal: "$380.50",   status: "active" },
+  { name: "Ben",   role: "Finance Agent",   bal: "$4,200.00", status: "active" },
+  { name: "Atlas", role: "Security Agent",  bal: "$890.00",   status: "active" },
 ];
 
 export default function AgentsOverviewPage() {
@@ -146,8 +142,7 @@ function FleetDemo() {
 }
 
 function FleetCard() {
-  const visible = ROSTER.filter((a) => a.bal);
-  const total = visible.reduce((s, a) => s + parseFloat((a.bal ?? "$0").replace(/[^0-9.]/g, "")), 0);
+  const total = ROSTER.reduce((s, a) => s + parseFloat(a.bal.replace(/[^0-9.]/g, "")), 0);
 
   return (
     <div style={{
@@ -176,7 +171,7 @@ function FleetCard() {
         </button>
       </div>
 
-      {visible.map((a) => (
+      {ROSTER.map((a) => (
         <FleetRow key={a.name} a={a} />
       ))}
 
@@ -196,7 +191,7 @@ function FleetCard() {
   );
 }
 
-function FleetRow({ a }: { a: { name: string; role: string; bal?: string; status?: "active" | "idle" } }) {
+function FleetRow({ a }: { a: { name: string; role: string; bal: string; status: "active" | "idle" } }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 22px", borderTop: `1px solid ${zp.surface.border}` }}>
       <div style={{
@@ -522,7 +517,7 @@ function RosterShowcase() {
     <section style={{ padding: "96px 24px" }}>
       <div style={{ maxWidth: 1160, margin: "0 auto" }}>
         <div style={{ textAlign: "center" as const, marginBottom: 40 }}>
-          <H2>11 agents. Ready to deploy.</H2>
+          <H2>Your specialist agents. Ready to deploy.</H2>
           <p style={{ ...bodyStyle, margin: "14px auto 0", maxWidth: 560 }}>
             A full roster of specialized AI agents, each with its own role,
             wallet, and audit trail.
