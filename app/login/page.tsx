@@ -39,7 +39,17 @@ export default function LoginPage() {
         sessionStorage.setItem("zp_client_mode", mode);
         sessionStorage.setItem("zp_client_sandbox_key", m.sandboxKey || "");
         sessionStorage.setItem("zp_client_bname", m.businessName || "My Business");
-        window.location.href = mode === "sandbox" ? "/sandbox/overview" : "/app/overview";
+        if (mode === "sandbox") {
+          window.location.href = "/sandbox/overview";
+          return;
+        }
+        // Resume the last dashboard mode the user was in (Business / Personal / Agents).
+        const last = (typeof window !== "undefined" ? window.localStorage.getItem("zenipay_last_mode") : null) ?? "merchant";
+        const dest =
+          last === "personal" ? "/personal/overview" :
+          last === "agents"   ? "/agents/dashboard"  :
+                                "/app/overview";
+        window.location.href = dest;
         return;
       }
       setLoading(false);

@@ -55,7 +55,18 @@ export function MarketingNav() {
         <div className="mk-nav-ctas" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Link href="/login" style={{ ...linkStyle, color: zp.text.muted }}>Sign in</Link>
           <Link
-            href="/register"
+            href="/register?type=personal"
+            style={{
+              padding: "8px 14px", borderRadius: zp.radius.sm,
+              border: `1px solid ${zp.surface.border}`,
+              background: "#fff", color: zp.text.primary,
+              fontSize: 13, fontWeight: zp.weight.semibold, textDecoration: "none",
+            }}
+          >
+            Personal account
+          </Link>
+          <Link
+            href="/register?type=business"
             style={{
               background: zp.gradient.main, color: "#fff",
               padding: "9px 18px", borderRadius: zp.radius.sm,
@@ -64,7 +75,7 @@ export function MarketingNav() {
               boxShadow: "0 2px 10px rgba(21,184,201,0.3)",
             }}
           >
-            Get started
+            Business account
           </Link>
         </div>
 

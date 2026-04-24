@@ -80,7 +80,10 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const inferredMode: DashboardMode = useMemo(
-    () => (pathname.startsWith("/agents") ? "agents" : "merchant"),
+    () =>
+      pathname.startsWith("/agents")    ? "agents"   :
+      pathname.startsWith("/personal")  ? "personal" :
+                                          "merchant",
     [pathname],
   );
   const mode = modeProp ?? inferredMode;
@@ -89,17 +92,28 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
   // session, and — critically — ensures the session is in place before
   // child pages' effects call apiFetch (React runs child effects before
   // parent effects, so a useEffect-only bootstrap loses the race).
+  // Personal mode reuses the merchant session — there's no separate
+  // login. The same merchant_id keys both /app/* and /personal/* data.
   const [session, setSession] = useState<Session | null>(() => {
     if (typeof window === "undefined") return null;
+    const path = window.location.pathname;
     const initialMode: DashboardMode =
-      modeProp ?? (window.location.pathname.startsWith("/agents") ? "agents" : "merchant");
+      modeProp ?? (
+        path.startsWith("/agents")   ? "agents"   :
+        path.startsWith("/personal") ? "personal" :
+                                       "merchant"
+      );
     return initialMode === "agents" ? readAgentsSession() : readMerchantSession();
   });
   const [bootstrapped, setBootstrapped] = useState<boolean>(() => {
-    // If the synchronous read returned a session, we're done.
     if (typeof window === "undefined") return false;
+    const path = window.location.pathname;
     const initialMode: DashboardMode =
-      modeProp ?? (window.location.pathname.startsWith("/agents") ? "agents" : "merchant");
+      modeProp ?? (
+        path.startsWith("/agents")   ? "agents"   :
+        path.startsWith("/personal") ? "personal" :
+                                       "merchant"
+      );
     const s = initialMode === "agents" ? readAgentsSession() : readMerchantSession();
     return !!s;
   });
@@ -162,6 +176,7 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
       clearAgentsSession();
       router.replace("/agents/login");
     } else {
+      // Both merchant + personal share the merchant session.
       clearMerchantSession();
       router.replace("/login");
     }

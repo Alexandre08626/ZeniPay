@@ -21,7 +21,7 @@ export interface BalanceHeroAction {
   icon?: React.ReactNode;
 }
 
-export type BalanceHeroAccent = "cyan" | "violet";
+export type BalanceHeroAccent = "cyan" | "violet" | "pink";
 
 export interface BalanceHeroProps {
   eyebrow?: React.ReactNode;
@@ -48,9 +48,15 @@ export function BalanceHero({
   cosmic = true,
   seed = 11,
 }: BalanceHeroProps) {
-  const bg = accent === "cyan" ? zp.gradient.heroMerchant : zp.gradient.heroAgents;
-  const strokeFrom = accent === "cyan" ? zp.brand.green : zp.brand.cyan;
-  const strokeTo = accent === "cyan" ? zp.brand.violet : zp.brand.violet;
+  const bg =
+    accent === "cyan"   ? zp.gradient.heroMerchant :
+    accent === "pink"   ? zp.gradient.heroPersonal :
+                          zp.gradient.heroAgents;
+  const strokeFrom =
+    accent === "cyan"   ? zp.brand.green :
+    accent === "pink"   ? zp.brand.pink  :
+                          zp.brand.cyan;
+  const strokeTo = zp.brand.violet;
 
   return (
     <section

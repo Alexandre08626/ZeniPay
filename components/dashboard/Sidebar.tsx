@@ -29,6 +29,8 @@ import {
   KeyRound,
   IdCard,
   Activity,
+  Target,
+  PieChart,
   type LucideIcon,
 } from "lucide-react";
 import type { DashboardMode } from "./TopBar";
@@ -52,6 +54,19 @@ const MERCHANT_NAV: NavItem[] = [
   { href: "/app/contacts",     label: "Contacts",      Icon: Users,           group: "tools" },
   { href: "/app/pay-links",    label: "Payment links", Icon: LinkIcon,        group: "tools" },
   { href: "/app/settings",     label: "Settings",      Icon: SettingsIcon,    group: "tools" },
+];
+
+const PERSONAL_NAV: NavItem[] = [
+  { href: "/personal/overview",     label: "Overview",       Icon: Home,           group: "primary" },
+  { href: "/personal/accounts",     label: "Accounts",       Icon: Wallet,         group: "primary" },
+  { href: "/personal/transactions", label: "Transactions",   Icon: ArrowLeftRight, group: "primary" },
+  { href: "/personal/cards",        label: "Cards",          Icon: CreditCard,     group: "primary" },
+  { href: "/personal/wallets",      label: "Send & Receive", Icon: SendHorizontal, group: "primary" },
+
+  { href: "/personal/savings",      label: "Savings goals",  Icon: Target,         group: "tools" },
+  { href: "/personal/budget",       label: "Budget",         Icon: PieChart,       group: "tools" },
+  { href: "/personal/invoices",     label: "Invoices",       Icon: FileText,       group: "tools" },
+  { href: "/personal/settings",     label: "Settings",       Icon: SettingsIcon,   group: "tools" },
 ];
 
 const AGENTS_NAV: NavItem[] = [
@@ -80,9 +95,18 @@ export interface SidebarProps {
 
 export function Sidebar({ mode, openDrawer, onCloseDrawer }: SidebarProps) {
   const pathname = usePathname() ?? "";
-  const nav = mode === "merchant" ? MERCHANT_NAV : AGENTS_NAV;
-  const accent = mode === "merchant" ? zp.brand.cyan : zp.brand.violet;
-  const tint = mode === "merchant" ? zp.gradient.tintCyan : zp.gradient.tintViolet;
+  const nav =
+    mode === "personal" ? PERSONAL_NAV :
+    mode === "agents"   ? AGENTS_NAV   :
+                          MERCHANT_NAV;
+  const accent =
+    mode === "personal" ? zp.brand.pink :
+    mode === "agents"   ? zp.brand.violet :
+                          zp.brand.cyan;
+  const tint =
+    mode === "personal" ? zp.gradient.tintPink :
+    mode === "agents"   ? zp.gradient.tintViolet :
+                          zp.gradient.tintCyan;
 
   const groupBy: Record<string, NavItem[]> = {};
   for (const n of nav) (groupBy[n.group ?? "primary"] ??= []).push(n);
