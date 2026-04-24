@@ -34,6 +34,14 @@ interface FundingEvent {
   created_at: string;
 }
 
+interface AgentBalance {
+  id: string;
+  name: string;
+  agent_type: string;
+  wallet_balance_cents: number;
+  currency: string;
+}
+
 interface FundingSource {
   id: string;
   rail: string;
@@ -91,40 +99,44 @@ export default function TreasuryLandingPage() {
   const [events, setEvents] = useState<FundingEvent[]>([]);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [agentBalances, setAgentBalances] = useState<AgentBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const [src, evt, ledger] = await Promise.all([
-          apiFetch<{ funding_sources: FundingSource[] }>("/api/v1/agents/treasury/fund-sources"),
-          apiFetch<{ funding_events: FundingEvent[] }>("/api/v1/agents/treasury/events?limit=200"),
-          apiFetch<{
-            snapshot: Array<{ currency: string; treasury_micro: string }>;
-            entries?: Array<{ id: string; direction: "debit" | "credit"; amount_micro: string; currency: string; posted_by: string; posted_at: string }>;
-          }>("/api/v1/agents/ledger"),
-        ]);
-        if (cancelled) return;
-        setSources(src.funding_sources ?? []);
-        setEvents(evt.funding_events ?? []);
-        setAccounts((ledger.snapshot ?? []).map((s) => ({
-          id: `treasury_${s.currency}`,
-          owner_type: "org_treasury",
-          currency: s.currency,
-          balance_micro: s.treasury_micro,
-        })));
-        setJournalEntries(ledger.entries ?? []);
-      } catch (e) {
-        if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    void load();
-    return () => { cancelled = true; };
+  const loadAll = React.useCallback(async (signal?: AbortSignal) => {
+    try {
+      const [src, evt, ledger, agentList] = await Promise.all([
+        apiFetch<{ funding_sources: FundingSource[] }>("/api/v1/agents/treasury/fund-sources"),
+        apiFetch<{ funding_events: FundingEvent[] }>("/api/v1/agents/treasury/events?limit=200"),
+        apiFetch<{
+          snapshot: Array<{ currency: string; treasury_micro: string }>;
+          entries?: Array<{ id: string; direction: "debit" | "credit"; amount_micro: string; currency: string; posted_by: string; posted_at: string }>;
+        }>("/api/v1/agents/ledger"),
+        apiFetch<{ agents: AgentBalance[] }>("/api/v1/agents/agents-with-balances"),
+      ]);
+      if (signal?.aborted) return;
+      setSources(src.funding_sources ?? []);
+      setEvents(evt.funding_events ?? []);
+      setAccounts((ledger.snapshot ?? []).map((s) => ({
+        id: `treasury_${s.currency}`,
+        owner_type: "org_treasury",
+        currency: s.currency,
+        balance_micro: s.treasury_micro,
+      })));
+      setJournalEntries(ledger.entries ?? []);
+      setAgentBalances(agentList.agents ?? []);
+    } catch (e) {
+      if (!signal?.aborted) setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    void loadAll(ctrl.signal);
+    return () => ctrl.abort();
+  }, [loadAll]);
 
   const treasuryByCurrency = accounts
     .filter((a) => a.owner_type === "org_treasury")
@@ -269,6 +281,17 @@ export default function TreasuryLandingPage() {
         />
       </div>
 
+      {/* Distribute to agent */}
+      <DistributePanel
+        agents={agentBalances}
+        treasuryAmount={primaryTreasuryAmount}
+        treasuryCurrency={primaryTreasuryCurrency}
+        onDistributed={() => { void loadAll(); }}
+      />
+
+      {/* Agent balances */}
+      <AgentBalancesTable agents={agentBalances} loading={loading} />
+
       {/* Recent events */}
       <div style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14, overflow: "hidden" }}>
         <div style={{
@@ -382,4 +405,169 @@ const thStyle: React.CSSProperties = {
 };
 const tdStyle: React.CSSProperties = {
   padding: "12px 16px", fontSize: 13, color: TEXT,
+};
+
+function DistributePanel({
+  agents, treasuryAmount, treasuryCurrency, onDistributed,
+}: {
+  agents: AgentBalance[];
+  treasuryAmount: number;
+  treasuryCurrency: string;
+  onDistributed: () => void;
+}) {
+  const [agentId, setAgentId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [memo, setMemo] = useState("");
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  const submit = async () => {
+    setErr(null); setOk(null);
+    const amt = Number(amount);
+    if (!agentId) { setErr("Pick an agent."); return; }
+    if (!Number.isFinite(amt) || amt <= 0) { setErr("Enter an amount greater than 0."); return; }
+    if (amt > treasuryAmount) { setErr("Insufficient treasury balance."); return; }
+    setSending(true);
+    try {
+      const r = await apiFetch<{ success: boolean; agent_name?: string; error?: { message?: string } }>(
+        "/api/v1/agents/treasury/distribute-to-agent",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            to_agent_id: agentId,
+            amount_units: amt,
+            currency: treasuryCurrency,
+            idempotency_key: `treas2agent-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+            memo,
+          }),
+        },
+      );
+      setOk(`${fmtMoney(amt, treasuryCurrency)} sent to ${r.agent_name ?? "agent"} ✓`);
+      setAmount(""); setMemo(""); setAgentId("");
+      onDistributed();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{
+      background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14,
+      padding: "18px 20px", marginBottom: 18,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: TEXT }}>Distribute to agent</h3>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: MUTED }}>
+            Send from treasury to a specific agent wallet. Treasury stays {fmtMoney(treasuryAmount, treasuryCurrency)} after this.
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr", gap: 10 }}>
+        <select
+          value={agentId}
+          onChange={(e) => setAgentId(e.target.value)}
+          style={fieldStyle}
+          disabled={sending || agents.length === 0}
+        >
+          <option value="">{agents.length === 0 ? "No agents in your org" : "Select an agent…"}</option>
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name} · bal {fmtMoney(a.wallet_balance_cents / 100, a.currency)}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number" step="0.01" min="0" placeholder="0.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          style={fieldStyle}
+          disabled={sending}
+        />
+        <input
+          type="text" placeholder="Memo (optional)"
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          style={fieldStyle}
+          disabled={sending}
+        />
+      </div>
+
+      {err && (
+        <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(220,38,38,0.08)", color: "#DC2626", fontSize: 12, fontWeight: 700 }}>
+          {err}
+        </div>
+      )}
+      {ok && (
+        <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(45,190,96,0.1)", color: "#16A34A", fontSize: 12, fontWeight: 700 }}>
+          {ok}
+        </div>
+      )}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+        <button
+          onClick={submit}
+          disabled={sending || !agentId || !amount}
+          style={{
+            background: sending || !agentId || !amount
+              ? "#94a3b8"
+              : "linear-gradient(135deg,#2DBE60,#15B8C9,#7B4FBF)",
+            color: "#fff", border: "none", padding: "10px 22px", borderRadius: 10,
+            fontSize: 13, fontWeight: 800, cursor: sending ? "not-allowed" : "pointer",
+            boxShadow: sending ? "none" : "0 6px 16px rgba(21,184,201,0.32)",
+          }}
+        >
+          {sending ? "Distributing…" : `Distribute ${amount ? fmtMoney(Number(amount) || 0, treasuryCurrency) : ""}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AgentBalancesTable({ agents, loading }: { agents: AgentBalance[]; loading: boolean }) {
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
+      <div style={{ padding: "14px 18px", borderBottom: `1px solid ${BORDER}` }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: TEXT }}>Agent balances</h3>
+        <p style={{ margin: "2px 0 0", fontSize: 12, color: MUTED }}>
+          Live ZeniCore balance for every active agent in your org.
+        </p>
+      </div>
+      {loading && agents.length === 0 ? (
+        <p style={{ padding: "22px 18px", margin: 0, color: MUTED, fontSize: 13 }}>Loading…</p>
+      ) : agents.length === 0 ? (
+        <p style={{ padding: "22px 18px", margin: 0, color: MUTED, fontSize: 13 }}>No agents yet.</p>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: "#f8fafc" }}>
+              {["Agent", "Role", "Balance"].map((h) => <th key={h} style={thStyle}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {agents.map((a) => (
+              <tr key={a.id} style={{ borderTop: `1px solid ${BORDER}` }}>
+                <td style={{ ...tdStyle, fontWeight: 700 }}>{a.name}</td>
+                <td style={{ ...tdStyle, color: MUTED, textTransform: "capitalize" }}>{a.agent_type}</td>
+                <td style={{ ...tdStyle, fontFamily: "ui-monospace", fontWeight: 800 }}>
+                  {fmtMoney(a.wallet_balance_cents / 100, a.currency)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+const fieldStyle: React.CSSProperties = {
+  width: "100%", padding: "10px 12px", borderRadius: 10,
+  border: `1.5px solid ${BORDER}`, fontSize: 13, outline: "none",
+  boxSizing: "border-box", background: "#f8fafc", color: TEXT,
+  fontFamily: "inherit",
 };
