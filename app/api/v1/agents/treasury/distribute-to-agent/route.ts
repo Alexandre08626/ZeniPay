@@ -70,6 +70,16 @@ export async function POST(req: NextRequest) {
   if (agent.organization_id !== organizationId) return err("forbidden", "agent_not_in_org", 403);
   if (agent.status !== "active")             return err("unprocessable", "agent_not_active", 422, { status: agent.status });
 
+  // Guarantee the agent has a zenicore.accounts row before the RPC
+  // tries to credit it. First-time recipients (e.g. Ben pre-PR 19)
+  // have no wallet account yet; zc_distribute_to_agent would otherwise
+  // fail silently or return a phantom tx_group.
+  const { error: ensureErr } = await db.rpc("zc_ensure_agent_account", {
+    p_agent_id: toAgentId,
+    p_currency: currency,
+  });
+  if (ensureErr) return err("server_error", "ensure_agent_account_failed", 500, { detail: ensureErr.message });
+
   const { data: distData, error: distErr } = await db.rpc("zc_distribute_to_agent", {
     p_organization_id:  organizationId,
     p_agent_id:         toAgentId,

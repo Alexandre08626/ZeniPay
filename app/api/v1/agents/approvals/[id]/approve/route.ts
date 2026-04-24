@@ -73,6 +73,20 @@ async function handleMerchantRuleApprove(req: NextRequest, requestId: string) {
   };
   const execOrg = payload.organization_id ?? organizationId;
 
+  // Guarantee the target agent has a zenicore.accounts row. When
+  // Alex approves a first-time recipient (e.g. an agent created
+  // before PR 19), skipping this would silently no-op the credit.
+  const { error: ensureErr } = await db.rpc("zc_ensure_agent_account", {
+    p_agent_id: payload.to_agent_id,
+    p_currency: String(payload.currency ?? approval.currency ?? "CAD"),
+  });
+  if (ensureErr) {
+    return NextResponse.json({
+      error: "ensure_agent_account_failed",
+      detail: ensureErr.message,
+    }, { status: 500 });
+  }
+
   // Execute the stored distribution.
   const { data: txId, error: rpcErr } = await db.rpc("zc_distribute_to_agent", {
     p_organization_id:  execOrg,
