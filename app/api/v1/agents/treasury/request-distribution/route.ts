@@ -107,6 +107,16 @@ export async function POST(req: NextRequest) {
 
   // No rule → execute immediately via zc_distribute_to_agent.
   if (!matchingRule) {
+    // Guarantee the agent has a zenicore.accounts row — first-time
+    // recipients are provisioned with a zero-balance wallet here.
+    const { error: ensureErr } = await db.rpc("zc_ensure_agent_account", {
+      p_agent_id: toAgentId,
+      p_currency: currency,
+    });
+    if (ensureErr) {
+      return err("server_error", "ensure_agent_account_failed", 500, { detail: ensureErr.message });
+    }
+
     const { data: txId, error: rpcErr } = await db.rpc("zc_distribute_to_agent", {
       p_organization_id:  organizationId,
       p_agent_id:         toAgentId,
