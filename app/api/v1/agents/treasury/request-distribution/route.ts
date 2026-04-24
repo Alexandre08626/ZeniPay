@@ -17,6 +17,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate, unauthorized } from "../../_lib/auth";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { auditAsync } from "@/lib/audit/audit-logger";
 
 const MICRO = BigInt(1_000_000);
 const APPROVAL_WINDOW_DAYS = 7;
@@ -122,6 +123,17 @@ export async function POST(req: NextRequest) {
         m, status, { detail: m },
       );
     }
+    auditAsync({
+      merchant_id: merchantId,
+      actor_type: "merchant_user",
+      actor_id: organizationId,
+      actor_email: auth.userId ? null : null,
+      action: "treasury.distribute_to_agent",
+      resource_type: "agent_wallet",
+      resource_id: toAgentId,
+      new_value: { amount_units: amountUnits, currency, tx_group_id: txId, agent_name: agent.name },
+      severity: "info",
+    });
     return NextResponse.json({
       requires_approval: false,
       executed:          true,
@@ -169,6 +181,22 @@ export async function POST(req: NextRequest) {
   if (insErr || !inserted) {
     return err("server_error", "approval_create_failed", 500, { detail: insErr?.message });
   }
+
+  auditAsync({
+    merchant_id: merchantId,
+    actor_type: "merchant_user",
+    actor_id: organizationId,
+    action: "approval.requested",
+    resource_type: "approval_request",
+    resource_id: inserted.id,
+    new_value: {
+      to_agent_id: toAgentId,
+      amount_units: amountUnits,
+      currency,
+      approver_email: matchingRule.approver_email,
+    },
+    severity: "info",
+  });
 
   return NextResponse.json({
     requires_approval:   true,
