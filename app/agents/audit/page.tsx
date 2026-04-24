@@ -1,250 +1,279 @@
-// /agents/audit — SOC2 export wizard. Step 1: scope → Step 2: date range
-// → Step 3: options → Generate. The download happens via a direct
-// window.location → the API route streams NDJSON. After download kicks
-// off, the past-exports history refreshes so the new run is visible.
+// /agents/audit — SOC2 audit log viewer.
+// Reads zenipay_audit_log for the merchant linked to the caller's org.
+// The legacy export wizard lives at /agents/audit/export.
 
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Shell, Card } from "@/components/agents/Shell";
-import { apiFetch, readSession } from "../_lib/session";
+import { apiFetch } from "../_lib/session";
 import {
-  BORDER, ROW_SEP, TEXT, MUTED, LIGHT,
-  ZP_GREEN, ZP_CYAN,
-  fmtDate,
+  BORDER, TEXT, MUTED, LIGHT, ZP_GREEN, ZP_CYAN, ZP_PURPLE, fmtDate,
 } from "@/components/agents/theme";
 
-type Scope = "organization" | "agent" | "card";
-
-interface ExportRun {
+interface AuditEvent {
   id: string;
-  scope: string;
-  scope_ref: string | null;
-  window_start: string;
-  window_end: string;
-  row_count: number;
-  bytes_written: number;
-  merkle_root_hex: string;
-  key_id: string;
-  include_merkle_proofs: boolean;
+  merchant_id: string | null;
+  actor_type: "merchant_user" | "agent" | "api_key" | "system" | "admin";
+  actor_id: string;
+  actor_email: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  old_value: unknown;
+  new_value: unknown;
+  ip_address: string | null;
+  user_agent: string | null;
+  metadata: Record<string, unknown> | null;
+  severity: "info" | "warning" | "critical";
   created_at: string;
 }
 
-export default function AuditExportWizard() {
-  const [scope, setScope] = useState<Scope>("organization");
-  const [scopeRef, setScopeRef] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
-  const [includeProofs, setIncludeProofs] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [history, setHistory] = useState<ExportRun[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(true);
+export default function AuditLogPage() {
+  const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [totals, setTotals] = useState({ total: 0, critical: 0 });
+  const [loading, setLoading] = useState(true);
+  const [severity, setSeverity] = useState("");
+  const [actorType, setActorType] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const loadHistory = useCallback(async () => {
-    setLoadingHistory(true);
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const r = await apiFetch<{ exports: ExportRun[] }>("/api/v1/agents/audit/export/history");
-      setHistory(r.exports);
-    } finally { setLoadingHistory(false); }
-  }, []);
+      const qs = new URLSearchParams();
+      if (severity)  qs.set("severity", severity);
+      if (actorType) qs.set("actor_type", actorType);
+      qs.set("limit", "200");
+      const r = await apiFetch<{ events: AuditEvent[]; total_count: number; critical_count: number }>(
+        `/api/v1/agents/audit-log?${qs.toString()}`,
+      );
+      setEvents(r.events ?? []);
+      setTotals({ total: r.total_count ?? 0, critical: r.critical_count ?? 0 });
+    } finally { setLoading(false); }
+  }, [severity, actorType]);
+  useEffect(() => { void load(); }, [load]);
 
-  useEffect(() => { void loadHistory(); }, [loadHistory]);
+  const last24h = useMemo(() => {
+    const cutoff = Date.now() - 86_400_000;
+    return events.filter((e) => new Date(e.created_at).getTime() >= cutoff).length;
+  }, [events]);
 
-  // Default: last 7 days UTC.
-  useEffect(() => {
-    if (!start || !end) {
-      const now = new Date();
-      const sevenAgo = new Date(now.getTime() - 7 * 86_400_000);
-      setStart(sevenAgo.toISOString().slice(0, 16));
-      setEnd(now.toISOString().slice(0, 16));
+  const mostActiveActor = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of events) {
+      const key = e.actor_email ?? e.actor_id;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
     }
-  }, [start, end]);
+    const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+    return sorted[0]?.[0] ?? "—";
+  }, [events]);
 
-  const generate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true); setErr(null);
-    try {
-      const startIso = new Date(start).toISOString();
-      const endIso   = new Date(end).toISOString();
-      // Use a direct fetch for the streaming download (apiFetch would
-      // buffer the JSON response).
-      const session = readSession();
-      if (!session) throw new Error("session missing — please sign in");
-
-      const res = await fetch("/api/v1/agents/audit/export", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-zp-agents-org": session.organizationId,
-          ...(session.userId ? { "x-zp-agents-user": session.userId } : {}),
-        },
-        body: JSON.stringify({
-          start: startIso,
-          end: endIso,
-          scope,
-          scope_ref: scope === "organization" ? null : scopeRef,
-          include_merkle_proofs: includeProofs,
-        }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`${res.status}: ${text}`);
-      }
-      // Download blob.
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const cd = res.headers.get("content-disposition") ?? "";
-      const fname = /filename="([^"]+)"/.exec(cd)?.[1] ?? `zenipay_audit_${Date.now()}.ndjson`;
-      a.download = fname;
-      a.click();
-      URL.revokeObjectURL(url);
-      await loadHistory();
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
-    finally { setBusy(false); }
+  const exportCsv = () => {
+    const header = "created_at,actor_type,actor_id,actor_email,action,resource_type,resource_id,severity,ip\n";
+    const body = events.map((e) => {
+      const esc = (s: string | null | undefined) => `"${(s ?? "").replace(/"/g, '""')}"`;
+      return `${e.created_at},${esc(e.actor_type)},${esc(e.actor_id)},${esc(e.actor_email)},${esc(e.action)},${esc(e.resource_type)},${esc(e.resource_id)},${esc(e.severity)},${esc(e.ip_address)}`;
+    }).join("\n");
+    const blob = new Blob([header + body], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `zenipay-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <Shell title="Audit export">
-      <Card style={{ marginBottom: 14 }}>
-        <p style={{ margin: 0, fontSize: 12, color: MUTED, lineHeight: 1.55 }}>
-          Generate a signed, tamper-evident export of the audit log for a SOC2 auditor.
-          Each export is an NDJSON file containing a header, every audit entry, an optional
-          Merkle-proof block, and a signed trailer. The trailer is signed with our Ed25519 audit key —
-          the public key is served at{" "}
-          <Link href="/.well-known/audit-signing-key.pub" style={{ color: ZP_GREEN, fontWeight: 700, textDecoration: "none" }} target="_blank" rel="noopener">
-            /.well-known/audit-signing-key.pub
-          </Link>
-          . The verification procedure is documented in <code>docs/agents/AUDITOR_GUIDE.md</code>.
-        </p>
+    <Shell title="Audit log">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginBottom: 18 }}>
+        <Stat label="Total events" value={String(totals.total)} accent={ZP_CYAN} />
+        <Stat label="Critical" value={String(totals.critical)} accent="#DC2626" />
+        <Stat label="Last 24h" value={String(last24h)} accent={ZP_GREEN} />
+        <Stat label="Most active" value={shortActor(mostActiveActor)} accent={ZP_PURPLE} />
+      </div>
+
+      <Card style={{ padding: 14, marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <FilterPill
+            options={[
+              { v: "", l: "All" },
+              { v: "info", l: "Info" },
+              { v: "warning", l: "Warning" },
+              { v: "critical", l: "Critical" },
+            ]}
+            value={severity}
+            onChange={setSeverity}
+          />
+          <FilterPill
+            options={[
+              { v: "", l: "Any actor" },
+              { v: "merchant_user", l: "Merchant" },
+              { v: "agent", l: "Agent" },
+              { v: "api_key", l: "API key" },
+              { v: "system", l: "System" },
+              { v: "admin", l: "Admin" },
+            ]}
+            value={actorType}
+            onChange={setActorType}
+          />
+          <div style={{ flex: 1 }} />
+          <button onClick={exportCsv} style={{
+            background: "#fff", color: TEXT, border: `1px solid ${BORDER}`,
+            padding: "7px 14px", borderRadius: 8,
+            fontSize: 12, fontWeight: 700, cursor: "pointer",
+          }}>Export CSV</button>
+        </div>
       </Card>
 
-      {err && (
-        <Card style={{ marginBottom: 14, borderLeft: "4px solid #DC2626" }}>
-          <p style={{ margin: 0, color: "#DC2626", fontSize: 12 }}>{err}</p>
-        </Card>
-      )}
-
-      <Card style={{ marginBottom: 20 }}>
-        <form onSubmit={generate}>
-          <h3 style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 800, color: TEXT, letterSpacing: "-0.2px" }}>Scope</h3>
-          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr 1fr", marginBottom: 16 }}>
-            <ScopeOption v="organization" label="Organization" desc="All activity for your org" current={scope} onChange={setScope} />
-            <ScopeOption v="agent" label="Single agent" desc="Filter by agent_id" current={scope} onChange={setScope} />
-            <ScopeOption v="card" label="Single card" desc="Filter by card_id" current={scope} onChange={setScope} />
-          </div>
-          {(scope === "agent" || scope === "card") && (
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>
-                {scope === "agent" ? "agent_id" : "card_id"}
-                <input
-                  required
-                  value={scopeRef}
-                  onChange={(e) => setScopeRef(e.target.value)}
-                  placeholder={scope === "agent" ? "agt_…" : "crd_…"}
-                  style={{ display: "block", width: "100%", marginTop: 4, padding: "8px 12px", fontSize: 13, border: `1px solid ${BORDER}`, borderRadius: 10, fontFamily: "ui-monospace" }}
-                />
-              </label>
-            </div>
-          )}
-
-          <h3 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 800, color: TEXT }}>Window</h3>
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr", marginBottom: 16 }}>
-            <label style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>
-              Start (UTC)
-              <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} required style={{ display: "block", width: "100%", marginTop: 4, padding: "8px 12px", fontSize: 13, border: `1px solid ${BORDER}`, borderRadius: 10 }} />
-            </label>
-            <label style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>
-              End (UTC)
-              <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} required style={{ display: "block", width: "100%", marginTop: 4, padding: "8px 12px", fontSize: 13, border: `1px solid ${BORDER}`, borderRadius: 10 }} />
-            </label>
-          </div>
-
-          <h3 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 800, color: TEXT }}>Options</h3>
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: 10, border: `1px solid ${BORDER}`, background: includeProofs ? "rgba(45,190,96,0.05)" : "#fff", cursor: "pointer", marginBottom: 20 }}>
-            <input type="checkbox" checked={includeProofs} onChange={(e) => setIncludeProofs(e.target.checked)} style={{ accentColor: ZP_GREEN, marginTop: 2 }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Include Merkle proofs per row</div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
-                Lets auditors verify a single row without rehashing the whole log.
-                Doubles file size; skip for quick exports.
-              </div>
-            </div>
-          </label>
-
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button type="submit" disabled={busy} style={{ padding: "10px 20px", borderRadius: 10, background: ZP_GREEN, color: "#fff", border: "none", fontSize: 12, fontWeight: 800, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
-              {busy ? "Generating + downloading…" : "Generate + download"}
-            </button>
-          </div>
-        </form>
-      </Card>
-
-      <Card>
-        <h3 style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 800, color: TEXT }}>Past exports</h3>
-        {loadingHistory ? (
-          <p style={{ color: MUTED, fontSize: 12, margin: 0 }}>Loading…</p>
-        ) : history.length === 0 ? (
-          <p style={{ color: MUTED, fontSize: 12, margin: 0 }}>No exports yet.</p>
+      <Card style={{ padding: 0 }}>
+        {loading && events.length === 0 ? (
+          <p style={{ padding: "22px 18px", margin: 0, color: MUTED, fontSize: 13 }}>Loading…</p>
+        ) : events.length === 0 ? (
+          <p style={{ padding: "22px 18px", margin: 0, color: MUTED, fontSize: 13 }}>
+            No audit events match. The log populates as merchants + agents act on your resources.
+          </p>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "ui-monospace", fontSize: 12 }}>
             <thead>
-              <tr style={{ textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                <th style={{ padding: "6px 4px" }}>When</th>
-                <th style={{ padding: "6px 4px" }}>Scope</th>
-                <th style={{ padding: "6px 4px" }}>Window</th>
-                <th style={{ padding: "6px 4px", textAlign: "right" }}>Rows</th>
-                <th style={{ padding: "6px 4px", textAlign: "right" }}>Bytes</th>
-                <th style={{ padding: "6px 4px" }}>Merkle root</th>
-                <th style={{ padding: "6px 4px" }}>Key</th>
+              <tr style={{ background: "#f8fafc" }}>
+                {["Timestamp", "Actor", "Action", "Resource", "Severity", "IP"].map((h) => (
+                  <th key={h} style={th}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {history.map((h) => (
-                <tr key={h.id} style={{ borderTop: `1px solid ${ROW_SEP}` }}>
-                  <td style={{ padding: "8px 4px", color: MUTED }}>{fmtDate(h.created_at)}</td>
-                  <td style={{ padding: "8px 4px", color: TEXT }}>
-                    {h.scope}{h.scope_ref && <span style={{ color: MUTED, fontSize: 11 }}> · {h.scope_ref.slice(0, 10)}…</span>}
-                  </td>
-                  <td style={{ padding: "8px 4px", color: MUTED, fontSize: 11 }}>
-                    {h.window_start.slice(0, 10)} → {h.window_end.slice(0, 10)}
-                  </td>
-                  <td style={{ padding: "8px 4px", textAlign: "right", color: TEXT }}>{h.row_count.toLocaleString()}</td>
-                  <td style={{ padding: "8px 4px", textAlign: "right", color: MUTED }}>{formatBytes(h.bytes_written)}</td>
-                  <td style={{ padding: "8px 4px", fontFamily: "ui-monospace", color: LIGHT, fontSize: 10 }}>
-                    {h.merkle_root_hex.slice(0, 12)}…
-                  </td>
-                  <td style={{ padding: "8px 4px", color: MUTED, fontFamily: "ui-monospace", fontSize: 11 }}>{h.key_id}</td>
-                </tr>
+              {events.map((e) => (
+                <React.Fragment key={e.id}>
+                  <tr
+                    onClick={() => setExpanded((x) => ({ ...x, [e.id]: !x[e.id] }))}
+                    style={{ borderTop: `1px solid ${BORDER}`, cursor: "pointer" }}
+                  >
+                    <td style={{ ...td, color: MUTED }}>{fmtDate(e.created_at)}</td>
+                    <td style={{ ...td, color: TEXT }}>
+                      <div style={{ fontWeight: 700 }}>{e.actor_type}</div>
+                      <div style={{ color: LIGHT, fontSize: 11 }}>{e.actor_email ?? e.actor_id}</div>
+                    </td>
+                    <td style={{ ...td, color: TEXT, fontWeight: 700 }}>{e.action}</td>
+                    <td style={td}>
+                      <div style={{ color: MUTED }}>{e.resource_type}</div>
+                      {e.resource_id && <div style={{ color: LIGHT, fontSize: 11 }}>{e.resource_id}</div>}
+                    </td>
+                    <td style={td}><SeverityPill severity={e.severity} /></td>
+                    <td style={{ ...td, color: MUTED }}>{e.ip_address ?? "—"}</td>
+                  </tr>
+                  {expanded[e.id] && (
+                    <tr style={{ background: "#f8fafc", borderTop: `1px solid ${BORDER}` }}>
+                      <td colSpan={6} style={{ padding: "12px 18px" }}>
+                        <JsonDiff oldValue={e.old_value} newValue={e.new_value} />
+                        {e.metadata && Object.keys(e.metadata).length > 0 && (
+                          <details open style={{ marginTop: 10 }}>
+                            <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 11, color: MUTED }}>Metadata</summary>
+                            <pre style={codeBlock}>{JSON.stringify(e.metadata, null, 2)}</pre>
+                          </details>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
         )}
       </Card>
+
+      <p style={{ marginTop: 18, fontSize: 11, color: MUTED }}>
+        Audit logs are retained for 90 days per ZeniPay data-retention policy.
+      </p>
     </Shell>
   );
 }
 
-function ScopeOption({ v, label, desc, current, onChange }: { v: Scope; label: string; desc: string; current: Scope; onChange: (s: Scope) => void }) {
-  const active = v === current;
+function Stat({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
-    <label style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", borderRadius: 10, border: `1px solid ${active ? ZP_GREEN : BORDER}`, background: active ? "rgba(45,190,96,0.05)" : "#fff", cursor: "pointer" }}>
-      <input type="radio" name="scope" checked={active} onChange={() => onChange(v)} style={{ accentColor: ZP_GREEN, marginTop: 2 }} />
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{label}</div>
-        <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{desc}</div>
-      </div>
-    </label>
+    <div style={{
+      background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14,
+      padding: "14px 16px", borderLeft: `4px solid ${accent}`,
+    }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: MUTED, letterSpacing: "0.08em", textTransform: "uppercase" }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: TEXT, marginTop: 4, fontFamily: "ui-monospace" }}>{value}</div>
+    </div>
   );
 }
 
-function formatBytes(b: number): string {
-  if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
-  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+function FilterPill({
+  options, value, onChange,
+}: {
+  options: Array<{ v: string; l: string }>;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#f1f5f9", border: `1px solid ${BORDER}`, borderRadius: 8 }}>
+      {options.map((o) => {
+        const active = o.v === value;
+        return (
+          <button
+            key={o.v}
+            onClick={() => onChange(o.v)}
+            style={{
+              padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer",
+              background: active ? "#fff" : "transparent",
+              color: active ? TEXT : MUTED,
+              fontSize: 12, fontWeight: active ? 700 : 600,
+            }}
+          >{o.l}</button>
+        );
+      })}
+    </div>
+  );
 }
 
-void ZP_CYAN;
+function SeverityPill({ severity }: { severity: "info" | "warning" | "critical" }) {
+  const map: Record<string, { bg: string; fg: string }> = {
+    info:     { bg: "rgba(15,184,201,0.1)", fg: ZP_CYAN },
+    warning:  { bg: "rgba(245,166,35,0.12)", fg: "#D97706" },
+    critical: { bg: "rgba(220,38,38,0.1)", fg: "#DC2626" },
+  };
+  const c = map[severity] ?? map.info;
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 999,
+      background: c.bg, color: c.fg, textTransform: "uppercase", letterSpacing: "0.06em",
+    }}>{severity}</span>
+  );
+}
+
+function JsonDiff({ oldValue, newValue }: { oldValue: unknown; newValue: unknown }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div>
+        <div style={{ fontSize: 10, fontWeight: 800, color: MUTED, marginBottom: 4, letterSpacing: "0.08em", textTransform: "uppercase" }}>Before</div>
+        <pre style={codeBlock}>{oldValue == null ? "null" : JSON.stringify(oldValue, null, 2)}</pre>
+      </div>
+      <div>
+        <div style={{ fontSize: 10, fontWeight: 800, color: MUTED, marginBottom: 4, letterSpacing: "0.08em", textTransform: "uppercase" }}>After</div>
+        <pre style={codeBlock}>{newValue == null ? "null" : JSON.stringify(newValue, null, 2)}</pre>
+      </div>
+    </div>
+  );
+}
+
+function shortActor(s: string): string {
+  if (s === "—") return s;
+  if (s.includes("@")) return s;
+  return s.length > 16 ? `${s.slice(0, 12)}…` : s;
+}
+
+const th: React.CSSProperties = {
+  textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 800,
+  color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em",
+  borderBottom: `1px solid ${BORDER}`,
+};
+const td: React.CSSProperties = { padding: "12px 14px", verticalAlign: "top" };
+
+const codeBlock: React.CSSProperties = {
+  margin: 0, padding: 10, borderRadius: 8,
+  background: "#0f172a", color: "#e5e7eb",
+  fontFamily: "ui-monospace", fontSize: 11, lineHeight: 1.5,
+  overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all",
+};

@@ -19,6 +19,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { auditAsync } from "@/lib/audit/audit-logger";
 
 const MICRO = BigInt(1_000_000);
 
@@ -150,6 +151,19 @@ export async function POST(req: NextRequest) {
     return err("bad_gateway", "treasury_fund_failed", 502, { detail: fundErr.message });
   }
   const treasuryTxGroupId = fundData as string | null;
+
+  auditAsync({
+    merchant_id: merchantId,
+    actor_type: "merchant_user",
+    actor_id: merchantId,
+    action: "treasury.fund_from_merchant",
+    resource_type: "org_treasury",
+    resource_id: organizationId,
+    new_value: { amount_units: amountUnits, currency, tx_group_id: treasuryTxGroupId },
+    ip_address: req.headers.get("x-forwarded-for") ?? null,
+    user_agent: req.headers.get("user-agent") ?? null,
+    severity: "info",
+  });
 
   return NextResponse.json({
     success: true,
