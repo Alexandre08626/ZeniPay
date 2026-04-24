@@ -77,10 +77,20 @@ function startOfMonth(): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
+interface JournalEntry {
+  id: string;
+  direction: "debit" | "credit";
+  amount_micro: string;
+  currency: string;
+  posted_by: string;
+  posted_at: string;
+}
+
 export default function TreasuryLandingPage() {
   const [sources, setSources] = useState<FundingSource[]>([]);
   const [events, setEvents] = useState<FundingEvent[]>([]);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -91,7 +101,10 @@ export default function TreasuryLandingPage() {
         const [src, evt, ledger] = await Promise.all([
           apiFetch<{ funding_sources: FundingSource[] }>("/api/v1/agents/treasury/fund-sources"),
           apiFetch<{ funding_events: FundingEvent[] }>("/api/v1/agents/treasury/events?limit=200"),
-          apiFetch<{ snapshot: Array<{ currency: string; treasury_micro: string }> }>("/api/v1/agents/ledger"),
+          apiFetch<{
+            snapshot: Array<{ currency: string; treasury_micro: string }>;
+            entries?: Array<{ id: string; direction: "debit" | "credit"; amount_micro: string; currency: string; posted_by: string; posted_at: string }>;
+          }>("/api/v1/agents/ledger"),
         ]);
         if (cancelled) return;
         setSources(src.funding_sources ?? []);
@@ -102,6 +115,7 @@ export default function TreasuryLandingPage() {
           currency: s.currency,
           balance_micro: s.treasury_micro,
         })));
+        setJournalEntries(ledger.entries ?? []);
       } catch (e) {
         if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
       } finally {
@@ -137,6 +151,30 @@ export default function TreasuryLandingPage() {
 
   const pendingEvents = events.filter((e) => e.state === "received" || e.state === "validated").length;
   const sourcesCount = sources.length;
+
+  // PR 10 — "From Merchant" tile. Sums credit-direction journal entries
+  // whose posted_by starts with 'merchant:' (the pattern used by
+  // distribute-from-merchant when it calls zc_fund_treasury /
+  // zc_distribute_to_agent). The zc_fund_treasury leg uses posted_by
+  // 'merchant_system'; zc_distribute_to_agent uses 'merchant:<id>'. We
+  // count only the funding leg to avoid double-counting the same dollar.
+  const fromMerchantThisMonth = journalEntries
+    .filter((j) =>
+      j.direction === "credit" &&
+      j.posted_by === "merchant_system" &&
+      new Date(j.posted_at).getTime() >= monthStart,
+    )
+    .reduce<Record<string, number>>((acc, j) => {
+      acc[j.currency] = (acc[j.currency] ?? 0) + microToUnits(j.amount_micro);
+      return acc;
+    }, {});
+  const fromMerchantCurrency = Object.keys(fromMerchantThisMonth)[0] ?? primaryTreasuryCurrency;
+  const fromMerchantAmount = fromMerchantThisMonth[fromMerchantCurrency] ?? 0;
+  const fromMerchantCount = journalEntries.filter((j) =>
+    j.direction === "credit" &&
+    j.posted_by === "merchant_system" &&
+    new Date(j.posted_at).getTime() >= monthStart,
+  ).length;
 
   return (
     <Shell title="Treasury">
@@ -186,6 +224,12 @@ export default function TreasuryLandingPage() {
           value={loading ? "…" : String(sourcesCount)}
           sub={`${sources.filter((s) => s.status === "verified").length} verified`}
           accent={TEAL}
+        />
+        <Tile
+          label="From Merchant"
+          value={loading ? "…" : fmtMoney(fromMerchantAmount, fromMerchantCurrency)}
+          sub={fromMerchantCount > 0 ? `${fromMerchantCount} transfer${fromMerchantCount === 1 ? "" : "s"} this month` : "No merchant transfers yet"}
+          accent="#7B4FBF"
         />
       </div>
 
