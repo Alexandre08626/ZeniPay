@@ -10,6 +10,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { CompactZpNumber } from "@/app/components/shared/ZeniPayAccountCard";
 
 interface PersonalAccount {
   id: string;
@@ -20,6 +21,8 @@ interface PersonalAccount {
   currency: string;
   status: string;
   is_primary: boolean;
+  zp_account_number?: string | null;
+  zp_routing_code?: string | null;
 }
 
 function mid(): string {
@@ -91,9 +94,7 @@ function Card({ a }: { a: PersonalAccount }) {
         <div style={{ ...zp.amountStyle.large, fontSize: 26, marginTop: 14, color: zp.text.primary }}>
           {zp.fmtCurrency(Number(a.balance ?? 0), a.currency || "CAD")}
         </div>
-        <div style={{ marginTop: 8, fontSize: 11, color: zp.text.dim, fontFamily: zp.font.mono }}>
-          •••• {(a.account_number || "").slice(-4) || "—"}
-        </div>
+        <CompactZpNumber accountNumber={a.zp_account_number} routingCode={a.zp_routing_code} />
       </BankingCard>
     </Link>
   );

@@ -8,9 +8,15 @@ import React, { useCallback, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { MoveMoneyWidget } from "../MoveMoneyWidget";
+import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
 import zp from "@/lib/design-system/zenipay-brand";
 
-interface PersonalAccount { id: string; name: string; balance: number; currency: string }
+interface PersonalAccount {
+  id: string; name: string; balance: number; currency: string;
+  is_primary?: boolean;
+  zp_account_number?: string | null;
+  zp_routing_code?: string | null;
+}
 interface BusinessAccount { id: string; account_name: string; balance: number; currency?: string }
 
 function mid(): string {
@@ -42,13 +48,27 @@ export default function PersonalWalletsPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", gap: 20, alignItems: "start" }}>
-        <div>
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 14 }}>
           <MoveMoneyWidget
             merchantId={mid()}
             personalAccounts={pa}
             businessAccounts={ba}
             onComplete={load}
           />
+          {(() => {
+            const primary = pa.find((a) => a.is_primary) ?? pa[0];
+            if (!primary?.zp_account_number) return null;
+            return (
+              <ZeniPayAccountCard
+                accountType="personal"
+                accent="pink"
+                accountNumber={primary.zp_account_number}
+                routingCode={primary.zp_routing_code ?? null}
+                accountName={primary.name}
+                currency={primary.currency}
+              />
+            );
+          })()}
         </div>
 
         <BankingCard accent="pink">

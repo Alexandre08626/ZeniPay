@@ -14,6 +14,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Shell } from "@/components/agents/Shell";
+import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
 import { apiFetch } from "../_lib/session";
 
 const TEAL = "#15B8C9";
@@ -40,6 +41,15 @@ interface AgentBalance {
   agent_type: string;
   wallet_balance_cents: number;
   currency: string;
+  zp_account_number?: string | null;
+  zp_routing_code?: string | null;
+}
+
+interface TreasuryRow {
+  organization_id: string;
+  zp_account_number: string | null;
+  zp_routing_code: string | null;
+  zp_swift_style: string | null;
 }
 
 interface FundingSource {
@@ -100,12 +110,13 @@ export default function TreasuryLandingPage() {
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [agentBalances, setAgentBalances] = useState<AgentBalance[]>([]);
+  const [treasuryRow, setTreasuryRow] = useState<TreasuryRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
   const loadAll = React.useCallback(async (signal?: AbortSignal) => {
     try {
-      const [src, evt, ledger, agentList] = await Promise.all([
+      const [src, evt, ledger, agentList, treasury] = await Promise.all([
         apiFetch<{ funding_sources: FundingSource[] }>("/api/v1/agents/treasury/fund-sources"),
         apiFetch<{ funding_events: FundingEvent[] }>("/api/v1/agents/treasury/events?limit=200"),
         apiFetch<{
@@ -113,6 +124,7 @@ export default function TreasuryLandingPage() {
           entries?: Array<{ id: string; direction: "debit" | "credit"; amount_micro: string; currency: string; posted_by: string; posted_at: string }>;
         }>("/api/v1/agents/ledger"),
         apiFetch<{ agents: AgentBalance[] }>("/api/v1/agents/agents-with-balances"),
+        apiFetch<{ treasury: TreasuryRow }>("/api/v1/agents/treasury").catch(() => ({ treasury: null as TreasuryRow | null })),
       ]);
       if (signal?.aborted) return;
       setSources(src.funding_sources ?? []);
@@ -125,6 +137,7 @@ export default function TreasuryLandingPage() {
       })));
       setJournalEntries(ledger.entries ?? []);
       setAgentBalances(agentList.agents ?? []);
+      setTreasuryRow(treasury?.treasury ?? null);
     } catch (e) {
       if (!signal?.aborted) setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -207,6 +220,22 @@ export default function TreasuryLandingPage() {
           tamper-evident ZeniCore tx_group you can inspect on the ledger.
         </p>
       </div>
+
+      {treasuryRow && treasuryRow.zp_account_number && (
+        <div style={{ marginBottom: 18 }}>
+          <ZeniPayAccountCard
+            accountType="treasury"
+            accent="violet"
+            accountNumber={treasuryRow.zp_account_number}
+            routingCode={treasuryRow.zp_routing_code}
+            swiftStyle={treasuryRow.zp_swift_style}
+            accountName="Org Treasury · ZeniPay Network"
+          />
+          <div style={{ marginTop: 8, fontSize: 11, color: MUTED }}>
+            Use this account number when distributing funds within the ZeniPay Network.
+          </div>
+        </div>
+      )}
 
       {/* 4 tiles */}
       <div style={{

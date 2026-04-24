@@ -8,11 +8,12 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { SendHorizontal, ArrowDownLeft, UserPlus, Copy, Bot } from "lucide-react";
+import { SendHorizontal, ArrowDownLeft, UserPlus, Bot } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
+import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
 import { FundingInboundPanel } from "./FundingInboundPanel";
 
 interface Account {
@@ -24,6 +25,8 @@ interface Account {
   balance: number;
   is_primary: boolean;
   currency?: string;
+  zp_account_number?: string | null;
+  zp_routing_code?: string | null;
 }
 interface Contact {
   id: string;
@@ -415,50 +418,45 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
   );
 }
 
-function ReceivePanel({ account, onCopy }: { account: Account | null; onCopy: () => void }) {
-  return (
-    <BankingCard padding={22}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <ArrowDownLeft size={16} color={zp.brand.cyan} />
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Receive money</h2>
-      </div>
-      <p style={{ margin: "0 0 14px", fontSize: 12, color: zp.text.muted }}>
-        Share these coordinates to accept ACH, wires, or Interac e-Transfers.
-      </p>
-
-      {!account ? (
+function ReceivePanel({ account, onCopy: _onCopy }: { account: Account | null; onCopy: () => void }) {
+  if (!account) {
+    return (
+      <BankingCard padding={22}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <ArrowDownLeft size={16} color={zp.brand.cyan} />
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Receive money</h2>
+        </div>
         <div style={{ padding: "18px 0", color: zp.text.muted, fontSize: 13 }}>
           Open your first ZeniPay account in <Link href="/app/accounts" style={{ color: zp.brand.cyan, fontWeight: zp.weight.semibold }}>/app/accounts</Link> to receive money.
         </div>
-      ) : (
-        <>
-          <Row label="Account name" value={account.account_name} />
-          <Row label="Account number" value={account.account_number} mono />
-          <Row label="Routing / transit" value={account.routing_number || "—"} mono />
-          <Row label="Currency" value={account.currency || "CAD"} />
-          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <GradientButton
-              variant="primary" size="md" icon={<Copy size={14} />}
-              onClick={() => {
-                const text = `Account name: ${account.account_name}\nAccount #: ${account.account_number}\nRouting: ${account.routing_number}\nCurrency: ${account.currency || "CAD"}`;
-                if (navigator.clipboard) navigator.clipboard.writeText(text);
-                onCopy();
-              }}
-            >
-              Copy wire instructions
-            </GradientButton>
-          </div>
-        </>
-      )}
-    </BankingCard>
-  );
-}
-
-function Row({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+      </BankingCard>
+    );
+  }
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", padding: "10px 0", borderTop: `1px solid ${zp.surface.border}`, alignItems: "center" }}>
-      <span style={{ fontSize: 11, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>{label}</span>
-      <span style={{ fontSize: 13, color: zp.text.primary, fontFamily: mono ? zp.font.mono : zp.font.sans, wordBreak: "break-all" as const }}>{value}</span>
+    <div style={{ display: "flex", flexDirection: "column" as const, gap: 12 }}>
+      <ZeniPayAccountCard
+        accountType="merchant"
+        accent="cyan"
+        accountNumber={account.zp_account_number ?? null}
+        routingCode={account.zp_routing_code ?? null}
+        accountName={account.account_name}
+        currency={account.currency || "CAD"}
+        balance={Number(account.balance ?? 0)}
+      />
+      <BankingCard accent="neutral" style={{ borderLeft: `3px solid ${zp.semantic.warning}` }}>
+        <div style={{ fontSize: 12, fontWeight: zp.weight.semibold, color: zp.semantic.warning, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 6 }}>
+          External bank transfer
+        </div>
+        <p style={{ margin: 0, fontSize: 12, color: zp.text.muted, lineHeight: 1.5 }}>
+          To receive funds from external banks (ACH, wire), use your payment link or
+          ask your sender to use your ZeniPay account details above.
+        </p>
+        <div style={{ marginTop: 12 }}>
+          <GradientButton href="/app/pay-links" variant="primary" size="sm">
+            Create payment link
+          </GradientButton>
+        </div>
+      </BankingCard>
     </div>
   );
 }
