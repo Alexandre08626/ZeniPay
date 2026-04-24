@@ -3,7 +3,7 @@
 // Public marketing (distinct from /agents/dashboard, the authenticated
 // operator surface). Features the real DiceBear fleet, a code-snippet
 // showcase, and a 3-step how-it-works flow. Uses the shared
-// zenipay-brand tokens + the /public/agents/*.svg static avatars.
+// zenipay-brand tokens + the /public/agents/*.png static avatars.
 
 "use client";
 
@@ -204,7 +204,7 @@ function FleetRow({ a }: { a: { name: string; role: string; bal?: string; status
         background: zp.surface.bg2, flexShrink: 0,
         boxShadow: `0 0 0 2px rgba(123,79,191,0.22)`,
       }}>
-        <Image src={`/agents/${a.name.toLowerCase()}.svg`} alt={`${a.name} avatar`} width={40} height={40} style={{ width: 40, height: 40, objectFit: "cover" }} />
+        <Image src={`/agents/${a.name.toLowerCase()}.png`} alt={`${a.name} avatar`} width={40} height={40} style={{ width: 40, height: 40, objectFit: "cover" }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{a.name}</div>
@@ -549,7 +549,7 @@ function RosterShowcase() {
                 background: zp.surface.bg2,
                 boxShadow: `0 0 0 3px rgba(123,79,191,0.18)`,
               }}>
-                <Image src={`/agents/${a.name.toLowerCase()}.svg`} alt={`${a.name} avatar`} width={64} height={64} style={{ width: 64, height: 64, objectFit: "cover" }} />
+                <Image src={`/agents/${a.name.toLowerCase()}.png`} alt={`${a.name} avatar`} width={64} height={64} style={{ width: 64, height: 64, objectFit: "cover" }} />
               </div>
               <div>
                 <div style={{ fontSize: 15, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.2px" }}>{a.name}</div>
