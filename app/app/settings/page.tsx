@@ -9,6 +9,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
 import { PayoutDestinationsSection } from "./PayoutDestinationsSection";
+import { ApiKeysSection, ApiUsageSection } from "./ApiKeysSection";
 
 interface Merchant {
   id: string;
@@ -131,14 +132,15 @@ export default function SettingsPage() {
             <PayoutDestinationsSection merchantId={mid()} />
           )}
           {section === "api" && (
-            <BankingCard>
-              <SectionTitle title="API keys" subtitle="Use these to integrate ZeniPay with your site or backend. Keep them secret." />
-              <KeyRow label="Sandbox key" value={merchant?.sandboxKey || "—"} reveal={showSecrets.sandbox} onToggle={() => setShowSecrets((s) => ({ ...s, sandbox: !s.sandbox }))} />
-              <KeyRow label="Live key" value={merchant?.liveKey || "—"} reveal={showSecrets.live} onToggle={() => setShowSecrets((s) => ({ ...s, live: !s.live }))} />
-              <div style={{ marginTop: 14, padding: 12, background: zp.semantic.warningBg, color: zp.semantic.warning, borderRadius: zp.radius.sm, fontSize: 12, fontWeight: zp.weight.semibold }}>
-                Treat your live key like a password. Rotate immediately if exposed.
-              </div>
-            </BankingCard>
+            <>
+              <ApiKeysSection merchantId={mid()} />
+              <ApiUsageSection merchantId={mid()} />
+              <BankingCard style={{ marginTop: 14 }}>
+                <SectionTitle title="Legacy keys" subtitle="Auto-provisioned keys from the pre-PR 17 onboarding flow. Prefer the managed API keys above for new integrations." />
+                <KeyRow label="Sandbox key" value={merchant?.sandboxKey || "—"} reveal={showSecrets.sandbox} onToggle={() => setShowSecrets((s) => ({ ...s, sandbox: !s.sandbox }))} />
+                <KeyRow label="Live key" value={merchant?.liveKey || "—"} reveal={showSecrets.live} onToggle={() => setShowSecrets((s) => ({ ...s, live: !s.live }))} />
+              </BankingCard>
+            </>
           )}
           {section === "notifications" && (
             <BankingCard>
