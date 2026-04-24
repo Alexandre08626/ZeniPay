@@ -8,6 +8,7 @@ import { authenticate, unauthorized } from "../_lib/auth";
 import { getAgentsDb } from "@/lib/agents/supabase-client";
 import { generateKeypair } from "@/lib/agents/crypto";
 import { logEvent } from "@/lib/agents/audit-log";
+import { getAgentBalances } from "@/lib/agents/zc-balances";
 
 export async function GET(req: NextRequest) {
   const auth = await authenticate(req);
@@ -21,56 +22,21 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Attach REAL wallet balance from zenicore.accounts via the
-  // zc_get_accounts SECURITY DEFINER wrapper. The legacy
-  // `agents.agent_wallets` cache drifts — e.g. Ben had $0.01 CAD in
-  // ZeniCore but his cache row read $0 USD — so we ignore it.
-  // We fetch ALL accounts and filter by agent id client-side because
-  // zenicore.accounts rows don't carry an organization_id column for
-  // agent_wallet types (implied by the agent → org link).
-  const ids = new Set(((agents ?? []) as Array<{ id: string }>).map((a) => a.id));
-  const walletsByAgent = new Map<string, { id: string; balance_cents: number; currency: string }>();
-
-  try {
-    const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (url && key) {
-      const res = await fetch(`${url}/rest/v1/rpc/zc_get_accounts`, {
-        method: "POST",
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache",
-        },
-        cache: "no-store",
-        body: JSON.stringify({ p_organization_id: null }),
-      });
-      if (res.ok) {
-        const rows = (await res.json()) as Array<{
-          id: string; owner_type: string; owner_ref: string;
-          currency: string; balance_micro: string | number;
-        }>;
-        for (const row of rows) {
-          if (row.owner_type !== "agent_wallet") continue;
-          if (!ids.has(row.owner_ref)) continue;
-          const micro = BigInt(row.balance_micro);
-          const cents = Number(micro / BigInt(10_000));
-          const currency = (row.currency || "CAD").trim();
-          const prev = walletsByAgent.get(row.owner_ref);
-          if (!prev || (prev.balance_cents === 0 && cents !== 0)) {
-            walletsByAgent.set(row.owner_ref, { id: row.id, balance_cents: cents, currency });
-          }
-        }
-      }
-    }
-  } catch { /* treasury unreachable — agents render with null wallets */ }
+  // REAL balances from lib/agents/zc-balances.ts — single source of
+  // truth, never the stale agents.agent_wallets cache.
+  const ids = ((agents ?? []) as Array<{ id: string }>).map((a) => a.id);
+  const balances = await getAgentBalances(ids);
 
   return NextResponse.json({
-    agents: ((agents ?? []) as Array<{ id: string; [k: string]: unknown }>).map((a) => ({
-      ...a,
-      wallet: walletsByAgent.get(a.id) ?? null,
-    })),
+    agents: ((agents ?? []) as Array<{ id: string; [k: string]: unknown }>).map((a) => {
+      const b = balances.get(a.id);
+      return {
+        ...a,
+        wallet: b
+          ? { id: b.zenicore_account_id, balance_cents: b.balance_cents, currency: b.currency }
+          : null,
+      };
+    }),
   });
 }
 
