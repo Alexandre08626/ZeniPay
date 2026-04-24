@@ -28,7 +28,10 @@ export async function GET(req: NextRequest) {
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) return err("server_error", error.message, 500);
-  return NextResponse.json({ destinations: data ?? [] });
+  return NextResponse.json({
+    destinations: data ?? [],
+    finix_payouts_ready: !!process.env.FINIX_PAYOUT_OPERATION_KEY,
+  });
 }
 
 export async function POST(req: NextRequest) {

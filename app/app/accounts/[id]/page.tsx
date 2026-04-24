@@ -5,13 +5,14 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, SendHorizontal, Copy, Printer } from "lucide-react";
+import { ChevronLeft, SendHorizontal, Copy, Printer, ArrowDownCircle } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BalanceHero } from "@/components/dashboard/BalanceHero";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
+import { WithdrawSheet } from "./WithdrawSheet";
 
 interface Account {
   id: string; account_type: string; account_name: string;
@@ -46,6 +47,9 @@ export default function AccountDetailPage() {
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("activity");
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [finixReady, setFinixReady] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -57,13 +61,15 @@ export default function AccountDetailPage() {
     if (!mid() || !accountId) return;
     setLoading(true);
     try {
-      const [banking, feed] = await Promise.all([
+      const [banking, feed, dests] = await Promise.all([
         fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid())}`).then((r) => r.json()),
         fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid())}&account_id=${encodeURIComponent(accountId)}&limit=200`).then((r) => r.json()),
+        fetch(`/api/v1/merchant/payout-destinations?merchant_id=${encodeURIComponent(mid())}`).then((r) => r.json()),
       ]);
       const acc = (banking.accounts ?? []).find((a: Account) => a.id === accountId);
       setAccount(acc ?? null);
       setActivity((feed.activity ?? []) as ActivityRow[]);
+      setFinixReady(!!dests.finix_payouts_ready);
     } finally { setLoading(false); }
   }, [accountId]);
 
@@ -97,10 +103,35 @@ export default function AccountDetailPage() {
         }}>
           <ChevronLeft size={14} /> All accounts
         </Link>
-        <GradientButton href={`/app/wallets?from=${encodeURIComponent(accountId)}`} variant="primary" size="md" icon={<SendHorizontal size={14} />}>
-          Send money
-        </GradientButton>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <GradientButton
+            variant="secondary" size="md"
+            icon={<ArrowDownCircle size={14} />}
+            onClick={() => setShowWithdraw(true)}
+            disabled={!account || Number(account?.balance ?? 0) <= 0}
+          >
+            Withdraw{finixReady ? "" : " (coming soon)"}
+          </GradientButton>
+          <GradientButton href={`/app/wallets?from=${encodeURIComponent(accountId)}`} variant="primary" size="md" icon={<SendHorizontal size={14} />}>
+            Send money
+          </GradientButton>
+        </div>
       </div>
+
+      {toast && (
+        <BankingCard style={{ marginBottom: 12 }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            color: zp.semantic.success, fontSize: 13, fontWeight: zp.weight.semibold,
+          }}>
+            {toast}
+            <button onClick={() => setToast(null)} style={{
+              background: "transparent", border: "none", cursor: "pointer",
+              color: zp.text.muted,
+            }}>✕</button>
+          </div>
+        </BankingCard>
+      )}
 
       <BalanceHero
         eyebrow={account ? capitalize(account.account_type.replace(/_/g, " ")) : "Loading…"}
@@ -231,6 +262,22 @@ export default function AccountDetailPage() {
         </BankingCard>
       )}
 
+      {showWithdraw && account && (
+        <WithdrawSheet
+          merchantId={mid()}
+          fromAccountId={account.id}
+          currency={account.currency || "CAD"}
+          balance={Number(account.balance ?? 0)}
+          finixReady={finixReady}
+          onClose={() => setShowWithdraw(false)}
+          onSuccess={async (msg) => {
+            setShowWithdraw(false);
+            setToast(msg);
+            await load();
+          }}
+        />
+      )}
+
       {tab === "settings" && (
         <BankingCard>
           <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginBottom: 10 }}>
@@ -358,7 +405,7 @@ function kindLabel(kind: string): string {
     case "transfer_out":        return "Transfer";
     case "transfer_in":         return "Transfer in";
     case "transfer_fee":        return "Fee";
-    case "payout_out":          return "Payout";
+    case "payout_out":          return "Withdrawal";
     case "agent_treasury_fund": return "Agent treasury";
     case "transfer_to_agent":   return "Transfer to agent";
     case "refund":              return "Refund";
