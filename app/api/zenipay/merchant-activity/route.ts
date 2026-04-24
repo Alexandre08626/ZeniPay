@@ -107,7 +107,12 @@ export async function GET(req: NextRequest) {
     if (!acc) return NextResponse.json({ activity: [] });
   }
 
-  const [payments, transfers, ledger, payouts] = await Promise.all([
+  // `legacyPayouts`  = old zenipay_payouts (manual admin payouts).
+  // `payoutRequests` = new zenipay_payout_requests (PR 15 money-out flow).
+  // Both feed into the unified activity, with payout_requests taking
+  // precedence for dedup (the ledger row they mirror uses event_type='payout'
+  // and references the payout id).
+  const [payments, transfers, ledger, legacyPayouts, payoutRequests] = await Promise.all([
     db.from("zenipay_payments")
       .select("id,amount,status,created_at,customer_name,currency,description,card_brand,card_last4")
       .eq("merchant_id", mid)
@@ -129,7 +134,13 @@ export async function GET(req: NextRequest) {
       .eq("merchant_id", mid)
       .order("created_at", { ascending: false })
       .limit(limit),
+    db.from("zenipay_payout_requests")
+      .select("id,destination_id,amount_units,currency,status,estimated_arrival,memo,created_at")
+      .eq("merchant_id", mid)
+      .order("created_at", { ascending: false })
+      .limit(limit),
   ]);
+  const payouts = legacyPayouts;
 
   const rows: ActivityRow[] = [];
 
@@ -274,6 +285,45 @@ export async function GET(req: NextRequest) {
       status: p.status || "processing",
       account_id: null,
       metadata: { method: p.method },
+    });
+  }
+
+  // PR 15 — withdrawal requests (zenipay_payout_requests). We already
+  // wrote a matching zenipay_ledger row at request time, so drop that
+  // duplicate from the feed by matching on ledger.reference === payout.id.
+  const payoutIds = new Set(((payoutRequests.data ?? []) as Array<{ id: string }>).map((p) => p.id));
+  // Remove ledger rows that are mirrors of a payout_request (we'll emit
+  // a richer row from the payout_request itself below).
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i];
+    if (r.source === "ledger") {
+      const ref = (r.metadata as { reference?: string })?.reference;
+      if (ref && payoutIds.has(ref)) rows.splice(i, 1);
+    }
+  }
+  for (const p of (payoutRequests.data ?? []) as Array<{
+    id: string; destination_id: string | null; amount_units: number | string;
+    currency: string; status: string; estimated_arrival: string | null;
+    memo: string | null; created_at: string;
+  }>) {
+    if (accountIdFilter && !isPrimaryAccount) continue;
+    rows.push({
+      id: `wd_${p.id}`,
+      source: "payout",
+      kind: "payout_out",
+      direction: "out",
+      date: p.created_at,
+      amount: Math.abs(Number(p.amount_units || 0)),
+      currency: p.currency || "CAD",
+      description: p.memo || "Withdrawal",
+      counterparty: "External bank",
+      status: p.status,
+      account_id: null,
+      metadata: {
+        payout_id: p.id,
+        destination_id: p.destination_id,
+        estimated_arrival: p.estimated_arrival,
+      },
     });
   }
 
