@@ -12,6 +12,7 @@ import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
 import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
+import { YieldPanel } from "@/app/components/shared/YieldPanel";
 
 interface PersonalAccount {
   id: string;
@@ -96,6 +97,14 @@ export default function PersonalAccountDetailPage() {
           </BankingCard>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12, marginBottom: 18 }}>
+            <YieldPanel
+              merchantId={mid()}
+              accountId={account.id}
+              accountType="personal"
+              balance={Number(account.balance ?? 0)}
+              currency={account.currency}
+              accent="pink"
+            />
             <ZeniPayAccountCard
               accountType="personal"
               accent="pink"
