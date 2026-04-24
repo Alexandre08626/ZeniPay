@@ -1,0 +1,114 @@
+// POST /api/v1/merchant/cards/issue
+//
+// Issues a virtual card against the active provider. Returns 503
+// when no provider is enabled — the UI uses this to render the
+// "Coming soon" state instead of guessing from env vars directly.
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { getCardIssuingProvider } from "@/lib/card-issuing/provider-factory";
+import { auditAsync } from "@/lib/audit/audit-logger";
+
+interface Body {
+  merchant_id?: string;
+  cardholder_name?: string;
+  currency?: string;
+  account_id?: string | null;
+  spending_limit_daily?: number | null;
+  spending_limit_monthly?: number | null;
+}
+
+function err(code: string, message: string, status: number, detail?: unknown) {
+  const b: { error: { code: string; message: string; detail?: unknown } } = { error: { code, message } };
+  if (detail !== undefined) b.error.detail = detail;
+  return NextResponse.json(b, { status });
+}
+
+export async function POST(req: NextRequest) {
+  const provider = getCardIssuingProvider();
+  if (!provider) return err("coming_soon", "card_issuing_not_enabled", 503);
+
+  let body: Body;
+  try { body = (await req.json()) as Body; } catch { return err("bad_request", "invalid_json", 400); }
+
+  const merchantId     = String(body.merchant_id ?? "").trim();
+  const cardholderName = String(body.cardholder_name ?? "").trim();
+  const currency       = String(body.currency ?? "CAD").toUpperCase();
+  const accountId      = body.account_id ? String(body.account_id) : null;
+  const daily   = body.spending_limit_daily   != null ? Number(body.spending_limit_daily)   : null;
+  const monthly = body.spending_limit_monthly != null ? Number(body.spending_limit_monthly) : null;
+
+  if (!merchantId) return err("bad_request", "merchant_id_required", 400);
+  if (!cardholderName || cardholderName.length < 2) return err("bad_request", "cardholder_name_required", 400);
+  if (!/^[A-Z]{3}$/.test(currency)) return err("bad_request", "currency_invalid", 400);
+  if (daily != null && (!Number.isFinite(daily) || daily < 0)) return err("bad_request", "daily_limit_invalid", 400);
+  if (monthly != null && (!Number.isFinite(monthly) || monthly < 0)) return err("bad_request", "monthly_limit_invalid", 400);
+
+  let issued: Awaited<ReturnType<typeof provider.issueVirtualCard>>;
+  try {
+    issued = await provider.issueVirtualCard({
+      merchant_id: merchantId,
+      cardholder_name: cardholderName,
+      currency,
+      spending_limit_daily: daily,
+      spending_limit_monthly: monthly,
+    });
+  } catch (e) {
+    return err("bad_gateway", "provider_issue_failed", 502, { detail: e instanceof Error ? e.message : String(e) });
+  }
+
+  const db = getSupabaseAdmin();
+  const rowId = `mcard_${crypto.randomUUID()}`;
+  const { data: inserted, error: insErr } = await db
+    .from("zenipay_merchant_cards")
+    .insert({
+      id: rowId,
+      merchant_id: merchantId,
+      account_id: accountId,
+      card_type: "virtual",
+      usage_type: "online",
+      provider: provider.name,
+      provider_card_id: issued.provider_card_id,
+      cardholder_name: cardholderName,
+      last4: issued.last4,
+      exp_month: issued.exp_month,
+      exp_year: issued.exp_year,
+      status: "active",
+      spending_limit_daily: daily,
+      spending_limit_monthly: monthly,
+      currency,
+    })
+    .select("*")
+    .single();
+
+  if (insErr) {
+    return err("server_error", "card_row_insert_failed", 500, { detail: insErr.message });
+  }
+
+  auditAsync({
+    merchant_id: merchantId,
+    actor_type:  "merchant_user",
+    actor_id:    merchantId,
+    action:      "card.issued",
+    resource_type: "zenipay_merchant_cards",
+    resource_id:   rowId,
+    new_value: { provider: provider.name, last4: issued.last4, currency },
+    ip_address:  req.headers.get("x-forwarded-for") ?? null,
+    user_agent:  req.headers.get("user-agent") ?? null,
+    severity:    "info",
+  });
+
+  return NextResponse.json({
+    success: true,
+    card_id: rowId,
+    provider: provider.name,
+    last4: issued.last4,
+    exp_month: issued.exp_month,
+    exp_year: issued.exp_year,
+    status: "active",
+    card: inserted,
+  });
+}
