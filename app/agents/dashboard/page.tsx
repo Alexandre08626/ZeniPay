@@ -28,7 +28,13 @@ interface AgentRow {
   name: string;
   status: string;
   agent_type?: string;
-  wallet: { id: string; balance_cents: number; currency: string } | null;
+  wallet_balance_cents?: number;
+  currency?: string;
+  // Back-compat for the old /api/v1/agents/agents response shape that
+  // stubbed the balance under `wallet.balance_cents` — the dashboard
+  // now calls /agents-with-balances which returns flat fields, but we
+  // keep this key in the interface so stale callers don't crash.
+  wallet?: { id: string; balance_cents: number; currency: string } | null;
 }
 interface TxRow {
   id: string;
@@ -50,7 +56,7 @@ export default function AgentsDashboard() {
     (async () => {
       try {
         const [a, t, c] = await Promise.all([
-          apiFetch<{ agents: AgentRow[] }>("/api/v1/agents/agents").catch(() => ({ agents: [] })),
+          apiFetch<{ agents: AgentRow[] }>("/api/v1/agents/agents-with-balances").catch(() => ({ agents: [] })),
           apiFetch<{ transactions: TxRow[] }>("/api/v1/agents/transactions?limit=10").catch(() => ({ transactions: [] })),
           apiFetch<{ cards: CardRow[] }>("/api/v1/agents/cards").catch(() => ({ cards: [] })),
         ]);
@@ -65,23 +71,18 @@ export default function AgentsDashboard() {
     })();
   }, []);
 
-  const showDemo = !loading && agents.length === 0;
-
-  const totalBalance = showDemo
-    ? Math.round(DEMO_ROSTER.reduce((s, a) => s + a.balance * 100, 0))
-    : agents.reduce((s, a) => s + (a.wallet?.balance_cents ?? 0), 0);
-  const activeAgents = showDemo
-    ? DEMO_ROSTER.filter((a) => a.status === "active").length
-    : agents.filter((a) => a.status === "active").length;
-  const monthSpend = showDemo
-    ? Math.round(DEMO_ROSTER.reduce((s, a) => s + (a.spent ?? 0) * 100, 0))
-    : txs.filter((t) => t.status === "authorized" || t.status === "captured").reduce((s, t) => s + t.amount_cents, 0);
-  const activeCards = showDemo
-    ? DEMO_ROSTER.length
-    : cards.filter((c) => c.status === "active").length;
-  const totalAgentsCount = showDemo ? DEMO_ROSTER.length : agents.length;
-  const cardsCount = showDemo ? DEMO_ROSTER.length : cards.length;
-  const txLabel = showDemo ? "example spend" : "last 10 tx";
+  // Never mock. If the org has zero agents, render an empty state —
+  // fake DEMO_ROSTER balances were confusing Alex during live demos
+  // and masking real $0 wallets as "$4,200".
+  const totalBalance = agents.reduce((s, a) => s + (a.wallet_balance_cents ?? a.wallet?.balance_cents ?? 0), 0);
+  const activeAgents = agents.filter((a) => a.status === "active").length;
+  const monthSpend = txs
+    .filter((t) => t.status === "authorized" || t.status === "captured")
+    .reduce((s, t) => s + t.amount_cents, 0);
+  const activeCards = cards.filter((c) => c.status === "active").length;
+  const totalAgentsCount = agents.length;
+  const cardsCount = cards.length;
+  const txLabel = "last 10 tx";
 
   // Real agents → AgentCard data mapping. We derive a synthetic last4
   // from the agent id hash so every card has a banking flourish even
@@ -90,8 +91,8 @@ export default function AgentsDashboard() {
     id: a.id,
     name: a.name,
     role: a.agent_type || "AI agent",
-    balance: (a.wallet?.balance_cents ?? 0) / 100,
-    currency: a.wallet?.currency || "CAD",
+    balance: ((a.wallet_balance_cents ?? a.wallet?.balance_cents) ?? 0) / 100,
+    currency: a.currency || a.wallet?.currency || "CAD",
     status: (a.status as AgentCardData["status"]) || "active",
     last4: syntheticLast4(a.id),
     primaryLabel: "Open agent",
@@ -106,7 +107,7 @@ export default function AgentsDashboard() {
         <Metric label="Recent spend" value={fmtUSD(monthSpend)} sub={txLabel} color={ZP_BLUE} />
       </div>
 
-      {showDemo ? <DemoFleet /> : <RealFleet cards={realCards} loading={loading} />}
+      <RealFleet cards={realCards} loading={loading} />
     </Shell>
   );
 }
