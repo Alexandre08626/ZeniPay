@@ -18,16 +18,19 @@ interface Account {
   account_number: string; routing_number: string; balance: number;
   status: string; is_primary: boolean; currency?: string; created_at?: string;
 }
-interface Transfer {
-  id: string; transfer_type: string; recipient_name: string;
-  amount: number; fee: number; status: string; memo: string;
-  created_at: string; from_account_id?: string; to_account_id?: string;
-}
-interface Payment { id: string; amount: number; currency: string; status: string; description: string; date: string }
-interface LedgerEntry {
-  id: string; event_type: string; direction: "debit" | "credit";
-  amount: number | string; currency: string;
-  note: string | null; reference: string | null; created_at: string;
+interface ActivityRow {
+  id: string;
+  source: "payment" | "transfer" | "ledger" | "payout";
+  kind: string;
+  direction: "in" | "out";
+  date: string;
+  amount: number;
+  currency: string;
+  description: string;
+  counterparty: string;
+  status: string;
+  account_id: string | null;
+  metadata: Record<string, unknown>;
 }
 
 type Tab = "activity" | "details" | "statements" | "settings";
@@ -40,9 +43,7 @@ export default function AccountDetailPage() {
   const accountId = String(params?.id ?? "");
 
   const [account, setAccount] = useState<Account | null>(null);
-  const [transfers, setTransfers] = useState<Transfer[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("activity");
 
@@ -56,44 +57,26 @@ export default function AccountDetailPage() {
     if (!mid() || !accountId) return;
     setLoading(true);
     try {
-      const [banking, stats] = await Promise.all([
+      const [banking, feed] = await Promise.all([
         fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid())}`).then((r) => r.json()),
-        fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(mid())}`).then((r) => r.json()),
+        fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid())}&account_id=${encodeURIComponent(accountId)}&limit=200`).then((r) => r.json()),
       ]);
       const acc = (banking.accounts ?? []).find((a: Account) => a.id === accountId);
       setAccount(acc ?? null);
-      setTransfers((banking.transfers ?? []).filter((t: Transfer) => t.from_account_id === accountId || t.to_account_id === accountId));
-      setPayments(stats.recent_transactions ?? []);
-      // `zenipay_ledger` rows (e.g. agent-treasury debits). We surface
-      // them on the primary account's activity tab — the ledger row
-      // itself doesn't carry an account_id, so we attribute it to the
-      // account paying the bill (i.e. the primary one).
-      setLedger(acc?.is_primary ? (banking.ledger ?? []) : []);
+      setActivity((feed.activity ?? []) as ActivityRow[]);
     } finally { setLoading(false); }
   }, [accountId]);
 
   useEffect(() => { void load(); }, [load]);
 
-  const activity = useMemo(() => {
-    const rows = [
-      ...payments.map((p) => ({ id: p.id, date: p.date, desc: p.description || "Payment received", amount: Number(p.amount || 0), positive: true, kind: "Payment" })),
-      ...transfers.map((t) => ({ id: t.id, date: t.created_at, desc: `${capitalize(t.transfer_type)} → ${t.recipient_name || "—"}`, amount: -(Number(t.amount || 0) + Number(t.fee || 0)), positive: false, kind: "Transfer" })),
-      ...ledger.map((l) => {
-        const positive = l.direction === "credit";
-        const amt = Number(l.amount || 0);
-        return {
-          id: l.id,
-          date: l.created_at,
-          desc: l.note || ledgerEventLabel(l.event_type),
-          amount: positive ? amt : -amt,
-          positive,
-          kind: ledgerEventLabel(l.event_type),
-        };
-      }),
-    ];
-    rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return rows;
-  }, [payments, transfers, ledger]);
+  const activityRows = useMemo(() => activity.map((a) => ({
+    id: a.id,
+    date: a.date,
+    desc: a.description,
+    amount: a.direction === "in" ? a.amount : -a.amount,
+    positive: a.direction === "in",
+    kind: kindLabel(a.kind),
+  })), [activity]);
 
   const post = async (action: string, body: Record<string, unknown> = {}) => {
     await fetch("/api/zenipay/banking-ops", {
@@ -167,8 +150,8 @@ export default function AccountDetailPage() {
       {tab === "activity" && (
         <BankingCard padding="none" accent="neutral">
           <DataTable
-            rows={activity}
-            loading={loading && activity.length === 0}
+            rows={activityRows}
+            loading={loading && activityRows.length === 0}
             rowKey={(r) => r.id}
             columns={[
               { key: "date", header: "Date", cell: (r) => zp.fmtDate(r.date), width: 140 },
@@ -364,13 +347,19 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 }
 
-function ledgerEventLabel(eventType: string): string {
-  switch (eventType) {
-    case "fund_agent_treasury": return "Agent treasury";
+function kindLabel(kind: string): string {
+  switch (kind) {
+    case "payment_in":          return "Payment";
+    case "transfer_out":        return "Transfer";
+    case "transfer_in":         return "Transfer in";
+    case "transfer_fee":        return "Fee";
+    case "payout_out":          return "Payout";
+    case "agent_treasury_fund": return "Agent treasury";
     case "transfer_to_agent":   return "Transfer to agent";
     case "refund":              return "Refund";
     case "fee":                 return "Fee";
-    case "payout":              return "Payout";
-    default:                    return capitalize(eventType);
+    case "generic_credit":      return "Credit";
+    case "generic_debit":       return "Debit";
+    default:                    return capitalize(kind);
   }
 }

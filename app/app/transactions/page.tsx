@@ -11,6 +11,28 @@ import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
 
 type TxKind = "income" | "transfer" | "payout" | "fee";
+
+interface ActivityRow {
+  id: string;
+  source: "payment" | "transfer" | "ledger" | "payout";
+  kind: string;
+  direction: "in" | "out";
+  date: string;
+  amount: number;
+  currency: string;
+  description: string;
+  counterparty: string;
+  status: string;
+  account_id: string | null;
+  metadata: Record<string, unknown>;
+}
+
+function mapKind(k: string): TxKind {
+  if (k === "payment_in")    return "income";
+  if (k === "payout_out")    return "payout";
+  if (k === "transfer_fee" || k === "fee") return "fee";
+  return "transfer";
+}
 type TypeFilter = "all" | "income" | "spending" | "transfers" | "fees";
 
 interface UnifiedRow {
@@ -76,66 +98,24 @@ export default function TransactionsPage() {
     if (!mid()) return;
     setLoading(true);
     try {
-      const [banking, stats] = await Promise.all([
+      const [banking, activity] = await Promise.all([
         fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid())}`).then((r) => r.json()),
-        fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(mid())}`).then((r) => r.json()),
+        fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid())}&limit=500`).then((r) => r.json()),
       ]);
       setAccounts(banking.accounts ?? []);
-      const payments = stats.recent_transactions ?? [];
-      const transfers = banking.transfers ?? [];
-      const payouts = stats.recent_payouts ?? [];
-      const ledger = banking.ledger ?? [];
-      const merged: UnifiedRow[] = [
-        ...payments.map((p: { id: string; customer: string; amount: number; currency: string; status: string; description: string; date: string }) => ({
-          id: p.id, kind: "income" as TxKind, date: p.date,
-          description: p.description || "Payment",
-          counterparty: p.customer || "—",
-          amount: Number(p.amount || 0), currency: p.currency || "CAD",
-          status: p.status, accountId: null,
-          raw: p as unknown as Record<string, unknown>,
-        })),
-        ...transfers.map((t: { id: string; transfer_type: string; recipient_name: string; amount: number; fee: number; status: string; memo: string; created_at: string; from_account_id?: string; to_account_id?: string }) => ({
-          id: t.id, kind: "transfer" as TxKind, date: t.created_at,
-          description: t.memo || capitalize(t.transfer_type),
-          counterparty: t.recipient_name || "—",
-          amount: -(Number(t.amount || 0)), currency: "CAD",
-          status: t.status, accountId: t.from_account_id || t.to_account_id || null,
-          raw: t as unknown as Record<string, unknown>,
-        })),
-        ...transfers.filter((t: { fee: number }) => Number(t.fee || 0) > 0).map((t: { id: string; transfer_type: string; recipient_name: string; fee: number; status: string; created_at: string; from_account_id?: string }) => ({
-          id: `${t.id}_fee`, kind: "fee" as TxKind, date: t.created_at,
-          description: `Fee · ${capitalize(t.transfer_type)}`,
-          counterparty: t.recipient_name || "—",
-          amount: -(Number(t.fee || 0)), currency: "CAD",
-          status: t.status, accountId: t.from_account_id || null,
-          raw: t as unknown as Record<string, unknown>,
-        })),
-        ...payouts.map((p: { id: string; amount?: number; method?: string; recipient_name?: string; status?: string; created_at?: string }) => ({
-          id: p.id, kind: "payout" as TxKind, date: p.created_at || new Date().toISOString(),
-          description: `Payout · ${p.method || "external"}`,
-          counterparty: p.recipient_name || "—",
-          amount: -(Number(p.amount || 0)), currency: "CAD",
-          status: p.status || "processing", accountId: null,
-          raw: p as unknown as Record<string, unknown>,
-        })),
-        // `zenipay_ledger` entries outside `customer_payment` — covers
-        // agent-treasury funding debits and any other money movement
-        // that isn't stored as a `zenipay_transfers` row.
-        ...ledger.map((l: { id: string; event_type: string; direction: "debit" | "credit"; amount: number | string; currency: string; note: string | null; reference: string | null; created_at: string }) => ({
-          id: l.id,
-          kind: (l.direction === "credit" ? "income" : "transfer") as TxKind,
-          date: l.created_at,
-          description: l.note || ledgerLabel(l.event_type),
-          counterparty: ledgerCounterparty(l.event_type),
-          amount: (l.direction === "credit" ? 1 : -1) * Number(l.amount || 0),
-          currency: l.currency || "CAD",
-          status: "completed",
-          accountId: null,
-          raw: l as unknown as Record<string, unknown>,
-        })),
-      ];
-      merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setRows(merged);
+      const rows: UnifiedRow[] = (activity.activity ?? []).map((a: ActivityRow) => ({
+        id: a.id,
+        kind: mapKind(a.kind),
+        date: a.date,
+        description: a.description,
+        counterparty: a.counterparty,
+        amount: a.direction === "in" ? a.amount : -a.amount,
+        currency: a.currency,
+        status: a.status,
+        accountId: a.account_id,
+        raw: a as unknown as Record<string, unknown>,
+      }));
+      setRows(rows);
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -368,26 +348,3 @@ const inputStyle: React.CSSProperties = {
 };
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer", minWidth: 150 };
 
-function capitalize(s: string): string {
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
-}
-
-function ledgerLabel(eventType: string): string {
-  switch (eventType) {
-    case "fund_agent_treasury": return "Fund agent treasury";
-    case "transfer_to_agent":   return "Transfer to agent";
-    case "refund":              return "Refund";
-    case "fee":                 return "Fee";
-    case "payout":              return "Payout";
-    default:                    return capitalize(eventType);
-  }
-}
-
-function ledgerCounterparty(eventType: string): string {
-  switch (eventType) {
-    case "fund_agent_treasury":
-    case "transfer_to_agent":   return "Agent treasury";
-    default:                    return "—";
-  }
-}
