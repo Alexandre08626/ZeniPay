@@ -19,14 +19,27 @@ import {
 import { MarketingNav, MarketingFooter } from "@/app/components/marketing/MarketingNav";
 import zp from "@/lib/design-system/zenipay-brand";
 
-// Demo roster — kept tight to the four agents Alex wants on the AI
-// Wallet marketing page. Adding more here will also widen the fleet
-// demo card and the roster showcase grid below.
-const ROSTER: Array<{ name: string; role: string; bal: string; status: "active" | "idle" }> = [
-  { name: "Marco", role: "Lead Hunter",     bal: "$1,240.00", status: "active" },
-  { name: "Sofia", role: "Email Marketing", bal: "$380.50",   status: "active" },
-  { name: "Ben",   role: "Finance Agent",   bal: "$4,200.00", status: "active" },
-  { name: "Atlas", role: "Security Agent",  bal: "$890.00",   status: "active" },
+// Demo roster — four agents displayed as BIG Mercury/Brex-style cards
+// that merge the character avatar with live banking numbers. Every
+// field is plausible, investor-ready fiction (no live data).
+interface DemoAgent {
+  name: string;
+  role: string;
+  accent: string;                // per-agent card accent color
+  balance: number;               // dollars
+  limit: number;                 // monthly spending cap
+  spent: number;                 // spent this month
+  last4: string;                 // virtual card tail
+  txCount: number;               // tx this month
+  lastActivity: string;          // human label
+  status: "active" | "idle";
+}
+
+const ROSTER: DemoAgent[] = [
+  { name: "Marco", role: "Lead Hunter",     accent: "#15B8C9", balance: 1240.00, limit: 2000, spent: 760,   last4: "7712", txCount: 42, lastActivity: "2m ago",  status: "active" },
+  { name: "Sofia", role: "Email Marketing", accent: "#FF6B9D", balance: 380.50,  limit: 1500, spent: 1119.5, last4: "2081", txCount: 18, lastActivity: "14m ago", status: "active" },
+  { name: "Ben",   role: "Finance Agent",   accent: "#7B4FBF", balance: 4200.00, limit: 10000, spent: 5800, last4: "4821", txCount: 87, lastActivity: "just now", status: "active" },
+  { name: "Atlas", role: "Security Agent",  accent: "#10B981", balance: 890.00,  limit: 1200, spent: 310,   last4: "9933", txCount: 11, lastActivity: "1h ago",  status: "active" },
 ];
 
 export default function AgentsOverviewPage() {
@@ -49,7 +62,6 @@ export default function AgentsOverviewPage() {
       <FeaturesGrid />
       <HowItWorks />
       <CodeSnippet />
-      <RosterShowcase />
       <FinalCTA />
       <MarketingFooter />
     </div>
@@ -121,144 +133,249 @@ function TrustItem({ children }: { children: React.ReactNode }) {
 
 // ───────────────────────────────────────────────────────────────────────────
 
+// FleetDemo — four BIG agent cards inspired by Zeniva Travel's AgentCard
+// (aspect-ratio avatar block with a gradient tint per agent, overlaid
+// status + balance, stats panel at the bottom). Merges the AI-agent
+// persona with the banking numbers.
 function FleetDemo() {
+  const totals = ROSTER.reduce((acc, a) => ({
+    bal:   acc.bal   + a.balance,
+    spent: acc.spent + a.spent,
+    tx:    acc.tx    + a.txCount,
+  }), { bal: 0, spent: 0, tx: 0 });
+
   return (
-    <section style={{ padding: "48px 24px 96px" }}>
-      <div style={{
-        maxWidth: 1160, margin: "0 auto",
-        display: "grid", gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
-        gap: 40, alignItems: "center",
-      }} className="mk-fleet-grid">
-        <FleetCard />
-        <FloatingCard />
+    <section style={{ padding: "40px 24px 96px" }}>
+      <div style={{ maxWidth: 1220, margin: "0 auto" }}>
+        {/* Header above the grid */}
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "flex-end",
+          marginBottom: 22, flexWrap: "wrap", gap: 14,
+        }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: zp.weight.semibold, color: zp.brand.violet, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+              Your Fleet · ZeniCore Live
+            </div>
+            <h2 style={{ margin: 0, fontFamily: zp.font.display, fontSize: "clamp(30px, 3.6vw, 44px)", fontWeight: zp.weight.semibold, letterSpacing: "-0.03em", lineHeight: 1.1, color: zp.text.primary }}>
+              Four specialists. Four wallets. One audit trail.
+            </h2>
+          </div>
+
+          <div style={{
+            display: "flex", gap: 22, padding: "14px 18px",
+            background: zp.surface.bg1, border: `1px solid ${zp.surface.border}`,
+            borderRadius: zp.radius.md, boxShadow: zp.elevation.sm,
+          }}>
+            <MiniStat label="Total balance" value={money(totals.bal)} color={zp.brand.cyan} />
+            <Divider />
+            <MiniStat label="Spent this month" value={money(totals.spent)} color={zp.brand.violet} />
+            <Divider />
+            <MiniStat label="Transactions" value={totals.tx.toLocaleString("en-US")} color={zp.brand.green} />
+          </div>
+        </div>
+
+        {/* 4 big cards */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 18,
+        }}>
+          {ROSTER.map((a) => (
+            <AgentBigCard key={a.name} a={a} />
+          ))}
+        </div>
       </div>
-      <style>{`
-        @media (max-width: 960px) {
-          .mk-fleet-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </section>
   );
 }
 
-function FleetCard() {
-  const total = ROSTER.reduce((s, a) => s + parseFloat(a.bal.replace(/[^0-9.]/g, "")), 0);
+function AgentBigCard({ a }: { a: DemoAgent }) {
+  const pct = Math.min(100, Math.round((a.spent / a.limit) * 100));
+  const overLimit = a.spent > a.limit;
 
   return (
-    <div style={{
-      background: "#fff", borderRadius: zp.radius.xl, overflow: "hidden",
-      boxShadow: "0 26px 60px rgba(15,23,42,0.10), 0 0 0 1px rgba(15,23,42,0.06)",
-    }}>
+    <article
+      className="mk-agent-big"
+      style={{
+        position: "relative",
+        background: "#fff",
+        borderRadius: zp.radius.xl,
+        overflow: "hidden",
+        border: `1px solid ${zp.surface.border}`,
+        boxShadow: zp.elevation.sm,
+        display: "flex",
+        flexDirection: "column",
+        transition: zp.motion.base,
+      }}
+    >
+      {/* Full-bleed avatar block */}
       <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        padding: "16px 22px", borderBottom: `1px solid ${zp.surface.border}`,
-        background: zp.surface.bg2,
+        position: "relative",
+        aspectRatio: "1 / 1",
+        background: `linear-gradient(135deg, ${a.accent}12 0%, ${a.accent}05 100%)`,
+        overflow: "hidden",
       }}>
+        <Image
+          src={`/agents/${a.name.toLowerCase()}.png`}
+          alt={`${a.name} — ${a.role}`}
+          fill
+          sizes="(max-width: 768px) 100vw, 25vw"
+          style={{ objectFit: "cover", objectPosition: "top" }}
+        />
+
+        {/* Fade to white at the bottom so info sits legibly over the photo */}
+        <span aria-hidden style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(180deg, transparent 55%, rgba(255,255,255,0.88) 88%, #fff 100%)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Top-right: status pill */}
+        <div style={{ position: "absolute", top: 14, right: 14 }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 10, fontWeight: zp.weight.semibold,
+            padding: "4px 10px", borderRadius: zp.radius.pill,
+            background: "rgba(255,255,255,0.92)",
+            color: a.status === "active" ? zp.semantic.success : zp.text.muted,
+            border: `1px solid rgba(15,23,42,0.08)`,
+            letterSpacing: "0.08em", textTransform: "uppercase",
+            backdropFilter: "blur(4px)",
+            boxShadow: "0 2px 8px rgba(15,23,42,0.08)",
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: a.status === "active" ? zp.semantic.success : zp.surface.bg3,
+              boxShadow: a.status === "active" ? `0 0 0 3px ${zp.semantic.success}33` : "none",
+            }} />
+            {a.status === "active" ? "Live" : "Idle"}
+          </span>
+        </div>
+
+        {/* Top-left: account badge (••••last4) */}
+        <div style={{
+          position: "absolute", top: 14, left: 14,
+          fontSize: 10, fontWeight: zp.weight.semibold,
+          padding: "4px 10px", borderRadius: zp.radius.pill,
+          background: "rgba(10,11,31,0.85)", color: "#fff",
+          fontFamily: zp.font.mono, letterSpacing: "0.08em",
+        }}>
+          •• {a.last4}
+        </div>
+      </div>
+
+      {/* Info panel */}
+      <div style={{ padding: "18px 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Your Agent Fleet</div>
-          <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 2 }}>ZeniCore · Live</div>
-        </div>
-        <button
-          disabled
-          style={{
-            background: zp.gradient.main, color: "#fff", border: "none",
-            padding: "8px 14px", borderRadius: zp.radius.sm,
-            fontSize: 12, fontWeight: zp.weight.semibold,
-            cursor: "default", letterSpacing: "0.02em",
-          }}
-        >
-          + Issue card
-        </button>
-      </div>
-
-      {ROSTER.map((a) => (
-        <FleetRow key={a.name} a={a} />
-      ))}
-
-      <div style={{
-        padding: "16px 22px", background: zp.gradient.tintCyan,
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        borderTop: `2px solid ${zp.surface.border}`,
-      }}>
-        <span style={{ fontSize: 11, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-          Total fleet balance
-        </span>
-        <span style={{ ...zp.amountStyle.large, fontSize: 22, color: zp.brand.cyan, fontFamily: zp.font.sans }}>
-          ${total.toLocaleString("en-US", { minimumFractionDigits: 2 })} USD
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function FleetRow({ a }: { a: { name: string; role: string; bal: string; status: "active" | "idle" } }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 22px", borderTop: `1px solid ${zp.surface.border}` }}>
-      <div style={{
-        width: 40, height: 40, borderRadius: "50%", overflow: "hidden",
-        background: zp.surface.bg2, flexShrink: 0,
-        boxShadow: `0 0 0 2px rgba(123,79,191,0.22)`,
-      }}>
-        <Image src={`/agents/${a.name.toLowerCase()}.png`} alt={`${a.name} avatar`} width={40} height={40} style={{ width: 40, height: 40, objectFit: "cover" }} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{a.name}</div>
-        <div style={{ fontSize: 11, color: zp.text.muted }}>{a.role}</div>
-      </div>
-      <div style={{ ...zp.amountStyle.base, fontFamily: zp.font.mono, fontSize: 13, color: zp.brand.violet, fontWeight: zp.weight.semibold }}>
-        {a.bal}
-      </div>
-      <span style={{
-        width: 9, height: 9, borderRadius: "50%",
-        background: a.status === "active" ? zp.semantic.success : zp.surface.bg3,
-        flexShrink: 0,
-        boxShadow: a.status === "active" ? `0 0 0 3px ${zp.semantic.success}22` : "none",
-      }} />
-    </div>
-  );
-}
-
-function FloatingCard() {
-  return (
-    <div style={{
-      position: "relative", padding: "20px 0",
-      display: "flex", justifyContent: "center",
-    }}>
-      <div style={{
-        width: "100%", maxWidth: 340, minHeight: 212,
-        borderRadius: 18, padding: "22px 22px",
-        color: "#fff",
-        background: `linear-gradient(135deg, ${zp.brand.green} 0%, ${zp.brand.cyan} 50%, ${zp.brand.violet} 100%)`,
-        boxShadow: `0 30px 60px rgba(123,79,191,0.4), 0 0 0 1px rgba(255,255,255,0.1)`,
-        transform: "rotate(-3deg)",
-        display: "flex", flexDirection: "column", justifyContent: "space-between",
-        position: "relative", overflow: "hidden",
-      }}>
-        <span aria-hidden style={{ position: "absolute", right: -70, top: -70, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.15)", pointerEvents: "none" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 1 }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.85 }}>
-              BEN AGENT
-            </div>
-            <div style={{ fontSize: 11, opacity: 0.75, marginTop: 4 }}>Finance · $4,200 / month</div>
+          <div style={{ fontSize: 11, fontWeight: zp.weight.semibold, color: a.accent, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            {a.role}
           </div>
-          <Image src="/zenipay-logo-nobg.png" alt="" width={28} height={28} style={{ filter: "brightness(0) invert(1)", opacity: 0.9 }} />
-        </div>
-        <div style={{ fontFamily: zp.font.mono, fontSize: 22, letterSpacing: "0.14em", fontWeight: zp.weight.medium, position: "relative", zIndex: 1, marginTop: 28 }}>
-          •••• •••• •••• 4821
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", position: "relative", zIndex: 1, marginTop: 10 }}>
-          <div>
-            <div style={{ fontSize: 8, opacity: 0.75, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: zp.weight.semibold }}>Valid thru</div>
-            <div style={{ fontSize: 13, fontFamily: zp.font.mono, fontWeight: zp.weight.semibold }}>12/28</div>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginTop: 4 }}>
+            <h3 style={{
+              margin: 0, fontFamily: zp.font.display,
+              fontSize: 22, fontWeight: zp.weight.semibold, letterSpacing: "-0.02em",
+              color: zp.text.primary,
+            }}>
+              {a.name}
+            </h3>
+            <span style={{ fontSize: 11, color: zp.text.dim }}>
+              {a.lastActivity}
+            </span>
           </div>
-          <div style={{ fontSize: 12, fontWeight: zp.weight.semibold, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.85 }}>
+        </div>
+
+        {/* Balance — the hero number */}
+        <div style={{
+          background: `linear-gradient(135deg, ${a.accent}0d 0%, ${a.accent}03 100%)`,
+          border: `1px solid ${a.accent}20`,
+          borderRadius: zp.radius.md,
+          padding: "14px 14px",
+        }}>
+          <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>
+            Wallet balance
+          </div>
+          <div style={{
+            fontFamily: zp.font.mono,
+            fontSize: 28, fontWeight: zp.weight.semibold, letterSpacing: "-0.02em",
+            color: a.accent,
+          }}>
+            {money(a.balance)}
+          </div>
+        </div>
+
+        {/* Budget progress */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 11, marginBottom: 6 }}>
+            <span style={{ color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              Monthly spend
+            </span>
+            <span style={{ color: zp.text.primary, fontFamily: zp.font.mono, fontWeight: zp.weight.semibold }}>
+              {money(a.spent)} <span style={{ color: zp.text.dim }}>/ {money(a.limit)}</span>
+            </span>
+          </div>
+          <div style={{ height: 5, background: zp.surface.bg3, borderRadius: 4, overflow: "hidden" }}>
+            <div style={{
+              width: `${pct}%`, height: "100%",
+              background: overLimit ? zp.semantic.danger : a.accent,
+              transition: zp.motion.base,
+            }} />
+          </div>
+        </div>
+
+        {/* Footer: tx count + ZeniPay Visa badge */}
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          paddingTop: 10, borderTop: `1px solid ${zp.surface.border}`, fontSize: 11,
+        }}>
+          <span style={{ color: zp.text.muted }}>
+            <span style={{ fontFamily: zp.font.mono, fontWeight: zp.weight.semibold, color: zp.text.primary }}>
+              {a.txCount}
+            </span> transactions
+          </span>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "2px 8px", borderRadius: zp.radius.pill,
+            background: zp.gradient.main, color: "#fff",
+            fontSize: 10, fontWeight: zp.weight.semibold,
+            letterSpacing: "0.06em", textTransform: "uppercase",
+          }}>
             ZeniPay · Visa
-          </div>
+          </span>
         </div>
+      </div>
+
+      <style>{`
+        .mk-agent-big:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 20px 40px rgba(15,23,42,0.10), 0 0 0 1px ${a.accent}33;
+        }
+      `}</style>
+    </article>
+  );
+}
+
+function MiniStat({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        {label}
+      </div>
+      <div style={{
+        fontFamily: zp.font.mono, fontSize: 16, fontWeight: zp.weight.semibold,
+        color, marginTop: 2, letterSpacing: "-0.01em",
+      }}>
+        {value}
       </div>
     </div>
   );
+}
+
+function Divider() {
+  return <div style={{ width: 1, background: zp.surface.border, alignSelf: "stretch" }} />;
+}
+
+function money(n: number): string {
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -508,69 +625,6 @@ function colorValue(v: string): React.ReactNode {
     );
   }
   return <span style={{ color: "#cbd5e1" }}>{v}</span>;
-}
-
-// ───────────────────────────────────────────────────────────────────────────
-
-function RosterShowcase() {
-  return (
-    <section style={{ padding: "96px 24px" }}>
-      <div style={{ maxWidth: 1160, margin: "0 auto" }}>
-        <div style={{ textAlign: "center" as const, marginBottom: 40 }}>
-          <H2>Your specialist agents. Ready to deploy.</H2>
-          <p style={{ ...bodyStyle, margin: "14px auto 0", maxWidth: 560 }}>
-            A full roster of specialized AI agents, each with its own role,
-            wallet, and audit trail.
-          </p>
-        </div>
-        <div style={{
-          display: "grid", gap: 14,
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-        }}>
-          {ROSTER.map((a) => (
-            <div
-              key={a.name}
-              className="mk-agent-tile"
-              style={{
-                padding: "20px 18px", borderRadius: zp.radius.lg,
-                background: "#fff", border: `1px solid ${zp.surface.border}`,
-                display: "flex", flexDirection: "column", alignItems: "center",
-                textAlign: "center" as const, gap: 10,
-                transition: zp.motion.base, cursor: "default",
-              }}
-            >
-              <div style={{
-                width: 64, height: 64, borderRadius: "50%", overflow: "hidden",
-                background: zp.surface.bg2,
-                boxShadow: `0 0 0 3px rgba(123,79,191,0.18)`,
-              }}>
-                <Image src={`/agents/${a.name.toLowerCase()}.png`} alt={`${a.name} avatar`} width={64} height={64} style={{ width: 64, height: 64, objectFit: "cover" }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.2px" }}>{a.name}</div>
-                <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 2 }}>{a.role}</div>
-              </div>
-              <span style={{
-                fontSize: 10, fontWeight: zp.weight.semibold, padding: "3px 10px",
-                borderRadius: zp.radius.pill,
-                background: zp.gradient.tintGreen, color: zp.semantic.success,
-                letterSpacing: "0.08em", textTransform: "uppercase",
-              }}>
-                Ready
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <style>{`
-        .mk-agent-tile:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 28px rgba(123,79,191,0.16);
-          border-color: rgba(123,79,191,0.35) !important;
-        }
-      `}</style>
-    </section>
-  );
 }
 
 // ───────────────────────────────────────────────────────────────────────────
