@@ -15,6 +15,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import { MoveMoneyWidget } from "../MoveMoneyWidget";
+import { CompactZpNumber } from "@/app/components/shared/ZeniPayAccountCard";
 import zp from "@/lib/design-system/zenipay-brand";
 
 interface PersonalAccount {
@@ -27,6 +28,8 @@ interface PersonalAccount {
   currency: string;
   status: string;
   is_primary: boolean;
+  zp_account_number?: string | null;
+  zp_routing_code?: string | null;
 }
 
 interface PersonalTx {
@@ -214,9 +217,7 @@ function AccountCard({ a }: { a: PersonalAccount }) {
         <div style={{ ...zp.amountStyle.large, fontSize: 24, marginTop: 14, color: zp.text.primary }}>
           {zp.fmtCurrency(Number(a.balance ?? 0), a.currency || "CAD")}
         </div>
-        <div style={{ marginTop: 8, fontSize: 11, color: zp.text.dim, fontFamily: zp.font.mono, letterSpacing: "0.05em" }}>
-          •••• {(a.account_number || "").slice(-4) || "—"}
-        </div>
+        <CompactZpNumber accountNumber={a.zp_account_number} routingCode={a.zp_routing_code} />
       </BankingCard>
     </Link>
   );

@@ -11,6 +11,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { formatZPAccount } from "@/lib/zenipay/account-format";
 
 interface Account {
   id: string;
@@ -24,6 +25,8 @@ interface Account {
   is_primary: boolean;
   currency?: string;
   created_at?: string;
+  zp_account_number?: string | null;
+  zp_routing_code?: string | null;
 }
 
 function mid() {
@@ -204,15 +207,19 @@ function AccountRow({
           </div>
         </div>
         <div>
-          <Label>Account number</Label>
+          <Label>ZeniPay account</Label>
           <div style={{ ...zp.amountStyle.mono, fontSize: 13, color: zp.text.primary, display: "flex", alignItems: "center", gap: 6 }}>
-            <span>{maskedAcct}</span>
-            <button onClick={onToggle} aria-label={show ? "Hide" : "Show"} style={eyeBtn}>
-              {show ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
+            <span>{a.zp_account_number ? formatZPAccount(a.zp_account_number) : maskedAcct}</span>
+            {!a.zp_account_number && (
+              <button onClick={onToggle} aria-label={show ? "Hide" : "Show"} style={eyeBtn}>
+                {show ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            )}
           </div>
           <Label style={{ marginTop: 8 }}>Routing</Label>
-          <div style={{ ...zp.amountStyle.mono, fontSize: 12, color: zp.text.muted }}>{maskedRouting}</div>
+          <div style={{ ...zp.amountStyle.mono, fontSize: 12, color: zp.text.muted }}>
+            {a.zp_routing_code || maskedRouting}
+          </div>
         </div>
         <div style={{ textAlign: "right" }}>
           <Label>Available</Label>

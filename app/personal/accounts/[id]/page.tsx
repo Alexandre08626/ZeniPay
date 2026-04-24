@@ -11,6 +11,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
 
 interface PersonalAccount {
   id: string;
@@ -21,6 +22,8 @@ interface PersonalAccount {
   currency: string;
   status: string;
   is_primary: boolean;
+  zp_account_number?: string | null;
+  zp_routing_code?: string | null;
 }
 interface PersonalTx {
   id: string;
@@ -90,10 +93,47 @@ export default function PersonalAccountDetailPage() {
             <div style={{ ...zp.amountStyle.large, fontSize: 32, marginTop: 16, color: zp.text.primary }}>
               {zp.fmtCurrency(Number(account.balance ?? 0), account.currency)}
             </div>
-            <div style={{ marginTop: 8, fontSize: 12, color: zp.text.dim, fontFamily: zp.font.mono }}>
-              {account.account_number}
-            </div>
           </BankingCard>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12, marginBottom: 18 }}>
+            <ZeniPayAccountCard
+              accountType="personal"
+              accent="pink"
+              accountNumber={account.zp_account_number ?? null}
+              routingCode={account.zp_routing_code ?? null}
+              accountName={account.name}
+              currency={account.currency}
+            />
+            <BankingCard>
+              <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginBottom: 8 }}>Share</div>
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: zp.text.muted, lineHeight: 1.5 }}>
+                Share to receive money from friends &amp; family on ZeniPay.
+              </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                <button
+                  onClick={async () => {
+                    if (!account.zp_account_number) return;
+                    const txt = `${account.zp_account_number} · ${account.zp_routing_code ?? ""} · ZeniPay Network`;
+                    try { await navigator.clipboard.writeText(txt); } catch { /* ignore */ }
+                  }}
+                  style={{
+                    padding: "8px 14px", borderRadius: zp.radius.sm,
+                    background: zp.gradient.personal, color: "#fff",
+                    border: "none", cursor: "pointer", fontSize: 12, fontWeight: zp.weight.semibold,
+                  }}
+                >
+                  Share account
+                </button>
+                <Link href="/app/pay-links" style={{
+                  padding: "8px 14px", borderRadius: zp.radius.sm,
+                  border: `1px solid ${zp.surface.border}`, background: "#fff",
+                  color: zp.text.primary, fontSize: 12, fontWeight: zp.weight.semibold, textDecoration: "none",
+                }}>
+                  Create personal payment link
+                </Link>
+              </div>
+            </BankingCard>
+          </div>
 
           <BankingCard padding="none">
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${zp.surface.border}` }}>

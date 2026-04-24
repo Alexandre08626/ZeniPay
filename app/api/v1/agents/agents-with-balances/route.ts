@@ -30,6 +30,7 @@ async function pgrestGet<T>(path: string, accept?: string): Promise<T> {
 }
 
 interface AgentRow { id: string; name: string; agent_type: string; status: string; created_at: string }
+interface WalletRow { agent_id: string; zp_account_number: string | null; zp_routing_code: string | null }
 
 export async function GET(req: NextRequest) {
   const auth = await authenticate(req);
@@ -41,10 +42,19 @@ export async function GET(req: NextRequest) {
     "agents",
   ).catch(() => [] as AgentRow[]);
 
-  const balances = await getAgentBalances(agents.map((a) => a.id));
+  const [balances, wallets] = await Promise.all([
+    getAgentBalances(agents.map((a) => a.id)),
+    pgrestGet<WalletRow[]>(
+      `agent_wallets?organization_id=eq.${encodeURIComponent(organizationId)}&select=agent_id,zp_account_number,zp_routing_code`,
+      "agents",
+    ).catch(() => [] as WalletRow[]),
+  ]);
+  const zpByAgent = new Map<string, WalletRow>();
+  for (const w of wallets) zpByAgent.set(w.agent_id, w);
 
   const rows = agents.map((a) => {
     const b = balances.get(a.id);
+    const w = zpByAgent.get(a.id);
     return {
       id:                   a.id,
       name:                 a.name,
@@ -54,6 +64,8 @@ export async function GET(req: NextRequest) {
       wallet_balance:       b?.balance_units ?? 0,
       currency:             b?.currency ?? "CAD",
       wallet_account_id:    b?.zenicore_account_id ?? null,
+      zp_account_number:    w?.zp_account_number ?? null,
+      zp_routing_code:      w?.zp_routing_code ?? null,
     };
   });
 

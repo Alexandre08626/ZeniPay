@@ -12,12 +12,14 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
+import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
 import { WithdrawSheet } from "./WithdrawSheet";
 
 interface Account {
   id: string; account_type: string; account_name: string;
   account_number: string; routing_number: string; balance: number;
   status: string; is_primary: boolean; currency?: string; created_at?: string;
+  zp_account_number?: string | null; zp_routing_code?: string | null;
 }
 interface ActivityRow {
   id: string;
@@ -203,37 +205,40 @@ export default function AccountDetailPage() {
       )}
 
       {tab === "details" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
-          <BankingCard>
-            <Label>Account holder</Label>
-            <Value bold>{account?.account_name || "—"}</Value>
-            <Label style={{ marginTop: 14 }}>Account number</Label>
-            <Value mono>{account?.account_number || "—"}</Value>
-            <Label style={{ marginTop: 14 }}>Routing / Transit</Label>
-            <Value mono>{account?.routing_number || "—"}</Value>
-            <Label style={{ marginTop: 14 }}>Currency</Label>
-            <Value>{account?.currency || "CAD"}</Value>
-          </BankingCard>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
+          <ZeniPayAccountCard
+            accountType="merchant"
+            accent="cyan"
+            accountNumber={account?.zp_account_number ?? null}
+            routingCode={account?.zp_routing_code ?? null}
+            accountName={account?.account_name}
+            currency={account?.currency || "CAD"}
+            balance={Number(account?.balance ?? 0)}
+          />
           <BankingCard>
             <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginBottom: 8 }}>
-              Receive money
+              Share your account
             </div>
-            <p style={{ fontSize: 12, color: zp.text.muted, margin: "0 0 14px" }}>
-              Share these coordinates to receive ACH, wires, or Interac e-transfers.
+            <p style={{ fontSize: 12, color: zp.text.muted, margin: "0 0 14px", lineHeight: 1.5 }}>
+              Share this account number to receive funds within the ZeniPay Network.
+              For external bank transfers (ACH, wire, Interac), generate a payment link.
             </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <GradientButton
-                variant="secondary" size="sm" icon={<Copy size={12} />}
-                onClick={() => {
-                  if (!account) return;
-                  const txt = `Account name: ${account.account_name}\nAccount #: ${account.account_number}\nRouting: ${account.routing_number}\nCurrency: ${account.currency || "CAD"}`;
-                  if (navigator.clipboard) navigator.clipboard.writeText(txt);
+                variant="primary" size="sm" icon={<Copy size={12} />}
+                onClick={async () => {
+                  if (!account?.zp_account_number) return;
+                  const txt = `${account.zp_account_number} · ${account.zp_routing_code ?? ""} · ZeniPay Network`;
+                  try { await navigator.clipboard.writeText(txt); } catch { /* ignore */ }
                 }}
               >
-                Copy wire instructions
+                Share account
+              </GradientButton>
+              <GradientButton href="/app/pay-links" variant="ghost" size="sm">
+                Generate payment link
               </GradientButton>
               <GradientButton variant="ghost" size="sm" icon={<Printer size={12} />} onClick={() => window.print()}>
-                Print / PDF
+                Print
               </GradientButton>
             </div>
           </BankingCard>
