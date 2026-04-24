@@ -16,6 +16,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { KybBanner } from "./KybBanner";
 
 interface Account {
   id: string;
@@ -171,6 +172,7 @@ export default function OverviewPage() {
 
   return (
     <DashboardShell mode="merchant">
+      <KybBanner merchantId={readMerchantId()} />
       <BalanceHero
         eyebrow={zp.greeting(firstName)}
         label="Total balance"

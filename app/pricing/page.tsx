@@ -1,376 +1,233 @@
-// /pricing — public pricing overview for the Agents product.
-// Teaser copy, not a detailed per-seat calculator. Investor-ready.
+// /pricing — public pricing page. Two plans side-by-side: Starter (free)
+// and Enterprise (custom). Mirrors the PR 20 brand (white page, gradient
+// as signifier only).
 
 "use client";
 
 import Link from "next/link";
-import MarketingShell from "../components/MarketingShell";
-import {
-  color, gradientSignature, spacing, radius, shadow,
-  font, fontSize, fontWeight,
-} from "@/lib/design-system/tokens";
+import { MarketingNav, MarketingFooter } from "@/app/components/marketing/MarketingNav";
+import zp from "@/lib/design-system/zenipay-brand";
 
 export default function PricingPage() {
   return (
-    <MarketingShell active="pricing">
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: `${spacing[9]} ${spacing[5]} ${spacing[6]}` }}>
-        <div style={{ maxWidth: 720 }}>
-          <div
-            style={{
-              fontFamily: font.sans,
-              fontSize: fontSize.xs.size,
-              fontWeight: fontWeight.semibold,
-              color: color.textMuted,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: spacing[3],
-            }}
-          >
+    <div style={{ background: zp.surface.bg1, minHeight: "100vh" }}>
+      <MarketingNav />
+
+      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 28px" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <p style={{
+            margin: 0, fontSize: 11, fontWeight: zp.weight.bold, color: zp.brand.violet,
+            letterSpacing: "0.14em", textTransform: "uppercase",
+          }}>
             Pricing
-          </div>
-          <h1
-            style={{
-              fontFamily: font.serif,
-              fontSize: "clamp(40px, 6vw, 64px)",
-              lineHeight: 1.08,
-              letterSpacing: "-0.04em",
-              fontWeight: fontWeight.semibold,
-              color: color.textHeading,
-              margin: 0,
-            }}
-          >
-            Usage-based.{" "}
-            <span style={{ color: color.textMuted }}>Predictable. Transparent.</span>
+          </p>
+          <h1 style={{
+            margin: "10px 0 12px", fontFamily: zp.font.display,
+            fontSize: 44, fontWeight: zp.weight.semibold, color: zp.text.primary,
+            letterSpacing: "-0.03em", lineHeight: 1.05,
+          }}>
+            Start free. Scale when the agents start spending.
           </h1>
-          <p
-            style={{
-              marginTop: spacing[5],
-              fontFamily: font.sans,
-              fontSize: fontSize.lg.size,
-              lineHeight: fontSize.lg.line,
-              color: color.textBody,
-              maxWidth: 640,
-            }}
-          >
-            You pay for what your agents actually spend, not for seats or features.
-            The dashboards your team uses every day are free.
+          <p style={{ margin: 0, fontSize: 16, color: zp.text.muted, maxWidth: 620, marginLeft: "auto", marginRight: "auto" }}>
+            Modern banking rails for AI agents and the humans who run them. One wallet per agent, a central treasury, and a signed audit trail of every cent.
           </p>
         </div>
-      </section>
 
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: `${spacing[4]} ${spacing[5]} ${spacing[9]}` }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: spacing[4] }}>
-          <PricingCard
-            title="Starter"
-            tagline="Under 10 agents."
-            price="$0"
-            priceSub="for 6 months, then Growth"
-            featured={false}
-            items={[
-              "Up to 10 active virtual cards",
-              "Treasury in 2 currencies",
-              "All dashboards included",
-              "Email + community support",
-            ]}
-            cta={{ label: "Get started", href: "/contact" }}
-          />
-          <PricingCard
-            title="Growth"
-            tagline="For production fleets."
-            price="$3"
-            priceSub="per active card / month"
-            featured
-            items={[
-              "Unlimited active virtual cards",
-              "Treasury in all 7 currencies",
-              "SOC2 audit exports",
-              "Approval workflows with TOTP",
-              "Fraud ML baseline + alerts",
-              "Priority support + Slack Connect",
-            ]}
-            cta={{ label: "Talk to sales", href: "/contact" }}
-          />
-          <PricingCard
-            title="Enterprise"
-            tagline="Custom volume."
-            price="Custom"
-            priceSub="with SLAs + dedicated runbook"
-            featured={false}
-            items={[
-              "Everything in Growth",
-              "Dedicated infrastructure shard",
-              "Custom approval routing",
-              "99.99% uptime SLA + credits",
-              "White-glove onboarding",
-            ]}
-            cta={{ label: "Request a briefing", href: "/contact" }}
-          />
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: 20, marginBottom: 72, alignItems: "stretch",
+        }}>
+          <StarterCard />
+          <EnterpriseCard />
         </div>
 
-        <div
-          style={{
-            marginTop: spacing[8],
-            padding: spacing[5],
-            background: color.surface,
-            borderRadius: radius.md,
-            border: `1px solid ${color.border}`,
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: spacing[5],
-          }}
-        >
-          {[
-            { label: "Transaction fee", value: "0%", sub: "No markup on authorizations. Card networks charge interchange directly." },
-            { label: "FX spread", value: "0.50%", sub: "Against ECB reference on non-USD settlement. Competitive with Wise." },
-            { label: "Audit exports", value: "Included", sub: "Signed SOC2 exports with Merkle proofs, unlimited runs." },
-            { label: "Dashboards", value: "Free", sub: "Every seat, every module — no per-user charge." },
-          ].map((r) => (
-            <div key={r.label}>
-              <div
-                style={{
-                  fontFamily: font.sans,
-                  fontSize: fontSize.xs.size,
-                  fontWeight: fontWeight.semibold,
-                  color: color.textMuted,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  marginBottom: spacing[2],
-                }}
-              >
-                {r.label}
-              </div>
-              <div
-                style={{
-                  fontFamily: font.sans,
-                  fontSize: fontSize.h4.size,
-                  lineHeight: fontSize.h4.line,
-                  letterSpacing: fontSize.h4.tracking,
-                  fontWeight: fontWeight.semibold,
-                  color: color.textHeading,
-                  marginBottom: spacing[2],
-                }}
-              >
-                {r.value}
-              </div>
-              <div
-                style={{
-                  fontFamily: font.sans,
-                  fontSize: fontSize.sm.size,
-                  lineHeight: fontSize.sm.line,
-                  color: color.textBody,
-                }}
-              >
-                {r.sub}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+        <FaqSection />
+      </main>
 
-      <section style={{ padding: `${spacing[9]} ${spacing[5]}`, background: color.surface, borderTop: `1px solid ${color.border}` }}>
-        <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
-          <h2
-            style={{
-              fontFamily: font.serif,
-              fontSize: fontSize.h3.size,
-              lineHeight: fontSize.h3.line,
-              letterSpacing: fontSize.h3.tracking,
-              fontWeight: fontWeight.semibold,
-              color: color.textHeading,
-              margin: 0,
-              marginBottom: spacing[3],
-            }}
-          >
-            Ready to scale?
-          </h2>
-          <p
-            style={{
-              fontFamily: font.sans,
-              fontSize: fontSize.lg.size,
-              lineHeight: fontSize.lg.line,
-              color: color.textBody,
-              margin: `0 auto ${spacing[5]}`,
-              maxWidth: 540,
-            }}
-          >
-            Enterprise contracts include procurement-ready MSAs, DPAs, and SOC2 evidence
-            packets on day one.
-          </p>
-          <Link
-            href="/contact"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: spacing[2],
-              padding: `${spacing[3]} ${spacing[5]}`,
-              borderRadius: radius.sm,
-              background: color.textHeading,
-              color: color.white,
-              textDecoration: "none",
-              fontFamily: font.sans,
-              fontSize: fontSize.base.size,
-              fontWeight: fontWeight.semibold,
-              boxShadow: shadow.md,
-            }}
-          >
-            Talk to us →
-          </Link>
-        </div>
-      </section>
-
-      {/* Keep the gradient token referenced so the linter doesn't drop the
-          import when tokens shift. */}
-      {void gradientSignature}
-    </MarketingShell>
+      <MarketingFooter />
+    </div>
   );
 }
 
-function PricingCard({
-  title,
-  tagline,
-  price,
-  priceSub,
-  items,
-  cta,
-  featured,
-}: {
-  title: string;
-  tagline: string;
-  price: string;
-  priceSub: string;
-  items: string[];
-  cta: { label: string; href: string };
-  featured: boolean;
-}) {
+function StarterCard() {
   return (
-    <div
-      style={{
-        background: color.white,
-        border: featured ? `1px solid ${color.textHeading}` : `1px solid ${color.border}`,
-        borderRadius: radius.md,
-        padding: spacing[5],
-        display: "flex",
-        flexDirection: "column",
-        gap: spacing[3],
-        boxShadow: featured ? shadow.md : shadow.sm,
-      }}
-    >
-      <div>
-        <div
-          style={{
-            fontFamily: font.sans,
-            fontSize: fontSize.xs.size,
-            fontWeight: fontWeight.semibold,
-            color: color.textMuted,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            marginBottom: spacing[1],
-          }}
-        >
-          {title}
+    <div style={{
+      background: "#fff", border: `1px solid ${zp.surface.border}`,
+      borderRadius: 20, padding: 32,
+      display: "flex", flexDirection: "column",
+    }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          fontSize: 11, fontWeight: zp.weight.bold, color: zp.text.muted,
+          letterSpacing: "0.12em", textTransform: "uppercase",
+        }}>
+          Starter
         </div>
-        <div
-          style={{
-            fontFamily: font.sans,
-            fontSize: fontSize.base.size,
-            fontWeight: fontWeight.medium,
-            color: color.textBody,
-          }}
-        >
-          {tagline}
+        <div style={{ marginTop: 8, display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{
+            fontFamily: zp.font.display, fontSize: 48, fontWeight: zp.weight.semibold,
+            color: zp.text.primary, letterSpacing: "-0.03em",
+          }}>$0</span>
+          <span style={{ fontSize: 14, color: zp.text.muted, fontWeight: zp.weight.medium }}>/ month</span>
         </div>
+        <p style={{ margin: "10px 0 0", fontSize: 13, color: zp.text.muted }}>
+          Free to start. Pay only when you move money.
+        </p>
       </div>
-      <div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: spacing[2] }}>
-          <span
-            style={{
-              fontFamily: font.serif,
-              fontSize: fontSize.h3.size,
-              lineHeight: fontSize.h3.line,
-              letterSpacing: fontSize.h3.tracking,
-              fontWeight: fontWeight.semibold,
-              color: color.textHeading,
-            }}
-          >
-            {price}
-          </span>
-        </div>
-        <div
-          style={{
-            marginTop: spacing[1],
-            fontFamily: font.sans,
-            fontSize: fontSize.sm.size,
-            color: color.textMuted,
-          }}
-        >
-          {priceSub}
-        </div>
-      </div>
-      <ul
-        style={{
-          listStyle: "none",
-          padding: 0,
-          margin: 0,
-          display: "grid",
-          gap: spacing[2],
-          marginTop: spacing[2],
-        }}
-      >
-        {items.map((i) => (
-          <li
-            key={i}
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: spacing[2],
-              fontFamily: font.sans,
-              fontSize: fontSize.sm.size,
-              lineHeight: fontSize.sm.line,
-              color: color.textBody,
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 14,
-                height: 14,
-                marginTop: 3,
-                borderRadius: radius.pill,
-                background: color.successBg,
-                color: color.success,
-                fontSize: 10,
-                fontWeight: fontWeight.bold,
-              }}
-            >
-              ✓
-            </span>
-            <span>{i}</span>
-          </li>
-        ))}
-      </ul>
+
+      <FeatureList features={[
+        "1 business account (CAD or USD)",
+        "Up to 5 AI agents",
+        "Payment links + checkout",
+        "Basic invoicing",
+        "1 virtual ZeniPay card",
+        "Standard email support",
+      ]} />
+
       <Link
-        href={cta.href}
+        href="/register"
         style={{
-          marginTop: spacing[3],
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: `${spacing[3]} ${spacing[4]}`,
-          borderRadius: radius.sm,
-          background: featured ? color.textHeading : color.white,
-          color: featured ? color.white : color.textHeading,
-          border: featured ? "none" : `1px solid ${color.border}`,
-          textDecoration: "none",
-          fontFamily: font.sans,
-          fontSize: fontSize.sm.size,
-          fontWeight: fontWeight.semibold,
+          display: "block", textAlign: "center", marginTop: "auto",
+          background: zp.gradient.main, color: "#fff",
+          padding: "14px 20px", borderRadius: 12,
+          fontSize: 14, fontWeight: zp.weight.semibold, textDecoration: "none",
+          boxShadow: "0 8px 24px rgba(15,184,201,0.28)",
         }}
       >
-        {cta.label}
+        Get started →
       </Link>
     </div>
+  );
+}
+
+function EnterpriseCard() {
+  return (
+    <div style={{
+      position: "relative",
+      background: zp.gradient.main,
+      borderRadius: 20,
+      padding: 2,
+      display: "flex", flexDirection: "column",
+    }}>
+      <div style={{
+        position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)",
+        background: "#fff", color: zp.brand.violet,
+        padding: "4px 14px", borderRadius: 999,
+        fontSize: 10, fontWeight: zp.weight.bold,
+        letterSpacing: "0.12em", textTransform: "uppercase",
+        border: `1px solid ${zp.brand.violet}40`,
+      }}>
+        Most popular
+      </div>
+
+      <div style={{
+        background: "#fff", borderRadius: 19, padding: 32,
+        display: "flex", flexDirection: "column", flex: 1,
+      }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{
+            fontSize: 11, fontWeight: zp.weight.bold, color: zp.brand.violet,
+            letterSpacing: "0.12em", textTransform: "uppercase",
+          }}>
+            Enterprise
+          </div>
+          <div style={{ marginTop: 8, display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span style={{
+              fontFamily: zp.font.display, fontSize: 42, fontWeight: zp.weight.semibold,
+              color: zp.text.primary, letterSpacing: "-0.03em",
+              background: zp.gradient.main, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            }}>Custom</span>
+          </div>
+          <p style={{ margin: "10px 0 0", fontSize: 13, color: zp.text.muted }}>
+            Built for fleets of 20+ agents and money-movement at scale.
+          </p>
+        </div>
+
+        <FeatureList features={[
+          "Everything in Starter, plus:",
+          "Unlimited accounts + agents",
+          "ACH, wire & Interac (Canada) payouts",
+          "Custom approval workflows",
+          "Full API access",
+          "SOC2 audit trail + tamper-evident ledger",
+          "White-label options",
+          "Priority support · 24h SLA",
+          "Dedicated account manager",
+        ]} emphasizeFirst />
+
+        <a
+          href="mailto:info@zeniva.ca?subject=ZeniPay%20Enterprise%20inquiry"
+          style={{
+            display: "block", textAlign: "center", marginTop: "auto",
+            background: zp.gradient.main, color: "#fff",
+            padding: "14px 20px", borderRadius: 12,
+            fontSize: 14, fontWeight: zp.weight.semibold, textDecoration: "none",
+            boxShadow: "0 8px 24px rgba(123,79,191,0.32)",
+          }}
+        >
+          Contact us →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function FeatureList({ features, emphasizeFirst }: { features: string[]; emphasizeFirst?: boolean }) {
+  return (
+    <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px" }}>
+      {features.map((f, i) => (
+        <li key={i} style={{
+          display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0",
+          fontSize: 13, color: zp.text.primary,
+          fontWeight: emphasizeFirst && i === 0 ? zp.weight.semibold : zp.weight.regular,
+        }}>
+          <span style={{
+            flexShrink: 0, width: 18, height: 18, borderRadius: "50%",
+            background: zp.semantic.successBg, color: zp.semantic.success,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontSize: 11, fontWeight: zp.weight.bold,
+          }}>✓</span>
+          <span>{f}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function FaqSection() {
+  const faqs = [
+    { q: "Is there a setup fee?", a: "No. You can open your first account and issue your first agent card for free." },
+    { q: "Can I upgrade later?", a: "Yes — anytime. Starter → Enterprise takes minutes, no data migration." },
+    { q: "Is my money safe?", a: "Funds are held with our banking partner Finix (PCI DSS Level 1). Every ledger entry is hash-chained and independently verifiable." },
+    { q: "What currencies are supported?", a: "CAD and USD today. EUR and GBP are on the roadmap." },
+    { q: "Do agents need a card to spend?", a: "Every AI agent wallet supports virtual cards + direct API spends. Cards are optional." },
+    { q: "How do I get support?", a: "Email info@zeniva.ca. Enterprise customers get a 24-hour SLA and a dedicated account manager." },
+  ];
+  return (
+    <section style={{ maxWidth: 760, margin: "0 auto" }}>
+      <h2 style={{
+        margin: "0 0 24px", fontFamily: zp.font.display,
+        fontSize: 28, fontWeight: zp.weight.semibold, color: zp.text.primary,
+        letterSpacing: "-0.02em", textAlign: "center",
+      }}>
+        Frequently asked
+      </h2>
+      <div style={{ display: "grid", gap: 12 }}>
+        {faqs.map((f, i) => (
+          <div key={i} style={{
+            padding: "18px 22px",
+            background: "#fff", border: `1px solid ${zp.surface.border}`,
+            borderRadius: 14,
+          }}>
+            <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginBottom: 4 }}>
+              {f.q}
+            </div>
+            <div style={{ fontSize: 13, color: zp.text.muted, lineHeight: 1.55 }}>
+              {f.a}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

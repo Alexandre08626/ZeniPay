@@ -1,224 +1,252 @@
-"use client";
-import { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import Nav from "../components/Nav";
-import { useT } from "../../modules/zenipay/i18n";
+// /docs — public ZeniPay API documentation.
 
-const ZP_GREEN = "#2DBE60"; const ZP_CYAN = "#15B8C9"; const ZP_BLUE = "#2A8FE0"; const ZP_PURPLE = "#7B4FBF";
-const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
-const DARK = "#0A0F1E"; const DARK2 = "#111827"; const GLASS = "rgba(255,255,255,0.05)";
+"use client";
+
+import React, { useState } from "react";
+import { Copy, Check } from "lucide-react";
+import { MarketingNav, MarketingFooter } from "@/app/components/marketing/MarketingNav";
+import zp from "@/lib/design-system/zenipay-brand";
 
 const SECTIONS = [
-  {
-    category: "Getting Started", color: ZP_GREEN, icon: "🚀",
-    items: [
-      { method: "GUIDE", path: "Quickstart", desc: "Accept your first sandbox payment in under 10 minutes. Step-by-step with code." },
-      { method: "GUIDE", path: "Authentication", desc: "API keys, Bearer tokens, rotating keys, and IP allowlisting." },
-      { method: "GUIDE", path: "Sandbox environment", desc: "Test cards, test bank accounts, and simulated events — no real money." },
-      { method: "GUIDE", path: "Idempotency", desc: "How to use idempotency keys to safely retry requests." },
-      { method: "GUIDE", path: "Error handling", desc: "Standard error codes, retry strategies, and how to handle declines." },
-      { method: "GUIDE", path: "Webhooks setup", desc: "Register endpoints, verify signatures, and handle event retries." },
-    ],
-  },
-  {
-    category: "Payments API", color: ZP_CYAN, icon: "💳",
-    items: [
-      { method: "POST", path: "/v1/payments", desc: "Create a payment charge. Accepts card token, amount, currency, metadata." },
-      { method: "GET", path: "/v1/payments/:id", desc: "Retrieve a single payment with full event history." },
-      { method: "GET", path: "/v1/payments", desc: "List payments with filtering, pagination, and date ranges." },
-      { method: "POST", path: "/v1/payments/:id/capture", desc: "Capture a previously authorized payment." },
-      { method: "POST", path: "/v1/payments/:id/cancel", desc: "Cancel an uncaptured authorization." },
-      { method: "POST", path: "/v1/refunds", desc: "Issue a full or partial refund on any succeeded payment." },
-    ],
-  },
-  {
-    category: "Payouts API", color: ZP_BLUE, icon: "💸",
-    items: [
-      { method: "POST", path: "/v1/payouts", desc: "Send a payout to a saved recipient. Specify rail: rtp, ach, wire." },
-      { method: "POST", path: "/v1/payouts/batch", desc: "Send to multiple recipients in one call. Up to 10,000 per batch." },
-      { method: "GET", path: "/v1/payouts/:id", desc: "Get payout status, estimated arrival, and IMAD/OMAD for wires." },
-      { method: "GET", path: "/v1/payouts", desc: "List all payouts with status filter and date range." },
-      { method: "POST", path: "/v1/recipients", desc: "Save a bank account as a verified recipient." },
-      { method: "GET", path: "/v1/recipients", desc: "List all saved recipients with verification status." },
-    ],
-  },
-  {
-    category: "Wallets & Balances", color: ZP_PURPLE, icon: "👛",
-    items: [
-      { method: "GET", path: "/v1/wallets", desc: "List all wallets for your account with current balances." },
-      { method: "POST", path: "/v1/wallets", desc: "Create a new wallet (Business, Escrow, Commission, Payout)." },
-      { method: "GET", path: "/v1/wallets/:id/balance", desc: "Real-time available and pending balance." },
-      { method: "GET", path: "/v1/wallets/:id/transactions", desc: "Full ledger with debit/credit entries and running balance." },
-      { method: "POST", path: "/v1/transfers", desc: "Move funds between your own wallets instantly." },
-    ],
-  },
-  {
-    category: "Webhooks & Events", color: "#F5A623", icon: "📡",
-    items: [
-      { method: "POST", path: "/v1/webhooks", desc: "Register a new webhook endpoint with event filtering." },
-      { method: "GET", path: "/v1/webhooks", desc: "List all registered webhook endpoints." },
-      { method: "DELETE", path: "/v1/webhooks/:id", desc: "Unregister a webhook endpoint." },
-      { method: "GET", path: "/v1/events", desc: "Browse all fired events with payload and delivery status." },
-      { method: "POST", path: "/v1/events/:id/retry", desc: "Manually retry a failed event delivery." },
-    ],
-  },
-];
-
-const TEST_CARDS = [
-  { number: "4242 4242 4242 4242", type: "Visa", result: "Succeeds" },
-  { number: "4000 0000 0000 0002", type: "Visa", result: "Declined — card_declined" },
-  { number: "4000 0025 0000 3155", type: "Visa", result: "3DS2 required" },
-  { number: "5555 5555 5555 4444", type: "Mastercard", result: "Succeeds" },
-  { number: "3782 822463 10005", type: "Amex", result: "Succeeds" },
-  { number: "4000 0000 0000 9995", type: "Visa", result: "Insufficient funds" },
+  { id: "authentication", label: "Authentication" },
+  { id: "agents", label: "Agents" },
+  { id: "treasury", label: "Treasury" },
+  { id: "cards", label: "Cards" },
+  { id: "webhooks", label: "Webhooks" },
+  { id: "errors", label: "Errors" },
 ];
 
 export default function DocsPage() {
-  const { t } = useT();
-  const [activeSection, setActiveSection] = useState("Getting Started");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const current = SECTIONS.find(s => s.category === activeSection)!;
-
   return (
-    <div style={{ background: DARK, color: "#fff", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <style>{`
-        @media (max-width: 768px) {
-          .zp-docs-layout { grid-template-columns: 1fr !important; }
-          .zp-docs-sidebar { display: none !important; }
-          .zp-docs-sidebar.zp-docs-sidebar-open { display: block !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 260px !important; height: 100vh !important; background: #0A0F1E !important; z-index: 1000 !important; padding: 60px 16px 16px !important; overflow-y: auto !important; border-right: 1px solid rgba(255,255,255,0.1) !important; }
-          .zp-docs-sidebar-open .zp-docs-sidebar-inner { position: static !important; }
-          .zp-docs-hamburger { display: flex !important; }
-          .zp-docs-overlay { display: block !important; }
-          .zp-docs-code { padding: 16px 16px !important; }
-          .zp-docs-test-cards { padding: 16px 16px !important; }
-        }
-      `}</style>
-      <Nav active="Docs" />
+    <div style={{ background: zp.surface.bg1, minHeight: "100vh" }}>
+      <MarketingNav />
+      <main style={{ maxWidth: 1180, margin: "0 auto", padding: "48px 24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 40 }} className="docs-grid">
+          <Sidebar />
+          <article style={{ minWidth: 0 }}>
+            <Header />
 
-      {/* Hero */}
-      <section style={{ paddingTop: 100, paddingBottom: 48, paddingLeft: "5%", paddingRight: "5%", background: `radial-gradient(ellipse 70% 50% at 50% 0%, rgba(42,143,224,0.1) 0%, transparent 70%)` }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
-          <h1 style={{ fontSize: "clamp(36px, 4.5vw, 58px)", fontWeight: 900, lineHeight: 1.1, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
-            {t("docs_page.heroTitle")}
-          </h1>
-          <p style={{ fontSize: 17, color: "rgba(255,255,255,0.6)", lineHeight: 1.65, margin: "0 auto 28px", maxWidth: 500 }}>
-            {t("docs_page.heroDesc")}
-          </p>
-          {/* Base URL */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 12, background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 20px", fontFamily: "monospace", fontSize: 14 }}>
-            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", fontFamily: "inherit" }}>{t("docs_page.baseUrl")}</span>
-            <span style={{ color: ZP_GREEN }}>https://</span><span style={{ color: "#e6edf3" }}>api.zenipay.ca/v1</span>
-          </div>
-        </div>
-      </section>
+            <Section id="authentication" title="Authentication" intro="Every ZeniPay API call is authenticated by a merchant API key. Create one in /app/settings → API Keys.">
+              <p style={para}>
+                Every API call must include a Bearer token in the <code style={inlineCode}>Authorization</code> header.
+                Keys live in your merchant settings at{" "}
+                <a href="/app/settings#api" style={{ color: zp.brand.cyan, fontWeight: zp.weight.semibold }}>/app/settings → API Keys</a>.
+              </p>
+              <Code code={`curl https://api.zenipay.ca/v1/agents \\
+  -H "Authorization: Bearer zpk_live_<your_key>"`} />
+              <h3 style={h3}>Test vs live keys</h3>
+              <p style={para}>
+                <code style={inlineCode}>zpk_test_</code> keys route to sandbox resources. <code style={inlineCode}>zpk_live_</code> keys touch real money.
+                Build against test, promote to live when the flow is stable.
+              </p>
+            </Section>
 
-      {/* Mobile sidebar toggle */}
-      <button className="zp-docs-hamburger" onClick={() => setSidebarOpen(v => !v)} style={{ display: "none", position: "fixed", bottom: 20, right: 20, zIndex: 1001, width: 48, height: 48, borderRadius: 12, background: ZP_GRAD, color: "#fff", border: "none", fontSize: 22, cursor: "pointer", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
-        {sidebarOpen ? "✕" : "☰"}
-      </button>
-      {sidebarOpen && <div className="zp-docs-overlay" onClick={() => setSidebarOpen(false)} style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 999 }} />}
+            <Section id="agents" title="Agents" intro="Create, list, and manage AI agents. Each agent has a wallet with a balance, a policy, and a keypair signed by your org.">
+              <Endpoint method="POST" path="/api/v1/agents" desc="Create a new agent." />
+              <Code code={`curl -X POST https://api.zenipay.ca/v1/agents \\
+  -H "Authorization: Bearer zpk_live_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "Marco",
+    "agent_type": "sales",
+    "description": "Qualifies inbound leads 24/7"
+  }'`} />
+              <Endpoint method="GET"   path="/api/v1/agents"        desc="List all agents in your org." />
+              <Endpoint method="GET"   path="/api/v1/agents/:id"    desc="Fetch one agent + its wallet + policy." />
+              <Endpoint method="PATCH" path="/api/v1/agents/:id"    desc="Update name / description / policy." />
+            </Section>
 
-      {/* Main layout */}
-      <div className="zp-docs-layout" style={{ display: "grid", gridTemplateColumns: "220px 1fr", maxWidth: 1100, margin: "0 auto", padding: "0 5% 80px", gap: 32 }}>
-        {/* Sidebar */}
-        <div className={`zp-docs-sidebar${sidebarOpen ? " zp-docs-sidebar-open" : ""}`} style={{ paddingTop: 16 }}>
-          <div className="zp-docs-sidebar-inner" style={{ position: "sticky", top: 80 }}>
-            {SECTIONS.map(s => (
-              <button key={s.category} onClick={() => { setActiveSection(s.category); setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", borderRadius: 10, border: "none", cursor: "pointer", background: activeSection === s.category ? s.color + "18" : "transparent", color: activeSection === s.category ? "#fff" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: activeSection === s.category ? 700 : 500, textAlign: "left", borderLeft: `2px solid ${activeSection === s.category ? s.color : "transparent"}`, marginBottom: 2 }}>
-                <span style={{ fontSize: 16 }}>{s.icon}</span>
-                <span>{s.category}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+            <Section id="treasury" title="Treasury" intro="Fund an org treasury and distribute to agents. Merchant → treasury transfers always land in the org wallet first; distribution to a specific agent is a separate action.">
+              <Endpoint method="POST" path="/api/v1/agents/treasury/distribute-from-merchant" desc="Debit a ZeniPay account, credit the org treasury." />
+              <Endpoint method="POST" path="/api/v1/agents/treasury/request-distribution"     desc="Smart wrapper around distribute-to-agent. Creates an approval request when a rule matches, otherwise executes immediately." />
+              <Endpoint method="POST" path="/api/v1/agents/treasury/distribute-to-agent"      desc="Debit the org treasury, credit an agent wallet." />
+              <Endpoint method="POST" path="/api/v1/agents/treasury/reclaim-from-agent"       desc="Reverse of distribute-to-agent. Debit agent wallet, credit treasury." />
+              <Endpoint method="POST" path="/api/v1/agents/treasury/return-to-merchant"       desc="Debit the org treasury, credit a merchant ZeniPay account." />
+              <Endpoint method="GET"  path="/api/v1/agents/treasury/events"                   desc="List funding events (card top-ups, ACH, wire, USDC)." />
+              <Code code={`curl -X POST https://api.zenipay.ca/v1/agents/treasury/request-distribution \\
+  -H "Authorization: Bearer zpk_live_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to_agent_id": "agt_xxx",
+    "amount_units": 250,
+    "currency": "CAD",
+    "idempotency_key": "ops-payroll-2026-05-01"
+  }'`} />
+            </Section>
 
-        {/* Content */}
-        <div style={{ paddingTop: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-            <span style={{ fontSize: 28 }}>{current.icon}</span>
-            <h2 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: current.color }}>{current.category}</h2>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 48 }}>
-            {current.items.map(item => (
-              <div key={item.path} style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 14 }}>
-                <span style={{
-                  fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 6, flexShrink: 0, fontFamily: "monospace", letterSpacing: "0.04em",
-                  background: item.method === "POST" ? "rgba(45,190,96,0.15)" : item.method === "GET" ? "rgba(42,143,224,0.15)" : item.method === "DELETE" ? "rgba(220,38,38,0.15)" : "rgba(123,79,191,0.15)",
-                  color: item.method === "POST" ? ZP_GREEN : item.method === "GET" ? ZP_BLUE : item.method === "DELETE" ? "#ef4444" : ZP_PURPLE,
-                  border: `1px solid ${item.method === "POST" ? ZP_GREEN + "33" : item.method === "GET" ? ZP_BLUE + "33" : item.method === "DELETE" ? "#ef444433" : ZP_PURPLE + "33"}`,
-                }}>{item.method}</span>
-                <div>
-                  <code style={{ fontSize: 14, fontWeight: 700, color: "#e6edf3", fontFamily: "monospace" }}>{item.path}</code>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{item.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+            <Section id="cards" title="ZeniCards" intro="Issue virtual or physical cards for agents. Every authorization runs through the tamper-evident ZeniCore ledger.">
+              <Endpoint method="POST"  path="/api/v1/agents/zenicards/issue"             desc="Issue a new card for an agent." />
+              <Endpoint method="GET"   path="/api/v1/agents/zenicards"                   desc="List cards in your org." />
+              <Endpoint method="PATCH" path="/api/v1/agents/zenicards/:id/status"        desc="Freeze, unfreeze, or cancel a card." />
+            </Section>
 
-          {/* Test cards (always shown) */}
-          <div className="zp-docs-test-cards" style={{ background: GLASS, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: "24px 28px", marginBottom: 32 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 16px", color: ZP_CYAN }}>🧪 Sandbox test cards</h3>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <Section id="webhooks" title="Webhooks" intro="Subscribe to events to keep your own systems in sync. Every payload is signed with your webhook secret.">
+              <p style={para}>Events emitted:</p>
+              <ul style={list}>
+                <li><code style={inlineCode}>payment.completed</code> — customer payment settled.</li>
+                <li><code style={inlineCode}>payout.sent</code> — withdrawal fired to an external destination.</li>
+                <li><code style={inlineCode}>approval.requested</code> — merchant-rule approval pending.</li>
+                <li><code style={inlineCode}>card.charged</code> — agent card authorized or settled.</li>
+                <li><code style={inlineCode}>agent.funded</code> — agent wallet received funds from treasury.</li>
+              </ul>
+              <h3 style={h3}>Signature verification</h3>
+              <Code code={`import { createHmac, timingSafeEqual } from "node:crypto";
+
+async function verify(req: Request, secret: string): Promise<boolean> {
+  const sig = req.headers.get("x-zp-signature") ?? "";
+  const body = await req.text();
+  const expected = createHmac("sha256", secret).update(body).digest("hex");
+  return timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"));
+}`} />
+            </Section>
+
+            <Section id="errors" title="Errors" intro="Every error response carries a stable { error: { code, message } } shape. Here are the codes you'll see most often.">
+              <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                    {["Card number", "Type", "Result"].map(h => (
-                      <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "rgba(255,255,255,0.4)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</th>
+                  <tr style={{ background: zp.surface.bg2 }}>
+                    {["HTTP", "Code", "Meaning"].map((h) => (
+                      <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted, letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: `1px solid ${zp.surface.border}` }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {TEST_CARDS.map(c => (
-                    <tr key={c.number} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                      <td style={{ padding: "10px 12px", fontFamily: "monospace", color: "#e6edf3", fontSize: 13 }}>{c.number}</td>
-                      <td style={{ padding: "10px 12px", color: "rgba(255,255,255,0.5)" }}>{c.type}</td>
-                      <td style={{ padding: "10px 12px" }}>
-                        <span style={{ color: c.result === "Succeeds" ? ZP_GREEN : c.result.includes("3DS") ? ZP_CYAN : "#f59e0b", fontWeight: 600 }}>{c.result}</span>
-                      </td>
+                  {[
+                    ["400", "invalid_request",   "Body is malformed or missing required fields."],
+                    ["401", "unauthorized",      "API key missing, invalid, or revoked."],
+                    ["403", "forbidden",         "Key lacks permission for this resource."],
+                    ["404", "not_found",         "Resource doesn’t exist or you can’t see it."],
+                    ["409", "conflict",          "State conflict — e.g. already approved."],
+                    ["422", "validation_error", "Business-rule violation (insufficient funds, currency mismatch)."],
+                    ["429", "rate_limited",     "Too many requests. Back off and retry."],
+                    ["500", "internal_error",   "We broke something. Retry and tell us if it recurs."],
+                  ].map((row) => (
+                    <tr key={row[0]} style={{ borderTop: `1px solid ${zp.surface.border}` }}>
+                      <td style={td}><code style={inlineCode}>{row[0]}</code></td>
+                      <td style={{ ...td, fontFamily: zp.font.mono }}>{row[1]}</td>
+                      <td style={{ ...td, color: zp.text.muted }}>{row[2]}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginTop: 14, marginBottom: 0 }}>Use any future expiry date and any 3-digit CVC in sandbox mode.</p>
-          </div>
-
-          {/* Curl example */}
-          <div style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflow: "hidden" }}>
-            <div style={{ padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ display: "flex", gap: 5 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff5f57" }} />
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#febc2e" }} />
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#28c840" }} />
-              </div>
-              <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12, marginLeft: 8 }}>curl example — create payment</span>
-            </div>
-            <div className="zp-docs-code" style={{ padding: "22px 28px", fontFamily: "monospace", fontSize: 13, lineHeight: 1.9, overflowX: "auto" }}>
-              <div><span style={{ color: "#ff7b72" }}>curl</span> -X POST https://api.zenipay.ca/v1/payments \</div>
-              <div style={{ paddingLeft: 24 }}>-H <span style={{ color: "#a5d6ff" }}>&quot;Authorization: Bearer zpk_sb_your_key&quot;</span> \</div>
-              <div style={{ paddingLeft: 24 }}>-H <span style={{ color: "#a5d6ff" }}>&quot;Content-Type: application/json&quot;</span> \</div>
-              <div style={{ paddingLeft: 24 }}>-H <span style={{ color: "#a5d6ff" }}>&quot;Idempotency-Key: order-12345&quot;</span> \</div>
-              <div style={{ paddingLeft: 24 }}>-d <span style={{ color: "#a5d6ff" }}>&apos;&#123;</span></div>
-              <div style={{ paddingLeft: 48 }}><span style={{ color: "#a5d6ff" }}>&quot;amount&quot;: 4999,</span></div>
-              <div style={{ paddingLeft: 48 }}><span style={{ color: "#a5d6ff" }}>&quot;currency&quot;: &quot;usd&quot;,</span></div>
-              <div style={{ paddingLeft: 48 }}><span style={{ color: "#a5d6ff" }}>&quot;card_token&quot;: &quot;tok_sandbox_xxxx&quot;,</span></div>
-              <div style={{ paddingLeft: 48 }}><span style={{ color: "#a5d6ff" }}>&quot;description&quot;: &quot;Order #12345&quot;</span></div>
-              <div style={{ paddingLeft: 24 }}><span style={{ color: "#a5d6ff" }}>&#125;&apos;</span></div>
-              <div style={{ marginTop: 16, color: "#8b949e" }}># 200 OK</div>
-              <div style={{ color: "#a5d6ff" }}>&#123; &quot;id&quot;: <span style={{ color: ZP_GREEN }}>&quot;pay_3xK9mNpqr&quot;</span>, &quot;status&quot;: <span style={{ color: ZP_GREEN }}>&quot;succeeded&quot;</span>, &quot;amount&quot;: 4999 &#125;</div>
-            </div>
-          </div>
+            </Section>
+          </article>
         </div>
-      </div>
 
-      <footer style={{ background: DARK2, borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 5%", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
-        <Link href="/" style={{ textDecoration: "none" }}><Image src="/zenipay-logo-nobg.png" alt="ZeniPay" width={110} height={32} style={{ objectFit: "contain" }} /></Link>
-        <div style={{ display: "flex", gap: 24 }}>
-          {[{ label: t("nav.payments"), href: "/payments" }, { label: t("nav.payouts"), href: "/payouts" }, { label: t("nav.tools"), href: "/tools" }, { label: t("nav.docs"), href: "/docs" }].map(item => <Link key={item.href} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}
-        </div>
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>{t("common.copyright")}</p>
-      </footer>
+        <style>{`
+          @media (max-width: 860px) {
+            .docs-grid { grid-template-columns: 1fr !important; }
+          }
+        `}</style>
+      </main>
+      <MarketingFooter />
     </div>
   );
 }
+
+function Header() {
+  return (
+    <div style={{ marginBottom: 40 }}>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: zp.weight.bold, color: zp.brand.violet, letterSpacing: "0.14em", textTransform: "uppercase" }}>
+        Reference
+      </p>
+      <h1 style={{
+        margin: "8px 0 10px", fontFamily: zp.font.display,
+        fontSize: 40, fontWeight: zp.weight.semibold, color: zp.text.primary,
+        letterSpacing: "-0.03em", lineHeight: 1.05,
+      }}>
+        API documentation
+      </h1>
+      <p style={{ margin: 0, fontSize: 15, color: zp.text.muted, maxWidth: 640 }}>
+        Everything you need to integrate ZeniPay — accounts, agents, cards, treasury, approvals, webhooks.
+      </p>
+    </div>
+  );
+}
+
+function Sidebar() {
+  return (
+    <aside style={{ position: "sticky", top: 20, alignSelf: "start", maxHeight: "90vh", overflowY: "auto" }}>
+      <div style={{
+        fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted,
+        letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10,
+      }}>On this page</div>
+      {SECTIONS.map((s) => (
+        <a key={s.id} href={`#${s.id}`} style={{
+          display: "block", padding: "8px 10px", fontSize: 13,
+          color: zp.text.primary, textDecoration: "none", borderRadius: 8,
+          fontWeight: zp.weight.medium,
+        }}>{s.label}</a>
+      ))}
+    </aside>
+  );
+}
+
+function Section({ id, title, intro, children }: { id: string; title: string; intro: string; children: React.ReactNode }) {
+  return (
+    <section id={id} style={{ scrollMarginTop: 40, marginBottom: 48 }}>
+      <h2 style={{
+        margin: "0 0 6px", fontFamily: zp.font.display, fontSize: 26,
+        fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.02em",
+      }}>{title}</h2>
+      <p style={{ margin: "0 0 14px", fontSize: 14, color: zp.text.muted }}>{intro}</p>
+      {children}
+    </section>
+  );
+}
+
+function Endpoint({ method, path, desc }: { method: string; path: string; desc: string }) {
+  const methodColor =
+    method === "GET" ? "#2DBE60" :
+    method === "POST" ? zp.brand.cyan :
+    method === "PATCH" ? "#D97706" :
+    method === "DELETE" ? "#DC2626" :
+    zp.text.muted;
+  return (
+    <div style={{
+      display: "flex", gap: 12, alignItems: "center", padding: "10px 12px",
+      border: `1px solid ${zp.surface.border}`, borderRadius: 10, marginBottom: 6,
+      background: "#fff", flexWrap: "wrap",
+    }}>
+      <span style={{
+        fontSize: 11, fontWeight: zp.weight.bold, color: methodColor,
+        fontFamily: zp.font.mono, minWidth: 56,
+      }}>{method}</span>
+      <code style={{ ...inlineCode, fontSize: 13, padding: "3px 8px" }}>{path}</code>
+      <span style={{ color: zp.text.muted, fontSize: 13, marginLeft: "auto" }}>{desc}</span>
+    </div>
+  );
+}
+
+function Code({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* ignore */ }
+  };
+  return (
+    <div style={{ position: "relative", marginBottom: 14 }}>
+      <pre style={{
+        margin: 0, padding: "16px 18px", borderRadius: 12,
+        background: "#0f172a", color: "#e5e7eb",
+        fontFamily: zp.font.mono, fontSize: 12, lineHeight: 1.55,
+        overflow: "auto",
+      }}>{code}</pre>
+      <button onClick={copy} aria-label="Copy" style={{
+        position: "absolute", top: 10, right: 10,
+        background: "rgba(255,255,255,0.08)", color: "#e5e7eb",
+        border: "1px solid rgba(255,255,255,0.1)",
+        padding: "6px 8px", borderRadius: 8, cursor: "pointer",
+        display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: zp.weight.semibold,
+      }}>{copied ? <Check size={12} /> : <Copy size={12} />}{copied ? "Copied" : "Copy"}</button>
+    </div>
+  );
+}
+
+const para: React.CSSProperties = { fontSize: 14, color: zp.text.primary, margin: "0 0 12px", lineHeight: 1.6 };
+const h3: React.CSSProperties = { margin: "20px 0 8px", fontFamily: zp.font.display, fontSize: 18, fontWeight: zp.weight.semibold, color: zp.text.primary };
+const list: React.CSSProperties = { margin: "0 0 12px 20px", fontSize: 14, lineHeight: 1.7, color: zp.text.primary };
+const inlineCode: React.CSSProperties = { background: zp.surface.bg3, fontFamily: zp.font.mono, fontSize: 12, padding: "2px 6px", borderRadius: 6, color: zp.text.primary };
+const td: React.CSSProperties = { padding: "10px 14px", fontSize: 13, color: zp.text.primary };
