@@ -32,15 +32,18 @@ const nextConfig = {
         destination: "/sandbox/wallets",
         permanent: false,
       },
-      // Catch stale /app/{tab}/{subtab} URLs → redirect to /app/{subtab}
+      // Catch stale /app/{tab}/{subtab} URLs → redirect to /app/{subtab}.
+      // EXCLUDE routes that have legitimate dynamic children, otherwise we
+      // eat valid IDs (e.g. /app/accounts/acct_123 would redirect to
+      // /app/acct_123 and land on the catch-all ZenivaComplete renderer).
       {
-        source: "/app/:tab/:subtab",
+        source: "/app/:tab((?!accounts$|agents$|cards$|contacts$|invoices$|pay-links$|transactions$)[^/]+)/:subtab",
         destination: "/app/:subtab",
         permanent: false,
       },
-      // Catch stale /sandbox/{tab}/{subtab} URLs → redirect to /sandbox/{subtab}
+      // Same idea for /sandbox/*.
       {
-        source: "/sandbox/:tab/:subtab",
+        source: "/sandbox/:tab((?!accounts$|agents$|cards$|contacts$|invoices$|pay-links$|transactions$)[^/]+)/:subtab",
         destination: "/sandbox/:subtab",
         permanent: false,
       },
