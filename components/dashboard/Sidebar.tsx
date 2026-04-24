@@ -54,7 +54,7 @@ const MERCHANT_NAV: NavItem[] = [
 ];
 
 const AGENTS_NAV: NavItem[] = [
-  { href: "/agents/overview",     label: "Overview",     Icon: Home,            group: "primary" },
+  { href: "/agents/dashboard",    label: "Overview",     Icon: Home,            group: "primary" },
   { href: "/agents/treasury",     label: "Treasury",     Icon: Building2,       group: "primary" },
   { href: "/agents/ledger",       label: "Ledger",       Icon: BookOpen,        group: "primary" },
   { href: "/agents/zenicards",    label: "ZeniCards",    Icon: CreditCard,      group: "primary" },
