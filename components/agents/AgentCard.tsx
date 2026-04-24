@@ -27,8 +27,10 @@ const DISPLAY = "var(--font-fraunces), Fraunces, Georgia, serif";
 // ZeniPay roster photos that ship in /public/agents/. Anything outside
 // this set falls back to a gradient initial.
 const KNOWN_AGENTS = new Set([
-  "marco", "sofia", "ben", "luna", "atlas", "mia",
-  "leo", "rex", "vera", "nova", "kai",
+  // Default four shown to every merchant out of the box.
+  "ben", "max", "jade", "kai",
+  // Eight templates available through the "New agent" picker.
+  "marco", "sofia", "atlas", "luna", "mia", "leo", "rex", "vera",
 ]);
 
 export interface AgentCardData {
@@ -63,17 +65,20 @@ function deterministicHue(name: string): number {
 
 function defaultAccent(name: string): string {
   const map: Record<string, string> = {
+    // Default four — the ops stack.
+    ben:   "#7B4FBF",   // Finance — violet
+    max:   "#FFA500",   // Compliance & Risk — amber
+    jade:  "#10B981",   // Agent Success — emerald
+    kai:   "#0EA5E9",   // Revenue Intelligence — sky
+    // Templates unlocked via "New agent".
     marco: "#15B8C9",
     sofia: "#FF6B9D",
-    ben:   "#7B4FBF",
-    atlas: "#10B981",
+    atlas: "#64748B",
     luna:  "#06B6D4",
     mia:   "#A855F7",
     leo:   "#8B5CF6",
     rex:   "#059669",
     vera:  "#F59E0B",
-    nova:  "#0EA5E9",
-    kai:   "#0EA5E9",
   };
   const slug = slugFor(name);
   if (map[slug]) return map[slug];
@@ -349,14 +354,40 @@ function Chip({ label, accent, ghost, emphasize }: { label: string; accent: stri
   );
 }
 
-// Example roster — used as the empty-state demo on both /agents/dashboard
-// and /agents/agents so the surfaces look alive on fresh orgs. Mirrors
-// the numbers on /agents/overview marketing.
+// Default roster shown to every merchant on /agents/dashboard,
+// /agents/agents, and /agents/overview. Alex's pick of the four core
+// ops agents (Finance / Compliance / Success / Revenue). The other
+// eight templates are gated behind the "New agent" picker below.
 export const DEMO_ROSTER: AgentCardData[] = [
-  { name: "Marco", role: "Lead Hunter",     accent: "#15B8C9", balance: 1240.00, currency: "CAD", status: "active", last4: "7712", limit: 2000, spent: 760,   txCount: 42, lastActivity: "2m ago",   primaryLabel: "Example" },
-  { name: "Sofia", role: "Email Marketing", accent: "#FF6B9D", balance: 380.50,  currency: "CAD", status: "active", last4: "2081", limit: 1500, spent: 1119.5, txCount: 18, lastActivity: "14m ago",  primaryLabel: "Example" },
-  { name: "Ben",   role: "Finance Agent",   accent: "#7B4FBF", balance: 4200.00, currency: "CAD", status: "active", last4: "4821", limit: 10000, spent: 5800, txCount: 87, lastActivity: "just now", primaryLabel: "Example" },
-  { name: "Atlas", role: "Security Agent",  accent: "#10B981", balance: 890.00,  currency: "CAD", status: "active", last4: "9933", limit: 1200, spent: 310,   txCount: 11, lastActivity: "1h ago",   primaryLabel: "Example" },
+  { name: "Ben",   role: "Finance Agent",           accent: "#7B4FBF", balance: 4200.00, currency: "CAD", status: "active", last4: "4821", limit: 10000, spent: 5800, txCount: 87, lastActivity: "just now", primaryLabel: "Example" },
+  { name: "Max",   role: "Compliance & Risk",       accent: "#FFA500", balance: 2150.00, currency: "CAD", status: "active", last4: "1186", limit: 5000,  spent: 1420, txCount: 34, lastActivity: "6m ago",   primaryLabel: "Example" },
+  { name: "Jade",  role: "Agent Success",           accent: "#10B981", balance: 780.50,  currency: "CAD", status: "active", last4: "7703", limit: 2500,  spent: 1130, txCount: 22, lastActivity: "12m ago",  primaryLabel: "Example" },
+  { name: "Kai",   role: "Revenue Intelligence",    accent: "#0EA5E9", balance: 3120.00, currency: "CAD", status: "active", last4: "5404", limit: 6000,  spent: 2680, txCount: 51, lastActivity: "1h ago",   primaryLabel: "Example" },
 ];
+
+// Additional agent templates — available through the "New agent" flow.
+// Combined with DEMO_ROSTER, a merchant can deploy up to 12 specialists.
+export interface AgentTemplate {
+  slug: string;                  // matches /public/agents/<slug>.png
+  name: string;
+  role: string;
+  description: string;
+  accent: string;
+  defaultLimit: number;
+}
+
+export const AVAILABLE_TEMPLATES: AgentTemplate[] = [
+  { slug: "marco", name: "Marco", role: "Lead Hunter",       description: "Scrapes inbound channels + qualifies leads 24/7.",           accent: "#15B8C9", defaultLimit: 2000 },
+  { slug: "sofia", name: "Sofia", role: "Email Marketing",   description: "Writes and sends unique AI emails per lead, every language.", accent: "#FF6B9D", defaultLimit: 1500 },
+  { slug: "atlas", name: "Atlas", role: "Security Agent",    description: "24/7 service + SSH + cert watchdog with auto-remediation.",   accent: "#64748B", defaultLimit: 1200 },
+  { slug: "luna",  name: "Luna",  role: "Voice & SMS",       description: "Inbound/outbound voice and SMS — Twilio-backed, AI-reply.",   accent: "#06B6D4", defaultLimit: 1000 },
+  { slug: "mia",   name: "Mia",   role: "Social Media",      description: "5 AI posts a day across IG, TikTok, FB with approval flow.",  accent: "#A855F7", defaultLimit: 800  },
+  { slug: "leo",   name: "Leo",   role: "Analytics",         description: "Conversion / pipeline / ROI insights that feed other agents.", accent: "#8B5CF6", defaultLimit: 600  },
+  { slug: "rex",   name: "Rex",   role: "Platform Engineer", description: "Bug detection, API monitoring, daily health reports.",        accent: "#059669", defaultLimit: 1500 },
+  { slug: "vera",  name: "Vera",  role: "Risk Oversight",    description: "Second-line compliance — pairs with Max on high-risk flows.", accent: "#F59E0B", defaultLimit: 800  },
+];
+
+/** Slugs already in the default roster. Used by the picker to hide them. */
+export const DEFAULT_ROSTER_SLUGS = new Set(DEMO_ROSTER.map((a) => slugFor(a.name)));
 
 export default AgentCard;

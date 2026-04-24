@@ -27,7 +27,9 @@ fi
 
 mkdir -p "$DEST"
 
-AGENTS=(marco sofia ben luna atlas mia leo rex vera nova kai)
+# Default four + eight templates = 12 total. Nova is intentionally
+# excluded (her Zeniva-Travel avatar is stylistically off-brand here).
+AGENTS=(ben max jade kai marco sofia atlas luna mia leo rex vera)
 
 for name in "${AGENTS[@]}"; do
   src="$SRC/$name.png"
