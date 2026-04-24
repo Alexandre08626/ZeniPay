@@ -297,7 +297,7 @@ function AgentRow({ name, role, bal, status }: { name: string; role: string; bal
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderTop: `1px solid ${zp.surface.border}` }}>
       <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden", background: zp.surface.bg2, flexShrink: 0, boxShadow: `0 0 0 2px rgba(123,79,191,0.20)` }}>
-        <Image src={`/agents/${name.toLowerCase()}.svg`} alt={`${name} avatar`} width={36} height={36} style={{ width: 36, height: 36, objectFit: "cover" }} />
+        <Image src={`/agents/${name.toLowerCase()}.png`} alt={`${name} avatar`} width={36} height={36} style={{ width: 36, height: 36, objectFit: "cover" }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{name}</div>
@@ -337,7 +337,7 @@ function BridgeSection() {
             ].map((a) => (
               <div key={a.name} style={{ padding: "14px 16px", borderRadius: zp.radius.md, background: "#fff", border: `1px solid ${zp.surface.border}`, borderLeft: `3px solid ${zp.brand.violet}`, display: "flex", alignItems: "center", gap: 10, boxShadow: zp.elevation.sm }}>
                 <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", background: zp.surface.bg2, flexShrink: 0 }}>
-                  <Image src={`/agents/${a.name.toLowerCase()}.svg`} alt="" width={30} height={30} />
+                  <Image src={`/agents/${a.name.toLowerCase()}.png`} alt="" width={30} height={30} />
                 </div>
                 <div style={{ textAlign: "left" as const, flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{a.name}</div>
