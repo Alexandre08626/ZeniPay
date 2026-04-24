@@ -87,14 +87,49 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
   const [session, setSession] = useState<Session | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Bootstrap the right session based on mode.
+  // Bootstrap the right session based on mode. If a user lands on an
+  // /agents/* page with only a merchant session, we try to grant an
+  // agents session from the merchant↔org mapping (PR 10). That way
+  // deep-linked URLs like /agents/agents/<id> don't bounce merchants
+  // back to /agents/login when the org is already linked.
   useEffect(() => {
-    const s = mode === "agents" ? readAgentsSession() : readMerchantSession();
-    if (!s) {
-      router.replace(mode === "agents" ? "/agents/login" : "/login");
+    const primary = mode === "agents" ? readAgentsSession() : readMerchantSession();
+    if (primary) {
+      setSession(primary);
       return;
     }
-    setSession(s);
+
+    // Cross-auth path: merchant session → agents session.
+    const merchant = mode === "agents" ? readMerchantSession() : null;
+    if (merchant) {
+      let cancelled = false;
+      (async () => {
+        try {
+          const merchantClientId =
+            typeof window !== "undefined" ? sessionStorage.getItem("zp_client") || "" : "";
+          if (!merchantClientId) throw new Error("no merchant session");
+          const r = await fetch(`/api/v1/agents/list-for-merchant?merchant_id=${encodeURIComponent(merchantClientId)}`);
+          const data = (await r.json().catch(() => ({}))) as { organization_id?: string | null };
+          if (cancelled) return;
+          if (!data.organization_id) {
+            router.replace("/agents/login");
+            return;
+          }
+          // Seed the agents session so apiFetch picks up the x-zp-agents-org header.
+          try {
+            sessionStorage.setItem("zp_agents_org", data.organization_id);
+            if (merchant.email) sessionStorage.setItem("zp_agents_email", merchant.email);
+          } catch { /* ignore */ }
+          const label = merchant.label || "Agents";
+          setSession({ email: merchant.email || "agents@zenipay.ca", label, orgId: data.organization_id });
+        } catch {
+          if (!cancelled) router.replace("/agents/login");
+        }
+      })();
+      return () => { cancelled = true; };
+    }
+
+    router.replace(mode === "agents" ? "/agents/login" : "/login");
   }, [mode, router]);
 
   // Close drawer on route change.
