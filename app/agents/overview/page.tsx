@@ -199,7 +199,7 @@ function AgentBigCard({ a }: { a: DemoAgent }) {
       style={{
         position: "relative",
         background: "#fff",
-        borderRadius: zp.radius.xl,
+        borderRadius: 24,
         overflow: "hidden",
         border: `1px solid ${zp.surface.border}`,
         boxShadow: zp.elevation.sm,
@@ -208,11 +208,11 @@ function AgentBigCard({ a }: { a: DemoAgent }) {
         transition: zp.motion.base,
       }}
     >
-      {/* Full-bleed avatar block */}
+      {/* Full-bleed avatar block — modeled on Zeniva Travel AgentCard. */}
       <div style={{
         position: "relative",
         aspectRatio: "1 / 1",
-        background: `linear-gradient(135deg, ${a.accent}12 0%, ${a.accent}05 100%)`,
+        background: `linear-gradient(135deg, ${a.accent}14 0%, ${a.accent}06 100%)`,
         overflow: "hidden",
       }}>
         <Image
@@ -223,10 +223,11 @@ function AgentBigCard({ a }: { a: DemoAgent }) {
           style={{ objectFit: "cover", objectPosition: "top" }}
         />
 
-        {/* Fade to white at the bottom so info sits legibly over the photo */}
+        {/* White fade at the bottom 128px — Zeniva's h-32 from-white gradient */}
         <span aria-hidden style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(180deg, transparent 55%, rgba(255,255,255,0.88) 88%, #fff 100%)",
+          position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0,
+          height: 128,
+          background: "linear-gradient(0deg, #fff 0%, rgba(255,255,255,0.82) 40%, transparent 100%)",
           pointerEvents: "none",
         }} />
 
@@ -234,123 +235,153 @@ function AgentBigCard({ a }: { a: DemoAgent }) {
         <div style={{ position: "absolute", top: 14, right: 14 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 6,
-            fontSize: 10, fontWeight: zp.weight.semibold,
-            padding: "4px 10px", borderRadius: zp.radius.pill,
+            fontSize: 10, fontWeight: zp.weight.bold,
+            padding: "5px 10px", borderRadius: zp.radius.pill,
             background: "rgba(255,255,255,0.92)",
             color: a.status === "active" ? zp.semantic.success : zp.text.muted,
             border: `1px solid rgba(15,23,42,0.08)`,
-            letterSpacing: "0.08em", textTransform: "uppercase",
+            letterSpacing: "0.1em", textTransform: "uppercase",
             backdropFilter: "blur(4px)",
             boxShadow: "0 2px 8px rgba(15,23,42,0.08)",
           }}>
-            <span style={{
+            <span className={a.status === "active" ? "zp-pulse-green" : undefined} style={{
               width: 6, height: 6, borderRadius: "50%",
               background: a.status === "active" ? zp.semantic.success : zp.surface.bg3,
-              boxShadow: a.status === "active" ? `0 0 0 3px ${zp.semantic.success}33` : "none",
             }} />
             {a.status === "active" ? "Live" : "Idle"}
           </span>
         </div>
 
-        {/* Top-left: account badge (••••last4) */}
+        {/* Top-left: account badge (•• last4) — banking context cue */}
         <div style={{
           position: "absolute", top: 14, left: 14,
-          fontSize: 10, fontWeight: zp.weight.semibold,
-          padding: "4px 10px", borderRadius: zp.radius.pill,
+          fontSize: 10, fontWeight: zp.weight.bold,
+          padding: "5px 10px", borderRadius: zp.radius.pill,
           background: "rgba(10,11,31,0.85)", color: "#fff",
-          fontFamily: zp.font.mono, letterSpacing: "0.08em",
+          fontFamily: zp.font.mono, letterSpacing: "0.1em",
         }}>
           •• {a.last4}
         </div>
       </div>
 
-      {/* Info panel */}
-      <div style={{ padding: "18px 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: zp.weight.semibold, color: a.accent, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+      {/* Info panel — pulled UP into the avatar block like Zeniva's -mt-8 */}
+      <div style={{ padding: "0 20px 20px", marginTop: -32, position: "relative", zIndex: 1 }}>
+        {/* Name + role (Zeniva's big black name + colored role). */}
+        <div style={{ marginBottom: 14 }}>
+          <h3 style={{
+            margin: 0, fontFamily: zp.font.display,
+            fontSize: 24, fontWeight: zp.weight.bold,
+            letterSpacing: "-0.025em", color: zp.text.primary,
+          }}>
+            {a.name}
+          </h3>
+          <div style={{
+            fontSize: 11, fontWeight: zp.weight.bold,
+            color: a.accent, letterSpacing: "0.04em",
+            marginTop: 4,
+          }}>
             {a.role}
-          </div>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginTop: 4 }}>
-            <h3 style={{
-              margin: 0, fontFamily: zp.font.display,
-              fontSize: 22, fontWeight: zp.weight.semibold, letterSpacing: "-0.02em",
-              color: zp.text.primary,
-            }}>
-              {a.name}
-            </h3>
-            <span style={{ fontSize: 11, color: zp.text.dim }}>
-              {a.lastActivity}
-            </span>
           </div>
         </div>
 
-        {/* Balance — the hero number */}
-        <div style={{
-          background: `linear-gradient(135deg, ${a.accent}0d 0%, ${a.accent}03 100%)`,
-          border: `1px solid ${a.accent}20`,
-          borderRadius: zp.radius.md,
-          padding: "14px 14px",
-        }}>
-          <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>
+        {/* Wallet balance — big hero number replacing the Zeniva description */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{
+            fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted,
+            letterSpacing: "0.12em", textTransform: "uppercase" as const, marginBottom: 2,
+          }}>
             Wallet balance
           </div>
           <div style={{
             fontFamily: zp.font.mono,
-            fontSize: 28, fontWeight: zp.weight.semibold, letterSpacing: "-0.02em",
-            color: a.accent,
+            fontSize: 30, fontWeight: zp.weight.bold, letterSpacing: "-0.02em",
+            color: a.accent, lineHeight: 1.05,
           }}>
             {money(a.balance)}
           </div>
         </div>
 
-        {/* Budget progress */}
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 11, marginBottom: 6 }}>
-            <span style={{ color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              Monthly spend
-            </span>
-            <span style={{ color: zp.text.primary, fontFamily: zp.font.mono, fontWeight: zp.weight.semibold }}>
-              {money(a.spent)} <span style={{ color: zp.text.dim }}>/ {money(a.limit)}</span>
-            </span>
-          </div>
-          <div style={{ height: 5, background: zp.surface.bg3, borderRadius: 4, overflow: "hidden" }}>
-            <div style={{
-              width: `${pct}%`, height: "100%",
-              background: overLimit ? zp.semantic.danger : a.accent,
-              transition: zp.motion.base,
-            }} />
-          </div>
+        {/* Banking stat chips — replacing Zeniva's feature pills with numbers */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+          <Chip accent={a.accent} label={`${a.txCount} tx`} />
+          <Chip accent={a.accent} label={`${pct}% of ${money(a.limit)}`} emphasize={overLimit} />
+          <Chip accent={a.accent} label={a.lastActivity} ghost />
         </div>
 
-        {/* Footer: tx count + ZeniPay Visa badge */}
-        <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          paddingTop: 10, borderTop: `1px solid ${zp.surface.border}`, fontSize: 11,
-        }}>
-          <span style={{ color: zp.text.muted }}>
-            <span style={{ fontFamily: zp.font.mono, fontWeight: zp.weight.semibold, color: zp.text.primary }}>
-              {a.txCount}
-            </span> transactions
-          </span>
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            padding: "2px 8px", borderRadius: zp.radius.pill,
-            background: zp.gradient.main, color: "#fff",
-            fontSize: 10, fontWeight: zp.weight.semibold,
-            letterSpacing: "0.06em", textTransform: "uppercase",
+        {/* Budget bar — thin, colored by accent (turns red if over) */}
+        <div style={{ height: 4, background: zp.surface.bg3, borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
+          <div style={{
+            width: `${pct}%`, height: "100%",
+            background: overLimit ? zp.semantic.danger : a.accent,
+            transition: zp.motion.base,
+          }} />
+        </div>
+
+        {/* Bottom CTAs — Zeniva's "Discover + Chat" pair, adapted for banking */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{
+            flex: 1,
+            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+            padding: "10px 12px", borderRadius: 12,
+            background: `${a.accent}12`, color: a.accent,
+            border: `1px solid ${a.accent}26`,
+            fontSize: 13, fontWeight: zp.weight.bold,
+            letterSpacing: "0.01em",
           }}>
-            ZeniPay · Visa
-          </span>
+            View {a.name}&rsquo;s account
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" /><path d="M13 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+            padding: "10px 14px", borderRadius: 12,
+            background: a.accent, color: "#fff",
+            fontSize: 13, fontWeight: zp.weight.bold,
+            letterSpacing: "0.02em",
+            boxShadow: `0 6px 16px ${a.accent}4D`,
+          }}>
+            💳 Visa
+          </div>
         </div>
       </div>
 
       <style>{`
         .mk-agent-big:hover {
           transform: translateY(-3px);
-          box-shadow: 0 20px 40px rgba(15,23,42,0.10), 0 0 0 1px ${a.accent}33;
+          box-shadow: 0 22px 50px rgba(15,23,42,0.14), 0 0 0 1px ${a.accent}40;
         }
       `}</style>
     </article>
+  );
+}
+
+function Chip({ label, accent, ghost, emphasize }: { label: string; accent: string; ghost?: boolean; emphasize?: boolean }) {
+  if (ghost) {
+    return (
+      <span style={{
+        fontSize: 10, fontWeight: zp.weight.semibold,
+        padding: "3px 9px", borderRadius: 10,
+        background: zp.surface.bg3, color: zp.text.muted,
+        border: `1px solid ${zp.surface.border}`,
+      }}>
+        {label}
+      </span>
+    );
+  }
+  const bg = emphasize ? zp.semantic.dangerBg : `${accent}12`;
+  const fg = emphasize ? zp.semantic.danger : accent;
+  const border = emphasize ? zp.semantic.danger + "33" : `${accent}33`;
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: zp.weight.bold,
+      padding: "3px 9px", borderRadius: 10,
+      background: bg, color: fg,
+      border: `1px solid ${border}`,
+      fontFamily: zp.font.mono, letterSpacing: "0.02em",
+    }}>
+      {label}
+    </span>
   );
 }
 
