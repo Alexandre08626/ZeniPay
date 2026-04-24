@@ -34,16 +34,7 @@ interface Contact {
   contact_type?: string;
 }
 
-type TransferType = "ach" | "wire" | "internal" | "bill_pay" | "agent";
-
-interface AgentOption {
-  id: string;
-  name: string;
-  agent_type: string;
-  status: string;
-  wallet_balance_cents: number;
-  currency: string;
-}
+type TransferType = "ach" | "wire" | "internal" | "bill_pay" | "agent_treasury";
 
 function mid() { return typeof window === "undefined" ? "" : sessionStorage.getItem("zp_client") || ""; }
 
@@ -169,22 +160,7 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
   const [form, setForm] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [agentList, setAgentList] = useState<AgentOption[]>([]);
-  const [agentListLoading, setAgentListLoading] = useState(false);
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
-
-  // Lazy-load the agent list the first time the "AI Agent" tab is opened.
-  useEffect(() => {
-    if (transferType !== "agent" || agentList.length > 0 || agentListLoading) return;
-    const merchantId = mid();
-    if (!merchantId) return;
-    setAgentListLoading(true);
-    fetch(`/api/v1/agents/list-for-merchant?merchant_id=${encodeURIComponent(merchantId)}`)
-      .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d.agents)) setAgentList(d.agents as AgentOption[]); })
-      .catch(() => { /* ignore — empty list stays */ })
-      .finally(() => setAgentListLoading(false));
-  }, [transferType, agentList.length, agentListLoading]);
 
   const selectedContact = (id: string) => {
     const c = contacts.find((x) => x.id === id);
@@ -204,21 +180,20 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
     if (!Number.isFinite(amt) || amt <= 0) { setErr("Enter an amount greater than 0."); return; }
     setSending(true); setErr(null);
     try {
-      if (transferType === "agent") {
-        // ─── New: merchant → AI agent wallet bridge via ZeniCore ──────
-        const agentId = form.to_agent;
-        if (!agentId) { setErr("Pick an agent."); setSending(false); return; }
+      if (transferType === "agent_treasury") {
+        // Merchant → org treasury bridge via ZeniCore. Funds land in the
+        // org treasury; distribution to a specific agent is a separate
+        // action from /agents/treasury.
         const fromAccountId = form.from_account || accounts.find((a) => a.is_primary)?.id;
         if (!fromAccountId) { setErr("No source account found."); setSending(false); return; }
         const srcAccount = accounts.find((a) => a.id === fromAccountId);
         const currency = srcAccount?.currency || "CAD";
-        const idempotencyKey = `merch2agent-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const idempotencyKey = `merch2treasury-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         const r = await fetch("/api/v1/agents/treasury/distribute-from-merchant", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             merchant_id:      mid(),
             from_account_id:  fromAccountId,
-            to_agent_id:      agentId,
             amount_units:     amt,
             currency,
             idempotency_key:  idempotencyKey,
@@ -232,9 +207,8 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
           setSending(false);
           return;
         }
-        const agentName = data.agent_name as string | undefined;
         setForm({});
-        onSent(`${zp.fmtCurrency(amt, currency)} sent to ${agentName ?? "agent"} · ZeniCore verified ✓`);
+        onSent(`${zp.fmtCurrency(amt, currency)} sent to your agent treasury · ZeniCore verified ✓`);
         return;
       }
 
@@ -276,9 +250,9 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
         </p>
 
         <div style={{ display: "inline-flex", gap: 2, padding: 3, background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`, borderRadius: zp.radius.sm, flexWrap: "wrap" }}>
-          {(["ach", "wire", "internal", "bill_pay", "agent"] as TransferType[]).map((t) => {
+          {(["ach", "wire", "internal", "bill_pay", "agent_treasury"] as TransferType[]).map((t) => {
             const active = t === transferType;
-            const isAgent = t === "agent";
+            const isAgent = t === "agent_treasury";
             return (
               <button
                 key={t}
@@ -298,7 +272,7 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
                 }}
               >
                 {isAgent && <Bot size={12} />}
-                {t === "bill_pay" ? "Bill pay" : t === "agent" ? "AI Agent" : t}
+                {t === "bill_pay" ? "Bill pay" : t === "agent_treasury" ? "Agent treasury" : t}
               </button>
             );
           })}
@@ -323,7 +297,7 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
           </>
         )}
 
-        {transferType === "agent" && (
+        {transferType === "agent_treasury" && (
           <>
             <Label>From account</Label>
             <select
@@ -336,72 +310,27 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
               ))}
             </select>
 
-            <Label style={{ marginTop: 14 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Bot size={12} color={zp.brand.violet} /> AI Agent wallet
-              </span>
-            </Label>
-            {agentListLoading ? (
-              <div style={{ fontSize: 12, color: zp.text.muted, padding: "10px 0" }}>
-                Loading agents…
+            <div style={{
+              marginTop: 14, padding: "12px 14px",
+              borderRadius: zp.radius.sm,
+              background: `linear-gradient(135deg, rgba(123,79,191,0.08) 0%, rgba(123,79,191,0.02) 100%)`,
+              border: `1px solid rgba(123,79,191,0.25)`,
+              display: "flex", gap: 10,
+            }}>
+              <Bot size={16} color={zp.brand.violet} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: zp.weight.semibold, color: zp.text.primary }}>
+                  Send to your agent treasury
+                </div>
+                <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 2, lineHeight: 1.45 }}>
+                  Funds land in your org treasury first. Distribute to individual agents
+                  from{" "}
+                  <a href="/agents/treasury" style={{ color: zp.brand.violet, fontWeight: zp.weight.semibold }}>
+                    /agents/treasury
+                  </a>.
+                </div>
               </div>
-            ) : agentList.length === 0 ? (
-              <div style={{
-                padding: "12px 14px", borderRadius: zp.radius.sm,
-                background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`,
-                fontSize: 12, color: zp.text.muted,
-              }}>
-                No AI agents yet. Create one at{" "}
-                <a href="/agents/agents" style={{ color: zp.brand.violet, fontWeight: zp.weight.semibold }}>
-                  /agents/agents
-                </a>.
-              </div>
-            ) : (
-              <>
-                <select
-                  value={form.to_agent ?? ""}
-                  onChange={(e) => set("to_agent", e.target.value)}
-                  style={{ ...inputStyle, borderColor: form.to_agent ? zp.brand.violet : zp.surface.border }}
-                >
-                  <option value="">Select an agent…</option>
-                  {agentList.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} · {a.agent_type} · Balance {zp.fmtCurrency(a.wallet_balance_cents / 100, a.currency)}
-                    </option>
-                  ))}
-                </select>
-                {form.to_agent && (() => {
-                  const picked = agentList.find((a) => a.id === form.to_agent);
-                  if (!picked) return null;
-                  return (
-                    <div style={{
-                      marginTop: 10, padding: "10px 12px",
-                      borderRadius: zp.radius.sm,
-                      background: `linear-gradient(135deg, rgba(123,79,191,0.08) 0%, rgba(123,79,191,0.02) 100%)`,
-                      border: `1px solid rgba(123,79,191,0.25)`,
-                      display: "flex", alignItems: "center", gap: 10,
-                    }}>
-                      <AgentAvatar name={picked.name} />
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{picked.name}</div>
-                        <div style={{ fontSize: 11, color: zp.text.muted }}>
-                          {picked.agent_type} · Current balance{" "}
-                          <span style={{ fontFamily: zp.font.mono, color: zp.brand.violet, fontWeight: zp.weight.semibold }}>
-                            {zp.fmtCurrency(picked.wallet_balance_cents / 100, picked.currency)}
-                          </span>
-                        </div>
-                      </div>
-                      <span style={{
-                        fontSize: 10, fontWeight: zp.weight.semibold,
-                        padding: "3px 10px", borderRadius: zp.radius.pill,
-                        background: zp.semantic.successBg, color: zp.semantic.success,
-                        letterSpacing: "0.06em", textTransform: "uppercase" as const,
-                      }}>Live</span>
-                    </div>
-                  );
-                })()}
-              </>
-            )}
+            </div>
           </>
         )}
 
@@ -554,51 +483,3 @@ const inputStyle: React.CSSProperties = {
   border: `1px solid ${zp.surface.border}`, background: zp.surface.bg2,
   color: zp.text.primary, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: zp.font.sans,
 };
-
-// ZeniPay roster maintains real PNGs in /public/agents/*.png. Match the
-// agent's name to one of those; otherwise fall back to a gradient
-// initial circle.
-const KNOWN_AGENT_PHOTOS = new Set([
-  "marco", "sofia", "ben", "luna", "atlas", "mia", "leo", "rex", "vera", "nova", "kai",
-]);
-
-function AgentAvatar({ name, size = 40 }: { name: string; size?: number }) {
-  const slug = name.trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, "");
-  const hasPhoto = KNOWN_AGENT_PHOTOS.has(slug);
-  if (hasPhoto) {
-    return (
-      <div style={{
-        width: size, height: size, borderRadius: "50%", overflow: "hidden",
-        flexShrink: 0, background: zp.surface.bg2,
-        boxShadow: `0 0 0 2px rgba(123,79,191,0.22)`,
-      }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`/agents/${slug}.png`}
-          alt={`${name} avatar`}
-          width={size}
-          height={size}
-          style={{ width: size, height: size, objectFit: "cover", objectPosition: "top" }}
-        />
-      </div>
-    );
-  }
-  // Derive a hue from the name so each unknown agent still gets a
-  // deterministic gradient ring.
-  let h = 0;
-  for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
-  const hue = h % 360;
-  const initial = (name.trim()[0] || "?").toUpperCase();
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%",
-      background: `linear-gradient(135deg, hsl(${hue} 70% 55%), hsl(${(hue + 50) % 360} 70% 45%))`,
-      color: "#fff", flexShrink: 0,
-      display: "inline-flex", alignItems: "center", justifyContent: "center",
-      fontWeight: zp.weight.bold, fontSize: size * 0.4,
-      boxShadow: `0 0 0 2px rgba(123,79,191,0.22)`,
-    }}>
-      {initial}
-    </div>
-  );
-}
