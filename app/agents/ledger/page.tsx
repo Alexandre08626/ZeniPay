@@ -163,8 +163,25 @@ export default function LedgerPage() {
                         <td style={{ padding: "8px 4px", textAlign: "right", color: TEXT, fontWeight: 700, fontFamily: "ui-monospace" }}>
                           {fromMicroDisplay(e.amount_micro, e.currency)}
                         </td>
-                        <td style={{ padding: "8px 4px", color: TEXT, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {e.memo || <span style={{ color: LIGHT }}>—</span>}
+                        <td style={{ padding: "8px 4px", color: TEXT, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            {(e.posted_by === "merchant_system" || e.posted_by.startsWith("merchant:")) && (
+                              <span title={`Routed via merchant → ZeniCore bridge (${e.posted_by})`} style={{
+                                fontSize: 9, fontWeight: 800,
+                                padding: "2px 7px", borderRadius: 999,
+                                background: "linear-gradient(90deg, rgba(21,184,201,0.14), rgba(123,79,191,0.14))",
+                                color: "#7B4FBF",
+                                border: "1px solid rgba(123,79,191,0.35)",
+                                letterSpacing: "0.08em", textTransform: "uppercase" as const,
+                                flexShrink: 0,
+                              }}>
+                                Merchant
+                              </span>
+                            )}
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {e.memo || <span style={{ color: LIGHT }}>—</span>}
+                            </span>
+                          </span>
                         </td>
                         <td style={{ padding: "8px 4px", fontFamily: "ui-monospace", color: LIGHT, fontSize: 11 }}>
                           {e.account_id.slice(0, 14)}…
