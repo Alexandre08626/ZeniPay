@@ -32,22 +32,20 @@ export class StripeCardProvider implements ICardIssuingProvider {
     const s = client();
     const cardholder = await this.ensureCardholder(s, params.merchant_id, params.cardholder_name);
 
-    const spendingControls: Stripe.Issuing.CardCreateParams.SpendingControls = {};
-    const intervals: Stripe.Issuing.CardCreateParams.SpendingControls.SpendingLimit[] = [];
+    const limits: Array<{ amount: number; interval: "daily" | "monthly" }> = [];
     if (params.spending_limit_daily && params.spending_limit_daily > 0) {
-      intervals.push({ amount: Math.round(params.spending_limit_daily * 100), interval: "daily" });
+      limits.push({ amount: Math.round(params.spending_limit_daily * 100), interval: "daily" });
     }
     if (params.spending_limit_monthly && params.spending_limit_monthly > 0) {
-      intervals.push({ amount: Math.round(params.spending_limit_monthly * 100), interval: "monthly" });
+      limits.push({ amount: Math.round(params.spending_limit_monthly * 100), interval: "monthly" });
     }
-    if (intervals.length) spendingControls.spending_limits = intervals;
 
     const card = await s.issuing.cards.create({
       cardholder: cardholder.id,
       currency: params.currency.toLowerCase(),
       type: "virtual",
       status: "active",
-      spending_controls: Object.keys(spendingControls).length ? spendingControls : undefined,
+      spending_controls: limits.length ? { spending_limits: limits } : undefined,
       metadata: { merchant_id: params.merchant_id },
     });
 
@@ -82,15 +80,15 @@ export class StripeCardProvider implements ICardIssuingProvider {
   }
 
   async updateSpendingLimit(params: UpdateLimitParams): Promise<void> {
-    const intervals: Stripe.Issuing.CardUpdateParams.SpendingControls.SpendingLimit[] = [];
+    const limits: Array<{ amount: number; interval: "daily" | "monthly" }> = [];
     if (params.daily && params.daily > 0) {
-      intervals.push({ amount: Math.round(params.daily * 100), interval: "daily" });
+      limits.push({ amount: Math.round(params.daily * 100), interval: "daily" });
     }
     if (params.monthly && params.monthly > 0) {
-      intervals.push({ amount: Math.round(params.monthly * 100), interval: "monthly" });
+      limits.push({ amount: Math.round(params.monthly * 100), interval: "monthly" });
     }
     await client().issuing.cards.update(params.provider_card_id, {
-      spending_controls: { spending_limits: intervals },
+      spending_controls: { spending_limits: limits },
     });
   }
 

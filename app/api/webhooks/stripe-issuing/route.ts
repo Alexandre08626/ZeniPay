@@ -1,4 +1,4 @@
-// POST /api/_webhooks/stripe-issuing
+// POST /api/webhooks/stripe-issuing
 //
 // Handles Stripe Issuing events for merchant virtual cards.
 // Verified via Stripe-Signature header + STRIPE_ISSUING_WEBHOOK_SECRET.
@@ -49,8 +49,7 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "issuing_authorization.request") {
     const auth = event.data.object as Stripe.Issuing.Authorization;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cardId = typeof (auth.card as any) === "string" ? (auth.card as unknown as string) : (auth.card?.id ?? "");
+    const cardId = extractCardId(auth.card);
     const amount = auth.pending_request?.amount ?? auth.amount;
 
     const { data: row } = await db
@@ -99,11 +98,9 @@ export async function POST(req: NextRequest) {
 
   else if (event.type === "issuing_transaction.created") {
     const tx = event.data.object as Stripe.Issuing.Transaction;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cardId = typeof (tx.card as any) === "string" ? (tx.card as unknown as string) : (tx.card?.id ?? "");
+    const cardId = extractCardId(tx.card);
     const amountCents = Math.abs(tx.amount);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const merchantName = (tx.merchant_data as any)?.name ?? "unknown";
+    const merchantName = tx.merchant_data?.name ?? "unknown";
 
     const { data: row } = await db
       .from("zenipay_merchant_cards")
@@ -147,4 +144,9 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, event: event.type });
+}
+
+function extractCardId(card: string | Stripe.Issuing.Card | null | undefined): string {
+  if (!card) return "";
+  return typeof card === "string" ? card : card.id;
 }

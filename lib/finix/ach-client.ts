@@ -3,7 +3,7 @@
 // Flow: create a bank-account payment instrument for the payer, then
 // create an ACH debit transfer that pulls the funds into our Finix
 // merchant account. Webhook SALE_SUCCEEDED credits the org treasury
-// via zc_fund_treasury in /api/_webhooks/finix-to-zenicore.
+// via zc_fund_treasury in /api/webhooks/finix-to-zenicore.
 //
 // SECURITY: we never log `account_number` or `bank_code` anywhere.
 // Finix returns a masked `masked_account_number` on the instrument;
