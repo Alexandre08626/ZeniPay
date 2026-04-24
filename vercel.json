@@ -4,7 +4,9 @@
     { "path": "/api/v1/agents/_internal/approvals-expire-tick", "schedule": "0 * * * *" },
     { "path": "/api/v1/agents/_internal/expire-approvals", "schedule": "0 * * * *" },
     { "path": "/api/v1/agents/_internal/auto-categorize-settled-tick", "schedule": "*/15 * * * *" },
-    { "path": "/api/v1/agents/_internal/compute-anomaly-signals-tick", "schedule": "*/15 * * * *" }
+    { "path": "/api/v1/agents/_internal/compute-anomaly-signals-tick", "schedule": "*/15 * * * *" },
+    { "path": "/api/v1/internal/yield-accrual-tick", "schedule": "0 2 * * *" },
+    { "path": "/api/v1/internal/yield-payout-tick",  "schedule": "0 3 1 * *" }
   ],
   "functions": {
     "app/api/cron/ben-auto-reply/route.ts": { "maxDuration": 30 },

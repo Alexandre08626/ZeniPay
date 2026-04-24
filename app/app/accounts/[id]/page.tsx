@@ -13,6 +13,7 @@ import { DataTable } from "@/components/dashboard/DataTable";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
 import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
+import { YieldPanel } from "@/app/components/shared/YieldPanel";
 import { WithdrawSheet } from "./WithdrawSheet";
 
 interface Account {
@@ -206,6 +207,16 @@ export default function AccountDetailPage() {
 
       {tab === "details" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
+          {account && (
+            <YieldPanel
+              merchantId={account ? mid() : ""}
+              accountId={account.id}
+              accountType="merchant"
+              balance={Number(account.balance ?? 0)}
+              currency={account.currency || "CAD"}
+              accent="cyan"
+            />
+          )}
           <ZeniPayAccountCard
             accountType="merchant"
             accent="cyan"
