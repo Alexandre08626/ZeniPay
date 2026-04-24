@@ -441,8 +441,15 @@ function DistributePanel({
     if (amt > treasuryAmount) { setErr("Insufficient treasury balance."); return; }
     setSending(true);
     try {
-      const r = await apiFetch<{ success: boolean; agent_name?: string; error?: { message?: string } }>(
-        "/api/v1/agents/treasury/distribute-to-agent",
+      const r = await apiFetch<{
+        requires_approval?: boolean;
+        executed?: boolean;
+        agent_name?: string;
+        approver_name?: string | null;
+        approver_email?: string | null;
+        approval_request_id?: string;
+      }>(
+        "/api/v1/agents/treasury/request-distribution",
         {
           method: "POST",
           body: JSON.stringify({
@@ -454,7 +461,11 @@ function DistributePanel({
           }),
         },
       );
-      setOk(`${fmtMoney(amt, treasuryCurrency)} sent to ${r.agent_name ?? "agent"} ✓`);
+      if (r.requires_approval) {
+        setOk(`Approval requested · Awaiting ${r.approver_name ?? r.approver_email ?? "approver"}.  View at /agents/approvals →`);
+      } else {
+        setOk(`${fmtMoney(amt, treasuryCurrency)} sent to ${r.agent_name ?? "agent"} · ZeniCore verified ✓`);
+      }
       setAmount(""); setMemo(""); setAgentId("");
       onDistributed();
     } catch (e) {
