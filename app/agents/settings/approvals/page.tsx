@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from "react";
 import { Shell, Card } from "@/components/agents/Shell";
 import { apiFetch } from "../../_lib/session";
+import { MerchantRulesSection } from "./MerchantRulesSection";
 import {
   BORDER, ROW_SEP, TEXT, MUTED, LIGHT,
   ZP_GRAD, ZP_GREEN,
@@ -37,10 +38,16 @@ export default function ApprovalPoliciesSettings() {
 
   return (
     <Shell title="Approval policies">
+      {/* PR 12 — merchant-scope approval rules (distribute / spend / transfer). */}
+      <MerchantRulesSection />
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>
-          Rules that require human sign-off before a card authorization completes.
-        </p>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: TEXT }}>Agent-scope policies (TOTP)</h2>
+          <p style={{ color: MUTED, fontSize: 12, margin: "2px 0 0" }}>
+            Signature-based policies that require a TOTP approval before a card authorization completes.
+          </p>
+        </div>
         <button onClick={() => setAdding(true)}
           style={{ background: ZP_GRAD, color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
           + New policy
