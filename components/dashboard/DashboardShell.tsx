@@ -84,7 +84,25 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
     [pathname],
   );
   const mode = modeProp ?? inferredMode;
-  const [session, setSession] = useState<Session | null>(null);
+  // Lazy-init: read any existing session synchronously before first render.
+  // Prevents a flash of "Loading…" for users who already have a valid
+  // session, and — critically — ensures the session is in place before
+  // child pages' effects call apiFetch (React runs child effects before
+  // parent effects, so a useEffect-only bootstrap loses the race).
+  const [session, setSession] = useState<Session | null>(() => {
+    if (typeof window === "undefined") return null;
+    const initialMode: DashboardMode =
+      modeProp ?? (window.location.pathname.startsWith("/agents") ? "agents" : "merchant");
+    return initialMode === "agents" ? readAgentsSession() : readMerchantSession();
+  });
+  const [bootstrapped, setBootstrapped] = useState<boolean>(() => {
+    // If the synchronous read returned a session, we're done.
+    if (typeof window === "undefined") return false;
+    const initialMode: DashboardMode =
+      modeProp ?? (window.location.pathname.startsWith("/agents") ? "agents" : "merchant");
+    const s = initialMode === "agents" ? readAgentsSession() : readMerchantSession();
+    return !!s;
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Bootstrap the right session based on mode. If a user lands on an
@@ -96,6 +114,7 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
     const primary = mode === "agents" ? readAgentsSession() : readMerchantSession();
     if (primary) {
       setSession(primary);
+      setBootstrapped(true);
       return;
     }
 
@@ -122,6 +141,7 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
           } catch { /* ignore */ }
           const label = merchant.label || "Agents";
           setSession({ email: merchant.email || "agents@zenipay.ca", label, orgId: data.organization_id });
+          setBootstrapped(true);
         } catch {
           if (!cancelled) router.replace("/agents/login");
         }
@@ -186,7 +206,11 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
           </button>
 
           <div style={{ padding: "28px 32px", maxWidth: 1360, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
-            {children}
+            {bootstrapped ? children : (
+              <div style={{ color: zp.text.muted, fontSize: 13, padding: "40px 0" }}>
+                Loading…
+              </div>
+            )}
           </div>
 
           <style>{mainCss}</style>
