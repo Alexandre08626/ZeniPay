@@ -1,49 +1,42 @@
-// /agents/overview — dedicated ZeniPay Agents marketing page.
+// /agents/overview — AI Agent Wallet marketing page.
 //
-// Distinct from /agents/dashboard (the authenticated operator dashboard).
-// This is public marketing: hero → 10 pillars (7 live / 3 roadmap) → ZeniCore
-// ledger preview → deep dive on how the system composes → beta pricing → CTAs.
-//
-// SELF-CONTAINED: no @/components imports, inline styles only, only next/link
-// + next/navigation. Fonts flow via globals.css CSS vars loaded in layout.tsx.
+// Public marketing (distinct from /agents/dashboard, the authenticated
+// operator surface). Features the real DiceBear fleet, a code-snippet
+// showcase, and a 3-step how-it-works flow. Uses the shared
+// zenipay-brand tokens + the /public/agents/*.svg static avatars.
 
 "use client";
 
-import { useEffect, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  Bot, Zap, CheckSquare, BarChart2, Lock, Globe,
+  UserPlus, ExternalLink, Copy, Check,
+  type LucideIcon,
+} from "lucide-react";
+import { MarketingNav, MarketingFooter } from "@/app/components/marketing/MarketingNav";
+import zp from "@/lib/design-system/zenipay-brand";
 
-// Tokens — intentionally duplicated from lib/design-system/tokens.ts.
-const T = {
-  white: "#ffffff",
-  surface: "#f8f9fa",
-  border: "#e2e8f0",
-  textHeading: "#0a0a0a",
-  textBody: "#525252",
-  textMuted: "#737373",
-  textSubtle: "#a3a3a3",
-  brandGreen: "#2dbe60",
-  brandCyan: "#15b8c9",
-  brandPurple: "#7b4fbf",
-  success: "#16a34a",
-  successBg: "#dcfce7",
-  warn: "#d97706",
-  warnBg: "#fef3c7",
-  danger: "#dc2626",
-  dangerBg: "#fee2e2",
-  info: "#0891b2",
-  infoBg: "#cffafe",
-  gradient: "linear-gradient(135deg, #2dbe60 0%, #15b8c9 50%, #7b4fbf 100%)",
-  fontSans: 'var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
-  fontSerif: 'var(--font-fraunces), Fraunces, Georgia, serif',
-  fontMono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  shadowSm: "0 1px 2px rgba(0,0,0,0.04)",
-  shadowMd: "0 4px 12px rgba(0,0,0,0.06)",
-  shadowLg: "0 10px 30px rgba(0,0,0,0.08)",
-};
+const ROSTER: Array<{ name: string; role: string; bal?: string; status?: "active" | "idle" }> = [
+  { name: "Marco", role: "Lead Hunter",         bal: "$1,240.00", status: "active" },
+  { name: "Sofia", role: "Email Marketing",     bal: "$380.50",   status: "active" },
+  { name: "Ben",   role: "Finance Agent",       bal: "$4,200.00", status: "active" },
+  { name: "Luna",  role: "Voice & SMS",         bal: "$195.00",   status: "active" },
+  { name: "Atlas", role: "Security Agent",      bal: "$890.00",   status: "active" },
+  { name: "Mia",   role: "Social Media",        bal: "$320.00",   status: "idle"   },
+  { name: "Leo",   role: "Analytics",           status: "active" },
+  { name: "Rex",   role: "Platform Engineer",   status: "active" },
+  { name: "Vera",  role: "Compliance & Risk",   status: "active" },
+  { name: "Nova",  role: "Agent Success",       status: "active" },
+  { name: "Kai",   role: "Revenue Intelligence", status: "active" },
+];
 
-export default function AgentsOverview() {
+export default function AgentsOverviewPage() {
   const router = useRouter();
+  // Keep the pre-existing behaviour: logged-in merchants jump straight to
+  // /app/overview instead of landing on marketing every time.
   useEffect(() => {
     try {
       if (typeof window !== "undefined" && sessionStorage.getItem("zp_client")) {
@@ -53,905 +46,263 @@ export default function AgentsOverview() {
   }, [router]);
 
   return (
-    <div
-      className="zp-root"
-      style={{
-        minHeight: "100vh",
-        background: T.white,
-        color: T.textBody,
-        fontFamily: T.fontSans,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <TopBar />
+    <div style={{ background: "#fff", color: zp.text.primary, fontFamily: zp.font.sans, minHeight: "100vh" }}>
+      <MarketingNav />
       <Hero />
-      <Pillars />
-      <LedgerPreview />
-      <DeepDive />
-      <BetaPricing />
-      <ClosingCta />
-      <FooterBar />
+      <FleetDemo />
+      <FeaturesGrid />
+      <HowItWorks />
+      <CodeSnippet />
+      <RosterShowcase />
+      <FinalCTA />
+      <MarketingFooter />
     </div>
   );
 }
 
-function TopBar() {
+// ───────────────────────────────────────────────────────────────────────────
+
+function Hero() {
   return (
-    <header
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        background: "rgba(255, 255, 255, 0.8)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        borderBottom: `1px solid ${T.border}`,
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "16px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 24,
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            textDecoration: "none",
-            color: T.textHeading,
-            fontFamily: T.fontSans,
-            fontSize: 18,
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          <BrandGlyph />
-          ZeniPay
-          <span
-            style={{
-              marginLeft: 6,
-              fontSize: 11,
-              fontWeight: 600,
-              color: T.success,
-              background: T.successBg,
-              padding: "2px 8px",
-              borderRadius: 999,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            Agents
+    <section style={{ position: "relative", overflow: "hidden" }}>
+      <span aria-hidden style={{
+        position: "absolute", inset: 0, pointerEvents: "none",
+        background: `radial-gradient(circle at 15% 10%, rgba(123,79,191,0.10) 0%, transparent 55%),
+                     radial-gradient(circle at 85% 30%, rgba(21,184,201,0.07) 0%, transparent 50%)`,
+      }} />
+      <div style={{ position: "relative", maxWidth: 1080, margin: "0 auto", padding: "72px 24px 56px", textAlign: "center" }}>
+        <div style={{
+          display: "inline-block", padding: "5px 12px",
+          borderRadius: zp.radius.pill, background: zp.surface.bg2,
+          border: `1px solid ${zp.surface.border}`, marginBottom: 24,
+        }}>
+          <span className="zp-brand-text" style={{ fontSize: 11, fontWeight: zp.weight.bold, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            AI Agent Infrastructure
           </span>
-        </Link>
+        </div>
 
-        <nav className="agents-nav-links" style={{ display: "none", alignItems: "center", gap: 24 }}>
-          <Link href="/merchant" style={navLinkStyle}>Merchant</Link>
-          <Link href="/agents/overview" style={{ ...navLinkStyle, color: T.textHeading, fontWeight: 600 }}>AI Agents</Link>
-          <Link href="/pricing" style={navLinkStyle}>Pricing</Link>
-          <Link href="/security" style={navLinkStyle}>Security</Link>
-        </nav>
+        <h1 style={{
+          margin: 0, fontFamily: zp.font.display,
+          fontSize: "clamp(40px, 6vw, 72px)", fontWeight: zp.weight.semibold,
+          letterSpacing: "-0.035em", lineHeight: 1.02, color: zp.text.primary,
+        }}>
+          Your AI agents.
+          <br />
+          <span style={{ color: zp.brand.violet }}>Their own wallets.</span>
+        </h1>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Link href="/agents/login" style={{ ...navLinkStyle, padding: "8px 12px" }}>Sign in</Link>
-          <Link
-            href="/contact"
-            style={{
-              fontFamily: T.fontSans,
-              fontSize: 14,
-              fontWeight: 600,
-              color: T.white,
-              background: T.textHeading,
-              textDecoration: "none",
-              padding: "8px 16px",
-              borderRadius: 6,
-              boxShadow: T.shadowSm,
-            }}
-          >
-            Request access
+        <p style={{ margin: "22px auto 0", maxWidth: 640, fontSize: 17, lineHeight: 1.55, color: zp.text.muted }}>
+          Stop hard-coding credit cards into your AI agents. Give each one a
+          real wallet, a spending limit, and a full audit trail — with zero
+          Visa dependency.
+        </p>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 32, flexWrap: "wrap" }}>
+          <Link href="/register" style={primaryCta}>Get started</Link>
+          <Link href="https://github.com/Alexandre08626/ZeniPay" target="_blank" rel="noreferrer" style={ghostCta}>
+            <ExternalLink size={14} style={{ marginRight: 6 }} /> View API docs
           </Link>
         </div>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 22, marginTop: 28, flexWrap: "wrap", fontSize: 12, color: zp.text.dim }}>
+          <TrustItem>Zero Visa dependency</TrustItem>
+          <TrustItem>SHA-256 chain integrity</TrustItem>
+          <TrustItem>Real-time approval flows</TrustItem>
+        </div>
       </div>
-      <style>{`
-        @media (min-width: 768px) {
-          .agents-nav-links { display: flex !important; }
-        }
-      `}</style>
-    </header>
+    </section>
   );
 }
 
-const navLinkStyle: CSSProperties = {
-  fontFamily: T.fontSans,
-  fontSize: 14,
-  fontWeight: 500,
-  color: T.textBody,
-  textDecoration: "none",
-};
-
-function BrandGlyph() {
+function TrustItem({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      aria-hidden
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 24,
-        height: 24,
-        borderRadius: 6,
-        background: T.gradient,
-        color: T.white,
-        fontSize: 13,
-        fontWeight: 800,
-        letterSpacing: "-0.02em",
-      }}
-    >
-      Z
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <span style={{ color: zp.brand.green, fontWeight: zp.weight.bold }}>✓</span>
+      {children}
     </span>
   );
 }
 
-function Hero() {
-  return (
-    <section
-      style={{
-        maxWidth: 1100,
-        margin: "0 auto",
-        padding: "64px 24px 48px",
-        textAlign: "center",
-      }}
-    >
-      <div style={{ marginBottom: 16 }}>
-        <Link
-          href="/"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontFamily: T.fontSans,
-            fontSize: 13,
-            fontWeight: 500,
-            color: T.textMuted,
-            textDecoration: "none",
-          }}
-        >
-          ← Both products
-        </Link>
-      </div>
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "4px 12px",
-          borderRadius: 999,
-          background: T.white,
-          border: `1px solid ${T.border}`,
-          boxShadow: T.shadowSm,
-          fontFamily: T.fontSans,
-          fontSize: 12,
-          fontWeight: 500,
-          color: T.textBody,
-          marginBottom: 16,
-        }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: 999,
-            background: T.success,
-            boxShadow: `0 0 0 3px ${T.successBg}`,
-          }}
-        />
-        7 of 10 pillars live in production
-      </div>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: T.fontSerif,
-          fontSize: "clamp(44px, 7vw, 80px)",
-          lineHeight: 1.05,
-          letterSpacing: "-0.04em",
-          fontWeight: 600,
-          color: T.textHeading,
-        }}
-      >
-        The bank for{" "}
-        <span
-          style={{
-            backgroundImage: T.gradient,
-            WebkitBackgroundClip: "text",
-            backgroundClip: "text",
-            color: "transparent",
-          }}
-        >
-          AI agents
-        </span>
-        ,
-        <br />
-        at enterprise scale.
-      </h1>
-      <p
-        style={{
-          margin: "24px auto 0",
-          maxWidth: 640,
-          fontFamily: T.fontSans,
-          fontSize: 19,
-          lineHeight: 1.55,
-          color: T.textBody,
-        }}
-      >
-        Issue closed-loop cards, fund multi-currency treasuries, auto-categorize every
-        charge, and sign your audit log with an Ed25519 key. Purpose-built for teams
-        running fleets of autonomous agents.
-      </p>
+// ───────────────────────────────────────────────────────────────────────────
 
-      <div
-        style={{
-          marginTop: 32,
-          display: "flex",
-          gap: 12,
-          justifyContent: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <Link
-          href="/contact"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "14px 28px",
-            borderRadius: 6,
-            background: T.textHeading,
-            color: T.white,
-            textDecoration: "none",
-            fontFamily: T.fontSans,
-            fontSize: 16,
-            fontWeight: 600,
-            boxShadow: T.shadowMd,
-          }}
-        >
-          Request access <span aria-hidden>→</span>
-        </Link>
-        <Link
-          href="/agents/login"
-          style={{
-            padding: "14px 28px",
-            borderRadius: 6,
-            background: T.white,
-            color: T.textHeading,
-            textDecoration: "none",
-            border: `1px solid ${T.border}`,
-            fontFamily: T.fontSans,
-            fontSize: 16,
-            fontWeight: 500,
-          }}
-        >
-          View the platform
-        </Link>
+function FleetDemo() {
+  return (
+    <section style={{ padding: "48px 24px 96px" }}>
+      <div style={{
+        maxWidth: 1160, margin: "0 auto",
+        display: "grid", gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
+        gap: 40, alignItems: "center",
+      }} className="mk-fleet-grid">
+        <FleetCard />
+        <FloatingCard />
       </div>
-      <p
-        style={{
-          marginTop: 20,
-          fontFamily: T.fontSans,
-          fontSize: 13,
-          color: T.textSubtle,
-        }}
-      >
-        SOC2-grade audit exports · Vault-encrypted secrets · Zero regression on merchant flows
-      </p>
+      <style>{`
+        @media (max-width: 960px) {
+          .mk-fleet-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </section>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Pillars — 10 total, 7 live + 3 roadmap. Grid 3-col desktop, 1-col mobile.
-// ---------------------------------------------------------------------------
-interface Pillar {
-  num: string;
-  title: string;
-  tagline: string;
-  body: string;
-  status: "live" | "roadmap";
-  accent: string;
+function FleetCard() {
+  const visible = ROSTER.filter((a) => a.bal);
+  const total = visible.reduce((s, a) => s + parseFloat((a.bal ?? "$0").replace(/[^0-9.]/g, "")), 0);
+
+  return (
+    <div style={{
+      background: "#fff", borderRadius: zp.radius.xl, overflow: "hidden",
+      boxShadow: "0 26px 60px rgba(15,23,42,0.10), 0 0 0 1px rgba(15,23,42,0.06)",
+    }}>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "16px 22px", borderBottom: `1px solid ${zp.surface.border}`,
+        background: zp.surface.bg2,
+      }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Your Agent Fleet</div>
+          <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 2 }}>ZeniCore · Live</div>
+        </div>
+        <button
+          disabled
+          style={{
+            background: zp.gradient.main, color: "#fff", border: "none",
+            padding: "8px 14px", borderRadius: zp.radius.sm,
+            fontSize: 12, fontWeight: zp.weight.semibold,
+            cursor: "default", letterSpacing: "0.02em",
+          }}
+        >
+          + Issue card
+        </button>
+      </div>
+
+      {visible.map((a) => (
+        <FleetRow key={a.name} a={a} />
+      ))}
+
+      <div style={{
+        padding: "16px 22px", background: zp.gradient.tintCyan,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        borderTop: `2px solid ${zp.surface.border}`,
+      }}>
+        <span style={{ fontSize: 11, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          Total fleet balance
+        </span>
+        <span style={{ ...zp.amountStyle.large, fontSize: 22, color: zp.brand.cyan, fontFamily: zp.font.sans }}>
+          ${total.toLocaleString("en-US", { minimumFractionDigits: 2 })} USD
+        </span>
+      </div>
+    </div>
+  );
 }
 
-const PILLARS: Pillar[] = [
-  { num: "01", title: "Virtual cards",          tagline: "Issue in seconds.",                    body: "ZeniPay-issued cards on our own BIN range + Stripe Issuing fallback. Per-merchant / per-category / off-hours policies.", status: "live",    accent: T.brandGreen },
-  { num: "02", title: "Multi-currency treasury", tagline: "Seven currencies, one ledger.",       body: "USD, CAD, EUR, GBP, AUD, SGD, JPY. FX snapped at settle-time so historical reports never drift.",                status: "live",    accent: T.brandCyan },
-  { num: "03", title: "Expense categorization", tagline: "The CFO's GL, automatically.",         body: "41-MCC default catalog + org overrides. Auto-booked to the right account within 15 minutes of settlement.",          status: "live",    accent: T.brandPurple },
-  { num: "04", title: "Approval workflows",     tagline: "TOTP-gated, policy-driven.",           body: "Spend thresholds route to human approvers with Google-Authenticator-compatible step-up. Dual control built in.",    status: "live",    accent: T.info },
-  { num: "05", title: "Unified agent + human wallet", tagline: "One balance, both personas.", body: "Humans and their agents share a common treasury with per-persona spend limits. Roadmap Q3 2026.",                status: "roadmap", accent: T.textMuted },
-  { num: "06", title: "Credit lines",           tagline: "Agent-scale working capital.",         body: "Underwritten per-org credit that spills over into agent wallets on demand. Roadmap Q4 2026.",                           status: "roadmap", accent: T.textMuted },
-  { num: "07", title: "Fraud ML",               tagline: "Z-scored 24/7.",                       body: "Welford baselines across three scopes. Alerts above 3σ, auto-pause card above 6σ. Real-time, not batched.",         status: "live",    accent: T.warn },
-  { num: "08", title: "AP-Bot bill pay",        tagline: "Agents pay your suppliers.",          body: "Automated AP: invoices in, approvals out, payments on schedule. Roadmap Q1 2027.",                                    status: "roadmap", accent: T.textMuted },
-  { num: "09", title: "SOC2 audit export",      tagline: "Ed25519-signed, tamper-evident.",     body: "Streamed NDJSON with per-row Merkle proofs. Auditors verify offline against our published public key.",           status: "live",    accent: T.success },
-  { num: "10", title: "Closed-loop bank rails", tagline: "ZeniCore ledger + ZeniCards network.", body: "In-house double-entry ledger with chain-hashed journal. Own BIN range accepted by the ZeniPay merchant network.", status: "live",    accent: T.brandGreen },
-];
-
-function Pillars() {
+function FleetRow({ a }: { a: { name: string; role: string; bal?: string; status?: "active" | "idle" } }) {
   return (
-    <section
-      style={{
-        padding: "80px 24px",
-        background: T.surface,
-        borderTop: `1px solid ${T.border}`,
-        borderBottom: `1px solid ${T.border}`,
-      }}
-    >
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ maxWidth: 680, marginBottom: 48 }}>
-          <div
-            style={{
-              fontFamily: T.fontSans,
-              fontSize: 12,
-              fontWeight: 600,
-              color: T.textMuted,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: 12,
-            }}
-          >
-            The 10 pillars
+    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 22px", borderTop: `1px solid ${zp.surface.border}` }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: "50%", overflow: "hidden",
+        background: zp.surface.bg2, flexShrink: 0,
+        boxShadow: `0 0 0 2px rgba(123,79,191,0.22)`,
+      }}>
+        <Image src={`/agents/${a.name.toLowerCase()}.svg`} alt={`${a.name} avatar`} width={40} height={40} style={{ width: 40, height: 40, objectFit: "cover" }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{a.name}</div>
+        <div style={{ fontSize: 11, color: zp.text.muted }}>{a.role}</div>
+      </div>
+      <div style={{ ...zp.amountStyle.base, fontFamily: zp.font.mono, fontSize: 13, color: zp.brand.violet, fontWeight: zp.weight.semibold }}>
+        {a.bal}
+      </div>
+      <span style={{
+        width: 9, height: 9, borderRadius: "50%",
+        background: a.status === "active" ? zp.semantic.success : zp.surface.bg3,
+        flexShrink: 0,
+        boxShadow: a.status === "active" ? `0 0 0 3px ${zp.semantic.success}22` : "none",
+      }} />
+    </div>
+  );
+}
+
+function FloatingCard() {
+  return (
+    <div style={{
+      position: "relative", padding: "20px 0",
+      display: "flex", justifyContent: "center",
+    }}>
+      <div style={{
+        width: "100%", maxWidth: 340, minHeight: 212,
+        borderRadius: 18, padding: "22px 22px",
+        color: "#fff",
+        background: `linear-gradient(135deg, ${zp.brand.green} 0%, ${zp.brand.cyan} 50%, ${zp.brand.violet} 100%)`,
+        boxShadow: `0 30px 60px rgba(123,79,191,0.4), 0 0 0 1px rgba(255,255,255,0.1)`,
+        transform: "rotate(-3deg)",
+        display: "flex", flexDirection: "column", justifyContent: "space-between",
+        position: "relative", overflow: "hidden",
+      }}>
+        <span aria-hidden style={{ position: "absolute", right: -70, top: -70, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.15)", pointerEvents: "none" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 1 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.85 }}>
+              BEN AGENT
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.75, marginTop: 4 }}>Finance · $4,200 / month</div>
           </div>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: T.fontSerif,
-              fontSize: 40,
-              lineHeight: 1.15,
-              letterSpacing: "-0.03em",
-              fontWeight: 600,
-              color: T.textHeading,
-            }}
-          >
-            A full bank, one pillar at a time.
-          </h2>
-          <p
-            style={{
-              margin: "16px 0 0",
-              fontFamily: T.fontSans,
-              fontSize: 17,
-              lineHeight: 1.55,
-              color: T.textBody,
-            }}
-          >
-            Seven pillars are in production today. Three are on the roadmap. Every pillar
-            composes with the next — the treasury is also the card backing; the ledger
-            is also the audit trail.
+          <Image src="/zenipay-logo-nobg.png" alt="" width={28} height={28} style={{ filter: "brightness(0) invert(1)", opacity: 0.9 }} />
+        </div>
+        <div style={{ fontFamily: zp.font.mono, fontSize: 22, letterSpacing: "0.14em", fontWeight: zp.weight.medium, position: "relative", zIndex: 1, marginTop: 28 }}>
+          •••• •••• •••• 4821
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", position: "relative", zIndex: 1, marginTop: 10 }}>
+          <div>
+            <div style={{ fontSize: 8, opacity: 0.75, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: zp.weight.semibold }}>Valid thru</div>
+            <div style={{ fontSize: 13, fontFamily: zp.font.mono, fontWeight: zp.weight.semibold }}>12/28</div>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: zp.weight.semibold, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.85 }}>
+            ZeniPay · Visa
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+
+function FeaturesGrid() {
+  const features: Array<{ Icon: LucideIcon; title: string; body: string }> = [
+    { Icon: Bot,         title: "Virtual card per agent",   body: "Each agent gets its own card with custom limits." },
+    { Icon: Zap,         title: "Instant distribution",     body: "Fund your treasury once. Deploy anywhere in < 1s." },
+    { Icon: CheckSquare, title: "Real-time approvals",      body: "Human-in-the-loop. Approve or block any transaction." },
+    { Icon: BarChart2,   title: "GL auto-categorization",   body: "Every spend auto-tagged. QuickBooks & Xero ready." },
+    { Icon: Lock,        title: "Immutable audit trail",    body: "SHA-256 chain hash. SOC2-ready out of the box." },
+    { Icon: Globe,       title: "Multi-currency",           body: "USD, CAD, EUR. USDC coming soon." },
+  ];
+  return (
+    <section style={{ padding: "96px 24px", background: zp.surface.bg2, borderTop: `1px solid ${zp.surface.border}`, borderBottom: `1px solid ${zp.surface.border}` }}>
+      <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+        <div style={{ textAlign: "center" as const, marginBottom: 48 }}>
+          <H2>Everything you need to run AI payments.</H2>
+          <p style={{ ...bodyStyle, margin: "14px auto 0", maxWidth: 620 }}>
+            Six primitives. One API. Built for enterprises.
           </p>
         </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {PILLARS.map((p) => <PillarCard key={p.num} pillar={p} />)}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PillarCard({ pillar }: { pillar: Pillar }) {
-  const isLive = pillar.status === "live";
-  return (
-    <article
-      style={{
-        background: T.white,
-        border: `1px solid ${T.border}`,
-        borderRadius: 8,
-        padding: 20,
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        opacity: isLive ? 1 : 0.92,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span
-          style={{
-            fontFamily: T.fontMono,
-            fontSize: 12,
-            fontWeight: 600,
-            color: T.textSubtle,
-            letterSpacing: "0.04em",
-          }}
-        >
-          Pillar {pillar.num}
-        </span>
-        {isLive ? (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontFamily: T.fontSans,
-              fontSize: 11,
-              fontWeight: 600,
-              color: T.success,
-            }}
-          >
-            <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: T.success }} />
-            Live
-          </span>
-        ) : (
-          <span
-            style={{
-              fontFamily: T.fontSans,
-              fontSize: 11,
-              fontWeight: 600,
-              color: T.warn,
-              background: T.warnBg,
-              padding: "2px 8px",
-              borderRadius: 999,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-            }}
-          >
-            Roadmap
-          </span>
-        )}
-      </div>
-      <div
-        style={{
-          width: 32,
-          height: 2,
-          background: pillar.accent,
-          borderRadius: 999,
-        }}
-      />
-      <h3
-        style={{
-          margin: 0,
-          fontFamily: T.fontSans,
-          fontSize: 18,
-          fontWeight: 600,
-          color: T.textHeading,
-          letterSpacing: "-0.01em",
-        }}
-      >
-        {pillar.title}
-      </h3>
-      <div
-        style={{
-          fontFamily: T.fontSans,
-          fontSize: 14,
-          fontWeight: 600,
-          color: T.textHeading,
-        }}
-      >
-        {pillar.tagline}
-      </div>
-      <p
-        style={{
-          margin: 0,
-          fontFamily: T.fontSans,
-          fontSize: 14,
-          lineHeight: 1.55,
-          color: T.textBody,
-        }}
-      >
-        {pillar.body}
-      </p>
-    </article>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// ZeniCore ledger preview — mirror of /agents/ledger dashboard view.
-// ---------------------------------------------------------------------------
-function LedgerPreview() {
-  return (
-    <section style={{ padding: "80px 24px" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <div
-          className="ledger-preview-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1.4fr",
-            gap: 48,
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontFamily: T.fontSans,
-                fontSize: 12,
-                fontWeight: 600,
-                color: T.textMuted,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginBottom: 12,
-              }}
-            >
-              ZeniCore ledger
-            </div>
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: T.fontSerif,
-                fontSize: 36,
-                lineHeight: 1.15,
-                letterSpacing: "-0.03em",
-                fontWeight: 600,
-                color: T.textHeading,
-              }}
-            >
-              Double-entry. Chain-hashed. Yours to audit.
-            </h2>
-            <p
-              style={{
-                margin: "16px 0 16px",
-                fontFamily: T.fontSans,
-                fontSize: 16,
-                lineHeight: 1.55,
-                color: T.textBody,
-              }}
-            >
-              Every dollar that moves lands in our own general ledger. Debits and credits
-              balance by construction. Each journal row carries a SHA-256 chain hash over
-              its predecessor — tamper with one row and the verifier tells you exactly
-              where the break is.
-            </p>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
-              {[
-                "Micro-unit precision (1e-6 of currency) — no floating-point drift.",
-                "Append-only trigger rejects UPDATE and DELETE on the journal.",
-                "Published public key at /.well-known/audit-signing-key.pub.",
-              ].map((l) => (
-                <li key={l} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                  <span
-                    aria-hidden
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 18,
-                      height: 18,
-                      marginTop: 2,
-                      borderRadius: 999,
-                      background: T.successBg,
-                      color: T.success,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    ✓
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: T.fontSans,
-                      fontSize: 14,
-                      lineHeight: 1.5,
-                      color: T.textBody,
-                    }}
-                  >
-                    {l}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/agents/ledger"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                marginTop: 24,
-                padding: "12px 20px",
-                borderRadius: 6,
-                background: T.textHeading,
-                color: T.white,
-                textDecoration: "none",
-                fontFamily: T.fontSans,
-                fontSize: 15,
-                fontWeight: 600,
-                boxShadow: T.shadowSm,
-              }}
-            >
-              Open the live ledger <span aria-hidden>→</span>
-            </Link>
-          </div>
-
-          <LedgerMock />
-        </div>
-
-        <style>{`
-          @media (max-width: 900px) {
-            .ledger-preview-grid { grid-template-columns: 1fr !important; }
-          }
-        `}</style>
-      </div>
-    </section>
-  );
-}
-
-function LedgerMock() {
-  const rows = [
-    { seq: 15, dir: "credit", amt: "2,485,210.43", cur: "USD", memo: "Treasury funded (Finix transfer)",                 acct: "zca_treasury_usd" },
-    { seq: 14, dir: "debit",  amt:   "18,000.00", cur: "USD", memo: "Distribute to agent gpt-marketing",                  acct: "zca_treasury_usd" },
-    { seq: 13, dir: "credit", amt:   "18,000.00", cur: "USD", memo: "Credited agent wallet gpt-marketing",                acct: "zca_agent_gpt_mk" },
-    { seq: 12, dir: "debit",  amt:        "249.00", cur: "USD", memo: "Hold — OpenAI API renewal (card ••••2693)",        acct: "zca_agent_gpt_mk" },
-    { seq: 11, dir: "credit", amt:        "249.00", cur: "USD", memo: "Hold — pending_debit on card ••••2693",            acct: "zca_card_2693" },
-  ];
-  return (
-    <div
-      style={{
-        background: T.white,
-        border: `1px solid ${T.border}`,
-        borderRadius: 12,
-        boxShadow: T.shadowLg,
-        overflow: "hidden",
-      }}
-    >
-      <BrowserChrome url="zenipay.ca/agents/ledger" />
-      <div
-        style={{
-          padding: 16,
-          borderBottom: `1px solid ${T.border}`,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          background: T.successBg,
-        }}
-      >
-        <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: T.success }} />
-        <div
-          style={{
-            fontFamily: T.fontSans,
-            fontSize: 12,
-            fontWeight: 700,
-            color: T.success,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
-        >
-          Chain integrity · intact
-        </div>
-        <div
-          style={{
-            marginLeft: "auto",
-            fontFamily: T.fontSans,
-            fontSize: 12,
-            color: T.textMuted,
-          }}
-        >
-          15/15 entries verified
-        </div>
-      </div>
-      <div style={{ padding: 20 }}>
-        <div
-          style={{
-            fontFamily: T.fontSans,
-            fontSize: 11,
-            fontWeight: 600,
-            color: T.textMuted,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            marginBottom: 8,
-          }}
-        >
-          Recent journal entries
-        </div>
-        <div
-          style={{
-            border: `1px solid ${T.border}`,
-            borderRadius: 8,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "40px 60px 1fr 120px",
-              padding: "8px 12px",
-              background: T.surface,
-              borderBottom: `1px solid ${T.border}`,
-              fontFamily: T.fontSans,
-              fontSize: 11,
-              fontWeight: 600,
-              color: T.textMuted,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
-          >
-            <span>Seq</span>
-            <span>Dir</span>
-            <span>Memo</span>
-            <span style={{ textAlign: "right" }}>Amount</span>
-          </div>
-          {rows.map((r) => (
-            <div
-              key={r.seq}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "40px 60px 1fr 120px",
-                padding: "10px 12px",
-                borderBottom: `1px solid ${T.border}`,
-                fontFamily: T.fontSans,
-                fontSize: 13,
-                color: T.textBody,
-                alignItems: "center",
-              }}
-            >
-              <span style={{ fontFamily: T.fontMono, fontSize: 11, color: T.textSubtle }}>#{r.seq}</span>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  padding: "2px 6px",
-                  borderRadius: 999,
-                  background: r.dir === "credit" ? T.successBg : T.dangerBg,
-                  color: r.dir === "credit" ? T.success : T.danger,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  width: "fit-content",
-                }}
-              >
-                {r.dir}
-              </span>
-              <span style={{ color: T.textHeading, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {r.memo}
-              </span>
-              <span style={{ fontFamily: T.fontMono, textAlign: "right", fontWeight: 600, color: T.textHeading }}>
-                {r.amt} {r.cur}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BrowserChrome({ url }: { url: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "10px 16px",
-        background: T.surface,
-        borderBottom: `1px solid ${T.border}`,
-      }}
-    >
-      <div style={{ display: "flex", gap: 6 }}>
-        <span style={{ width: 10, height: 10, borderRadius: 999, background: "#e5e5e5" }} />
-        <span style={{ width: 10, height: 10, borderRadius: 999, background: "#e5e5e5" }} />
-        <span style={{ width: 10, height: 10, borderRadius: 999, background: "#e5e5e5" }} />
-      </div>
-      <div
-        style={{
-          marginLeft: 12,
-          padding: "4px 12px",
-          borderRadius: 6,
-          background: T.white,
-          border: `1px solid ${T.border}`,
-          fontFamily: T.fontMono,
-          fontSize: 12,
-          color: T.textMuted,
-        }}
-      >
-        {url}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// DeepDive — three-column explanation of how the system composes.
-// ---------------------------------------------------------------------------
-function DeepDive() {
-  const items = [
-    {
-      title: "Treasury → Agent wallet → Card.",
-      body: "Fund the treasury once. Distribute to agent wallets on demand. Every ZeniCard is backed by a dedicated zenicore account. Balances flow one way, forever traceable.",
-    },
-    {
-      title: "Every spend writes signed events.",
-      body: "Each authorization, settlement, approval, and fraud resolution emits a signed audit row. Your SOC2 auditor downloads the NDJSON and verifies it offline with our published public key.",
-    },
-    {
-      title: "The merchant network is part of the product.",
-      body: "Agents can pay any Zeniva-network merchant with zero card-network fees — closed-loop settlement runs through the ZeniCore ledger directly. External merchants route through Stripe Issuing.",
-    },
-  ];
-  return (
-    <section
-      style={{
-        padding: "80px 24px",
-        background: T.surface,
-        borderTop: `1px solid ${T.border}`,
-        borderBottom: `1px solid ${T.border}`,
-      }}
-    >
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ maxWidth: 640, marginBottom: 48 }}>
-          <div
-            style={{
-              fontFamily: T.fontSans,
-              fontSize: 12,
-              fontWeight: 600,
-              color: T.textMuted,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: 12,
-            }}
-          >
-            How it composes
-          </div>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: T.fontSerif,
-              fontSize: 40,
-              lineHeight: 1.15,
-              letterSpacing: "-0.03em",
-              fontWeight: 600,
-              color: T.textHeading,
-            }}
-          >
-            Each pillar feeds the next.
-          </h2>
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {items.map((i) => (
-            <div
-              key={i.title}
-              style={{
-                background: T.white,
-                border: `1px solid ${T.border}`,
-                borderRadius: 8,
-                padding: 24,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontFamily: T.fontSans,
-                  fontSize: 17,
-                  fontWeight: 600,
-                  color: T.textHeading,
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {i.title}
-              </h3>
-              <p
-                style={{
-                  margin: "10px 0 0",
-                  fontFamily: T.fontSans,
-                  fontSize: 14,
-                  lineHeight: 1.55,
-                  color: T.textBody,
-                }}
-              >
-                {i.body}
-              </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
+          {features.map((f) => (
+            <div key={f.title} style={{
+              padding: "22px 22px", borderRadius: zp.radius.lg,
+              background: "#fff", border: `1px solid ${zp.surface.border}`,
+              transition: zp.motion.base,
+            }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: zp.radius.md,
+                background: zp.gradient.tintViolet, color: zp.brand.violet,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                marginBottom: 14,
+              }}>
+                <f.Icon size={18} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.2px" }}>{f.title}</h3>
+              <p style={{ margin: "6px 0 0", fontSize: 13, color: zp.text.muted, lineHeight: 1.55 }}>{f.body}</p>
             </div>
           ))}
         </div>
@@ -960,243 +311,316 @@ function DeepDive() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// BetaPricing
-// ---------------------------------------------------------------------------
-function BetaPricing() {
+// ───────────────────────────────────────────────────────────────────────────
+
+function HowItWorks() {
   return (
-    <section style={{ padding: "80px 24px" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
-        <div
-          style={{
-            fontFamily: T.fontSans,
-            fontSize: 12,
-            fontWeight: 600,
-            color: T.textMuted,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            marginBottom: 12,
-          }}
-        >
-          Beta pricing
-        </div>
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: T.fontSerif,
-            fontSize: 40,
-            lineHeight: 1.15,
-            letterSpacing: "-0.03em",
-            fontWeight: 600,
-            color: T.textHeading,
-          }}
-        >
-          Free for design partners through 2026.
-        </h2>
-        <p
-          style={{
-            margin: "16px auto 32px",
-            maxWidth: 620,
-            fontFamily: T.fontSans,
-            fontSize: 17,
-            lineHeight: 1.55,
-            color: T.textBody,
-          }}
-        >
-          Design partners pay nothing for the first six months. Enterprise pricing kicks in
-          on the seventh month — $3 per active card per month + 50 bps FX spread, zero
-          charge on the dashboards.
-        </p>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 16,
-            maxWidth: 760,
-            margin: "0 auto 32px",
-          }}
-        >
+    <section style={{ padding: "96px 24px" }}>
+      <div style={{ maxWidth: 1160, margin: "0 auto", textAlign: "center" }}>
+        <H2>Deploy your first agent wallet in 3 steps.</H2>
+        <div style={{ marginTop: 48, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
           {[
-            { label: "Transaction fee",   value: "0%",        note: "No markup." },
-            { label: "Active card fee",   value: "$3 / mo",   note: "Post-beta." },
-            { label: "FX spread",         value: "0.50%",     note: "vs ECB reference." },
-            { label: "Dashboards + API",  value: "Free",      note: "Every seat." },
-          ].map((r) => (
-            <div
-              key={r.label}
-              style={{
-                background: T.white,
-                border: `1px solid ${T.border}`,
-                borderRadius: 8,
-                padding: 16,
-                textAlign: "left",
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: T.fontSans,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: T.textMuted,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                {r.label}
+            { Icon: UserPlus, title: "Connect your organization", body: "Sign up and link your corporate ZeniPay account." },
+            { Icon: Bot,      title: "Create your agents",        body: "Name them, assign roles, set spending limits." },
+            { Icon: Zap,      title: "Distribute and track",      body: "Fund once. Every move logged in ZeniCore." },
+          ].map((s, i) => (
+            <div key={s.title} style={{
+              padding: "24px 22px", borderRadius: zp.radius.lg,
+              background: "#fff", border: `1px solid ${zp.surface.border}`,
+              textAlign: "left" as const,
+            }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: zp.radius.md,
+                background: `linear-gradient(135deg, ${zp.brand.cyan} 0%, ${zp.brand.violet} 100%)`,
+                color: "#fff",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                marginBottom: 14,
+              }}>
+                <s.Icon size={18} />
               </div>
-              <div
-                style={{
-                  marginTop: 4,
-                  fontFamily: T.fontSans,
-                  fontSize: 22,
-                  fontWeight: 700,
-                  color: T.textHeading,
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {r.value}
+              <div style={{ fontSize: 11, fontWeight: zp.weight.semibold, color: zp.text.dim, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+                Step {i + 1}
               </div>
-              <div
-                style={{
-                  marginTop: 2,
-                  fontFamily: T.fontSans,
-                  fontSize: 12,
-                  color: T.textMuted,
-                }}
-              >
-                {r.note}
-              </div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.2px" }}>{s.title}</h3>
+              <p style={{ margin: "8px 0 0", fontSize: 13, color: zp.text.muted, lineHeight: 1.55 }}>{s.body}</p>
             </div>
           ))}
         </div>
-        <Link
-          href="/contact"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "12px 24px",
-            borderRadius: 6,
-            background: T.textHeading,
-            color: T.white,
-            textDecoration: "none",
-            fontFamily: T.fontSans,
-            fontSize: 15,
-            fontWeight: 600,
-            boxShadow: T.shadowSm,
-          }}
-        >
-          Apply as a design partner
-        </Link>
       </div>
     </section>
   );
 }
 
-function ClosingCta() {
-  return (
-    <section
-      style={{
-        padding: "80px 24px",
-        background: T.surface,
-        borderTop: `1px solid ${T.border}`,
-        textAlign: "center",
-      }}
-    >
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: T.fontSerif,
-            fontSize: 36,
-            lineHeight: 1.15,
-            letterSpacing: "-0.03em",
-            fontWeight: 600,
-            color: T.textHeading,
-          }}
-        >
-          Run your agents on banking infrastructure that knows they exist.
-        </h2>
-        <p
-          style={{
-            margin: "16px auto 32px",
-            maxWidth: 560,
-            fontFamily: T.fontSans,
-            fontSize: 17,
-            lineHeight: 1.55,
-            color: T.textBody,
-          }}
-        >
-          Book a 30-minute briefing. We&rsquo;ll walk through the live dashboards, show you
-          the audit export verifying against our Ed25519 key, and size a pilot to your
-          fleet.
-        </p>
-        <Link
-          href="/contact"
-          style={{
-            padding: "14px 28px",
-            borderRadius: 6,
-            background: T.textHeading,
-            color: T.white,
-            textDecoration: "none",
-            fontFamily: T.fontSans,
-            fontSize: 16,
-            fontWeight: 600,
-            boxShadow: T.shadowMd,
-          }}
-        >
-          Talk to us →
-        </Link>
-      </div>
-    </section>
-  );
+// ───────────────────────────────────────────────────────────────────────────
+
+function CodeSnippet() {
+  const [copied, setCopied] = useState(false);
+  const body = `// Fund your agent in one API call
+POST /api/v1/agents/treasury/distribute-from-merchant
+{
+  "to_agent_id":  "agt_marco",
+  "amount_units": 500,
+  "currency":     "USD",
+  "memo":         "Monthly budget allocation"
 }
 
-function FooterBar() {
+// Response
+{
+  "success":             true,
+  "agent_tx_group_id":   "txg_...",
+  "new_agent_balance":   1740.00
+}`;
+
+  const copy = () => {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(body);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+
   return (
-    <footer
-      style={{
-        background: T.white,
-        borderTop: `1px solid ${T.border}`,
-        padding: "48px 24px 32px",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 24,
-          flexWrap: "wrap",
-        }}
-      >
-        <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none", color: T.textHeading }}>
-          <BrandGlyph />
-          <span style={{ fontFamily: T.fontSans, fontSize: 16, fontWeight: 700 }}>ZeniPay</span>
-        </Link>
-        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-          <Link href="/" style={footerLink}>Overview</Link>
-          <Link href="/merchant" style={footerLink}>Merchant</Link>
-          <Link href="/pricing" style={footerLink}>Pricing</Link>
-          <Link href="/security" style={footerLink}>Security</Link>
-          <Link href="/contact" style={footerLink}>Contact</Link>
-          <Link href="/legal/privacy" style={footerLink}>Privacy</Link>
-          <Link href="/legal/terms" style={footerLink}>Terms</Link>
+    <section style={{ padding: "96px 24px", background: zp.surface.bg2, borderTop: `1px solid ${zp.surface.border}`, borderBottom: `1px solid ${zp.surface.border}` }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        <div style={{ textAlign: "center" as const, marginBottom: 32 }}>
+          <H2>For developers.</H2>
+          <p style={{ ...bodyStyle, margin: "14px auto 0", maxWidth: 560 }}>
+            One endpoint. One signed request. Every move lands on the
+            ZeniCore ledger.
+          </p>
         </div>
-        <p style={{ margin: 0, fontFamily: T.fontSans, fontSize: 13, color: T.textMuted }}>
-          © {new Date().getFullYear()} ILM Inc. Built in Québec.
-        </p>
+
+        <div style={{
+          borderRadius: zp.radius.lg,
+          background: zp.surface.heroInk, color: zp.text.inverse,
+          boxShadow: zp.elevation.heroInk, overflow: "hidden",
+        }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "14px 18px", borderBottom: `1px solid rgba(255,255,255,0.06)`,
+          }}>
+            <span style={{
+              fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.inverseMuted,
+              letterSpacing: "0.14em", textTransform: "uppercase",
+              padding: "4px 10px", borderRadius: zp.radius.pill,
+              background: "rgba(123,79,191,0.2)", border: "1px solid rgba(123,79,191,0.35)",
+            }}>
+              ZeniCore API v1
+            </span>
+            <button
+              onClick={copy}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "6px 10px", borderRadius: zp.radius.sm,
+                background: "rgba(255,255,255,0.08)", color: "#fff",
+                border: "1px solid rgba(255,255,255,0.12)",
+                fontSize: 11, fontWeight: zp.weight.semibold, cursor: "pointer",
+              }}
+            >
+              {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+            </button>
+          </div>
+          <pre style={{
+            margin: 0, padding: "20px 22px",
+            fontFamily: zp.font.mono, fontSize: 13, lineHeight: 1.55,
+            color: "#e2e8f0",
+            overflowX: "auto" as const,
+            whiteSpace: "pre",
+          }}>
+            {renderHighlightedSnippet(body)}
+          </pre>
+        </div>
       </div>
-    </footer>
+    </section>
   );
 }
 
-const footerLink: CSSProperties = {
-  fontFamily: T.fontSans,
-  fontSize: 13,
-  fontWeight: 500,
-  color: T.textBody,
-  textDecoration: "none",
+// Tiny hand-rolled syntax highlighter: comments → slate, keys → violet,
+// string values → green, numbers → cyan, true/false → amber.
+function renderHighlightedSnippet(raw: string): React.ReactNode {
+  const lines = raw.split("\n");
+  return lines.map((line, i) => (
+    <div key={i}>{highlightLine(line)}</div>
+  ));
+}
+
+function highlightLine(line: string): React.ReactNode {
+  if (line.trim().startsWith("//")) {
+    return <span style={{ color: "#64748b" }}>{line}</span>;
+  }
+  // Match: "key": value OR value on its own (POST / { / })
+  // Simple regex pass: split on "key": boundary.
+  const keyValueMatch = line.match(/^(\s*)"([^"]+)"(\s*:\s*)(.*)$/);
+  if (keyValueMatch) {
+    const [, indent, key, sep, val] = keyValueMatch;
+    return (
+      <>
+        <span>{indent}</span>
+        <span style={{ color: zp.brand.violet }}>&quot;{key}&quot;</span>
+        <span style={{ color: "#94a3b8" }}>{sep}</span>
+        {colorValue(val)}
+      </>
+    );
+  }
+  // Method line (POST /...)
+  const methodMatch = line.match(/^(\s*)(POST|GET|PUT|DELETE)(\s+.+)$/);
+  if (methodMatch) {
+    const [, indent, method, rest] = methodMatch;
+    return (
+      <>
+        <span>{indent}</span>
+        <span style={{ color: zp.brand.cyan, fontWeight: zp.weight.semibold }}>{method}</span>
+        <span style={{ color: "#cbd5e1" }}>{rest}</span>
+      </>
+    );
+  }
+  return <span>{line}</span>;
+}
+
+function colorValue(v: string): React.ReactNode {
+  const trimmed = v.trimEnd();
+  const trailing = v.slice(trimmed.length);
+  // String
+  const strMatch = trimmed.match(/^"([^"]*)"(,?)$/);
+  if (strMatch) {
+    return (
+      <>
+        <span style={{ color: zp.brand.green }}>&quot;{strMatch[1]}&quot;</span>
+        <span style={{ color: "#94a3b8" }}>{strMatch[2]}</span>
+        <span>{trailing}</span>
+      </>
+    );
+  }
+  // Number
+  const numMatch = trimmed.match(/^(-?\d+(?:\.\d+)?)(,?)$/);
+  if (numMatch) {
+    return (
+      <>
+        <span style={{ color: zp.brand.cyan }}>{numMatch[1]}</span>
+        <span style={{ color: "#94a3b8" }}>{numMatch[2]}</span>
+        <span>{trailing}</span>
+      </>
+    );
+  }
+  // Boolean
+  const boolMatch = trimmed.match(/^(true|false)(,?)$/);
+  if (boolMatch) {
+    return (
+      <>
+        <span style={{ color: zp.brand.orange }}>{boolMatch[1]}</span>
+        <span style={{ color: "#94a3b8" }}>{boolMatch[2]}</span>
+        <span>{trailing}</span>
+      </>
+    );
+  }
+  return <span style={{ color: "#cbd5e1" }}>{v}</span>;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+
+function RosterShowcase() {
+  return (
+    <section style={{ padding: "96px 24px" }}>
+      <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+        <div style={{ textAlign: "center" as const, marginBottom: 40 }}>
+          <H2>11 agents. Ready to deploy.</H2>
+          <p style={{ ...bodyStyle, margin: "14px auto 0", maxWidth: 560 }}>
+            A full roster of specialized AI agents, each with its own role,
+            wallet, and audit trail.
+          </p>
+        </div>
+        <div style={{
+          display: "grid", gap: 14,
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+        }}>
+          {ROSTER.map((a) => (
+            <div
+              key={a.name}
+              className="mk-agent-tile"
+              style={{
+                padding: "20px 18px", borderRadius: zp.radius.lg,
+                background: "#fff", border: `1px solid ${zp.surface.border}`,
+                display: "flex", flexDirection: "column", alignItems: "center",
+                textAlign: "center" as const, gap: 10,
+                transition: zp.motion.base, cursor: "default",
+              }}
+            >
+              <div style={{
+                width: 64, height: 64, borderRadius: "50%", overflow: "hidden",
+                background: zp.surface.bg2,
+                boxShadow: `0 0 0 3px rgba(123,79,191,0.18)`,
+              }}>
+                <Image src={`/agents/${a.name.toLowerCase()}.svg`} alt={`${a.name} avatar`} width={64} height={64} style={{ width: 64, height: 64, objectFit: "cover" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.2px" }}>{a.name}</div>
+                <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 2 }}>{a.role}</div>
+              </div>
+              <span style={{
+                fontSize: 10, fontWeight: zp.weight.semibold, padding: "3px 10px",
+                borderRadius: zp.radius.pill,
+                background: zp.gradient.tintGreen, color: zp.semantic.success,
+                letterSpacing: "0.08em", textTransform: "uppercase",
+              }}>
+                Ready
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <style>{`
+        .mk-agent-tile:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 28px rgba(123,79,191,0.16);
+          border-color: rgba(123,79,191,0.35) !important;
+        }
+      `}</style>
+    </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+
+function FinalCTA() {
+  return (
+    <section style={{ padding: "96px 24px", textAlign: "center" as const, background: zp.surface.bg2, borderTop: `1px solid ${zp.surface.border}` }}>
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <H2>Ship your first agent wallet today.</H2>
+        <p style={{ ...bodyStyle, marginTop: 14 }}>
+          Sign up, create your fleet, and fund your first agent in under 10 minutes.
+        </p>
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 28, flexWrap: "wrap" }}>
+          <Link href="/register" style={primaryCta}>Get started</Link>
+          <Link href="mailto:info@zeniva.ca" style={ghostCta}>Book a demo</Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+
+function H2({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 style={{ margin: 0, fontFamily: zp.font.display, fontSize: "clamp(28px, 3.4vw, 40px)", fontWeight: zp.weight.semibold, letterSpacing: "-0.03em", lineHeight: 1.1, color: zp.text.primary }}>
+      {children}
+    </h2>
+  );
+}
+
+const bodyStyle: React.CSSProperties = {
+  margin: "18px 0 0", fontSize: 16, lineHeight: 1.55, color: zp.text.muted,
+};
+const primaryCta: React.CSSProperties = {
+  background: zp.gradient.main, color: "#fff",
+  padding: "14px 24px", borderRadius: zp.radius.sm,
+  fontSize: 15, fontWeight: zp.weight.semibold,
+  textDecoration: "none", boxShadow: "0 6px 20px rgba(21,184,201,0.35)",
+  letterSpacing: "0.01em", display: "inline-flex", alignItems: "center", justifyContent: "center",
+};
+const ghostCta: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 8,
+  background: "transparent", color: zp.text.primary,
+  border: `1px solid ${zp.surface.border}`,
+  padding: "13px 22px", borderRadius: zp.radius.sm,
+  fontSize: 15, fontWeight: zp.weight.semibold, textDecoration: "none",
 };
