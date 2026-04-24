@@ -74,6 +74,21 @@ type UnifiedRow = {
   currency: string;
 };
 
+interface ActivityRow {
+  id: string;
+  source: "payment" | "transfer" | "ledger" | "payout";
+  kind: string;
+  direction: "in" | "out";
+  date: string;
+  amount: number;
+  currency: string;
+  description: string;
+  counterparty: string;
+  status: string;
+  account_id: string | null;
+  metadata: Record<string, unknown>;
+}
+
 export default function OverviewPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -81,6 +96,7 @@ export default function OverviewPage() {
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [cards, setCards] = useState<CardRow[]>([]);
+  const [activityFeed, setActivityFeed] = useState<ActivityRow[]>([]);
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
@@ -98,9 +114,10 @@ export default function OverviewPage() {
     if (!mid) return;
     setLoading(true);
     try {
-      const [banking, stats] = await Promise.all([
+      const [banking, stats, activity] = await Promise.all([
         fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
         fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
+        fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid)}&limit=20`).then((r) => r.json()),
       ]);
       setAccounts(banking.accounts ?? []);
       setTransfers(banking.transfers ?? []);
@@ -108,6 +125,7 @@ export default function OverviewPage() {
       setPayments(stats.recent_transactions ?? []);
       setPayouts(stats.recent_payouts ?? []);
       setInvoices(stats.recent_invoices ?? []);
+      setActivityFeed((activity.activity ?? []) as ActivityRow[]);
     } finally {
       setLoading(false);
     }
@@ -125,28 +143,17 @@ export default function OverviewPage() {
   const pendingPayouts = payouts.filter((p) => p.status !== "completed" && p.status !== "failed").length;
   const activeCards = cards.filter((c) => (c.status ?? "active") === "active").length;
 
-  const activity: UnifiedRow[] = useMemo(() => {
-    const rows: UnifiedRow[] = [
-      ...payments.map<UnifiedRow>((p) => ({
-        id: p.id,
-        date: p.date,
-        desc: p.description || p.customer || "Payment received",
-        kind: "income",
-        amount: Number(p.amount || 0),
-        currency: p.currency || "CAD",
-      })),
-      ...transfers.map<UnifiedRow>((t) => ({
-        id: t.id,
-        date: t.created_at,
-        desc: `${capitalize(t.transfer_type)} → ${t.recipient_name || "—"}`,
-        kind: "transfer",
-        amount: -(Number(t.amount || 0) + Number(t.fee || 0)),
-        currency: "CAD",
-      })),
-    ];
-    rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return rows.slice(0, 10);
-  }, [payments, transfers]);
+  const activity: UnifiedRow[] = useMemo(
+    () => activityFeed.slice(0, 10).map<UnifiedRow>((a) => ({
+      id: a.id,
+      date: a.date,
+      desc: a.description,
+      kind: a.direction === "in" ? "income" : "transfer",
+      amount: a.direction === "in" ? a.amount : -a.amount,
+      currency: a.currency,
+    })),
+    [activityFeed],
+  );
 
   const sparkline = useMemo(() => {
     const days = 30;
