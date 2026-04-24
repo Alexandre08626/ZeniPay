@@ -17,6 +17,7 @@ import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
 import { KybBanner } from "./KybBanner";
+import { FinixBalanceTile } from "./FinixBalanceTile";
 
 interface Account {
   id: string;
@@ -195,7 +196,11 @@ export default function OverviewPage() {
         ]}
       />
 
-      {/* Accounts strip */}
+      {/* Finix balance + Accounts strip */}
+      <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+        <FinixBalanceTile />
+      </div>
+
       <section style={{ marginTop: 20, marginBottom: 20 }}>
         <SectionHeader title="Accounts" link={{ href: "/app/accounts", label: "Manage accounts" }} />
         <div

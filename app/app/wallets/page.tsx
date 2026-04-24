@@ -13,6 +13,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
+import { FundingInboundPanel } from "./FundingInboundPanel";
 
 interface Account {
   id: string;
@@ -82,6 +83,10 @@ export default function WalletsPage() {
           onSent={(msg) => { flash(msg ?? "Transfer initiated ✓"); void load(); }}
         />
         <ReceivePanel account={primaryAccount} onCopy={() => flash("Wire instructions copied")} />
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <FundingInboundPanel />
       </div>
 
       <div style={{ marginTop: 20 }}>

@@ -92,6 +92,50 @@ export async function POST(req: NextRequest) {
   }
   const row = (data as Array<{ status: string; tx_group: string | null; reason: string | null }>)?.[0]
     ?? { status: "received", tx_group: null, reason: null };
+
+  // PR 9 side effect: mirror the state on zenipay_funding_requests so
+  // the merchant UI's "Funding history" reflects completion without
+  // another webhook pass. We match by finix_transfer_id — set at
+  // create time by the ACH / Interac routes.
+  if (envelope.transfer_id) {
+    const ev = envelope.event_type.toLowerCase();
+    let newStatus: "processing" | "completed" | "failed" | null = null;
+    if (/succeed|success|completed|settled/.test(ev)) newStatus = "completed";
+    else if (/fail|cancel|declin|return|reject/.test(ev)) newStatus = "failed";
+    else if (/pending|created|processing/.test(ev))   newStatus = "processing";
+
+    if (newStatus) {
+      await supabase.from("zenipay_funding_requests")
+        .update({
+          status: newStatus,
+          ...(newStatus === "completed" ? { completed_at: new Date().toISOString() } : {}),
+          ...(newStatus === "failed" ? { failure_reason: envelope.event_type } : {}),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("finix_transfer_id", envelope.transfer_id);
+    }
+  }
+
+  // Settlement events don't carry a transfer_id. Surface them as a
+  // distinct audit row so Alex can see "Finix swept $X to my bank"
+  // in /agents/audit without mining Finix directly.
+  if (/^settlement\./i.test(envelope.event_type)) {
+    const entity = (parsed.entity ?? {}) as Record<string, unknown>;
+    const settlementId = typeof entity.id === "string" ? (entity.id as string) : (envelope.transfer_id ?? envelope.event_id);
+    const totalAmount = typeof entity.total_amount === "number" ? (entity.total_amount as number) : null;
+    try {
+      await supabase.from("zenipay_audit_log").insert({
+        actor_type: "system",
+        actor_id: "finix",
+        action: `finix.${envelope.event_type.toLowerCase()}`,
+        resource_type: "finix_settlement",
+        resource_id: settlementId,
+        new_value: { total_amount_cents: totalAmount, currency: envelope.currency },
+        severity: "info",
+      });
+    } catch { /* audit insert is best-effort */ }
+  }
+
   return NextResponse.json({ ok: true, status: row.status, tx_group: row.tx_group, reason: row.reason });
 }
 
