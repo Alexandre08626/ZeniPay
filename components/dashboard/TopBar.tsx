@@ -8,12 +8,32 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
-import { Bell, Search, ChevronDown, LogOut, Settings as SettingsIcon, ArrowRightLeft } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, Settings as SettingsIcon, User, Building2, Bot } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
 
-export type DashboardMode = "merchant" | "agents";
+export type DashboardMode = "merchant" | "agents" | "personal";
+
+export const LAST_MODE_KEY = "zenipay_last_mode";
+
+function modeAccent(m: DashboardMode): string {
+  if (m === "personal") return zp.brand.pink;
+  if (m === "agents")   return zp.brand.violet;
+  return zp.brand.cyan;
+}
+
+function modeLabel(m: DashboardMode): string {
+  if (m === "personal") return "Personal";
+  if (m === "agents")   return "Agents";
+  return "Business";
+}
+
+function modeHref(m: DashboardMode): string {
+  if (m === "personal") return "/personal/overview";
+  if (m === "agents")   return "/agents/dashboard";
+  return "/app/overview";
+}
 
 export interface TopBarProps {
   mode: DashboardMode;
@@ -24,9 +44,25 @@ export interface TopBarProps {
 
 export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
   const pathname = usePathname() ?? "";
+  const router = useRouter();
   const searchRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
+
+  // Persist the last mode the user opened so the next session resumes
+  // where they left off (used by /login and the "/" landing redirect).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try { window.localStorage.setItem(LAST_MODE_KEY, mode); } catch { /* ignore */ }
+  }, [mode]);
+
+  const switchMode = (next: DashboardMode) => {
+    if (next === mode) return;
+    if (typeof window !== "undefined") {
+      try { window.localStorage.setItem(LAST_MODE_KEY, next); } catch { /* ignore */ }
+    }
+    router.push(modeHref(next));
+  };
 
   // Cmd/Ctrl+K focuses search.
   useEffect(() => {
@@ -52,14 +88,6 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpen]);
 
-  // Keep merchant and agents strictly separate — no prominent switcher
-  // that suggests they share a session. Cross-navigation lives in the
-  // user-menu dropdown and routes to the authenticated operator
-  // dashboard (`/agents/dashboard`), never to the marketing
-  // `/agents/overview` page.
-  const crossTarget = mode === "merchant" ? "/agents/dashboard" : "/app/overview";
-  const crossLabel  = mode === "merchant" ? "Switch to Agents"  : "Switch to Merchant";
-
   const initial = (userLabel?.[0] ?? userEmail?.[0] ?? "Z").toUpperCase();
 
   return (
@@ -78,7 +106,7 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
       }}
     >
       <Link
-        href={mode === "merchant" ? "/app/overview" : "/agents/dashboard"}
+        href={modeHref(mode)}
         aria-label="ZeniPay home"
         style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none", minWidth: 140 }}
       >
@@ -98,38 +126,8 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
         </span>
       </Link>
 
-      {/* Mode badge — shows which side of the bank you're in, but does NOT
-          let you switch in one click (cross-nav lives in the user menu). */}
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: 26,
-          padding: "0 10px",
-          borderRadius: zp.radius.pill,
-          background:
-            mode === "merchant"
-              ? "rgba(21,184,201,0.10)"
-              : "rgba(123,79,191,0.10)",
-          color: mode === "merchant" ? zp.brand.cyan : zp.brand.violet,
-          fontSize: 11,
-          fontWeight: zp.weight.semibold,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-        }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: "50%",
-            background: mode === "merchant" ? zp.brand.cyan : zp.brand.violet,
-          }}
-        />
-        {mode === "merchant" ? "Merchant" : "Agents"}
-      </span>
+      {/* Mode switcher pills — Personal / Business / Agents */}
+      <ModeSwitcher mode={mode} onSwitch={switchMode} />
 
       {/* Search */}
       <div style={{ position: "relative", flex: 1, maxWidth: 440 }}>
@@ -264,17 +262,17 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
                 <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 2 }}>{userEmail}</div>
               )}
             </div>
-            <Link href={mode === "merchant" ? "/app/settings" : "/agents/settings"} role="menuitem" style={menuItemStyle}>
-              <SettingsIcon size={14} style={{ marginRight: 8, verticalAlign: "-2px" }} />
-              Settings
-            </Link>
             <Link
-              href={crossTarget}
+              href={
+                mode === "personal" ? "/personal/settings" :
+                mode === "agents"   ? "/agents/settings"   :
+                                      "/app/settings"
+              }
               role="menuitem"
               style={menuItemStyle}
             >
-              <ArrowRightLeft size={14} style={{ marginRight: 8, verticalAlign: "-2px" }} />
-              {crossLabel}
+              <SettingsIcon size={14} style={{ marginRight: 8, verticalAlign: "-2px" }} />
+              Settings
             </Link>
             <div style={{ height: 1, background: zp.surface.border, margin: "6px 2px" }} />
             <button
@@ -319,5 +317,69 @@ const menuItemStyle: React.CSSProperties = {
   borderRadius: zp.radius.sm,
   fontWeight: zp.weight.medium,
 };
+
+// ---------------------------------------------------------------------------
+
+interface ModeSwitcherProps {
+  mode: DashboardMode;
+  onSwitch: (next: DashboardMode) => void;
+}
+
+function ModeSwitcher({ mode, onSwitch }: ModeSwitcherProps) {
+  const items: Array<{ key: DashboardMode; Icon: typeof User }> = [
+    { key: "personal", Icon: User },
+    { key: "merchant", Icon: Building2 },
+    { key: "agents",   Icon: Bot },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="Switch ZeniPay mode"
+      style={{
+        display: "inline-flex",
+        gap: 2,
+        padding: 3,
+        borderRadius: zp.radius.pill,
+        background: zp.surface.bg2,
+        border: `1px solid ${zp.surface.border}`,
+      }}
+    >
+      {items.map(({ key, Icon }) => {
+        const active = mode === key;
+        const accent = modeAccent(key);
+        return (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onSwitch(key)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 26,
+              padding: "0 12px",
+              borderRadius: zp.radius.pill,
+              border: "none",
+              cursor: "pointer",
+              background: active
+                ? `linear-gradient(135deg, ${accent} 0%, ${accent}cc 100%)`
+                : "transparent",
+              color: active ? "#fff" : zp.text.muted,
+              fontSize: 11,
+              fontWeight: zp.weight.semibold,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase" as const,
+              transition: zp.motion.base,
+            }}
+          >
+            <Icon size={12} />
+            {modeLabel(key)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default TopBar;

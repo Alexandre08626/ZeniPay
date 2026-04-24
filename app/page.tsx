@@ -12,6 +12,7 @@ import {
   CreditCard, FileText, BarChart2, Lock,
   Bot, Zap, Shield, BookOpen,
   UserPlus, ArrowDownLeft, Play,
+  User, Building2, Wallet, Target, PieChart, Users, ShieldCheck, Check,
   type LucideIcon,
 } from "lucide-react";
 import { MarketingNav, MarketingFooter } from "@/app/components/marketing/MarketingNav";
@@ -41,6 +42,7 @@ export default function LandingPage() {
       <BridgeSection />
       <HowItWorks />
       <StatsRow />
+      <ForEveryone />
       <FinalCTA />
       <MarketingFooter />
     </div>
@@ -85,9 +87,16 @@ function Hero() {
         </p>
 
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 32, flexWrap: "wrap" }}>
-          <Link href="/register" style={primaryCta}>Get started free</Link>
+          <Link href="/register?type=business" style={primaryCta}>Get started free</Link>
           <Link href="/#demo" style={ghostCta}>
             <Play size={14} style={{ marginRight: 6 }} /> Watch demo
+          </Link>
+        </div>
+
+        <div style={{ marginTop: 14, fontSize: 13, color: zp.text.muted }}>
+          Looking for a personal account?{" "}
+          <Link href="/register?type=personal" style={{ color: zp.brand.pink, textDecoration: "underline", fontWeight: zp.weight.semibold }}>
+            Open one free →
           </Link>
         </div>
 
@@ -397,6 +406,114 @@ function StatsRow() {
         ))}
       </div>
     </section>
+  );
+}
+
+// ZeniPay for Everyone — Personal vs Business signup section.
+function ForEveryone() {
+  return (
+    <section style={{ padding: "96px 24px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
+        <H2>ZeniPay for everyone.</H2>
+        <p style={{ ...bodyStyle, margin: "16px auto 48px", maxWidth: 640 }}>
+          Personal banking that just works · Business banking with AI agent wallets baked in.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, textAlign: "left" as const }}>
+          <SignupCard
+            Icon={User}
+            accent={zp.brand.pink}
+            title="Personal Banking"
+            body="Your everyday money, managed smarter. Send, receive, save, and budget — all in one place."
+            badge="Free forever"
+            features={[
+              { Icon: Wallet, label: "Personal checking & savings" },
+              { Icon: CreditCard, label: "Virtual debit card" },
+              { Icon: Target, label: "Savings goals" },
+              { Icon: PieChart, label: "Monthly budget tracker" },
+            ]}
+            cta={{ label: "Open personal account", href: "/register?type=personal" }}
+          />
+          <SignupCard
+            Icon={Building2}
+            accent={zp.brand.cyan}
+            title="Business Banking"
+            body="Everything your company needs — plus AI agent wallets built right in."
+            badge="Free to start"
+            features={[
+              { Icon: Building2, label: "Business treasury & accounts" },
+              { Icon: Bot, label: "AI agent wallets" },
+              { Icon: Users, label: "Payment links & invoicing" },
+              { Icon: ShieldCheck, label: "SOC2 compliance" },
+            ]}
+            cta={{ label: "Open business account", href: "/register?type=business" }}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SignupCard({ Icon, accent, title, body, badge, features, cta }: {
+  Icon: LucideIcon;
+  accent: string;
+  title: string;
+  body: string;
+  badge: string;
+  features: Array<{ Icon: LucideIcon; label: string }>;
+  cta: { label: string; href: string };
+}) {
+  return (
+    <div style={{
+      padding: 28,
+      borderRadius: zp.radius.lg,
+      background: "#fff",
+      border: `1px solid ${zp.surface.border}`,
+      borderTop: `3px solid ${accent}`,
+      boxShadow: zp.elevation.sm,
+      display: "flex",
+      flexDirection: "column" as const,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: zp.radius.md,
+          background: `${accent}18`, color: accent,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Icon size={20} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <h3 style={{ margin: 0, fontSize: 20, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.01em" }}>{title}</h3>
+        </div>
+        <span style={{
+          fontSize: 10, fontWeight: zp.weight.semibold,
+          padding: "3px 10px", borderRadius: 999,
+          background: `${accent}14`, color: accent,
+          letterSpacing: "0.06em", textTransform: "uppercase" as const,
+        }}>{badge}</span>
+      </div>
+      <p style={{ margin: "10px 0 18px", fontSize: 14, color: zp.text.muted, lineHeight: 1.55 }}>{body}</p>
+
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column" as const, gap: 8 }}>
+        {features.map((f) => (
+          <li key={f.label} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: zp.text.primary }}>
+            <Check size={14} color={accent} />
+            <span>{f.label}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div style={{ marginTop: 22 }}>
+        <Link href={cta.href} style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          padding: "12px 22px", borderRadius: zp.radius.sm,
+          background: `linear-gradient(135deg, ${accent} 0%, ${zp.brand.violet} 100%)`,
+          color: "#fff", fontWeight: zp.weight.semibold, fontSize: 14,
+          textDecoration: "none", letterSpacing: "0.01em",
+        }}>
+          {cta.label}
+        </Link>
+      </div>
+    </div>
   );
 }
 

@@ -40,6 +40,10 @@ export const gradient = {
   tintCyan:   "linear-gradient(135deg, rgba(21,184,201,0.10) 0%, rgba(21,184,201,0.02) 100%)",
   tintViolet: "linear-gradient(135deg, rgba(123,79,191,0.10) 0%, rgba(123,79,191,0.02) 100%)",
   tintGreen:  "linear-gradient(135deg, rgba(16,185,129,0.10) 0%, rgba(16,185,129,0.02) 100%)",
+  tintPink:   "linear-gradient(135deg, rgba(255,107,157,0.10) 0%, rgba(255,107,157,0.02) 100%)",
+  // Personal mode hero gradient — pink↔violet (vs cyan↔violet for business).
+  personal:    `linear-gradient(135deg, ${brand.pink} 0%, ${brand.violet} 100%)`,
+  heroPersonal: `linear-gradient(135deg, #2A0B1F 0%, #3A1338 50%, ${brand.pink} 220%)`,
 } as const;
 
 // Surfaces — light-mode first (white page with a dark gradient used on

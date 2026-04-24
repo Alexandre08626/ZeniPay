@@ -9,7 +9,7 @@
 import React from "react";
 import zp from "@/lib/design-system/zenipay-brand";
 
-export type CardAccent = "cyan" | "violet" | "green" | "neutral" | "gradient";
+export type CardAccent = "cyan" | "violet" | "green" | "pink" | "neutral" | "gradient";
 
 export interface BankingCardProps {
   accent?: CardAccent;
@@ -25,6 +25,7 @@ function accentStripe(accent: CardAccent): string | null {
     case "cyan": return zp.brand.cyan;
     case "violet": return zp.brand.violet;
     case "green": return zp.brand.green;
+    case "pink": return zp.brand.pink;
     case "gradient": return zp.gradient.main;
     default: return null;
   }
