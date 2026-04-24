@@ -88,15 +88,22 @@ export async function GET(req: NextRequest) {
     "agents",
   );
 
-  // 3. real ZeniCore balances via the SECURITY DEFINER wrapper.
+  // 3. real ZeniCore balances via the SECURITY DEFINER wrapper. We
+  // query ALL accounts and filter client-side: agent_wallet rows
+  // don't carry an `organization_id` column — their org is implied
+  // by the agents.agents → agent_wallet link — so passing
+  // p_organization_id here would drop every wallet and surface $0
+  // for every agent (the Oct 2026 "où sont mes sous" incident).
   let zcAccounts: ZcAccount[] = [];
   try {
-    zcAccounts = await callRpc<ZcAccount[]>("zc_get_accounts", { p_organization_id: organizationId });
+    zcAccounts = await callRpc<ZcAccount[]>("zc_get_accounts", { p_organization_id: null });
   } catch { /* treasury unreachable — fall back to zero balances */ }
 
+  const agentIds = new Set(agents.map((a) => a.id));
   const balanceByAgent = new Map<string, { cents: number; currency: string; account_id: string }>();
   for (const row of zcAccounts) {
     if (row.owner_type !== "agent_wallet") continue;
+    if (!agentIds.has(row.owner_ref)) continue;   // different org's agent
     const cents = Number(BigInt(row.balance_micro) / MICRO_PER_CENT);
     const currency = (row.currency || "CAD").trim();
     const prev = balanceByAgent.get(row.owner_ref);

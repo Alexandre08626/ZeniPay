@@ -21,26 +21,55 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Attach wallet balance.
-  const ids = (agents ?? []).map((a: { id: string }) => a.id);
-  let walletsById: Record<string, { id: string; balance_cents: number; currency: string }> = {};
-  if (ids.length > 0) {
-    const { data: wallets } = await db
-      .from("agent_wallets")
-      .select("id, agent_id, balance_cents, currency")
-      .in("agent_id", ids);
-    walletsById = Object.fromEntries(
-      (wallets ?? []).map((w: { id: string; agent_id: string; balance_cents: number; currency: string }) => [
-        w.agent_id,
-        { id: w.id, balance_cents: Number(w.balance_cents), currency: w.currency },
-      ]),
-    );
-  }
+  // Attach REAL wallet balance from zenicore.accounts via the
+  // zc_get_accounts SECURITY DEFINER wrapper. The legacy
+  // `agents.agent_wallets` cache drifts — e.g. Ben had $0.01 CAD in
+  // ZeniCore but his cache row read $0 USD — so we ignore it.
+  // We fetch ALL accounts and filter by agent id client-side because
+  // zenicore.accounts rows don't carry an organization_id column for
+  // agent_wallet types (implied by the agent → org link).
+  const ids = new Set(((agents ?? []) as Array<{ id: string }>).map((a) => a.id));
+  const walletsByAgent = new Map<string, { id: string; balance_cents: number; currency: string }>();
+
+  try {
+    const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (url && key) {
+      const res = await fetch(`${url}/rest/v1/rpc/zc_get_accounts`, {
+        method: "POST",
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
+        cache: "no-store",
+        body: JSON.stringify({ p_organization_id: null }),
+      });
+      if (res.ok) {
+        const rows = (await res.json()) as Array<{
+          id: string; owner_type: string; owner_ref: string;
+          currency: string; balance_micro: string | number;
+        }>;
+        for (const row of rows) {
+          if (row.owner_type !== "agent_wallet") continue;
+          if (!ids.has(row.owner_ref)) continue;
+          const micro = BigInt(row.balance_micro);
+          const cents = Number(micro / BigInt(10_000));
+          const currency = (row.currency || "CAD").trim();
+          const prev = walletsByAgent.get(row.owner_ref);
+          if (!prev || (prev.balance_cents === 0 && cents !== 0)) {
+            walletsByAgent.set(row.owner_ref, { id: row.id, balance_cents: cents, currency });
+          }
+        }
+      }
+    }
+  } catch { /* treasury unreachable — agents render with null wallets */ }
 
   return NextResponse.json({
-    agents: (agents ?? []).map((a: { id: string; [k: string]: unknown }) => ({
+    agents: ((agents ?? []) as Array<{ id: string; [k: string]: unknown }>).map((a) => ({
       ...a,
-      wallet: walletsById[a.id] ?? null,
+      wallet: walletsByAgent.get(a.id) ?? null,
     })),
   });
 }
