@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
         amount: amountUnits,
         currency,
         reference: idempotencyKey,
-        note: memo || `Fund agent treasury (org ${organizationId.slice(0, 16)}…)`,
+        note: memo || "Fund agent treasury",
         created_at: now,
       }),
     ]);
