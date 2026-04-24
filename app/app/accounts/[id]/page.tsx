@@ -269,7 +269,12 @@ export default function AccountDetailPage() {
                 disabled={Number(account?.balance || 0) > 0}
                 onClick={async () => {
                   if (!confirm("Close this account? This cannot be undone.")) return;
-                  await post("update_account", { status: "closed" });
+                  const r = await fetch("/api/zenipay/banking-ops", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "close_account", merchant_id: mid(), account_id: accountId }),
+                  });
+                  const data = await r.json().catch(() => ({}));
+                  if (!r.ok || data?.error) { alert(data?.error || "Close failed."); return; }
                   router.push("/app/accounts");
                 }}
               >

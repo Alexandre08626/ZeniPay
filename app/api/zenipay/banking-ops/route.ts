@@ -167,5 +167,55 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  if (action === "update_account") {
+    // Generic attribute update — name, primary, currency, interest, goal.
+    const { account_id, account_name, is_primary, currency, interest_rate, goal_amount, goal_deadline } = body;
+    if (!account_id) return NextResponse.json({ error: "account_id required" }, { status: 400 });
+    const patch: Record<string, unknown> = { updated_at: now };
+    if (account_name !== undefined)  patch.account_name = account_name;
+    if (currency !== undefined)      patch.currency = currency;
+    if (interest_rate !== undefined) patch.interest_rate = interest_rate;
+    if (goal_amount !== undefined)   patch.goal_amount = goal_amount;
+    if (goal_deadline !== undefined) patch.goal_deadline = goal_deadline;
+    if (is_primary === true) {
+      // Flipping primary: unset it elsewhere first so exactly one primary
+      // account exists for this merchant at all times.
+      await s.from("zenipay_accounts").update({ is_primary: false, updated_at: now })
+        .eq("merchant_id", merchant_id).neq("id", account_id);
+      patch.is_primary = true;
+    } else if (is_primary === false) {
+      patch.is_primary = false;
+    }
+    const { error } = await s.from("zenipay_accounts").update(patch)
+      .eq("id", account_id).eq("merchant_id", merchant_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "close_account") {
+    const { account_id } = body;
+    if (!account_id) return NextResponse.json({ error: "account_id required" }, { status: 400 });
+    const { data: acct } = await s.from("zenipay_accounts")
+      .select("id, balance, is_primary, status").eq("id", account_id)
+      .eq("merchant_id", merchant_id).maybeSingle();
+    if (!acct) return NextResponse.json({ error: "Account not found" }, { status: 404 });
+    if (Number(acct.balance || 0) > 0) {
+      return NextResponse.json({ error: "Balance must be $0 to close the account. Move funds first." }, { status: 422 });
+    }
+    if (acct.is_primary) {
+      // Only allow closing the primary when it's the last remaining account.
+      const { data: others } = await s.from("zenipay_accounts")
+        .select("id").eq("merchant_id", merchant_id).neq("id", account_id).neq("status", "closed");
+      if ((others?.length ?? 0) > 0) {
+        return NextResponse.json({
+          error: "This is your primary account. Promote another account to primary first.",
+        }, { status: 422 });
+      }
+    }
+    await s.from("zenipay_accounts").update({ status: "closed", is_primary: false, updated_at: now })
+      .eq("id", account_id).eq("merchant_id", merchant_id);
+    return NextResponse.json({ ok: true });
+  }
+
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }

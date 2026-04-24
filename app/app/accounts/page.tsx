@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, EyeOff, SendHorizontal, Wallet, Plus } from "lucide-react";
+import { Eye, EyeOff, SendHorizontal, Wallet, Plus, Trash2, X } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
@@ -35,13 +35,16 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [reveal, setReveal] = useState<Record<string, boolean>>({});
+  const [showCreate, setShowCreate] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!mid()) return;
     setLoading(true);
     try {
       const r = await fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid())}`).then((x) => x.json());
-      setAccounts(r.accounts ?? []);
+      setAccounts((r.accounts ?? []).filter((a: Account) => a.status !== "closed"));
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -49,13 +52,32 @@ export default function AccountsPage() {
   const total = useMemo(() => accounts.reduce((s, a) => s + Number(a.balance || 0), 0), [accounts]);
   const cur = accounts[0]?.currency || "CAD";
 
-  const createAccount = async () => {
-    if (!mid()) return;
-    await fetch("/api/zenipay/banking-ops", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create_account", merchant_id: mid(), account_type: "business_checking", currency: "CAD" }),
-    });
-    await load();
+  const closeAccount = async (a: Account) => {
+    setErr(null);
+    if (a.balance > 0) {
+      setErr(`${a.account_name}: move the ${zp.fmtCurrency(a.balance, a.currency || "CAD")} balance out before deleting.`);
+      return;
+    }
+    if (a.is_primary && accounts.length > 1) {
+      setErr("Promote another account to primary before deleting this one.");
+      return;
+    }
+    if (!window.confirm(`Delete account "${a.account_name}"? This cannot be undone.`)) return;
+    setDeletingId(a.id);
+    try {
+      const r = await fetch("/api/zenipay/banking-ops", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "close_account", merchant_id: mid(), account_id: a.id }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || data?.error) {
+        setErr(data?.error || "Delete failed.");
+        return;
+      }
+      await load();
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -64,16 +86,30 @@ export default function AccountsPage() {
         title="Accounts"
         subtitle={`${accounts.length} account${accounts.length === 1 ? "" : "s"} · total ${zp.fmtCurrency(total, cur)}`}
         actions={
-          <GradientButton variant="primary" size="md" onClick={createAccount} icon={<Plus size={14} />}>
+          <GradientButton variant="primary" size="md" onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>
             New account
           </GradientButton>
         }
       />
 
+      {err && (
+        <BankingCard style={{ marginBottom: 12, borderColor: zp.semantic.danger }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            fontSize: 13, color: zp.semantic.danger, fontWeight: zp.weight.semibold,
+          }}>
+            {err}
+            <button onClick={() => setErr(null)} style={{
+              background: "transparent", border: "none", cursor: "pointer", color: zp.semantic.danger,
+            }}><X size={14} /></button>
+          </div>
+        </BankingCard>
+      )}
+
       {loading && accounts.length === 0 ? (
         <AccountsSkeleton />
       ) : accounts.length === 0 ? (
-        <EmptyAccounts onCreate={createAccount} />
+        <EmptyAccounts onCreate={() => setShowCreate(true)} />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {accounts.map((a) => (
@@ -82,9 +118,18 @@ export default function AccountsPage() {
               a={a}
               show={!!reveal[a.id]}
               onToggle={() => setReveal((r) => ({ ...r, [a.id]: !r[a.id] }))}
+              onDelete={() => closeAccount(a)}
+              deleting={deletingId === a.id}
             />
           ))}
         </div>
+      )}
+
+      {showCreate && (
+        <CreateAccountModal
+          onClose={() => setShowCreate(false)}
+          onCreated={async () => { setShowCreate(false); await load(); }}
+        />
       )}
     </DashboardShell>
   );
@@ -109,7 +154,15 @@ function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: st
   );
 }
 
-function AccountRow({ a, show, onToggle }: { a: Account; show: boolean; onToggle: () => void }) {
+function AccountRow({
+  a, show, onToggle, onDelete, deleting,
+}: {
+  a: Account;
+  show: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
   const router = useRouter();
   const isSavings = a.account_type?.includes("savings");
   const accent = isSavings ? "violet" : "cyan" as const;
@@ -170,6 +223,22 @@ function AccountRow({ a, show, onToggle }: { a: Account; show: boolean; onToggle
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <GradientButton href={`/app/wallets?from=${encodeURIComponent(a.id)}`} variant="primary" size="sm" icon={<SendHorizontal size={12} />}>Send</GradientButton>
           <GradientButton href={`/app/accounts/${a.id}#details`} variant="secondary" size="sm" icon={<Wallet size={12} />}>Receive</GradientButton>
+          <button
+            onClick={onDelete}
+            disabled={deleting}
+            aria-label="Delete account"
+            title={a.balance > 0 ? "Move the balance out before deleting" : "Delete this account"}
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: 30, height: 30, borderRadius: zp.radius.sm,
+              background: zp.surface.bg2,
+              border: `1px solid ${a.balance > 0 ? zp.surface.border : "rgba(220,38,38,0.25)"}`,
+              color: a.balance > 0 ? zp.text.dim : zp.semantic.danger,
+              cursor: deleting ? "wait" : "pointer",
+            }}
+          >
+            <Trash2 size={13} />
+          </button>
         </div>
       </div>
 
@@ -226,6 +295,197 @@ function EmptyAccounts({ onCreate }: { onCreate: () => void | Promise<void> }) {
     </BankingCard>
   );
 }
+
+function CreateAccountModal({
+  onClose, onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => Promise<void> | void;
+}) {
+  const [name, setName] = useState("");
+  const [accountType, setAccountType] = useState<"business_checking" | "business_savings">("business_checking");
+  const [currency, setCurrency] = useState<"CAD" | "USD">("CAD");
+  const [interestRate, setInterestRate] = useState("0.5");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const isSavings = accountType === "business_savings";
+
+  const submit = async () => {
+    setErr(null);
+    if (!name.trim()) { setErr("Give the account a name."); return; }
+    setSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        action: "create_account",
+        merchant_id: mid(),
+        account_type: accountType,
+        account_name: name.trim(),
+        currency,
+      };
+      if (isSavings) {
+        const rate = Number(interestRate);
+        if (Number.isFinite(rate) && rate >= 0) body.interest_rate = rate;
+      }
+      const r = await fetch("/api/zenipay/banking-ops", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || data?.error) { setErr(data?.error || "Create failed."); return; }
+      await onCreated();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: zp.surface.overlay,
+        backdropFilter: "blur(4px)", zIndex: zp.zIndex.modal,
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480, background: zp.surface.bg1,
+          borderRadius: zp.radius.md, padding: 24, boxShadow: zp.elevation.lg,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: zp.weight.semibold, color: zp.text.primary }}>
+            Open a new account
+          </h3>
+          <button onClick={onClose} aria-label="Close" style={{
+            background: zp.surface.bg3, border: "none", borderRadius: zp.radius.sm,
+            width: 30, height: 30, cursor: "pointer", color: zp.text.primary,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+          }}><X size={16} /></button>
+        </div>
+
+        <FieldLabel>Account name</FieldLabel>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Operating — CAD"
+          style={modalInput}
+          autoFocus
+        />
+
+        <FieldLabel style={{ marginTop: 14 }}>Account type</FieldLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <TypeOption
+            active={accountType === "business_checking"}
+            onClick={() => setAccountType("business_checking")}
+            title="Checking"
+            sub="Everyday operating. No interest, no limits."
+            accent={zp.brand.cyan}
+          />
+          <TypeOption
+            active={accountType === "business_savings"}
+            onClick={() => setAccountType("business_savings")}
+            title="Savings"
+            sub="Earn interest on idle cash."
+            accent={zp.brand.violet}
+          />
+        </div>
+
+        <FieldLabel style={{ marginTop: 14 }}>Currency</FieldLabel>
+        <div style={{ display: "inline-flex", gap: 2, padding: 3, background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`, borderRadius: zp.radius.sm }}>
+          {(["CAD", "USD"] as const).map((c) => {
+            const active = currency === c;
+            return (
+              <button
+                key={c}
+                onClick={() => setCurrency(c)}
+                style={{
+                  padding: "6px 16px", borderRadius: zp.radius.xs, border: "none",
+                  background: active ? zp.surface.bg1 : "transparent",
+                  color: active ? zp.text.primary : zp.text.muted,
+                  fontSize: 12, fontWeight: active ? zp.weight.semibold : zp.weight.medium,
+                  boxShadow: active ? zp.elevation.sm : undefined, cursor: "pointer",
+                }}
+              >{c}</button>
+            );
+          })}
+        </div>
+
+        {isSavings && (
+          <>
+            <FieldLabel style={{ marginTop: 14 }}>Interest rate (%)</FieldLabel>
+            <input
+              type="number" step="0.01" min="0"
+              value={interestRate}
+              onChange={(e) => setInterestRate(e.target.value)}
+              style={modalInput}
+            />
+          </>
+        )}
+
+        {err && (
+          <div style={{
+            marginTop: 14, padding: "10px 12px", borderRadius: zp.radius.sm,
+            background: zp.semantic.dangerBg, color: zp.semantic.danger,
+            fontSize: 12, fontWeight: zp.weight.semibold,
+          }}>
+            {err}
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+          <GradientButton variant="ghost" size="md" onClick={onClose}>Cancel</GradientButton>
+          <GradientButton variant="primary" size="md" onClick={submit} disabled={saving || !name.trim()}>
+            {saving ? "Opening…" : "Open account"}
+          </GradientButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TypeOption({
+  active, onClick, title, sub, accent,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  sub: string;
+  accent: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        textAlign: "left", padding: "12px 14px",
+        borderRadius: zp.radius.sm,
+        border: `1.5px solid ${active ? accent : zp.surface.border}`,
+        background: active ? `${accent}10` : zp.surface.bg2,
+        cursor: "pointer",
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{title}</div>
+      <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 2 }}>{sub}</div>
+    </button>
+  );
+}
+
+function FieldLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted,
+      letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6, ...style,
+    }}>{children}</div>
+  );
+}
+
+const modalInput: React.CSSProperties = {
+  width: "100%", padding: "11px 14px", borderRadius: zp.radius.sm,
+  border: `1px solid ${zp.surface.border}`, background: zp.surface.bg2,
+  color: zp.text.primary, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: zp.font.sans,
+};
 
 function Label({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
