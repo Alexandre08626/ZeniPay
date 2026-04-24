@@ -36,14 +36,21 @@ const nextConfig = {
       // EXCLUDE routes that have legitimate dynamic children, otherwise we
       // eat valid IDs (e.g. /app/accounts/acct_123 would redirect to
       // /app/acct_123 and land on the catch-all ZenivaComplete renderer).
+      //
+      // Previous attempt used `accounts$` inside a negative lookahead, but
+      // the `$` anchors to end-of-URL (not end-of-segment) in path-to-regexp
+      // — `/app/accounts/ACC-123` still matched because `accounts$` only
+      // asserts when `accounts` is the very last character of the whole
+      // URL. We now anchor on the next `/` (which path-to-regexp always
+      // requires before :subtab) using `(?=/)`.
       {
-        source: "/app/:tab((?!accounts$|agents$|cards$|contacts$|invoices$|pay-links$|transactions$)[^/]+)/:subtab",
+        source: "/app/:tab((?!accounts(?=/)|agents(?=/)|cards(?=/)|contacts(?=/)|invoices(?=/)|pay-links(?=/)|transactions(?=/))[^/]+)/:subtab",
         destination: "/app/:subtab",
         permanent: false,
       },
       // Same idea for /sandbox/*.
       {
-        source: "/sandbox/:tab((?!accounts$|agents$|cards$|contacts$|invoices$|pay-links$|transactions$)[^/]+)/:subtab",
+        source: "/sandbox/:tab((?!accounts(?=/)|agents(?=/)|cards(?=/)|contacts(?=/)|invoices(?=/)|pay-links(?=/)|transactions(?=/))[^/]+)/:subtab",
         destination: "/sandbox/:subtab",
         permanent: false,
       },
