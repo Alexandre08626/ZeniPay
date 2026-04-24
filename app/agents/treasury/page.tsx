@@ -289,8 +289,19 @@ export default function TreasuryLandingPage() {
         onDistributed={() => { void loadAll(); }}
       />
 
-      {/* Agent balances */}
-      <AgentBalancesTable agents={agentBalances} loading={loading} />
+      {/* Return to merchant */}
+      <ReturnToMerchantPanel
+        treasuryAmount={primaryTreasuryAmount}
+        treasuryCurrency={primaryTreasuryCurrency}
+        onReturned={() => { void loadAll(); }}
+      />
+
+      {/* Agent balances (with Reclaim action per row) */}
+      <AgentBalancesTable
+        agents={agentBalances}
+        loading={loading}
+        onReclaimed={() => { void loadAll(); }}
+      />
 
       {/* Recent events */}
       <div style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14, overflow: "hidden" }}>
@@ -528,15 +539,69 @@ function DistributePanel({
   );
 }
 
-function AgentBalancesTable({ agents, loading }: { agents: AgentBalance[]; loading: boolean }) {
+function AgentBalancesTable({
+  agents, loading, onReclaimed,
+}: {
+  agents: AgentBalance[];
+  loading: boolean;
+  onReclaimed: () => void;
+}) {
+  const [reclaimingId, setReclaimingId] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  const reclaim = async (a: AgentBalance) => {
+    setErr(null); setOk(null);
+    const units = a.wallet_balance_cents / 100;
+    if (units <= 0) return;
+    const input = window.prompt(
+      `Reclaim from ${a.name}?\nAvailable: ${fmtMoney(units, a.currency)}\nEnter amount (or leave blank for the full balance).`,
+      units.toString(),
+    );
+    if (input == null) return;
+    const amt = input.trim() === "" ? units : Number(input);
+    if (!Number.isFinite(amt) || amt <= 0 || amt > units) {
+      setErr("Invalid amount."); return;
+    }
+    setReclaimingId(a.id);
+    try {
+      const r = await apiFetch<{ success: boolean; agent_name?: string }>(
+        "/api/v1/agents/treasury/reclaim-from-agent",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            from_agent_id: a.id,
+            amount_units: amt,
+            currency: a.currency,
+            idempotency_key: `reclaim-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          }),
+        },
+      );
+      setOk(`${fmtMoney(amt, a.currency)} reclaimed from ${r.agent_name ?? a.name} ✓`);
+      onReclaimed();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReclaimingId(null);
+    }
+  };
+
   return (
     <div style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
       <div style={{ padding: "14px 18px", borderBottom: `1px solid ${BORDER}` }}>
         <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: TEXT }}>Agent balances</h3>
         <p style={{ margin: "2px 0 0", fontSize: 12, color: MUTED }}>
-          Live ZeniCore balance for every active agent in your org.
+          Live ZeniCore balance for every active agent in your org. Reclaim any amount back into treasury — free, internal.
         </p>
       </div>
+      {(err || ok) && (
+        <div style={{
+          padding: "10px 18px", fontSize: 12, fontWeight: 700,
+          background: err ? "rgba(220,38,38,0.06)" : "rgba(45,190,96,0.08)",
+          color: err ? "#DC2626" : "#16A34A",
+          borderBottom: `1px solid ${BORDER}`,
+        }}>{err ?? ok}</div>
+      )}
       {loading && agents.length === 0 ? (
         <p style={{ padding: "22px 18px", margin: 0, color: MUTED, fontSize: 13 }}>Loading…</p>
       ) : agents.length === 0 ? (
@@ -545,22 +610,178 @@ function AgentBalancesTable({ agents, loading }: { agents: AgentBalance[]; loadi
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc" }}>
-              {["Agent", "Role", "Balance"].map((h) => <th key={h} style={thStyle}>{h}</th>)}
+              {["Agent", "Role", "Balance", ""].map((h, i) => <th key={i} style={thStyle}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
-            {agents.map((a) => (
-              <tr key={a.id} style={{ borderTop: `1px solid ${BORDER}` }}>
-                <td style={{ ...tdStyle, fontWeight: 700 }}>{a.name}</td>
-                <td style={{ ...tdStyle, color: MUTED, textTransform: "capitalize" }}>{a.agent_type}</td>
-                <td style={{ ...tdStyle, fontFamily: "ui-monospace", fontWeight: 800 }}>
-                  {fmtMoney(a.wallet_balance_cents / 100, a.currency)}
-                </td>
-              </tr>
-            ))}
+            {agents.map((a) => {
+              const hasBal = a.wallet_balance_cents > 0;
+              const pending = reclaimingId === a.id;
+              return (
+                <tr key={a.id} style={{ borderTop: `1px solid ${BORDER}` }}>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{a.name}</td>
+                  <td style={{ ...tdStyle, color: MUTED, textTransform: "capitalize" }}>{a.agent_type}</td>
+                  <td style={{ ...tdStyle, fontFamily: "ui-monospace", fontWeight: 800 }}>
+                    {fmtMoney(a.wallet_balance_cents / 100, a.currency)}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right" }}>
+                    <button
+                      onClick={() => reclaim(a)}
+                      disabled={!hasBal || pending}
+                      style={{
+                        background: !hasBal ? "#e2e8f0" : pending ? "#94a3b8" : "#fff",
+                        color: !hasBal ? "#94a3b8" : pending ? "#fff" : TEAL,
+                        border: `1.5px solid ${!hasBal ? "#e2e8f0" : TEAL}`,
+                        padding: "6px 12px", borderRadius: 8,
+                        fontSize: 11, fontWeight: 800, cursor: hasBal && !pending ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      {pending ? "Reclaiming…" : "Reclaim"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
+    </div>
+  );
+}
+
+interface MerchantAccount {
+  id: string;
+  account_name: string;
+  balance: number;
+  currency: string;
+  is_primary: boolean;
+}
+
+function ReturnToMerchantPanel({
+  treasuryAmount, treasuryCurrency, onReturned,
+}: {
+  treasuryAmount: number;
+  treasuryCurrency: string;
+  onReturned: () => void;
+}) {
+  const [accounts, setAccounts] = useState<MerchantAccount[]>([]);
+  const [accountId, setAccountId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [memo, setMemo] = useState("");
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await apiFetch<{ accounts: MerchantAccount[] }>("/api/v1/agents/merchant-accounts");
+        setAccounts(r.accounts ?? []);
+        const primary = (r.accounts ?? []).find((a) => a.is_primary) ?? (r.accounts ?? [])[0];
+        if (primary) setAccountId(primary.id);
+      } catch {
+        /* empty list stays */
+      }
+    })();
+  }, []);
+
+  const submit = async () => {
+    setErr(null); setOk(null);
+    const amt = Number(amount);
+    if (!accountId) { setErr("Pick a destination account."); return; }
+    if (!Number.isFinite(amt) || amt <= 0) { setErr("Enter an amount greater than 0."); return; }
+    if (amt > treasuryAmount) { setErr("Insufficient treasury balance."); return; }
+    setSending(true);
+    try {
+      await apiFetch("/api/v1/agents/treasury/return-to-merchant", {
+        method: "POST",
+        body: JSON.stringify({
+          to_account_id: accountId,
+          amount_units: amt,
+          currency: treasuryCurrency,
+          idempotency_key: `return2merch-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          memo,
+        }),
+      });
+      setOk(`${fmtMoney(amt, treasuryCurrency)} returned to your merchant account ✓`);
+      setAmount(""); setMemo("");
+      onReturned();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{
+      background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 14,
+      padding: "18px 20px", marginBottom: 18,
+    }}>
+      <div style={{ marginBottom: 10 }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: TEXT }}>Return to merchant</h3>
+        <p style={{ margin: "2px 0 0", fontSize: 12, color: MUTED }}>
+          Move treasury back into a ZeniPay account. Internal transfer — no fees.
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr", gap: 10 }}>
+        <select
+          value={accountId}
+          onChange={(e) => setAccountId(e.target.value)}
+          style={fieldStyle}
+          disabled={sending || accounts.length === 0}
+        >
+          <option value="">{accounts.length === 0 ? "No merchant accounts linked" : "Select an account…"}</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.account_name}{a.is_primary ? " · primary" : ""} · {fmtMoney(a.balance, a.currency)}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number" step="0.01" min="0" placeholder="0.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          style={fieldStyle}
+          disabled={sending}
+        />
+        <input
+          type="text" placeholder="Memo (optional)"
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          style={fieldStyle}
+          disabled={sending}
+        />
+      </div>
+
+      {err && (
+        <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(220,38,38,0.08)", color: "#DC2626", fontSize: 12, fontWeight: 700 }}>
+          {err}
+        </div>
+      )}
+      {ok && (
+        <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, background: "rgba(45,190,96,0.1)", color: "#16A34A", fontSize: 12, fontWeight: 700 }}>
+          {ok}
+        </div>
+      )}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+        <button
+          onClick={submit}
+          disabled={sending || !accountId || !amount}
+          style={{
+            background: sending || !accountId || !amount
+              ? "#94a3b8"
+              : "linear-gradient(135deg,#2DBE60,#15B8C9,#7B4FBF)",
+            color: "#fff", border: "none", padding: "10px 22px", borderRadius: 10,
+            fontSize: 13, fontWeight: 800, cursor: sending ? "not-allowed" : "pointer",
+            boxShadow: sending ? "none" : "0 6px 16px rgba(21,184,201,0.32)",
+          }}
+        >
+          {sending ? "Returning…" : `Return ${amount ? fmtMoney(Number(amount) || 0, treasuryCurrency) : ""}`}
+        </button>
+      </div>
     </div>
   );
 }
