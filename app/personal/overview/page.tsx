@@ -21,7 +21,7 @@ import zp from "@/lib/design-system/zenipay-brand";
 interface PersonalAccount {
   id: string;
   merchant_id: string;
-  name: string;
+  account_name: string;
   account_type: string;
   account_number: string;
   balance: number;
@@ -209,7 +209,7 @@ function AccountCard({ a }: { a: PersonalAccount }) {
               {a.is_primary ? "Primary · " : ""}{a.account_type}
             </div>
             <div style={{ fontSize: 15, fontWeight: zp.weight.semibold, color: zp.text.primary, marginTop: 3 }}>
-              {a.name}
+              {a.account_name}
             </div>
           </div>
           <LiveIndicator label={a.status === "active" ? "Active" : a.status} color={a.status === "active" ? zp.semantic.success : zp.semantic.warning} pulse={a.status === "active"} size="sm" />

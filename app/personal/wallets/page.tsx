@@ -12,7 +12,7 @@ import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
 import zp from "@/lib/design-system/zenipay-brand";
 
 interface PersonalAccount {
-  id: string; name: string; balance: number; currency: string;
+  id: string; account_name: string; balance: number; currency: string;
   is_primary?: boolean;
   zp_account_number?: string | null;
   zp_routing_code?: string | null;
@@ -64,7 +64,7 @@ export default function PersonalWalletsPage() {
                 accent="pink"
                 accountNumber={primary.zp_account_number}
                 routingCode={primary.zp_routing_code ?? null}
-                accountName={primary.name}
+                accountName={primary.account_name}
                 currency={primary.currency}
               />
             );

@@ -16,7 +16,7 @@ import { YieldPanel } from "@/app/components/shared/YieldPanel";
 
 interface PersonalAccount {
   id: string;
-  name: string;
+  account_name: string;
   account_type: string;
   account_number: string;
   balance: number;
@@ -86,7 +86,7 @@ export default function PersonalAccountDetailPage() {
                   {account.is_primary ? "Primary · " : ""}{account.account_type}
                 </div>
                 <h1 style={{ margin: "4px 0 0", fontFamily: zp.font.display, fontSize: 28, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.02em" }}>
-                  {account.name}
+                  {account.account_name}
                 </h1>
               </div>
               <LiveIndicator label={account.status} color={account.status === "active" ? zp.semantic.success : zp.semantic.warning} pulse={account.status === "active"} size="sm" />
@@ -110,7 +110,7 @@ export default function PersonalAccountDetailPage() {
               accent="pink"
               accountNumber={account.zp_account_number ?? null}
               routingCode={account.zp_routing_code ?? null}
-              accountName={account.name}
+              accountName={account.account_name}
               currency={account.currency}
             />
             <BankingCard>

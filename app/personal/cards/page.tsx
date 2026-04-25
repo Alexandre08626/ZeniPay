@@ -23,7 +23,7 @@ interface PersonalCard {
   spending_limit_monthly: number | null;
   currency: string;
 }
-interface PersonalAccount { id: string; name: string; balance: number; currency: string }
+interface PersonalAccount { id: string; account_name: string; balance: number; currency: string }
 
 function mid(): string {
   if (typeof window === "undefined") return "";
@@ -195,7 +195,7 @@ function IssueCardModal({ accounts, onClose, onCreated }: { accounts: PersonalAc
           <div>
             <label style={{ fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted, textTransform: "uppercase" as const, letterSpacing: "0.1em" }}>Linked account</label>
             <select value={accountId} onChange={(e) => setAccountId(e.target.value)} style={{ width: "100%", marginTop: 6, padding: "11px 14px", borderRadius: zp.radius.sm, border: `1px solid ${zp.surface.border}`, background: zp.surface.bg2, color: zp.text.primary, fontSize: 14, boxSizing: "border-box" }}>
-              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} · {zp.fmtCurrency(Number(a.balance), a.currency)}</option>)}
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.account_name} · {zp.fmtCurrency(Number(a.balance), a.currency)}</option>)}
             </select>
           </div>
           <div>

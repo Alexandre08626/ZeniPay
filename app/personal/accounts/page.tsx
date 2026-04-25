@@ -14,7 +14,7 @@ import { CompactZpNumber } from "@/app/components/shared/ZeniPayAccountCard";
 
 interface PersonalAccount {
   id: string;
-  name: string;
+  account_name: string;
   account_type: string;
   account_number: string;
   balance: number;
@@ -87,7 +87,7 @@ function Card({ a }: { a: PersonalAccount }) {
             <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted, letterSpacing: "0.12em", textTransform: "uppercase" }}>
               {a.is_primary ? "Primary · " : ""}{a.account_type}
             </div>
-            <div style={{ fontSize: 16, fontWeight: zp.weight.semibold, color: zp.text.primary, marginTop: 3 }}>{a.name}</div>
+            <div style={{ fontSize: 16, fontWeight: zp.weight.semibold, color: zp.text.primary, marginTop: 3 }}>{a.account_name}</div>
           </div>
           <LiveIndicator label={a.status} color={a.status === "active" ? zp.semantic.success : zp.semantic.warning} pulse={a.status === "active"} size="sm" />
         </div>

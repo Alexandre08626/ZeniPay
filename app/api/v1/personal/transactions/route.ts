@@ -96,7 +96,8 @@ export async function POST(req: NextRequest) {
   if (insErr) {
     return NextResponse.json({ error: { code: "server_error", message: insErr.message } }, { status: 500 });
   }
-  await db.from("zenipay_personal_accounts").update({ balance: newBalance, updated_at: new Date().toISOString() }).eq("id", accountId);
+  // NOTE: zenipay_personal_accounts has no updated_at column.
+  await db.from("zenipay_personal_accounts").update({ balance: newBalance }).eq("id", accountId);
 
   return NextResponse.json({
     transaction_id: txId,

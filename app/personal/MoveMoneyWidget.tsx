@@ -15,7 +15,7 @@ import zp from "@/lib/design-system/zenipay-brand";
 
 interface PersonalAccount {
   id: string;
-  name: string;
+  account_name: string;
   balance: number;
   currency: string;
   account_type?: string;
@@ -125,7 +125,7 @@ export function MoveMoneyWidget({
             {personalAccounts.length === 0 ? <option value="">No personal account</option> : null}
             {personalAccounts.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} · {zp.fmtCurrency(Number(a.balance), a.currency)}
+                {a.account_name} · {zp.fmtCurrency(Number(a.balance), a.currency)}
               </option>
             ))}
           </select>
