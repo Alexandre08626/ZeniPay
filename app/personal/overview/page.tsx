@@ -72,10 +72,11 @@ export default function PersonalOverviewPage() {
     if (!m) return;
     setLoading(true);
     try {
+      const ts = Date.now();
       const [accRes, txRes, bankRes] = await Promise.all([
-        fetch(`/api/v1/personal/accounts?merchant_id=${encodeURIComponent(m)}`).then((r) => r.json()),
-        fetch(`/api/v1/personal/transactions?merchant_id=${encodeURIComponent(m)}&limit=10`).then((r) => r.json()),
-        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(m)}`).then((r) => r.json()).catch(() => ({ accounts: [] })),
+        fetch(`/api/v1/personal/accounts?merchant_id=${encodeURIComponent(m)}&_=${ts}`,                    { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/v1/personal/transactions?merchant_id=${encodeURIComponent(m)}&limit=10&_=${ts}`,        { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(m)}&_=${ts}`,                     { cache: "no-store" }).then((r) => r.json()).catch(() => ({ accounts: [] })),
       ]);
       setAccounts(accRes.accounts ?? []);
       setTxs(txRes.transactions ?? []);
@@ -86,6 +87,14 @@ export default function PersonalOverviewPage() {
   }, []);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { setFirstName(readFirstName()); }, []);
+  // Auto-refresh every 30s + on focus so transfers/payments show up
+  // without a manual reload.
+  useEffect(() => {
+    const interval = setInterval(() => { void load(); }, 30_000);
+    const onFocus = () => { void load(); };
+    window.addEventListener("focus", onFocus);
+    return () => { clearInterval(interval); window.removeEventListener("focus", onFocus); };
+  }, [load]);
 
   const totalBalance = useMemo(
     () => accounts.reduce((s, a) => s + Number(a.balance ?? 0), 0),

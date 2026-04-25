@@ -98,9 +98,10 @@ export default function TransactionsPage() {
     if (!mid()) return;
     setLoading(true);
     try {
+      const ts = Date.now();
       const [banking, activity] = await Promise.all([
-        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid())}`).then((r) => r.json()),
-        fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid())}&limit=500`).then((r) => r.json()),
+        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid())}&_=${ts}`,             { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid())}&limit=500&_=${ts}`, { cache: "no-store" }).then((r) => r.json()),
       ]);
       setAccounts(banking.accounts ?? []);
       const rows: UnifiedRow[] = (activity.activity ?? []).map((a: ActivityRow) => ({
@@ -119,6 +120,12 @@ export default function TransactionsPage() {
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const interval = setInterval(() => { void load(); }, 30_000);
+    const onFocus = () => { void load(); };
+    window.addEventListener("focus", onFocus);
+    return () => { clearInterval(interval); window.removeEventListener("focus", onFocus); };
+  }, [load]);
 
   const filtered = useMemo(() => {
     const now = Date.now();

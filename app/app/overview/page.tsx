@@ -121,11 +121,14 @@ export default function OverviewPage() {
     if (!mid) return;
     setLoading(true);
     try {
+      // cache-bust + no-store so the activity feed doesn't show
+      // pre-transfer stale data after the user does an action.
+      const ts = Date.now();
       const [banking, stats, activity, merchCards] = await Promise.all([
-        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
-        fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()),
-        fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid)}&limit=20`).then((r) => r.json()),
-        fetch(`/api/v1/merchant/cards?merchant_id=${encodeURIComponent(mid)}`).then((r) => r.json()).catch(() => ({ cards: [] })),
+        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid)}&_=${ts}`,           { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(mid)}&_=${ts}`,                  { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid)}&limit=20&_=${ts}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/v1/merchant/cards?merchant_id=${encodeURIComponent(mid)}&_=${ts}`,             { cache: "no-store" }).then((r) => r.json()).catch(() => ({ cards: [] })),
       ]);
       setAccounts(banking.accounts ?? []);
       setTransfers(banking.transfers ?? []);
@@ -141,6 +144,16 @@ export default function OverviewPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Auto-refresh every 30s + when the tab regains focus, so a transfer
+  // or settled payment shows up in "Recent activity" without the user
+  // having to hard-refresh the page.
+  useEffect(() => {
+    const interval = setInterval(() => { void load(); }, 30_000);
+    const onFocus = () => { void load(); };
+    window.addEventListener("focus", onFocus);
+    return () => { clearInterval(interval); window.removeEventListener("focus", onFocus); };
+  }, [load]);
 
   const totalBalance = useMemo(
     () => accounts.reduce((s, a) => s + Number(a.balance || 0), 0),

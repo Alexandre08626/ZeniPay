@@ -18,7 +18,7 @@ interface PersonalTx {
   category: string | null;
   created_at: string;
 }
-interface PersonalAccount { id: string; name: string }
+interface PersonalAccount { id: string; account_name: string }
 
 function mid(): string {
   if (typeof window === "undefined") return "";
@@ -40,19 +40,27 @@ export default function PersonalTransactionsPage() {
       const sp = new URLSearchParams({ merchant_id: m, limit: "100" });
       if (account) sp.set("account_id", account);
       if (type)    sp.set("type", type);
+      const ts = Date.now();
+      sp.set("_", String(ts));
       const [txRes, accRes] = await Promise.all([
-        fetch(`/api/v1/personal/transactions?${sp.toString()}`).then((r) => r.json()),
-        fetch(`/api/v1/personal/accounts?merchant_id=${encodeURIComponent(m)}`).then((r) => r.json()),
+        fetch(`/api/v1/personal/transactions?${sp.toString()}`,                             { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/v1/personal/accounts?merchant_id=${encodeURIComponent(m)}&_=${ts}`,     { cache: "no-store" }).then((r) => r.json()),
       ]);
       setTxs(txRes.transactions ?? []);
       setAccounts(accRes.accounts ?? []);
     } finally { setLoading(false); }
   }, [account, type]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const interval = setInterval(() => { void load(); }, 30_000);
+    const onFocus = () => { void load(); };
+    window.addEventListener("focus", onFocus);
+    return () => { clearInterval(interval); window.removeEventListener("focus", onFocus); };
+  }, [load]);
 
   const accountName = useMemo(() => {
     const m = new Map<string, string>();
-    for (const a of accounts) m.set(a.id, a.name);
+    for (const a of accounts) m.set(a.id, a.account_name);
     return m;
   }, [accounts]);
 
@@ -71,7 +79,7 @@ export default function PersonalTransactionsPage() {
             <span style={{ fontSize: 10, color: zp.text.muted, fontWeight: zp.weight.semibold, textTransform: "uppercase" as const, letterSpacing: "0.1em" }}>Account</span>
             <select value={account} onChange={(e) => setAccount(e.target.value)} style={selectStyle}>
               <option value="">All</option>
-              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.account_name}</option>)}
             </select>
           </div>
           <div style={{ display: "inline-flex", flexDirection: "column" as const, gap: 4 }}>
