@@ -8,7 +8,6 @@ import { Building2, ShieldCheck } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import zp from "@/lib/design-system/zenipay-brand";
-import { AccountingConnectionsPanel } from "@/app/components/shared/AccountingConnectionsPanel";
 
 interface Profile {
   id: string;
@@ -99,10 +98,6 @@ export default function PersonalSettingsPage() {
             </p>
           </BankingCard>
         </div>
-      </div>
-
-      <div style={{ marginTop: 20 }}>
-        <AccountingConnectionsPanel merchantId={mid()} connectionType="personal" accent="pink" />
       </div>
     </DashboardShell>
   );
