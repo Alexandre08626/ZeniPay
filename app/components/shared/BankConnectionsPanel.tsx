@@ -11,8 +11,7 @@
 
 import Image from "next/image";
 import React, { useCallback, useEffect, useState } from "react";
-import { Building2, RefreshCw, Trash2, X, Link as LinkIcon, Mail, Lock, ArrowRight } from "lucide-react";
-import { usePlaidLink } from "react-plaid-link";
+import { Building2, RefreshCw, Trash2, X, Mail, Lock, ArrowRight } from "lucide-react";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
@@ -55,7 +54,6 @@ export function BankConnectionsPanel({
   const [funding, setFunding] = useState<BankConnection | null>(null);
   const [reconcileOnFocus, setReconcileOnFocus] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const [linkToken, setLinkToken] = useState<string | null>(null);
 
   const accentColor =
     accent === "pink"   ? zp.brand.pink   :
@@ -101,68 +99,11 @@ export function BankConnectionsPanel({
     return () => window.removeEventListener("focus", onFocus);
   }, [reconcileOnFocus, load]);
 
-  // Plaid Link integration. The hook is called UNCONDITIONALLY at
-  // the top level (rules of hooks); usePlaidLink tolerates a null
-  // token. `open()` only does something when ready === true.
-  const plaidLink = usePlaidLink({
-    token: linkToken,
-    onSuccess: async (publicToken: string) => {
-      // Hand the public_token to our server to exchange for an
-      // access_token + bootstrap zenipay_bank_connections rows.
-      try {
-        const r = await fetch("/api/v1/bank/plaid/exchange", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            merchant_id: merchantId,
-            public_token: publicToken,
-            connection_type: connectionType,
-          }),
-        });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) {
-          setToast({ msg: data?.error?.message ?? "Bank link failed.", tone: "danger" });
-          return;
-        }
-        await load();
-        setToast({
-          msg: `Linked ${data?.accounts_linked ?? 0} account${data?.accounts_linked === 1 ? "" : "s"} from ${data?.institution_name ?? "your bank"}.`,
-          tone: "success",
-        });
-      } catch (e) {
-        setToast({ msg: e instanceof Error ? e.message : "Bank link failed.", tone: "danger" });
-      } finally {
-        setLinkToken(null);
-      }
-    },
-    onExit: () => { setLinkToken(null); },
-  });
-
-  // When a Plaid link_token lands, immediately open the widget.
-  useEffect(() => {
-    if (linkToken && plaidLink.ready) plaidLink.open();
-  }, [linkToken, plaidLink.ready]);  // eslint-disable-line react-hooks/exhaustive-deps
-
-  const openPlaidLink = async () => {
-    setConnecting(true);
-    try {
-      const r = await fetch(
-        `/api/v1/bank/plaid/link-token?merchant_id=${encodeURIComponent(merchantId)}`,
-        { cache: "no-store" },
-      );
-      const data = await r.json();
-      if (!r.ok || !data.link_token) {
-        setToast({ msg: data?.error?.message ?? "Unable to start Plaid Link.", tone: "danger" });
-        return;
-      }
-      setLinkToken(data.link_token);
-    } finally { setConnecting(false); }
-  };
-
-  // Plaid is the only widget provider. The MX postMessage listener
-  // and connectUrl iframe modal have been removed — react-plaid-link
-  // handles events via onSuccess / onExit on its hook directly.
-  const openConnectWidget = openPlaidLink;
+  // Widget-based bank linking (MX, Plaid) is disabled in the UI
+  // until production approval lands with one of the providers.
+  // Until then the only path to add a bank is the manual modal.
+  // Code for both providers stays in the repo so we can flip them
+  // back on in one line when production credentials are ready.
 
   const sync = async (id: string) => {
     const r = await fetch("/api/v1/bank/sync", {
@@ -195,47 +136,45 @@ export function BankConnectionsPanel({
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.2px" }}>
           Connected bank accounts
         </h2>
-        {available && connections.length > 0 && (
-          <div style={{ display: "inline-flex", gap: 8 }}>
-            <GradientButton size="sm" variant="ghost" icon={<LinkIcon size={12} />} onClick={openConnectWidget} disabled={connecting}>
-              Connect another
-            </GradientButton>
-            <GradientButton size="sm" variant="ghost" onClick={() => setManualOpen(true)}>
-              Add manually
-            </GradientButton>
-          </div>
+        {connections.length > 0 && (
+          <GradientButton size="sm" variant="ghost" onClick={() => setManualOpen(true)}>
+            Add another
+          </GradientButton>
         )}
       </div>
 
-      {!available && (
-        <BankingCard style={{ padding: "18px 22px", borderLeft: `3px solid ${zp.semantic.warning}` }}>
-          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" as const }}>
-            <div style={{ width: 40, height: 40, borderRadius: zp.radius.md, background: zp.semantic.warningBg, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-              <Lock size={18} color={zp.semantic.warning} />
+      {connections.length === 0 && (
+        <BankingCard accent={accent} style={{ padding: "26px 24px" }}>
+          <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" as const, marginBottom: 18 }}>
+            <div style={{ width: 48, height: 48, borderRadius: zp.radius.md, background: `${accentColor}18`, color: accentColor, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Building2 size={22} />
             </div>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Bank connections — coming soon</div>
-              <div style={{ fontSize: 12, color: zp.text.muted, marginTop: 2 }}>We&apos;re finalizing our bank-data provider. Link Desjardins, TD, RBC, BMO, Scotiabank and more the moment it ships.</div>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <div style={{ fontSize: 16, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.1px" }}>
+                Add a bank account
+              </div>
+              <div style={{ fontSize: 12, color: zp.text.muted, marginTop: 4, lineHeight: 1.5 }}>
+                Enter your routing/transit + account number once. Funds move via Finix ACH (already in production).
+              </div>
             </div>
-            <GradientButton variant="secondary" size="sm" icon={<Mail size={12} />} onClick={() => { window.location.href = "mailto:info@zeniva.ca?subject=Notify%20me%20about%20bank%20connections"; }}>
-              Get notified
-            </GradientButton>
+          </div>
+
+          <GradientButton
+            variant="primary" size="md"
+            icon={<ArrowRight size={14} />}
+            onClick={() => setManualOpen(true)}
+            style={accent === "pink" ? { background: zp.gradient.personal } : undefined}
+          >
+            Add bank account manually
+          </GradientButton>
+
+          <div style={{ marginTop: 14, fontSize: 11, color: zp.text.dim, lineHeight: 1.5 }}>
+            Automatic bank connection coming soon — powered by Plaid.
           </div>
         </BankingCard>
       )}
 
-      {available && connections.length === 0 && (
-        <ConnectChoice
-          accent={accent}
-          accentColor={accentColor}
-          connecting={connecting}
-          onWidget={openConnectWidget}
-          onManual={() => setManualOpen(true)}
-          provider={provider}
-        />
-      )}
-
-      {available && connections.length > 0 && (
+      {connections.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
           {connections.map((c) => (
             <ConnectionCard
