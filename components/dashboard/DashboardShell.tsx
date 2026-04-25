@@ -83,6 +83,7 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
     () =>
       pathname.startsWith("/agents")    ? "agents"   :
       pathname.startsWith("/personal")  ? "personal" :
+      pathname.startsWith("/admin")     ? "admin"    :
                                           "merchant",
     [pathname],
   );

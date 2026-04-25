@@ -31,6 +31,8 @@ import {
   Activity,
   Target,
   PieChart,
+  TrendingUp,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 import type { DashboardMode } from "./TopBar";
@@ -54,6 +56,22 @@ const MERCHANT_NAV: NavItem[] = [
   { href: "/app/contacts",     label: "Contacts",      Icon: Users,           group: "tools" },
   { href: "/app/pay-links",    label: "Payment links", Icon: LinkIcon,        group: "tools" },
   { href: "/app/settings",     label: "Settings",      Icon: SettingsIcon,    group: "tools" },
+];
+
+const ADMIN_NAV: NavItem[] = [
+  { href: "/admin/overview",     label: "Overview",     Icon: Home,           group: "primary" },
+  { href: "/admin/merchants",    label: "Merchants",    Icon: Building2,      group: "primary" },
+  { href: "/admin/agents",       label: "Agents",       Icon: Bot,            group: "primary" },
+  { href: "/admin/treasury",     label: "Treasury",     Icon: TrendingUp,     group: "primary" },
+  { href: "/admin/transactions", label: "Transactions", Icon: ArrowLeftRight, group: "primary" },
+  { href: "/admin/cards",        label: "Cards",        Icon: CreditCard,     group: "primary" },
+
+  { href: "/admin/yield",        label: "Yield",        Icon: TrendingUp,     group: "tools" },
+  { href: "/admin/compliance",   label: "Compliance",   Icon: ShieldCheck,    group: "tools" },
+  { href: "/admin/fraud",        label: "Fraud",        Icon: AlertTriangle,  group: "tools" },
+  { href: "/admin/leads",        label: "Leads",        Icon: Users,          group: "tools" },
+  { href: "/admin/api",          label: "API",          Icon: KeyRound,       group: "tools" },
+  { href: "/admin/settings",     label: "Settings",     Icon: SettingsIcon,   group: "tools" },
 ];
 
 const PERSONAL_NAV: NavItem[] = [
@@ -96,15 +114,18 @@ export interface SidebarProps {
 export function Sidebar({ mode, openDrawer, onCloseDrawer }: SidebarProps) {
   const pathname = usePathname() ?? "";
   const nav =
+    mode === "admin"    ? ADMIN_NAV    :
     mode === "personal" ? PERSONAL_NAV :
     mode === "agents"   ? AGENTS_NAV   :
                           MERCHANT_NAV;
   const accent =
-    mode === "personal" ? zp.brand.pink :
+    mode === "admin"    ? zp.brand.green  :
+    mode === "personal" ? zp.brand.pink   :
     mode === "agents"   ? zp.brand.violet :
                           zp.brand.cyan;
   const tint =
-    mode === "personal" ? zp.gradient.tintPink :
+    mode === "admin"    ? zp.gradient.tintGreen  :
+    mode === "personal" ? zp.gradient.tintPink   :
     mode === "agents"   ? zp.gradient.tintViolet :
                           zp.gradient.tintCyan;
 

@@ -354,18 +354,14 @@ function Chip({ label, accent, ghost, emphasize }: { label: string; accent: stri
   );
 }
 
-// Roster v2 — official ZeniPay financial agent fleet (12 specialists).
-// DEMO_ROSTER = the 4 vitrine agents shown on the marketing landing
-// (/agents/overview) and as the empty-state pre-roster on the
-// /agents/dashboard demo. AVAILABLE_TEMPLATES holds the other 8 that
-// merchants can self-install via the "New agent" picker.
-//
-// Net change vs v1: dropped Max, Jade, Luna; added Zara, Victor, Eva.
+// Roster v2.1 — financial agent fleet. Dropped Zara + Victor at
+// Alex's request. DEMO_ROSTER = the 2 vitrine agents shown on the
+// marketing landing and as the empty-state pre-roster on
+// /agents/dashboard. AVAILABLE_TEMPLATES holds the other 8 self-install
+// templates accessible from the "New agent" picker.
 export const DEMO_ROSTER: AgentCardData[] = [
-  { name: "Zara",   role: "Banker",            accent: "#15B8C9", balance: 2400.00, currency: "USD", status: "active", last4: "1042", limit: 8000,  spent: 4920, txCount: 38, lastActivity: "just now", primaryLabel: "Example" },
-  { name: "Victor", role: "Accountant",        accent: "#7B4FBF", balance: 1800.00, currency: "USD", status: "active", last4: "8217", limit: 4000,  spent: 1610, txCount: 24, lastActivity: "8m ago",    primaryLabel: "Example" },
-  { name: "Eva",    role: "Financial Advisor", accent: "#10B981", balance: 3100.00, currency: "USD", status: "active", last4: "3590", limit: 6000,  spent: 2240, txCount: 19, lastActivity: "22m ago",   primaryLabel: "Example" },
-  { name: "Ben",    role: "Finance Agent",     accent: "#FFA500", balance: 4200.00, currency: "USD", status: "active", last4: "4821", limit: 10000, spent: 5800, txCount: 87, lastActivity: "1h ago",    primaryLabel: "Example" },
+  { name: "Eva",    role: "Financial Advisor", accent: "#10B981", balance: 3100.00, currency: "USD", status: "active", last4: "3590", limit: 6000,  spent: 2240, txCount: 19, lastActivity: "22m ago", primaryLabel: "Example" },
+  { name: "Ben",    role: "Finance Agent",     accent: "#FFA500", balance: 4200.00, currency: "USD", status: "active", last4: "4821", limit: 10000, spent: 5800, txCount: 87, lastActivity: "1h ago",  primaryLabel: "Example" },
 ];
 
 // Other 8 agent templates — available through the "New agent" picker.

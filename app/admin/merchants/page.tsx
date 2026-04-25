@@ -70,7 +70,7 @@ export default function AdminMerchantsPage() {
 
   if (!authorized) {
     return (
-      <DashboardShell mode="merchant">
+      <DashboardShell mode="admin">
         <BankingCard>
           <div style={{ padding: "48px 24px", textAlign: "center" }}>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: zp.weight.semibold, color: zp.text.primary }}>
@@ -86,7 +86,7 @@ export default function AdminMerchantsPage() {
   }
 
   return (
-    <DashboardShell mode="merchant">
+    <DashboardShell mode="admin">
       <div style={{ marginBottom: 22 }}>
         <h1 style={{
           margin: 0, fontFamily: zp.font.display, fontSize: 32,

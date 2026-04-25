@@ -17,7 +17,6 @@ import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
 import { KybBanner } from "./KybBanner";
-import { FinixBalanceTile } from "./FinixBalanceTile";
 import { YourCardsStrip } from "./YourCardsStrip";
 import { CompactZpNumber } from "@/app/components/shared/ZeniPayAccountCard";
 
@@ -205,11 +204,6 @@ export default function OverviewPage() {
           { label: "Issue card",  href: "/app/cards",    icon: <CreditCard size={14} /> },
         ]}
       />
-
-      {/* Finix balance + Accounts strip */}
-      <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-        <FinixBalanceTile />
-      </div>
 
       <section style={{ marginTop: 20, marginBottom: 20 }}>
         <SectionHeader title="Accounts" link={{ href: "/app/accounts", label: "Manage accounts" }} />

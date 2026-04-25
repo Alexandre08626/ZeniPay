@@ -13,25 +13,28 @@ import React, { useEffect, useRef, useState } from "react";
 import { Bell, Search, ChevronDown, LogOut, Settings as SettingsIcon, User, Building2, Bot } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
 
-export type DashboardMode = "merchant" | "agents" | "personal";
+export type DashboardMode = "merchant" | "agents" | "personal" | "admin";
 
 export const LAST_MODE_KEY = "zenipay_last_mode";
 
 function modeAccent(m: DashboardMode): string {
   if (m === "personal") return zp.brand.pink;
   if (m === "agents")   return zp.brand.violet;
+  if (m === "admin")    return zp.brand.green;
   return zp.brand.cyan;
 }
 
 function modeLabel(m: DashboardMode): string {
   if (m === "personal") return "Personal";
   if (m === "agents")   return "Agents";
+  if (m === "admin")    return "Admin";
   return "Business";
 }
 
 function modeHref(m: DashboardMode): string {
   if (m === "personal") return "/personal/overview";
   if (m === "agents")   return "/agents/dashboard";
+  if (m === "admin")    return "/admin/overview";
   return "/app/overview";
 }
 
