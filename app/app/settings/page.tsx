@@ -3,13 +3,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { User, Building2, KeyRound, Bell, Shield, LogOut, Banknote } from "lucide-react";
+import { User, Building2, KeyRound, Bell, Shield, LogOut, Banknote, Link2 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
 import { PayoutDestinationsSection } from "./PayoutDestinationsSection";
 import { ApiKeysSection, ApiUsageSection } from "./ApiKeysSection";
+import { AccountingConnectionsPanel } from "@/app/components/shared/AccountingConnectionsPanel";
 
 interface Merchant {
   id: string;
@@ -27,12 +28,13 @@ interface Merchant {
   createdAt?: string;
 }
 
-type Section = "profile" | "business" | "payouts" | "api" | "notifications" | "security";
+type Section = "profile" | "business" | "payouts" | "integrations" | "api" | "notifications" | "security";
 
 const SECTIONS: Array<{ id: Section; label: string; Icon: typeof User }> = [
   { id: "profile",       label: "Profile",       Icon: User },
   { id: "business",      label: "Business",      Icon: Building2 },
   { id: "payouts",       label: "Payouts",       Icon: Banknote },
+  { id: "integrations",  label: "Integrations",  Icon: Link2 },
   { id: "api",           label: "API keys",      Icon: KeyRound },
   { id: "notifications", label: "Notifications", Icon: Bell },
   { id: "security",      label: "Security",      Icon: Shield },
@@ -130,6 +132,9 @@ export default function SettingsPage() {
           )}
           {section === "payouts" && (
             <PayoutDestinationsSection merchantId={mid()} />
+          )}
+          {section === "integrations" && (
+            <AccountingConnectionsPanel merchantId={mid()} connectionType="business" accent="cyan" />
           )}
           {section === "api" && (
             <>
