@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, ShieldCheck } from "lucide-react";
@@ -25,6 +25,24 @@ export default function AdminLoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // If you're already logged in via /login (any merchant session) and
+  // your email is on the admin allowlist, skip the form and go straight
+  // to /admin/overview. This is the "I just used the regular login,
+  // let me into admin without re-typing" path.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const existing = (sessionStorage.getItem("zp_client_email") || "").trim().toLowerCase();
+      if (existing && ADMIN_ALLOWLIST.has(existing)) {
+        router.replace("/admin/overview");
+      } else if (existing) {
+        // Authenticated but not an admin — pre-fill the email so the
+        // operator sees clearly that they need a different account.
+        setEmail(existing);
+      }
+    } catch { /* ignore */ }
+  }, [router]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
