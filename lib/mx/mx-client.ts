@@ -91,7 +91,13 @@ export async function createOrGetUser(merchantId: string): Promise<string> {
 // Connect widget
 // ---------------------------------------------------------------------------
 
-interface WidgetResponse { widget_url: { url: string; type: string } }
+// MX returns the widget URL nested under `user.connect_widget_url`
+// (not `widget_url.url`). Accept both shapes defensively so we don't
+// regress if MX tweaks the envelope.
+interface WidgetResponse {
+  user?: { connect_widget_url?: string; guid?: string };
+  widget_url?: { url?: string };
+}
 
 export async function getConnectWidgetUrl(params: {
   merchantId: string;
@@ -110,10 +116,11 @@ export async function getConnectWidgetUrl(params: {
       },
     },
   );
-  if (res.status >= 400 || !res.data?.widget_url?.url) {
+  const url = res.data?.user?.connect_widget_url ?? res.data?.widget_url?.url;
+  if (res.status >= 400 || !url) {
     throw new Error(`mx_widget_url_failed ${res.status}`);
   }
-  return { url: res.data.widget_url.url, userGuid };
+  return { url, userGuid };
 }
 
 // ---------------------------------------------------------------------------
