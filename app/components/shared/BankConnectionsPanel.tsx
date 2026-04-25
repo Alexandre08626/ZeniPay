@@ -49,6 +49,7 @@ export function BankConnectionsPanel({
   const [connecting, setConnecting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; tone: "success" | "danger" } | null>(null);
   const [funding, setFunding] = useState<BankConnection | null>(null);
+  const [reconcileOnFocus, setReconcileOnFocus] = useState(false);
 
   const accentColor =
     accent === "pink"   ? zp.brand.pink   :
@@ -79,8 +80,27 @@ export function BankConnectionsPanel({
   }, [merchantId, connectionType]);
   useEffect(() => { void load(); }, [load]);
 
+  // After the user triggers a bank connect flow (opens MX in a new
+  // tab), reconcile their accounts every time they come back to
+  // this tab. Keeps firing until we've surfaced at least one new
+  // connection.
+  useEffect(() => {
+    if (!reconcileOnFocus) return;
+    const onFocus = async () => {
+      await load({ reconcile: true });
+      setToast({ msg: "Refreshed bank connections", tone: "success" });
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [reconcileOnFocus, load]);
+
   const openConnectWidget = async () => {
     setConnecting(true);
+    // Create a real <a> click via a same-gesture handler. Opening
+    // via `<a target=_blank>` is the one approach that's honored by
+    // every browser without popup blockers, and MX's widget is
+    // happy being loaded in a top-level tab (far fewer CSP/frame
+    // gotchas than iframing it).
     try {
       const r = await fetch(
         `/api/v1/bank/connect-url?merchant_id=${encodeURIComponent(merchantId)}&type=${connectionType}`,
@@ -91,8 +111,17 @@ export function BankConnectionsPanel({
         setToast({ msg: data?.error?.message ?? "Unable to open the bank-connect widget.", tone: "danger" });
         return;
       }
-      setConnectUrl(data.url);
       setConnectUserGuid(data.user_guid ?? null);
+      setReconcileOnFocus(true);
+
+      // Programmatic anchor click — most reliable cross-browser.
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } finally { setConnecting(false); }
   };
 
