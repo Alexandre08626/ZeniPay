@@ -98,12 +98,28 @@ export function BankConnectionsPanel({
   }, [reconcileOnFocus, load]);
 
   const openConnectWidget = async () => {
+    // CRITICAL: window.open MUST be called synchronously from the
+    // click handler (Safari/Chrome popup-blockers reject window.open
+    // after `await`). Open it pointed at about:blank — a placeholder
+    // window with no URL to prefetch. We navigate it AFTER the fetch
+    // resolves with the fresh MX URL.
+    //
+    // Why not <a target=_blank>: the browser puts the URL in the DOM
+    // before the actual click. Browser extensions / link-preview
+    // services / security scanners GET the URL before the tab loads,
+    // and MX widget URLs are single-use (first GET = 200, all
+    // subsequent = 401). The popup pattern keeps the URL out of
+    // any pre-fetchable surface.
+    const popup = typeof window !== "undefined"
+      ? window.open("about:blank", "zp_mx_connect")
+      : null;
+
+    if (!popup) {
+      setToast({ msg: "Allow popups for zenipay.ca to connect a bank.", tone: "danger" });
+      return;
+    }
+
     setConnecting(true);
-    // Create a real <a> click via a same-gesture handler. Opening
-    // via `<a target=_blank>` is the one approach that's honored by
-    // every browser without popup blockers, and MX's widget is
-    // happy being loaded in a top-level tab (far fewer CSP/frame
-    // gotchas than iframing it).
     try {
       const r = await fetch(
         `/api/v1/bank/connect-url?merchant_id=${encodeURIComponent(merchantId)}&type=${connectionType}`,
@@ -111,20 +127,25 @@ export function BankConnectionsPanel({
       );
       const data = await r.json();
       if (!r.ok || !data.available || !data.url) {
+        popup.close();
         setToast({ msg: data?.error?.message ?? "Unable to open the bank-connect widget.", tone: "danger" });
         return;
       }
       setConnectUserGuid(data.user_guid ?? null);
       setReconcileOnFocus(true);
 
-      // Programmatic anchor click — most reliable cross-browser.
-      const a = document.createElement("a");
-      a.href = data.url;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      // Navigate the existing blank window to the freshly-minted URL.
+      // Use replace() so the back-button doesn't go to about:blank.
+      try {
+        popup.location.replace(data.url);
+      } catch {
+        // Cross-origin write is restricted in some browsers — fall
+        // back to assigning location.href.
+        popup.location.href = data.url;
+      }
+    } catch (e) {
+      popup.close();
+      setToast({ msg: e instanceof Error ? e.message : "Unable to open widget.", tone: "danger" });
     } finally { setConnecting(false); }
   };
 
