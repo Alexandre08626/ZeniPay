@@ -30,10 +30,12 @@ export async function GET(req: NextRequest) {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  // Platform-wide activity = every client EXCEPT ZeniPay corporate.
+  const CORP = "acc_1774740862294";
   const [{ data: pay }, { data: trans }, { data: ledger }] = await Promise.all([
-    db.from("zenipay_payments").select("id, merchant_id, amount, currency, status, date, description").order("date", { ascending: false }).limit(10),
-    db.from("zenipay_transfers").select("id, merchant_id, amount, status, created_at, recipient_name, transfer_type").order("created_at", { ascending: false }).limit(10),
-    db.from("zenipay_ledger").select("*").order("created_at", { ascending: false }).limit(10),
+    db.from("zenipay_payments").select("id, merchant_id, amount, currency, status, date, description").neq("merchant_id", CORP).order("date", { ascending: false }).limit(10),
+    db.from("zenipay_transfers").select("id, merchant_id, amount, status, created_at, recipient_name, transfer_type").neq("merchant_id", CORP).order("created_at", { ascending: false }).limit(10),
+    db.from("zenipay_ledger").select("*").neq("merchant_id", CORP).order("created_at", { ascending: false }).limit(10),
   ]);
   const lastTransactions = [
     ...(pay ?? []).map((p: Payment) => ({ kind: "payment" as const, id: p.id, merchant_id: p.merchant_id, amount: Number(p.amount ?? 0), currency: p.currency ?? "CAD", status: p.status ?? "succeeded", date: p.date, description: p.description ?? "" })),
