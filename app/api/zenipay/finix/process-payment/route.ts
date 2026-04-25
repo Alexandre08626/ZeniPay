@@ -69,7 +69,45 @@ export async function POST(req: NextRequest) {
     }
 
     if (!finixResult.success) {
-      return NextResponse.json({ error: "Payment declined", state: finixResult.state, paymentId }, { status: 402 });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const finixMsg = (finixResult as any).failureMessage as string | null | undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const finixCode = (finixResult as any).failureCode as string | null | undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const transferId = (finixResult as any).transferId as string | null | undefined;
+
+      // Persist the failed attempt so /admin/transactions and the
+      // merchant feed actually show declined payments instead of
+      // them disappearing into the void. merchantId hasn't been
+      // resolved yet on this code path — use the body value if any.
+      try {
+        await supabase.from("zenipay_payments").upsert({
+          id: paymentId,
+          merchant_id: bodyMerchantId ?? null,
+          payment_link_id: pay_link_id ?? null,
+          amount: amountNum,
+          currency,
+          description: description || `Payment ${paymentId}`,
+          customer_name: customer_name ?? "",
+          customer_email: customer_email ?? "",
+          status: "failed",
+          gateway: "finix",
+          gateway_transfer_id: transferId ?? "",
+          gateway_instrument_id: instrument_id ?? "",
+          failure_code: finixCode ?? null,
+          failure_message: finixMsg ?? null,
+        });
+      } catch (e) {
+        console.error("[DB] failed-payment upsert error:", e);
+      }
+
+      return NextResponse.json({
+        error: "Payment declined",
+        message: finixMsg || "Payment declined by the processor.",
+        state: finixResult.state,
+        failure_code: finixCode ?? null,
+        paymentId,
+      }, { status: 402 });
     }
 
     // ─── 1b. CHECK FOR 3D SECURE REDIRECT ────────────────────────────────

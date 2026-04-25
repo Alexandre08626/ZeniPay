@@ -195,6 +195,17 @@ export async function processFinixPaymentWithInstrument(params: {
     fraudSessionId: params.fraudSessionId,
   });
 
+  // Surface Finix's own decline reasons so the pay page shows
+  // something more useful than a generic "Payment declined".
+  const raw = (transfer.raw ?? {}) as Record<string, unknown>;
+  const failureMessage =
+    (raw.failure_message as string | undefined) ??
+    (raw.state_reason as string | undefined) ??
+    null;
+  const failureCode =
+    (raw.failure_code as string | undefined) ??
+    null;
+
   return {
     success: transfer.state === "SUCCEEDED" || transfer.state === "PENDING",
     transferId: transfer.transferId || "",
@@ -204,6 +215,8 @@ export async function processFinixPaymentWithInstrument(params: {
     state: transfer.state,
     amountCents: transfer.amount,
     threeDSRedirectUrl: transfer.threeDSRedirectUrl || null,
+    failureMessage,
+    failureCode,
   };
 }
 
