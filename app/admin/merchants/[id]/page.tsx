@@ -10,7 +10,22 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import zp from "@/lib/design-system/zenipay-brand";
 
-const ADMIN_EMAILS = new Set(["info@zeniva.ca", "alexandreblais26@gmail.com"]);
+const ADMIN_EMAILS = new Set(["zenipay@zeniva.ca", "info@zeniva.ca", "alexandreblais26@gmail.com"]);
+
+interface BankConnRow {
+  id: string;
+  provider: string;
+  connection_type: string;
+  institution_name: string;
+  institution_logo_url: string | null;
+  account_type: string;
+  account_number_last4: string | null;
+  currency: string;
+  balance_synced: number;
+  balance_synced_at: string | null;
+  status: string;
+  created_at: string;
+}
 
 interface Merchant {
   id: string;
@@ -220,6 +235,8 @@ export default function AdminMerchantDetail() {
               </table>
             )}
           </BankingCard>
+
+          <BankConnections merchantId={id} />
         </>
       )}
     </DashboardShell>
@@ -266,3 +283,60 @@ const btnBase: React.CSSProperties = {
 const btnApprove: React.CSSProperties = { ...btnBase, background: "linear-gradient(135deg,#2DBE60,#15B8C9)", color: "#fff" };
 const btnReject: React.CSSProperties  = { ...btnBase, background: "#fff", color: zp.semantic.danger, border: "1.5px solid rgba(220,38,38,0.35)" };
 const btnReset: React.CSSProperties   = { ...btnBase, background: "#fff", color: zp.text.muted, border: `1.5px solid ${zp.surface.border}` };
+
+// ---------------------------------------------------------------------------
+function BankConnections({ merchantId }: { merchantId: string }) {
+  const [rows, setRows] = useState<BankConnRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const r = await fetch(`/api/v1/bank/connections?merchant_id=${encodeURIComponent(merchantId)}&_=${Date.now()}`, { cache: "no-store" });
+        const data = await r.json();
+        setRows((data.connections ?? []) as BankConnRow[]);
+      } finally { setLoading(false); }
+    };
+    void load();
+  }, [merchantId]);
+
+  if (loading && rows.length === 0) return null;
+
+  return (
+    <BankingCard style={{ marginTop: 18, padding: 0 }}>
+      <div style={{ padding: "16px 18px 10px", borderBottom: `1px solid ${zp.surface.border}` }}>
+        <h3 style={hdr}>Bank Connections</h3>
+        <p style={{ margin: "4px 0 0", fontSize: 12, color: zp.text.muted }}>
+          External bank accounts linked via MX.
+        </p>
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ padding: "20px 18px", fontSize: 13, color: zp.text.muted }}>No bank connections yet.</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: zp.surface.bg2 }}>
+              {["Provider", "Type", "Institution", "Account", "Balance", "Synced", "Status"].map((h) => (
+                <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted, letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((c) => (
+              <tr key={c.id} style={{ borderTop: `1px solid ${zp.surface.border}` }}>
+                <td style={{ ...td, padding: "10px 16px" }}>{c.provider.toUpperCase()}</td>
+                <td style={{ ...td, padding: "10px 16px", textTransform: "capitalize" as const }}>{c.connection_type}</td>
+                <td style={{ ...td, padding: "10px 16px" }}>{c.institution_name}</td>
+                <td style={{ ...td, padding: "10px 16px", fontFamily: zp.font.mono }}>{c.account_type} ·••• {c.account_number_last4 ?? "----"}</td>
+                <td style={{ ...td, padding: "10px 16px", fontFamily: zp.font.mono }}>{zp.fmtCurrency(Number(c.balance_synced ?? 0), c.currency)}</td>
+                <td style={{ ...td, padding: "10px 16px", color: zp.text.muted, fontSize: 12 }}>{c.balance_synced_at ? new Date(c.balance_synced_at).toLocaleString("en-CA") : "—"}</td>
+                <td style={{ ...td, padding: "10px 16px" }}><StatusPill status={c.status} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </BankingCard>
+  );
+}
