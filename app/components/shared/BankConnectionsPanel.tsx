@@ -81,6 +81,13 @@ export function BankConnectionsPanel({
 
   const openConnectWidget = async () => {
     setConnecting(true);
+    // Open a blank tab *before* the async call. Safari/Chrome only
+    // honor window.open when it's the direct result of a user click;
+    // opening it async (after `await`) gets blocked as a popup. We'll
+    // navigate it to the widget URL once the fetch resolves — or
+    // close it if we decide to use the iframe modal instead.
+    const popup = typeof window !== "undefined" ? window.open("about:blank", "zp_mx_connect", "width=480,height=720") : null;
+
     try {
       const r = await fetch(
         `/api/v1/bank/connect-url?merchant_id=${encodeURIComponent(merchantId)}&type=${connectionType}`,
@@ -88,17 +95,32 @@ export function BankConnectionsPanel({
       );
       const data = await r.json();
       if (!r.ok || !data.available || !data.url) {
+        if (popup) popup.close();
         setToast({ msg: data?.error?.message ?? "Unable to open the bank-connect widget.", tone: "danger" });
         return;
       }
-      setConnectUrl(data.url);
-      setConnectUserGuid(data.user_guid ?? null);
+
+      // Prefer the popup window (more reliable across browsers than
+      // an iframe for a third-party OAuth-style flow). Fall back to
+      // the in-page modal if the popup was blocked.
+      if (popup && !popup.closed) {
+        try { popup.location.href = data.url; } catch { /* some browsers restrict cross-origin writes */ }
+        setConnectUserGuid(data.user_guid ?? null);
+      } else {
+        setConnectUrl(data.url);
+        setConnectUserGuid(data.user_guid ?? null);
+      }
+    } catch (e) {
+      if (popup) popup.close();
+      setToast({ msg: e instanceof Error ? e.message : "Unable to open widget.", tone: "danger" });
     } finally { setConnecting(false); }
   };
 
-  // Intercept MX's postMessage events.
+  // Intercept MX's postMessage events. The listener is always
+  // active (not gated on connectUrl) because we now open the widget
+  // in a popup window by default — the iframe modal is only a
+  // fallback. Popups post back to the opener window, which is us.
   useEffect(() => {
-    if (!connectUrl) return;
     const onMessage = async (event: MessageEvent) => {
       const payload = event.data;
       if (!payload || typeof payload !== "object") return;
