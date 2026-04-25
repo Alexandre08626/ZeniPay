@@ -45,7 +45,7 @@ export function BankConnectionsPanel({
   merchantId, connectionType, accent = "cyan",
 }: BankConnectionsPanelProps) {
   const [available, setAvailable] = useState<boolean | null>(null);
-  const [provider, setProvider] = useState<"plaid" | "mx" | null>(null);
+  const [provider, setProvider] = useState<"plaid" | null>(null);
   const [connections, setConnections] = useState<BankConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectUrl, setConnectUrl] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export function BankConnectionsPanel({
         fetch(`/api/v1/bank/connections?merchant_id=${encodeURIComponent(merchantId)}&type=${connectionType}&_=${ts}`, { cache: "no-store" }).then((r) => r.json()),
       ]);
       setAvailable(!!statusRes.available);
-      setProvider((statusRes.provider as "plaid" | "mx" | null) ?? null);
+      setProvider((statusRes.provider as "plaid" | null) ?? null);
       setConnections((connRes.connections ?? []) as BankConnection[]);
     } finally { setLoading(false); }
   }, [merchantId, connectionType]);
@@ -159,98 +159,10 @@ export function BankConnectionsPanel({
     } finally { setConnecting(false); }
   };
 
-  const openConnectWidget = async () => {
-    if (provider === "plaid") return openPlaidLink();
-    // CRITICAL: window.open MUST be called synchronously from the
-    // click handler (Safari/Chrome popup-blockers reject window.open
-    // after `await`). Open it pointed at about:blank — a placeholder
-    // window with no URL to prefetch. We navigate it AFTER the fetch
-    // resolves with the fresh MX URL.
-    //
-    // Why not <a target=_blank>: the browser puts the URL in the DOM
-    // before the actual click. Browser extensions / link-preview
-    // services / security scanners GET the URL before the tab loads,
-    // and MX widget URLs are single-use (first GET = 200, all
-    // subsequent = 401). The popup pattern keeps the URL out of
-    // any pre-fetchable surface.
-    const popup = typeof window !== "undefined"
-      ? window.open("about:blank", "zp_mx_connect")
-      : null;
-
-    if (!popup) {
-      setToast({ msg: "Allow popups for zenipay.ca to connect a bank.", tone: "danger" });
-      return;
-    }
-
-    setConnecting(true);
-    try {
-      const r = await fetch(
-        `/api/v1/bank/connect-url?merchant_id=${encodeURIComponent(merchantId)}&type=${connectionType}`,
-        { cache: "no-store" },
-      );
-      const data = await r.json();
-      if (!r.ok || !data.available || !data.url) {
-        popup.close();
-        setToast({ msg: data?.error?.message ?? "Unable to open the bank-connect widget.", tone: "danger" });
-        return;
-      }
-      setConnectUserGuid(data.user_guid ?? null);
-      setReconcileOnFocus(true);
-
-      // Navigate the existing blank window to the freshly-minted URL.
-      // Use replace() so the back-button doesn't go to about:blank.
-      try {
-        popup.location.replace(data.url);
-      } catch {
-        // Cross-origin write is restricted in some browsers — fall
-        // back to assigning location.href.
-        popup.location.href = data.url;
-      }
-    } catch (e) {
-      popup.close();
-      setToast({ msg: e instanceof Error ? e.message : "Unable to open widget.", tone: "danger" });
-    } finally { setConnecting(false); }
-  };
-
-  // Intercept MX's postMessage events. The listener is always
-  // active (not gated on connectUrl) because we now open the widget
-  // in a popup window by default — the iframe modal is only a
-  // fallback. Popups post back to the opener window, which is us.
-  useEffect(() => {
-    const onMessage = async (event: MessageEvent) => {
-      const payload = event.data;
-      if (!payload || typeof payload !== "object") return;
-      const type = String((payload as { type?: string }).type ?? "");
-      if (type.endsWith("memberConnected")) {
-        const meta = (payload as { metadata?: { user_guid?: string; member_guid?: string } }).metadata ?? {};
-        const userGuid = meta.user_guid ?? connectUserGuid ?? "";
-        const memberGuid = meta.member_guid ?? "";
-        if (!memberGuid) return;
-        await fetch("/api/v1/bank/callback", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            merchant_id: merchantId,
-            user_guid: userGuid,
-            member_guid: memberGuid,
-            connection_type: connectionType,
-          }),
-        });
-        setConnectUrl(null);
-        setConnectUserGuid(null);
-        // Reconcile pulls every account the user now has at MX so
-        // multi-account connections show up on first load.
-        await load({ reconcile: true });
-        setToast({ msg: "Bank account connected", tone: "success" });
-      } else if (type.endsWith("memberError") || type.endsWith("connectError")) {
-        setConnectUrl(null);
-        setConnectUserGuid(null);
-        setToast({ msg: "Connection failed. Please try again.", tone: "danger" });
-      }
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [connectUrl, connectUserGuid, merchantId, connectionType, load]);
+  // Plaid is the only widget provider. The MX postMessage listener
+  // and connectUrl iframe modal have been removed — react-plaid-link
+  // handles events via onSuccess / onExit on its hook directly.
+  const openConnectWidget = openPlaidLink;
 
   const sync = async (id: string) => {
     const r = await fetch("/api/v1/bank/sync", {
@@ -335,27 +247,6 @@ export function BankConnectionsPanel({
               onFund={() => setFunding(c)}
             />
           ))}
-        </div>
-      )}
-
-      {/* MX Connect widget modal */}
-      {connectUrl && (
-        <div onClick={() => setConnectUrl(null)} style={{ position: "fixed", inset: 0, background: zp.surface.overlay, backdropFilter: "blur(4px)", zIndex: zp.zIndex.modal, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(480px, 100vw)", height: "min(640px, 95vh)", background: zp.surface.bg1, borderRadius: zp.radius.lg, overflow: "hidden", position: "relative", boxShadow: zp.elevation.lg }}>
-            <button
-              onClick={() => setConnectUrl(null)}
-              aria-label="Close"
-              style={{ position: "absolute", top: 10, right: 10, width: 30, height: 30, borderRadius: zp.radius.sm, background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`, cursor: "pointer", zIndex: 2, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-            >
-              <X size={14} />
-            </button>
-            <iframe
-              src={connectUrl}
-              style={{ width: "100%", height: "100%", border: "none" }}
-              allow="camera; microphone"
-              title="Bank connection widget"
-            />
-          </div>
         </div>
       )}
 
@@ -602,12 +493,10 @@ function ConnectChoice({ accent, accentColor, connecting, onWidget, onManual, pr
   connecting: boolean;
   onWidget: () => void;
   onManual: () => void;
-  provider: "plaid" | "mx" | null;
+  provider: "plaid" | null;
 }) {
-  const providerName = provider === "plaid" ? "Plaid" : provider === "mx" ? "MX" : "our partner";
-  const providerCaveat = provider === "mx"
-    ? "Safari users: try Chrome — Apple's tracking prevention blocks the widget."
-    : "Works in every browser including Safari.";
+  const providerName = provider === "plaid" ? "Plaid" : "our partner";
+  const providerCaveat = "Works in every browser including Safari.";
   return (
     <BankingCard accent={accent} style={{ padding: "26px 24px" }}>
       <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" as const, marginBottom: 18 }}>
@@ -625,7 +514,7 @@ function ConnectChoice({ accent, accentColor, connecting, onWidget, onManual, pr
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-        {/* Path A: instant via MX widget */}
+        {/* Path A: instant via Plaid Link */}
         <div style={{ padding: 14, borderRadius: zp.radius.md, border: `1px solid ${zp.surface.border}`, background: zp.surface.bg2 }}>
           <div style={{ fontSize: 11, fontWeight: zp.weight.semibold, color: accentColor, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>Recommended</div>
           <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginTop: 4 }}>Connect via {providerName}</div>
