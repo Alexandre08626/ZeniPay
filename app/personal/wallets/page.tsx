@@ -9,6 +9,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { MoveMoneyWidget } from "../MoveMoneyWidget";
 import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
+import { BankConnectionsPanel } from "@/app/components/shared/BankConnectionsPanel";
 import zp from "@/lib/design-system/zenipay-brand";
 
 interface PersonalAccount {
@@ -80,6 +81,10 @@ export default function PersonalWalletsPage() {
             <li>Audit log records every move under your merchant_id.</li>
           </ul>
         </BankingCard>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <BankConnectionsPanel merchantId={mid()} connectionType="personal" accent="pink" />
       </div>
     </DashboardShell>
   );

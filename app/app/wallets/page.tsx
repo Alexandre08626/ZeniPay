@@ -14,6 +14,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
 import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
+import { BankConnectionsPanel } from "@/app/components/shared/BankConnectionsPanel";
 import { FundingInboundPanel } from "./FundingInboundPanel";
 
 interface Account {
@@ -89,6 +90,10 @@ export default function WalletsPage() {
           onToggleExternal={setShowExternal}
         />
         <ReceivePanel account={primaryAccount} onCopy={() => flash("Wire instructions copied")} />
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <BankConnectionsPanel merchantId={mid()} connectionType="business" accent="cyan" />
       </div>
 
       {showExternal && (

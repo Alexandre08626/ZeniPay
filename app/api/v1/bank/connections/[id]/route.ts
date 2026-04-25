@@ -1,0 +1,41 @@
+// DELETE /api/v1/bank/connections/[id]?merchant_id=...
+//
+// Soft-disconnect — sets status='disconnected' on the row. We keep
+// the MX guids around for audit purposes; re-connecting the same
+// member creates a new row.
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { auditAsync } from "@/lib/audit/audit-logger";
+
+interface RouteContext { params: Promise<{ id: string }> | { id: string }; }
+
+export async function DELETE(req: NextRequest, ctx: RouteContext) {
+  const { id } = await Promise.resolve(ctx.params);
+  const merchantId = req.nextUrl.searchParams.get("merchant_id")?.trim();
+  if (!merchantId) {
+    return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_required" } }, { status: 400 });
+  }
+  const db = getSupabaseAdmin();
+  const { error } = await db
+    .from("zenipay_bank_connections")
+    .update({ status: "disconnected" })
+    .eq("id", id)
+    .eq("merchant_id", merchantId);
+  if (error) {
+    return NextResponse.json({ error: { code: "server_error", message: error.message } }, { status: 500 });
+  }
+  auditAsync({
+    merchant_id: merchantId,
+    actor_type: "merchant_user",
+    actor_id: merchantId,
+    action: "bank.disconnected",
+    resource_type: "zenipay_bank_connections",
+    resource_id: id,
+    severity: "info",
+  });
+  return NextResponse.json({ success: true });
+}
