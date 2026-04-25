@@ -7,17 +7,13 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { isMXEnabled } from "@/lib/mx/mx-client";
 import { isPlaidEnabled } from "@/lib/plaid/plaid-client";
 
 export async function GET() {
-  // Plaid wins when both are configured — its widget is more reliable
-  // across browsers and our preferred path. MX stays as a fallback.
-  if (isPlaidEnabled()) {
-    return NextResponse.json({ available: true, provider: "plaid" });
-  }
-  if (isMXEnabled()) {
-    return NextResponse.json({ available: true, provider: "mx" });
-  }
-  return NextResponse.json({ available: false, provider: null });
+  // Plaid is the only supported widget provider — MX retired.
+  const enabled = isPlaidEnabled();
+  return NextResponse.json({
+    available: enabled,
+    provider: enabled ? "plaid" : null,
+  });
 }
