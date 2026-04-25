@@ -9,6 +9,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 
 type TxKind = "income" | "transfer" | "payout" | "fee";
 
@@ -120,12 +121,7 @@ export default function TransactionsPage() {
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    const interval = setInterval(() => { void load(); }, 30_000);
-    const onFocus = () => { void load(); };
-    window.addEventListener("focus", onFocus);
-    return () => { clearInterval(interval); window.removeEventListener("focus", onFocus); };
-  }, [load]);
+  useAutoRefresh(load);
 
   const filtered = useMemo(() => {
     const now = Date.now();

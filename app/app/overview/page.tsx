@@ -16,6 +16,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { KybBanner } from "./KybBanner";
 import { YourCardsStrip } from "./YourCardsStrip";
 import { CompactZpNumber } from "@/app/components/shared/ZeniPayAccountCard";
@@ -145,15 +146,7 @@ export default function OverviewPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // Auto-refresh every 30s + when the tab regains focus, so a transfer
-  // or settled payment shows up in "Recent activity" without the user
-  // having to hard-refresh the page.
-  useEffect(() => {
-    const interval = setInterval(() => { void load(); }, 30_000);
-    const onFocus = () => { void load(); };
-    window.addEventListener("focus", onFocus);
-    return () => { clearInterval(interval); window.removeEventListener("focus", onFocus); };
-  }, [load]);
+  useAutoRefresh(load);
 
   const totalBalance = useMemo(
     () => accounts.reduce((s, a) => s + Number(a.balance || 0), 0),

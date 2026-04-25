@@ -8,6 +8,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { AdminGate } from "../../AdminGate";
 import { ZENIPAY_CORPORATE_MERCHANT_ID } from "../../_lib/corporate";
 
@@ -49,12 +50,7 @@ function Inner() {
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    const h = setInterval(() => { void load(); }, 30_000);
-    const onFocus = () => { void load(); };
-    window.addEventListener("focus", onFocus);
-    return () => { clearInterval(h); window.removeEventListener("focus", onFocus); };
-  }, [load]);
+  useAutoRefresh(load);
 
   return (
     <>

@@ -11,6 +11,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
 import { YieldPanel } from "@/app/components/shared/YieldPanel";
 
@@ -64,6 +65,7 @@ export default function PersonalAccountDetailPage() {
     } finally { setLoading(false); }
   }, [id]);
   useEffect(() => { void load(); }, [load]);
+  useAutoRefresh(load);
 
   return (
     <DashboardShell mode="personal">

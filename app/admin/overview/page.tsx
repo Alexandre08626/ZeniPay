@@ -13,6 +13,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { AdminGate } from "../AdminGate";
 import { adminFetch, adminEmail } from "../_lib/admin-fetch";
 
@@ -65,12 +66,7 @@ function Inner() {
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-
-  // Auto-refresh every 30s.
-  useEffect(() => {
-    const h = setInterval(() => { void load(); }, 30_000);
-    return () => clearInterval(h);
-  }, [load]);
+  useAutoRefresh(load);
 
   return (
     <>

@@ -15,6 +15,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { AdminGate } from "../AdminGate";
 import { ZENIPAY_CORPORATE_MERCHANT_ID, ZENIPAY_CORPORATE_NAME } from "../_lib/corporate";
 import { CompactZpNumber } from "@/app/components/shared/ZeniPayAccountCard";
@@ -73,12 +74,7 @@ function Inner() {
     } finally { setLoading(false); }
   }, [mid]);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    const h = setInterval(() => { void load(); }, 30_000);
-    const onFocus = () => { void load(); };
-    window.addEventListener("focus", onFocus);
-    return () => { clearInterval(h); window.removeEventListener("focus", onFocus); };
-  }, [load]);
+  useAutoRefresh(load);
 
   // Sum CAD-equivalent total — we don't FX, so display each currency
   // separately in the subtitle.

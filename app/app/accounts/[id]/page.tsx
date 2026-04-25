@@ -12,6 +12,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { ZeniPayAccountCard } from "@/app/components/shared/ZeniPayAccountCard";
 import { YieldPanel } from "@/app/components/shared/YieldPanel";
 import { WithdrawSheet } from "./WithdrawSheet";
@@ -77,6 +78,7 @@ export default function AccountDetailPage() {
   }, [accountId]);
 
   useEffect(() => { void load(); }, [load]);
+  useAutoRefresh(load);
 
   const activityRows = useMemo(() => activity.map((a) => ({
     id: a.id,

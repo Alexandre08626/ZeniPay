@@ -7,6 +7,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 
 interface PersonalTx {
   id: string;
@@ -51,12 +52,7 @@ export default function PersonalTransactionsPage() {
     } finally { setLoading(false); }
   }, [account, type]);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    const interval = setInterval(() => { void load(); }, 30_000);
-    const onFocus = () => { void load(); };
-    window.addEventListener("focus", onFocus);
-    return () => { clearInterval(interval); window.removeEventListener("focus", onFocus); };
-  }, [load]);
+  useAutoRefresh(load);
 
   const accountName = useMemo(() => {
     const m = new Map<string, string>();

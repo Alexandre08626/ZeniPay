@@ -17,6 +17,7 @@ import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import { MoveMoneyWidget } from "../MoveMoneyWidget";
 import { CompactZpNumber } from "@/app/components/shared/ZeniPayAccountCard";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 
 interface PersonalAccount {
   id: string;
@@ -87,14 +88,7 @@ export default function PersonalOverviewPage() {
   }, []);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { setFirstName(readFirstName()); }, []);
-  // Auto-refresh every 30s + on focus so transfers/payments show up
-  // without a manual reload.
-  useEffect(() => {
-    const interval = setInterval(() => { void load(); }, 30_000);
-    const onFocus = () => { void load(); };
-    window.addEventListener("focus", onFocus);
-    return () => { clearInterval(interval); window.removeEventListener("focus", onFocus); };
-  }, [load]);
+  useAutoRefresh(load);
 
   const totalBalance = useMemo(
     () => accounts.reduce((s, a) => s + Number(a.balance ?? 0), 0),

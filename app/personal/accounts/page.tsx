@@ -10,6 +10,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { CompactZpNumber } from "@/app/components/shared/ZeniPayAccountCard";
 
 interface PersonalAccount {
@@ -45,6 +46,7 @@ export default function PersonalAccountsPage() {
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useAutoRefresh(load);
 
   return (
     <DashboardShell mode="personal">

@@ -11,6 +11,7 @@ import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import { LiveIndicator } from "@/components/dashboard/LiveIndicator";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { formatZPAccount } from "@/lib/zenipay/account-format";
 
 interface Account {
@@ -51,6 +52,7 @@ export default function AccountsPage() {
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useAutoRefresh(load);
 
   const total = useMemo(() => accounts.reduce((s, a) => s + Number(a.balance || 0), 0), [accounts]);
   const cur = accounts[0]?.currency || "CAD";

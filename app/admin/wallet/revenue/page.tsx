@@ -13,6 +13,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import zp from "@/lib/design-system/zenipay-brand";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { AdminGate } from "../../AdminGate";
 import { adminFetch } from "../../_lib/admin-fetch";
 
@@ -50,10 +51,7 @@ function Inner() {
     } catch { /* ignore */ } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    const h = setInterval(() => { void load(); }, 60_000);
-    return () => clearInterval(h);
-  }, [load]);
+  useAutoRefresh(load, { intervalMs: 60_000 });
 
   const stats = useMemo(() => {
     const monthStart = new Date();
