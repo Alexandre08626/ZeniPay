@@ -47,6 +47,7 @@ export default function WalletsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
+  const [showExternal, setShowExternal] = useState(false);
 
   const load = useCallback(async () => {
     if (!mid()) return;
@@ -84,13 +85,17 @@ export default function WalletsPage() {
           contacts={contacts}
           loading={loading}
           onSent={(msg) => { flash(msg ?? "Transfer initiated ✓"); void load(); }}
+          showExternal={showExternal}
+          onToggleExternal={setShowExternal}
         />
         <ReceivePanel account={primaryAccount} onCopy={() => flash("Wire instructions copied")} />
       </div>
 
-      <div style={{ marginTop: 20 }}>
-        <FundingInboundPanel />
-      </div>
+      {showExternal && (
+        <div style={{ marginTop: 20 }}>
+          <FundingInboundPanel />
+        </div>
+      )}
 
       <div style={{ marginTop: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
@@ -163,8 +168,10 @@ export default function WalletsPage() {
   );
 }
 
-function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[]; contacts: Contact[]; loading: boolean; onSent: (msg?: string) => void }) {
-  const [transferType, setTransferType] = useState<TransferType>("ach");
+function SendPanel({ accounts, contacts, loading, onSent, showExternal, onToggleExternal }: { accounts: Account[]; contacts: Contact[]; loading: boolean; onSent: (msg?: string) => void; showExternal: boolean; onToggleExternal: (next: boolean) => void }) {
+  const primary = accounts.find((a) => a.is_primary) ?? accounts[0] ?? null;
+  const availableLabel = primary ? zp.fmtCurrency(Number(primary.balance ?? 0), primary.currency || "CAD") : "—";
+  const [transferType, setTransferType] = useState<TransferType>("internal");
   const [form, setForm] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -249,16 +256,23 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
   return (
     <BankingCard padding={0}>
       <div style={{ padding: "18px 22px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <SendHorizontal size={16} color={zp.brand.cyan} />
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Send money</h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4, flexWrap: "wrap" as const }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <SendHorizontal size={16} color={zp.brand.cyan} />
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Send money</h2>
+          </div>
+          <div style={{ fontSize: 12, color: zp.text.muted, fontFamily: zp.font.sans }}>
+            Available <span style={{ fontFamily: zp.font.mono, color: zp.text.primary, fontWeight: zp.weight.semibold }}>{availableLabel}</span>
+          </div>
         </div>
         <p style={{ margin: "0 0 14px", fontSize: 12, color: zp.text.muted }}>
-          ACH and internal transfers are free. Wires have a small fee.
+          Internal transfers and agent funding are instant and free.
         </p>
 
         <div style={{ display: "inline-flex", gap: 2, padding: 3, background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`, borderRadius: zp.radius.sm, flexWrap: "wrap" }}>
-          {(["ach", "wire", "internal", "bill_pay", "agent_treasury"] as TransferType[]).map((t) => {
+          {((showExternal
+              ? ["internal", "agent_treasury", "ach", "wire", "bill_pay"]
+              : ["internal", "agent_treasury"]) as TransferType[]).map((t) => {
             const active = t === transferType;
             const isAgent = t === "agent_treasury";
             return (
@@ -284,6 +298,16 @@ function SendPanel({ accounts, contacts, loading, onSent }: { accounts: Account[
               </button>
             );
           })}
+          <button
+            onClick={() => onToggleExternal(!showExternal)}
+            style={{
+              padding: "6px 12px", borderRadius: zp.radius.xs, border: "none",
+              background: "transparent", color: zp.text.muted,
+              fontSize: 12, fontWeight: zp.weight.medium, cursor: "pointer",
+            }}
+          >
+            {showExternal ? "− Hide external" : "+ External bank"}
+          </button>
         </div>
       </div>
 
