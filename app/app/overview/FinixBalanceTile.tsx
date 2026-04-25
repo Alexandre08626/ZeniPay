@@ -73,7 +73,7 @@ export function FinixBalanceTile() {
         <Landmark size={18} color={zp.brand.violet} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-            Finix balance
+            Available to transfer
           </div>
           <div style={{ fontSize: 10, color: zp.text.dim, marginTop: 2 }}>
             Ready to sweep to your bank
@@ -117,7 +117,7 @@ export function FinixBalanceTile() {
           )}
 
           <div style={{ marginTop: 10, fontSize: 10, color: zp.text.dim, lineHeight: 1.5 }}>
-            Card payments sit in your Finix merchant account until you trigger a transfer. T+1 business day to your bank.
+            Card payments settle into your ZeniPay account, then T+1 business day to your bank when you transfer.
           </div>
         </>
       ) : null}
