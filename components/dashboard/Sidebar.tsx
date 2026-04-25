@@ -59,19 +59,26 @@ const MERCHANT_NAV: NavItem[] = [
 ];
 
 const ADMIN_NAV: NavItem[] = [
-  { href: "/admin/overview",     label: "Overview",     Icon: Home,           group: "primary" },
-  { href: "/admin/merchants",    label: "Merchants",    Icon: Building2,      group: "primary" },
-  { href: "/admin/agents",       label: "Agents",       Icon: Bot,            group: "primary" },
-  { href: "/admin/treasury",     label: "Treasury",     Icon: TrendingUp,     group: "primary" },
-  { href: "/admin/transactions", label: "Transactions", Icon: ArrowLeftRight, group: "primary" },
-  { href: "/admin/cards",        label: "Cards",        Icon: CreditCard,     group: "primary" },
+  // ── ZeniPay Corporate — the company's OWN wallet ─────────────────
+  { href: "/admin/wallet",              label: "My Wallet",       Icon: Wallet,         group: "primary" },
+  { href: "/admin/wallet/transactions", label: "My Transactions", Icon: ArrowLeftRight, group: "primary" },
+  { href: "/admin/wallet/cards",        label: "My Cards",        Icon: CreditCard,     group: "primary" },
+  { href: "/admin/wallet/revenue",      label: "Revenue",         Icon: TrendingUp,     group: "primary" },
 
-  { href: "/admin/yield",        label: "Yield",        Icon: TrendingUp,     group: "tools" },
-  { href: "/admin/compliance",   label: "Compliance",   Icon: ShieldCheck,    group: "tools" },
-  { href: "/admin/fraud",        label: "Fraud",        Icon: AlertTriangle,  group: "tools" },
-  { href: "/admin/leads",        label: "Leads",        Icon: Users,          group: "tools" },
-  { href: "/admin/api",          label: "API",          Icon: KeyRound,       group: "tools" },
-  { href: "/admin/settings",     label: "Settings",     Icon: SettingsIcon,   group: "tools" },
+  // ── Platform Admin — back-office for all clients ─────────────────
+  { href: "/admin/overview",     label: "Overview",     Icon: Home,           group: "tools" },
+  { href: "/admin/merchants",    label: "Merchants",    Icon: Building2,      group: "tools" },
+  { href: "/admin/agents",       label: "Agents",       Icon: Bot,            group: "tools" },
+  { href: "/admin/treasury",     label: "Treasury",     Icon: TrendingUp,     group: "tools" },
+  { href: "/admin/transactions", label: "Transactions", Icon: ArrowLeftRight, group: "tools" },
+  { href: "/admin/cards",        label: "Cards",        Icon: CreditCard,     group: "tools" },
+
+  { href: "/admin/yield",        label: "Yield Control", Icon: TrendingUp,    group: "advanced" },
+  { href: "/admin/compliance",   label: "Compliance",    Icon: ShieldCheck,   group: "advanced" },
+  { href: "/admin/fraud",        label: "Fraud",         Icon: AlertTriangle, group: "advanced" },
+  { href: "/admin/leads",        label: "Leads",         Icon: Users,         group: "advanced" },
+  { href: "/admin/api",          label: "API",           Icon: KeyRound,      group: "advanced" },
+  { href: "/admin/settings",     label: "Settings",      Icon: SettingsIcon,  group: "advanced" },
 ];
 
 const PERSONAL_NAV: NavItem[] = [
@@ -111,6 +118,15 @@ export interface SidebarProps {
   onCloseDrawer?: () => void;
 }
 
+function sectionLabel(mode: DashboardMode, g: "primary" | "tools" | "advanced"): string {
+  if (mode === "admin") {
+    if (g === "primary")  return "";              // "My Wallet" group, no header
+    if (g === "tools")    return "Platform Admin";
+    return "Advanced";
+  }
+  return g === "tools" ? "Tools" : "Advanced";
+}
+
 export function Sidebar({ mode, openDrawer, onCloseDrawer }: SidebarProps) {
   const pathname = usePathname() ?? "";
   const nav =
@@ -146,7 +162,7 @@ export function Sidebar({ mode, openDrawer, onCloseDrawer }: SidebarProps) {
             if (items.length === 0) return null;
             return (
               <div key={g} style={{ marginTop: g === "primary" ? 0 : 18 }}>
-                {g !== "primary" && (
+                {(g !== "primary" || mode === "admin") && (
                   <div
                     style={{
                       padding: "2px 12px 6px",
@@ -157,7 +173,7 @@ export function Sidebar({ mode, openDrawer, onCloseDrawer }: SidebarProps) {
                       textTransform: "uppercase",
                     }}
                   >
-                    {g === "tools" ? "Tools" : "Advanced"}
+                    {mode === "admin" && g === "primary" ? "ZeniPay Corporate" : sectionLabel(mode, g)}
                   </div>
                 )}
                 {items.map((n) => {

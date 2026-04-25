@@ -47,8 +47,9 @@ export async function GET(req: NextRequest) {
     apiKeysActive,
     leadsTotal,
   ] = await Promise.all([
-    count("zenipay_merchants",  "status=eq.active"),
-    count("zenipay_merchants",  "status=eq.pending_kyb"),
+    // Exclude ZeniPay corporate — it's the house, not a client.
+    count("zenipay_merchants",  "status=eq.active&id=neq.acc_1774740862294"),
+    count("zenipay_merchants",  "status=eq.pending_kyb&id=neq.acc_1774740862294"),
     count("zenipay_pay_links",  "status=eq.active").catch(() => 0),
     count("zenipay_invoices",   "status=eq.sent").catch(() => 0),
     count("zenipay_api_keys",   "is_active=eq.true").catch(() => 0),

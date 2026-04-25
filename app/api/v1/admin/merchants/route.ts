@@ -20,9 +20,12 @@ function authorized(req: NextRequest): boolean {
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  // Exclude ZeniPay corporate (acc_1774740862294) — it's the house
+  // merchant, not a client; the admin wallet surfaces it separately.
   const { data, error } = await getSupabaseAdmin()
     .from("zenipay_merchants")
     .select("id, business_name, email, status, onboarding_state, plan, country, kyb_submitted_at, kyb_approved_at, created_at")
+    .neq("id", "acc_1774740862294")
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
