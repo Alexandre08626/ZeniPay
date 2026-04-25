@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { getSupabaseAdmin, pgrest } from "@/modules/zenipay/services/supabase";
 
 export type ActivityKind =
   | "payment_in"
@@ -116,38 +116,26 @@ export async function GET(req: NextRequest) {
     if (!acc) return NextResponse.json({ activity: [] });
   }
 
-  // `legacyPayouts`  = old zenipay_payouts (manual admin payouts).
-  // `payoutRequests` = new zenipay_payout_requests (PR 15 money-out flow).
-  // Both feed into the unified activity, with payout_requests taking
-  // precedence for dedup (the ledger row they mirror uses event_type='payout'
-  // and references the payout id).
+  // Direct PostgREST fetches with cache:'no-store' — the Supabase JS client
+  // singleton has shown stale/empty results on the transfers table under
+  // some Vercel lambda reuse conditions. pgrest() is the ground truth.
+  const enc = encodeURIComponent;
   const [payments, transfers, ledger, legacyPayouts, payoutRequests] = await Promise.all([
-    db.from("zenipay_payments")
-      .select("id,amount,status,created_at,customer_name,currency,description,card_brand,card_last4")
-      .eq("merchant_id", mid)
-      .order("created_at", { ascending: false })
-      .limit(limit),
-    db.from("zenipay_transfers")
-      .select("*")
-      .eq("merchant_id", mid)
-      .order("created_at", { ascending: false })
-      .limit(limit),
-    db.from("zenipay_ledger")
-      .select("id,payment_id,event_type,direction,amount,currency,note,reference,created_at")
-      .eq("merchant_id", mid)
-      .neq("event_type", "customer_payment")
-      .order("created_at", { ascending: false })
-      .limit(limit),
-    db.from("zenipay_payouts")
-      .select("*")
-      .eq("merchant_id", mid)
-      .order("created_at", { ascending: false })
-      .limit(limit),
-    db.from("zenipay_payout_requests")
-      .select("id,destination_id,amount_units,currency,status,estimated_arrival,memo,created_at")
-      .eq("merchant_id", mid)
-      .order("created_at", { ascending: false })
-      .limit(limit),
+    pgrest(`zenipay_payments?select=id,amount,status,created_at,customer_name,currency,description,card_brand,card_last4&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
+      .then((data) => ({ data, error: null }))
+      .catch((error) => ({ data: [], error })),
+    pgrest(`zenipay_transfers?select=*&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
+      .then((data) => ({ data, error: null }))
+      .catch((error) => ({ data: [], error })),
+    pgrest(`zenipay_ledger?select=id,payment_id,event_type,direction,amount,currency,note,reference,created_at&merchant_id=eq.${enc(mid)}&event_type=neq.customer_payment&order=created_at.desc&limit=${limit}`)
+      .then((data) => ({ data, error: null }))
+      .catch((error) => ({ data: [], error })),
+    pgrest(`zenipay_payouts?select=*&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
+      .then((data) => ({ data, error: null }))
+      .catch((error) => ({ data: [], error })),
+    pgrest(`zenipay_payout_requests?select=id,destination_id,amount_units,currency,status,estimated_arrival,memo,created_at&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
+      .then((data) => ({ data, error: null }))
+      .catch((error) => ({ data: [], error })),
   ]);
   const payouts = legacyPayouts;
 
