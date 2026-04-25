@@ -99,14 +99,14 @@ export default function AdminMerchantDetail() {
 
   if (!authorized) {
     return (
-      <DashboardShell mode="merchant">
+      <DashboardShell mode="admin">
         <BankingCard><p style={{ margin: 0, padding: 24, textAlign: "center", color: zp.text.muted }}>Admin-only area.</p></BankingCard>
       </DashboardShell>
     );
   }
 
   return (
-    <DashboardShell mode="merchant">
+    <DashboardShell mode="admin">
       <Link href="/admin/merchants" style={{
         display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 18,
         fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.muted, textDecoration: "none",
