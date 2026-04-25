@@ -87,6 +87,7 @@ const PERSONAL_NAV: NavItem[] = [
   { href: "/personal/transactions", label: "Transactions",   Icon: ArrowLeftRight, group: "primary" },
   { href: "/personal/cards",        label: "Cards",          Icon: CreditCard,     group: "primary" },
   { href: "/personal/wallets",      label: "Send & Receive", Icon: SendHorizontal, group: "primary" },
+  { href: "/personal/contacts",     label: "Contacts",       Icon: Users,          group: "primary" },
 
   { href: "/personal/savings",      label: "Savings goals",  Icon: Target,         group: "tools" },
   { href: "/personal/budget",       label: "Budget",         Icon: PieChart,       group: "tools" },
