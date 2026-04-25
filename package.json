@@ -19,8 +19,10 @@
     "lucide-react": "^1.9.0",
     "next": "14.2.29",
     "nodemailer": "^8.0.5",
+    "plaid": "^42.1.0",
     "react": "^18",
     "react-dom": "^18",
+    "react-plaid-link": "^4.1.1",
     "stripe": "^22.0.2"
   },
   "devDependencies": {
