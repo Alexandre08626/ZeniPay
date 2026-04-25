@@ -7,7 +7,16 @@ import { verifyPassword } from "../../../../modules/zenipay/services/auth";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const email = (body.email || "").trim().toLowerCase();
+    const rawEmail = (body.email || "").trim().toLowerCase();
+    // Alias map for known email-form mismatches between what users
+    // type and what's stored in zenipay_merchants. Add new entries
+    // as we discover them; do NOT silently rewrite the user's input
+    // for anything unrelated.
+    const EMAIL_ALIASES: Record<string, string> = {
+      "zenipay@zeniva.ca":     "info@zeniva.ca",
+      "info@zenivatravel.com": "info@zeniva.ca",
+    };
+    const email = EMAIL_ALIASES[rawEmail] ?? rawEmail;
     const password = body.password || "";
     if (!email || !password) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
