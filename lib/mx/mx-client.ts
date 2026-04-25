@@ -66,25 +66,41 @@ interface UserEnvelope { user: { guid: string; id: string; is_disabled: boolean 
  * Return the MX user guid for a ZeniPay merchant — creating one if
  * it doesn't exist. We use `id` to store the merchant_id so we can
  * look the user up deterministically.
+ *
+ * Strategy: POST first. On a 409 record_not_unique (user already
+ * exists for that merchant_id), fall back to GET /users?id=X to
+ * recover the guid. More robust than GET-then-POST: handles
+ * MX's read-after-write lag and any edge case where the ?id=
+ * filter misbehaves.
  */
 export async function createOrGetUser(merchantId: string): Promise<string> {
-  // MX lets us look up by `id` via list + filter — this avoids
-  // duplicate-create errors when the user was already provisioned.
-  const listRes = await mxRequest<{ users?: Array<{ guid: string; id?: string }> }>(
-    "GET",
-    `/users?id=${encodeURIComponent(merchantId)}`,
-  );
-  if (listRes.status < 400) {
-    const match = (listRes.data.users ?? []).find((u) => u.id === merchantId);
-    if (match) return match.guid;
-  }
   const createRes = await mxRequest<UserEnvelope>("POST", "/users", {
     user: { id: merchantId, is_disabled: false },
   });
-  if (createRes.status >= 400 || !createRes.data?.user?.guid) {
-    throw new Error(`mx_create_user_failed ${createRes.status}`);
+
+  if ((createRes.status === 200 || createRes.status === 201) && createRes.data?.user?.guid) {
+    return createRes.data.user.guid;
   }
-  return createRes.data.user.guid;
+
+  if (createRes.status === 409) {
+    // Already exists — recover the guid by id.
+    const listRes = await mxRequest<{ users?: Array<{ guid: string; id?: string }> }>(
+      "GET",
+      `/users?id=${encodeURIComponent(merchantId)}`,
+    );
+    if (listRes.status < 400) {
+      const match = (listRes.data.users ?? []).find((u) => u.id === merchantId);
+      if (match?.guid) return match.guid;
+    }
+    // Defensive: walk the unfiltered list in case ?id= didn't filter.
+    const listAll = await mxRequest<{ users?: Array<{ guid: string; id?: string }> }>("GET", "/users");
+    if (listAll.status < 400) {
+      const match = (listAll.data.users ?? []).find((u) => u.id === merchantId);
+      if (match?.guid) return match.guid;
+    }
+  }
+
+  throw new Error(`mx_create_user_failed ${createRes.status}`);
 }
 
 // ---------------------------------------------------------------------------
