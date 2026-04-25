@@ -12,6 +12,7 @@
 import Image from "next/image";
 import React, { useCallback, useEffect, useState } from "react";
 import { Building2, RefreshCw, Trash2, X, Link as LinkIcon, Mail, Lock, ArrowRight } from "lucide-react";
+import { usePlaidLink } from "react-plaid-link";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import { GradientButton } from "@/components/dashboard/GradientButton";
 import zp from "@/lib/design-system/zenipay-brand";
@@ -44,6 +45,7 @@ export function BankConnectionsPanel({
   merchantId, connectionType, accent = "cyan",
 }: BankConnectionsPanelProps) {
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [provider, setProvider] = useState<"plaid" | "mx" | null>(null);
   const [connections, setConnections] = useState<BankConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectUrl, setConnectUrl] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export function BankConnectionsPanel({
   const [funding, setFunding] = useState<BankConnection | null>(null);
   const [reconcileOnFocus, setReconcileOnFocus] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
 
   const accentColor =
     accent === "pink"   ? zp.brand.pink   :
@@ -78,6 +81,7 @@ export function BankConnectionsPanel({
         fetch(`/api/v1/bank/connections?merchant_id=${encodeURIComponent(merchantId)}&type=${connectionType}&_=${ts}`, { cache: "no-store" }).then((r) => r.json()),
       ]);
       setAvailable(!!statusRes.available);
+      setProvider((statusRes.provider as "plaid" | "mx" | null) ?? null);
       setConnections((connRes.connections ?? []) as BankConnection[]);
     } finally { setLoading(false); }
   }, [merchantId, connectionType]);
@@ -97,7 +101,66 @@ export function BankConnectionsPanel({
     return () => window.removeEventListener("focus", onFocus);
   }, [reconcileOnFocus, load]);
 
+  // Plaid Link integration. The hook is called UNCONDITIONALLY at
+  // the top level (rules of hooks); usePlaidLink tolerates a null
+  // token. `open()` only does something when ready === true.
+  const plaidLink = usePlaidLink({
+    token: linkToken,
+    onSuccess: async (publicToken: string) => {
+      // Hand the public_token to our server to exchange for an
+      // access_token + bootstrap zenipay_bank_connections rows.
+      try {
+        const r = await fetch("/api/v1/bank/plaid/exchange", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            merchant_id: merchantId,
+            public_token: publicToken,
+            connection_type: connectionType,
+          }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setToast({ msg: data?.error?.message ?? "Bank link failed.", tone: "danger" });
+          return;
+        }
+        await load();
+        setToast({
+          msg: `Linked ${data?.accounts_linked ?? 0} account${data?.accounts_linked === 1 ? "" : "s"} from ${data?.institution_name ?? "your bank"}.`,
+          tone: "success",
+        });
+      } catch (e) {
+        setToast({ msg: e instanceof Error ? e.message : "Bank link failed.", tone: "danger" });
+      } finally {
+        setLinkToken(null);
+      }
+    },
+    onExit: () => { setLinkToken(null); },
+  });
+
+  // When a Plaid link_token lands, immediately open the widget.
+  useEffect(() => {
+    if (linkToken && plaidLink.ready) plaidLink.open();
+  }, [linkToken, plaidLink.ready]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openPlaidLink = async () => {
+    setConnecting(true);
+    try {
+      const r = await fetch(
+        `/api/v1/bank/plaid/link-token?merchant_id=${encodeURIComponent(merchantId)}`,
+        { cache: "no-store" },
+      );
+      const data = await r.json();
+      if (!r.ok || !data.link_token) {
+        setToast({ msg: data?.error?.message ?? "Unable to start Plaid Link.", tone: "danger" });
+        return;
+      }
+      setLinkToken(data.link_token);
+    } finally { setConnecting(false); }
+  };
+
   const openConnectWidget = async () => {
+    if (provider === "plaid") return openPlaidLink();
     // CRITICAL: window.open MUST be called synchronously from the
     // click handler (Safari/Chrome popup-blockers reject window.open
     // after `await`). Open it pointed at about:blank — a placeholder
@@ -256,6 +319,7 @@ export function BankConnectionsPanel({
           connecting={connecting}
           onWidget={openConnectWidget}
           onManual={() => setManualOpen(true)}
+          provider={provider}
         />
       )}
 
@@ -532,13 +596,18 @@ function relativeTime(iso: string): string {
 
 // ---------------------------------------------------------------------------
 
-function ConnectChoice({ accent, accentColor, connecting, onWidget, onManual }: {
+function ConnectChoice({ accent, accentColor, connecting, onWidget, onManual, provider }: {
   accent: Accent;
   accentColor: string;
   connecting: boolean;
   onWidget: () => void;
   onManual: () => void;
+  provider: "plaid" | "mx" | null;
 }) {
+  const providerName = provider === "plaid" ? "Plaid" : provider === "mx" ? "MX" : "our partner";
+  const providerCaveat = provider === "mx"
+    ? "Safari users: try Chrome — Apple's tracking prevention blocks the widget."
+    : "Works in every browser including Safari.";
   return (
     <BankingCard accent={accent} style={{ padding: "26px 24px" }}>
       <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" as const, marginBottom: 18 }}>
@@ -559,12 +628,9 @@ function ConnectChoice({ accent, accentColor, connecting, onWidget, onManual }: 
         {/* Path A: instant via MX widget */}
         <div style={{ padding: 14, borderRadius: zp.radius.md, border: `1px solid ${zp.surface.border}`, background: zp.surface.bg2 }}>
           <div style={{ fontSize: 11, fontWeight: zp.weight.semibold, color: accentColor, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>Recommended</div>
-          <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginTop: 4 }}>Connect via MX</div>
+          <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary, marginTop: 4 }}>Connect via {providerName}</div>
           <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 4, lineHeight: 1.5 }}>
-            Sign in once with your bank credentials. Works in Chrome &amp; Firefox today.
-            <span style={{ display: "block", marginTop: 4, color: zp.semantic.warning }}>
-              Safari users: try Chrome — Apple&apos;s tracking prevention blocks the widget.
-            </span>
+            Sign in once with your bank credentials. {providerCaveat}
           </div>
           <GradientButton
             variant="primary" size="sm"
