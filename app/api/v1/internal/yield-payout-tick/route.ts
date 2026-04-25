@@ -88,15 +88,21 @@ export async function POST(req: NextRequest) {
         const newBal = Number(acct?.balance ?? 0) + total;
         // zenipay_personal_accounts has no updated_at column.
         await db.from("zenipay_personal_accounts").update({ balance: newBal }).eq("id", e.account_id);
+        // Requires profile_id (NOT NULL FK); no `category` column.
+        const { data: profile } = await db
+          .from("zenipay_personal_profiles")
+          .select("id")
+          .eq("merchant_id", e.merchant_id)
+          .maybeSingle();
         await db.from("zenipay_personal_transactions").insert({
           id: `ptx_${crypto.randomUUID()}`,
           merchant_id: e.merchant_id,
+          profile_id: profile?.id ?? null,
           account_id: e.account_id,
           type: "income",
           amount: total,
           currency,
           description: `ZeniPay Yield · ${periodFrom} → ${periodTo}`,
-          category: "yield",
         });
       }
       // treasury + agent_wallet currently audit-only — money lives in

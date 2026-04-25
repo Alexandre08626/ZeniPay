@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentBalances } from "@/lib/agents/zc-balances";
 
-const ADMIN_EMAILS = new Set(["info@zeniva.ca", "alexandreblais26@gmail.com"]);
+const ADMIN_EMAILS = new Set(["zenipay@zeniva.ca", "info@zeniva.ca", "alexandreblais26@gmail.com"]);
 
 function authorized(req: NextRequest): boolean {
   const email = (req.headers.get("x-admin-email") ?? "").trim().toLowerCase();

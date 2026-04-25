@@ -95,17 +95,30 @@ export async function POST(req: NextRequest) {
   }
 
   // Step 4: personal transfer_in row.
+  // The table requires profile_id (NOT NULL FK) and has no `category`
+  // column — resolve the profile and skip the column.
   const ptxId = `ptx_${crypto.randomUUID()}`;
-  await db.from("zenipay_personal_transactions").insert({
+  const { data: profile } = await db
+    .from("zenipay_personal_profiles")
+    .select("id")
+    .eq("merchant_id", merchantId)
+    .maybeSingle();
+  const { error: ptxErr } = await db.from("zenipay_personal_transactions").insert({
     id: ptxId,
     merchant_id: merchantId,
+    profile_id: profile?.id ?? null,
     account_id: toId,
     type: "transfer_in",
     amount,
     currency,
     description: memo,
-    category: "internal_transfer",
   });
+  if (ptxErr) {
+    // Don't roll back the credit — the money landed correctly. Surface
+    // the row-insert error in logs but keep returning success.
+    // eslint-disable-next-line no-console
+    console.warn("personal_transactions insert (transfer_in) failed:", ptxErr.message);
+  }
 
   return NextResponse.json({
     success: true,

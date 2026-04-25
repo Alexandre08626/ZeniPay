@@ -71,17 +71,23 @@ export async function POST(req: NextRequest) {
     .eq("id", fromId);
   if (debitErr) return err("server_error", "step_1_personal_debit_failed", 500, debitErr.message);
 
-  // Step 2: personal transfer_out row
+  // Step 2: personal transfer_out row.
+  // Requires profile_id (NOT NULL FK); has no `category` column.
   const ptxId = `ptx_${crypto.randomUUID()}`;
+  const { data: profile } = await db
+    .from("zenipay_personal_profiles")
+    .select("id")
+    .eq("merchant_id", merchantId)
+    .maybeSingle();
   const { error: ptxErr } = await db.from("zenipay_personal_transactions").insert({
     id: ptxId,
     merchant_id: merchantId,
+    profile_id: profile?.id ?? null,
     account_id: fromId,
     type: "transfer_out",
     amount,
     currency,
     description: memo,
-    category: "internal_transfer",
   });
   if (ptxErr) {
     await db.from("zenipay_personal_accounts").update({ balance: Number(src.balance) }).eq("id", fromId);

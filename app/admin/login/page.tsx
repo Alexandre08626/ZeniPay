@@ -14,6 +14,7 @@ import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
 
 const ADMIN_ALLOWLIST = new Set([
+  "zenipay@zeniva.ca",
   "info@zeniva.ca",
   "alexandreblais26@gmail.com",
 ]);

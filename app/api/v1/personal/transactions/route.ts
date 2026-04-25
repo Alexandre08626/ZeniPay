@@ -83,15 +83,21 @@ export async function POST(req: NextRequest) {
   }
 
   const txId = `ptx_${crypto.randomUUID()}`;
+  // Requires profile_id (NOT NULL FK); has no `category` column.
+  const { data: profile } = await db
+    .from("zenipay_personal_profiles")
+    .select("id")
+    .eq("merchant_id", merchantId)
+    .maybeSingle();
   const { error: insErr } = await db.from("zenipay_personal_transactions").insert({
     id: txId,
     merchant_id: merchantId,
+    profile_id: profile?.id ?? null,
     account_id: accountId,
     type,
     amount,
     currency,
-    description,
-    category,
+    description: description ?? (category ? `${category} · ${type}` : type),
   });
   if (insErr) {
     return NextResponse.json({ error: { code: "server_error", message: insErr.message } }, { status: 500 });

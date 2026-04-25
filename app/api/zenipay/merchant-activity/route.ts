@@ -55,18 +55,27 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 }
 
-function ledgerLabel(eventType: string): string {
+function ledgerLabel(eventType: string, note?: string | null): string {
+  if (eventType === "manual_adjustment" && note) {
+    if (/^to personal/i.test(note))   return "Transfer to personal";
+    if (/^from personal/i.test(note)) return "Transfer from personal";
+    return note;
+  }
   switch (eventType) {
     case "fund_agent_treasury": return "Fund agent treasury";
     case "transfer_to_agent":   return "Transfer to agent";
     case "refund":              return "Refund";
     case "fee":                 return "Fee";
     case "payout":              return "Payout";
+    case "manual_adjustment":   return "Manual adjustment";
     default:                    return capitalize(eventType);
   }
 }
 
-function ledgerCounterparty(eventType: string): string {
+function ledgerCounterparty(eventType: string, note?: string | null): string {
+  if (eventType === "manual_adjustment" && note && /personal/i.test(note)) {
+    return "Personal account";
+  }
   switch (eventType) {
     case "fund_agent_treasury":
     case "transfer_to_agent":
@@ -252,13 +261,13 @@ export async function GET(req: NextRequest) {
     rows.push({
       id: `led_${l.id}`,
       source: "ledger",
-      kind: ledgerKind(l.event_type, l.direction),
+      kind: ledgerKind(l.event_type, l.direction as "debit" | "credit"),
       direction: l.direction === "credit" ? "in" : "out",
       date: l.created_at,
       amount: Math.abs(Number(l.amount || 0)),
       currency: l.currency || "CAD",
-      description: l.note || ledgerLabel(l.event_type),
-      counterparty: ledgerCounterparty(l.event_type),
+      description: ledgerLabel(l.event_type, l.note) || l.note || capitalize(l.event_type),
+      counterparty: ledgerCounterparty(l.event_type, l.note),
       status: "completed",
       account_id: null,
       metadata: { event_type: l.event_type, reference: l.reference },
