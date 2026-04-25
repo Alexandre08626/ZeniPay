@@ -56,12 +56,26 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getSupabaseAdmin();
+
+  // zenipay_personal_cards has a NOT-NULL profile_id FK to
+  // zenipay_personal_profiles — pull the merchant's profile id
+  // (one per merchant) before insert.
+  const { data: profile } = await db
+    .from("zenipay_personal_profiles")
+    .select("id")
+    .eq("merchant_id", merchantId)
+    .maybeSingle();
+  if (!profile) {
+    return err("unprocessable", "personal_profile_missing", 422);
+  }
+
   const id = `pcard_${crypto.randomUUID()}`;
   const { data, error } = await db
     .from("zenipay_personal_cards")
     .insert({
       id,
       merchant_id: merchantId,
+      profile_id: profile.id,
       account_id: accountId,
       provider: provider.name,
       provider_card_id: issued.provider_card_id,

@@ -86,7 +86,8 @@ export async function POST(req: NextRequest) {
       } else if (e.account_type === "personal") {
         const { data: acct } = await db.from("zenipay_personal_accounts").select("balance").eq("id", e.account_id).maybeSingle();
         const newBal = Number(acct?.balance ?? 0) + total;
-        await db.from("zenipay_personal_accounts").update({ balance: newBal, updated_at: now }).eq("id", e.account_id);
+        // zenipay_personal_accounts has no updated_at column.
+        await db.from("zenipay_personal_accounts").update({ balance: newBal }).eq("id", e.account_id);
         await db.from("zenipay_personal_transactions").insert({
           id: `ptx_${crypto.randomUUID()}`,
           merchant_id: e.merchant_id,

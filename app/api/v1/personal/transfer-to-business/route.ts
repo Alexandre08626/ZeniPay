@@ -63,10 +63,11 @@ export async function POST(req: NextRequest) {
   const newDstBalance = Number(dst.balance ?? 0) + amount;
   const now = new Date().toISOString();
 
-  // Step 1: debit personal
+  // Step 1: debit personal.
+  // NOTE: zenipay_personal_accounts has no updated_at column.
   const { error: debitErr } = await db
     .from("zenipay_personal_accounts")
-    .update({ balance: newSrcBalance, updated_at: now })
+    .update({ balance: newSrcBalance })
     .eq("id", fromId);
   if (debitErr) return err("server_error", "step_1_personal_debit_failed", 500, debitErr.message);
 
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
     category: "internal_transfer",
   });
   if (ptxErr) {
-    await db.from("zenipay_personal_accounts").update({ balance: Number(src.balance), updated_at: new Date().toISOString() }).eq("id", fromId);
+    await db.from("zenipay_personal_accounts").update({ balance: Number(src.balance) }).eq("id", fromId);
     return err("server_error", "step_2_personal_tx_insert_failed", 500, ptxErr.message);
   }
 
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
     .eq("id", toId);
   if (creditErr) {
     // Rollback steps 1+2.
-    await db.from("zenipay_personal_accounts").update({ balance: Number(src.balance), updated_at: new Date().toISOString() }).eq("id", fromId);
+    await db.from("zenipay_personal_accounts").update({ balance: Number(src.balance) }).eq("id", fromId);
     await db.from("zenipay_personal_transactions").delete().eq("id", ptxId);
     return err("server_error", "step_3_business_credit_failed", 500, creditErr.message);
   }

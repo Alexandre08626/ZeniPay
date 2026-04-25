@@ -81,13 +81,15 @@ export async function POST(req: NextRequest) {
   });
 
   // Step 3: credit personal.
+  // NOTE: zenipay_personal_accounts has no updated_at column —
+  // including it in the patch makes PostgREST 400 with PGRST204.
   const { error: creditErr } = await db
     .from("zenipay_personal_accounts")
-    .update({ balance: newDstBalance, updated_at: now })
+    .update({ balance: newDstBalance })
     .eq("id", toId);
   if (creditErr) {
     // Rollback step 1.
-    await db.from("zenipay_accounts").update({ balance: Number(src.balance ?? 0), updated_at: new Date().toISOString() }).eq("id", fromId);
+    await db.from("zenipay_accounts").update({ balance: Number(src.balance ?? 0) }).eq("id", fromId);
     await db.from("zenipay_ledger").delete().eq("id", ledgerId);
     return err("server_error", "step_3_personal_credit_failed", 500, creditErr.message);
   }

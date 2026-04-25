@@ -65,12 +65,11 @@ export async function POST(req: NextRequest) {
     .insert({
       id,
       merchant_id: merchantId,
-      name,
+      account_name: name,
       account_type: accountType,
       account_number: accountNumber,
       balance: 0,
       currency,
-      status: "active",
       is_primary: isFirst,
     })
     .select("*")
