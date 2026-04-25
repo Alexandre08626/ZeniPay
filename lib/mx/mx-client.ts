@@ -149,6 +149,27 @@ export async function getMemberAccounts(userGuid: string, memberGuid: string): P
   return res.data?.accounts ?? [];
 }
 
+/**
+ * Every account across every member for a user. Useful for the
+ * "reconcile all" flow where we want DB rows for everything the
+ * user has linked without caring which member they came from.
+ */
+export async function getAllAccounts(userGuid: string): Promise<MXAccount[]> {
+  const res = await mxRequest<{ accounts?: MXAccount[] }>(
+    "GET",
+    `/users/${userGuid}/accounts`,
+  );
+  return res.data?.accounts ?? [];
+}
+
+/**
+ * Trigger MX to refresh a member from the underlying bank. Balance
+ * updates land on accounts ~5–15s later; caller should sleep + re-read.
+ */
+export async function aggregateMember(userGuid: string, memberGuid: string): Promise<void> {
+  await mxRequest("POST", `/users/${userGuid}/members/${memberGuid}/aggregate`);
+}
+
 export async function getAccountDetail(userGuid: string, accountGuid: string): Promise<MXAccount | null> {
   const res = await mxRequest<{ account?: MXAccount }>(
     "GET",
@@ -201,7 +222,9 @@ export const MXClient = {
   createOrGetUser,
   getConnectWidgetUrl,
   getMemberAccounts,
+  getAllAccounts,
   getAccountDetail,
+  aggregateMember,
   syncBalance,
   getInstitution,
 };

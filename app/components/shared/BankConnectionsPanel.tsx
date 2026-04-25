@@ -56,11 +56,19 @@ export function BankConnectionsPanel({
     accent === "violet" ? zp.brand.violet :
                           zp.brand.cyan;
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { reconcile?: boolean }) => {
     if (!merchantId) return;
     setLoading(true);
     try {
       const ts = Date.now();
+      // Optional reconcile: pull any MX-linked accounts (including ones
+      // connected outside our callback flow, e.g. recovered widget sessions)
+      // and upsert them as zenipay_bank_connections rows.
+      if (opts?.reconcile) {
+        try {
+          await fetch(`/api/v1/bank/mx/accounts?merchant_id=${encodeURIComponent(merchantId)}&type=${connectionType}&_=${ts}`, { cache: "no-store" });
+        } catch { /* best-effort */ }
+      }
       const [statusRes, connRes] = await Promise.all([
         fetch(`/api/v1/bank/status?_=${ts}`, { cache: "no-store" }).then((r) => r.json()),
         fetch(`/api/v1/bank/connections?merchant_id=${encodeURIComponent(merchantId)}&type=${connectionType}&_=${ts}`, { cache: "no-store" }).then((r) => r.json()),
@@ -112,7 +120,9 @@ export function BankConnectionsPanel({
         });
         setConnectUrl(null);
         setConnectUserGuid(null);
-        await load();
+        // Reconcile pulls every account the user now has at MX so
+        // multi-account connections show up on first load.
+        await load({ reconcile: true });
         setToast({ msg: "Bank account connected", tone: "success" });
       } else if (type.endsWith("memberError") || type.endsWith("connectError")) {
         setConnectUrl(null);

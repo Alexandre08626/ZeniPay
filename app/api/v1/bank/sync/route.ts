@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
-import { syncBalance } from "@/lib/mx/mx-client";
+import { syncBalance, aggregateMember } from "@/lib/mx/mx-client";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as { merchant_id?: string; connection_id?: string };
@@ -22,13 +22,19 @@ export async function POST(req: NextRequest) {
   const db = getSupabaseAdmin();
   const { data: conn } = await db
     .from("zenipay_bank_connections")
-    .select("id, merchant_id, mx_user_guid, mx_account_guid")
+    .select("id, merchant_id, mx_user_guid, mx_account_guid, mx_member_guid")
     .eq("id", connectionId)
     .eq("merchant_id", merchantId)
     .maybeSingle();
   if (!conn) return NextResponse.json({ error: { code: "not_found", message: "connection_not_found" } }, { status: 404 });
   if (!conn.mx_user_guid || !conn.mx_account_guid) {
     return NextResponse.json({ error: { code: "unprocessable", message: "connection_missing_mx_ids" } }, { status: 422 });
+  }
+
+  // Trigger a fresh pull at MX (talks to the underlying bank) before
+  // reading. Without this we'd just surface MX's cached snapshot.
+  if (conn.mx_member_guid) {
+    try { await aggregateMember(conn.mx_user_guid, conn.mx_member_guid); } catch { /* best-effort */ }
   }
 
   let result;
