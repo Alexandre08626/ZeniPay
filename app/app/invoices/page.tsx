@@ -304,6 +304,13 @@ function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => 
       ? (() => { try { return JSON.parse(invoice.items as string); } catch { return []; } })()
       : (invoice.items ?? []);
 
+  // The invoice issuer is the merchant. Older rows may not have
+  // merchant_name/email persisted — fall back to the logged-in
+  // merchant's session values so the viewer always sees a "From"
+  // line instead of "—".
+  const issuerName  = invoice.merchant_name  || bname() || "Your business";
+  const issuerEmail = invoice.merchant_email || bemail() || "";
+
   return (
     <div
       onClick={onClose}
@@ -336,7 +343,22 @@ function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => 
 
           <div style={{ height: 1, background: zp.surface.border, margin: "18px 0" }} />
 
+          <div style={{ marginBottom: 18, padding: "12px 14px", background: zp.surface.bg2, borderRadius: zp.radius.sm, border: `1px solid ${zp.surface.border}` }}>
+            <div style={{ fontSize: 10, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.12em", textTransform: "uppercase" as const, marginBottom: 4 }}>
+              From
+            </div>
+            <div style={{ fontSize: 14, color: zp.text.primary, fontWeight: zp.weight.semibold }}>
+              {issuerName}
+            </div>
+            {issuerEmail && (
+              <div style={{ fontSize: 12, color: zp.text.muted, marginTop: 2 }}>
+                {issuerEmail}
+              </div>
+            )}
+          </div>
+
           <dl style={{ margin: 0 }}>
+            <DRow label="From" value={issuerName} />
             <DRow label="Client" value={invoice.customer_name || "—"} />
             {invoice.customer_email && <DRow label="Email" value={invoice.customer_email} />}
             <DRow label="Issued" value={zp.fmtDateTime(invoice.created_at)} />
