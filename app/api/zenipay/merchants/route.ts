@@ -10,21 +10,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 import { hashPassword } from "../../../../modules/zenipay/services/auth";
 import { rateLimit } from "../../../../modules/zenipay/services/rate-limit";
+import { requireZpSession } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
   try {
+    // Cross-tenant lockdown — only return the merchant bound to the
+    // current session. The legacy "list everyone" path is for admin
+    // tooling and now lives behind /api/v1/admin/*; this endpoint
+    // never returns more than one row.
+    const session = requireZpSession(req);
+    if (session instanceof NextResponse) return session;
     const supabase = getSupabaseAdmin();
-
-    const email = req.nextUrl.searchParams.get("email");
-
-    let query = supabase
+    const { data, error } = await supabase
       .from("zenipay_merchants")
       .select("*")
-      .order("created_at", { ascending: false });
-
-    if (email) query = query.eq("email", email).limit(1);
-
-    const { data, error } = await query;
+      .eq("id", session.merchant_id)
+      .limit(1);
 
     if (error) return NextResponse.json({ merchants: [], error: error.message });
 
@@ -71,6 +72,11 @@ export async function POST(req: NextRequest) {
 
     // ── Delete merchant action ──
     if (body.action === "delete_merchant" && body.merchant_id) {
+      const session = requireZpSession(req);
+      if (session instanceof NextResponse) return session;
+      if (body.merchant_id !== session.merchant_id) {
+        return NextResponse.json({ error: "forbidden_cross_tenant" }, { status: 403 });
+      }
       const supabase = getSupabaseAdmin();
       // Delete all related data first
       await supabase.from("zenipay_payments").delete().eq("merchant_id", body.merchant_id);
@@ -84,6 +90,11 @@ export async function POST(req: NextRequest) {
 
     // ── Roll sandbox keys action ──
     if (body.action === "roll_sandbox_keys" && body.merchant_id) {
+      const session = requireZpSession(req);
+      if (session instanceof NextResponse) return session;
+      if (body.merchant_id !== session.merchant_id) {
+        return NextResponse.json({ error: "forbidden_cross_tenant" }, { status: 403 });
+      }
       const supabase = getSupabaseAdmin();
       const genKey = (prefix: string) => `${prefix}_${Array.from({ length: 24 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 62)]).join("")}`;
       const newKey = genKey("zpk_sb");

@@ -9,10 +9,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, pgrest } from "../../../../modules/zenipay/services/supabase";
 import { hashPassword } from "../../../../modules/zenipay/services/auth";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
-  const merchant_id = req.nextUrl.searchParams.get("merchant_id");
-  if (!merchant_id) return NextResponse.json({ data: null }, { status: 400 });
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchant_id = r;
 
   // Use pgrest (direct HTTP fetch, no cache) to always get fresh data
   try {
@@ -32,8 +36,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const merchant_id = req.nextUrl.searchParams.get("merchant_id");
-  if (!merchant_id) return NextResponse.json({ error: "Missing merchant_id" }, { status: 400 });
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchant_id = r;
 
   const body = await req.json();
 

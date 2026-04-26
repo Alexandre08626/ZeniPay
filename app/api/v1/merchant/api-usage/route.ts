@@ -8,11 +8,15 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
-  const mid = (req.nextUrl.searchParams.get("merchant_id") ?? "").trim();
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const mid = r;
   const days = Math.min(Math.max(Number(req.nextUrl.searchParams.get("days") ?? "30") || 30, 1), 90);
-  if (!mid) return NextResponse.json({ error: "merchant_id_required" }, { status: 400 });
 
   const since = new Date(Date.now() - days * 86400_000).toISOString();
   const { data } = await getSupabaseAdmin()

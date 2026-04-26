@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createSettlement, getMerchantBalance } from "@/lib/finix/settlement-client";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -24,14 +25,16 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = await req.json() as Body; } catch { body = {}; }
 
-  const merchantId     = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId     = r;
   const currency       = String(body.currency ?? "CAD").toUpperCase();
   const idempotencyKey = String(body.idempotency_key ?? `settle-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`).trim();
-
-  if (!merchantId) return err("bad_request", "merchant_id_required", 400);
 
   const bal = await getMerchantBalance();
   if (!bal.data) return err("bad_gateway", "finix_unreachable", 502, { status: bal.status });

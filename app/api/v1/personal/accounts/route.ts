@@ -9,12 +9,14 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
-  const merchantId = req.nextUrl.searchParams.get("merchant_id")?.trim();
-  if (!merchantId) {
-    return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_required" } }, { status: 400 });
-  }
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const merchantIdResult = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (merchantIdResult instanceof NextResponse) return merchantIdResult;
+  const merchantId = merchantIdResult;
   const db = getSupabaseAdmin();
   const { data, error } = await db
     .from("zenipay_personal_accounts")
@@ -36,16 +38,19 @@ interface CreateBody {
 }
 
 export async function POST(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: CreateBody;
   try { body = await req.json() as CreateBody; } catch {
     return NextResponse.json({ error: { code: "bad_request", message: "invalid_json" } }, { status: 400 });
   }
-  const merchantId = String(body.merchant_id ?? "").trim();
+  const merchantIdResult = resolveMerchantId(session, body.merchant_id ?? null);
+  if (merchantIdResult instanceof NextResponse) return merchantIdResult;
+  const merchantId = merchantIdResult;
   const name       = String(body.name ?? "").trim();
   const accountType = String(body.account_type ?? "checking").toLowerCase();
   const currency   = String(body.currency ?? "CAD").toUpperCase();
 
-  if (!merchantId) return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_required" } }, { status: 400 });
   if (name.length < 2) return NextResponse.json({ error: { code: "bad_request", message: "name_required" } }, { status: 400 });
   if (!["checking", "savings", "investment", "crypto"].includes(accountType)) {
     return NextResponse.json({ error: { code: "bad_request", message: "account_type_invalid" } }, { status: 400 });

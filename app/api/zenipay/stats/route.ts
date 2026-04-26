@@ -3,11 +3,16 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getWalletBalances } from "../../../../modules/zenipay/services/ledger";
 import { pgrest } from "../../../../modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
   try {
-    const merchant_id = req.nextUrl.searchParams.get("merchant_id");
-    const wallets = await getWalletBalances(merchant_id || undefined);
+    const session = requireZpSession(req);
+    if (session instanceof NextResponse) return session;
+    const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+    if (r instanceof NextResponse) return r;
+    const merchant_id: string = r;
+    const wallets = await getWalletBalances(merchant_id);
 
     // ─── 1. Read merchant balance + keys directly (no cache) ─────────────
     let merchantBalance = 0;

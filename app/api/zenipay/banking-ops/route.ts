@@ -2,12 +2,16 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 const FEES: Record<string, number> = { ach: 0, wire_domestic: 15, wire_international: 30, physical_card: 10, card_replacement: 5, returned: 25, conversion: 0.005 };
 
 export async function GET(req: NextRequest) {
-  const mid = req.nextUrl.searchParams.get("merchant_id");
-  if (!mid) return NextResponse.json({ error: "Missing merchant_id" }, { status: 400 });
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const mid = r;
   const s = getSupabaseAdmin();
   // `ledger` covers money movements recorded outside `zenipay_transfers`
   // (e.g. `fund_agent_treasury` debits from the merchant→treasury
@@ -38,9 +42,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const body = await req.json();
-  const { action, merchant_id } = body;
-  if (!action || !merchant_id) return NextResponse.json({ error: "Missing action/merchant_id" }, { status: 400 });
+  const { action } = body;
+  if (!action) return NextResponse.json({ error: "Missing action" }, { status: 400 });
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchant_id = r;
   const s = getSupabaseAdmin();
   const now = new Date().toISOString();
 

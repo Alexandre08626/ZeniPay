@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 import { verifyPassword } from "../../../../modules/zenipay/services/auth";
+import { setZpSessionCookie } from "@/lib/auth/zp-session";
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       merchant: {
         id: found.id,
@@ -67,6 +68,12 @@ export async function POST(req: NextRequest) {
         liveKey: found.live_key || "",
       },
     });
+
+    // Establish a server-side session bound to this merchant. Every
+    // subsequent API call reads the merchant_id from this signed
+    // cookie instead of trusting query params.
+    setZpSessionCookie(res, found.id, md.status || "live");
+    return res;
   } catch (err) {
     console.error("[Login API]", err);
     return NextResponse.json({ error: "Login failed" }, { status: 500 });

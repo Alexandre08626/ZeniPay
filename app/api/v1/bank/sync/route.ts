@@ -10,13 +10,18 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { syncBalance, aggregateMember } from "@/lib/mx/mx-client";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function POST(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const body = await req.json().catch(() => ({})) as { merchant_id?: string; connection_id?: string };
-  const merchantId   = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId   = r;
   const connectionId = String(body.connection_id ?? "").trim();
-  if (!merchantId || !connectionId) {
-    return NextResponse.json({ error: { code: "bad_request", message: "missing_fields" } }, { status: 400 });
+  if (!connectionId) {
+    return NextResponse.json({ error: { code: "bad_request", message: "connection_id_required" } }, { status: 400 });
   }
 
   const db = getSupabaseAdmin();
