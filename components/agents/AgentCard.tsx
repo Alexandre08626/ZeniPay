@@ -354,14 +354,14 @@ function Chip({ label, accent, ghost, emphasize }: { label: string; accent: stri
   );
 }
 
-// Roster v2.1 — financial agent fleet. Dropped Zara + Victor at
-// Alex's request. DEMO_ROSTER = the 2 vitrine agents shown on the
-// marketing landing and as the empty-state pre-roster on
-// /agents/dashboard. AVAILABLE_TEMPLATES holds the other 8 self-install
-// templates accessible from the "New agent" picker.
+// Roster v2.2 — financial agent fleet. Dropped Zara + Victor + Eva.
+// DEMO_ROSTER = the 2 vitrine agents shown on the marketing landing
+// and as the empty-state pre-roster on /agents/dashboard.
+// AVAILABLE_TEMPLATES holds the other self-install templates accessible
+// from the "New agent" picker.
 export const DEMO_ROSTER: AgentCardData[] = [
-  { name: "Eva",    role: "Financial Advisor", accent: "#10B981", balance: 3100.00, currency: "USD", status: "active", last4: "3590", limit: 6000,  spent: 2240, txCount: 19, lastActivity: "22m ago", primaryLabel: "Example" },
-  { name: "Ben",    role: "Finance Agent",     accent: "#FFA500", balance: 4200.00, currency: "USD", status: "active", last4: "4821", limit: 10000, spent: 5800, txCount: 87, lastActivity: "1h ago",  primaryLabel: "Example" },
+  { name: "Atlas",  role: "Security Agent", accent: "#64748B", balance: 3100.00, currency: "USD", status: "active", last4: "3590", limit: 6000,  spent: 2240, txCount: 19, lastActivity: "22m ago", primaryLabel: "Example" },
+  { name: "Ben",    role: "Finance Agent",  accent: "#FFA500", balance: 4200.00, currency: "USD", status: "active", last4: "4821", limit: 10000, spent: 5800, txCount: 87, lastActivity: "1h ago",  primaryLabel: "Example" },
 ];
 
 // Other 8 agent templates — available through the "New agent" picker.

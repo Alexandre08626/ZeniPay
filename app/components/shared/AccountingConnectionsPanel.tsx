@@ -133,7 +133,7 @@ export function AccountingConnectionsPanel({
           Connect your accounting
         </h2>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: zp.text.muted, lineHeight: 1.5 }}>
-          Sync ZeniPay transactions to QuickBooks, Xero, Wave, or FreshBooks. Categorization is handled by the Victor agent automatically.
+          Sync ZeniPay transactions to QuickBooks, Xero, Wave, or FreshBooks. Categorization is handled by your accounting agent automatically.
         </p>
       </div>
 

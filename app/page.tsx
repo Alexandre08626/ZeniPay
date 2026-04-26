@@ -274,8 +274,8 @@ function SectionB() {
 
 function VisualAgents() {
   const AGENTS = [
-    { name: "Eva", role: "Financial Advisor", bal: "$3,100.00", status: "active" },
-    { name: "Ben", role: "Finance Agent",     bal: "$4,200.00", status: "active" },
+    { name: "Atlas", role: "Security Agent", bal: "$3,100.00", status: "active" },
+    { name: "Ben",   role: "Finance Agent",  bal: "$4,200.00", status: "active" },
   ];
   return (
     <div style={{
@@ -337,8 +337,8 @@ function BridgeSection() {
           </div>
           <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, maxWidth: 840, marginLeft: "auto", marginRight: "auto" }}>
             {[
-              { name: "Eva", bal: "$3,100" },
-              { name: "Ben", bal: "$4,200" },
+              { name: "Atlas", bal: "$3,100" },
+              { name: "Ben",   bal: "$4,200" },
             ].map((a) => (
               <div key={a.name} style={{ padding: "14px 16px", borderRadius: zp.radius.md, background: "#fff", border: `1px solid ${zp.surface.border}`, borderLeft: `3px solid ${zp.brand.violet}`, display: "flex", alignItems: "center", gap: 10, boxShadow: zp.elevation.sm }}>
                 <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", background: zp.surface.bg2, flexShrink: 0 }}>

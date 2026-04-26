@@ -161,7 +161,7 @@ function CreateAgentModal({
   const [err, setErr] = useState("");
 
   // Filter the template hub:
-  //   * hide Eva / Ben — they are the default roster.
+  //   * hide Atlas / Ben — they are the default roster.
   //   * hide templates already created in the merchant's org.
   const alreadyCreated = new Set(existingAgentNames.map((n) => n.trim().toLowerCase()));
   const pickable = AVAILABLE_TEMPLATES.filter((t) =>
@@ -222,7 +222,7 @@ function CreateAgentModal({
         <>
           <p style={{ margin: "0 0 16px", fontSize: 13, color: MUTED }}>
             Pick a pre-built template or create a custom agent. Fleet cap
-            is 10 agents total. Eva and Ben come pre-installed
+            is 10 agents total. Atlas and Ben come pre-installed
             and don&rsquo;t count toward the picker.
           </p>
 

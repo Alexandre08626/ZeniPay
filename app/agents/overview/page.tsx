@@ -36,10 +36,10 @@ interface DemoAgent {
   status: "active" | "idle";
 }
 
-// Roster v2.1 vitrine — Eva + Ben. Static numbers, investor-ready.
+// Roster v2.2 vitrine — Atlas + Ben. Static numbers, investor-ready.
 const ROSTER: DemoAgent[] = [
-  { name: "Eva", role: "Financial Advisor", accent: "#10B981", balance: 3100.00, limit: 6000,  spent: 2240, last4: "3590", txCount: 19, lastActivity: "22m ago", status: "active" },
-  { name: "Ben", role: "Finance Agent",     accent: "#FFA500", balance: 4200.00, limit: 10000, spent: 5800, last4: "4821", txCount: 87, lastActivity: "1h ago",  status: "active" },
+  { name: "Atlas", role: "Security Agent", accent: "#64748B", balance: 3100.00, limit: 6000,  spent: 2240, last4: "3590", txCount: 19, lastActivity: "22m ago", status: "active" },
+  { name: "Ben",   role: "Finance Agent",  accent: "#FFA500", balance: 4200.00, limit: 10000, spent: 5800, last4: "4821", txCount: 87, lastActivity: "1h ago",  status: "active" },
 ];
 
 export default function AgentsOverviewPage() {
