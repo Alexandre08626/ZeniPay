@@ -13,7 +13,7 @@ import { syncBalance, aggregateMember } from "@/lib/mx/mx-client";
 import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const body = await req.json().catch(() => ({})) as { merchant_id?: string; connection_id?: string };
   const r = resolveMerchantId(session, body.merchant_id ?? null);

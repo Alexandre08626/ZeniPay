@@ -11,7 +11,7 @@ import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 interface Ctx { params: Promise<{ id: string }> | { id: string }; }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const { id } = await Promise.resolve(ctx.params);
   const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
@@ -22,7 +22,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const { id } = await Promise.resolve(ctx.params);
   const body = await req.json().catch(() => ({})) as { merchant_id?: string; name?: string };

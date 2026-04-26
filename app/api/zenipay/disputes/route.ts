@@ -6,7 +6,7 @@ import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 // GET — list disputes for a merchant
 export async function GET(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
   if (r instanceof NextResponse) return r;
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
 // POST — create or update a dispute
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const body = await req.json();
   const { action, ...payload } = body;

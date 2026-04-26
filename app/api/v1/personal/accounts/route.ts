@@ -12,7 +12,7 @@ import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const merchantIdResult = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
   if (merchantIdResult instanceof NextResponse) return merchantIdResult;
@@ -38,7 +38,7 @@ interface CreateBody {
 }
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   let body: CreateBody;
   try { body = await req.json() as CreateBody; } catch {

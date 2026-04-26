@@ -15,7 +15,7 @@ import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 // ── GET: list payouts for the session merchant ─────────────────────────────
 export async function GET(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const supabase = getSupabaseAdmin();
 
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 // ── POST: execute a payout ─────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
-    const session = requireZpSession(request);
+    const session = await requireZpSession(request);
     if (session instanceof NextResponse) return session;
     const body = await request.json();
     const {

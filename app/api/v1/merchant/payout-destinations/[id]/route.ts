@@ -18,7 +18,7 @@ function err(code: string, message: string, status: number) {
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteContext) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const { id } = await Promise.resolve(ctx.params);
   const body = await req.json().catch(() => ({})) as {
@@ -58,7 +58,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteContext) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const { id } = await Promise.resolve(ctx.params);
   const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));

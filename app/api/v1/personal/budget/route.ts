@@ -43,7 +43,7 @@ async function ensureDefaults(db: ReturnType<typeof getSupabaseAdmin>, merchantI
 }
 
 export async function GET(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
   if (r instanceof NextResponse) return r;
@@ -72,7 +72,7 @@ interface CreateBody {
 }
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   let body: CreateBody;
   try { body = await req.json() as CreateBody; } catch {
@@ -108,7 +108,7 @@ interface PatchBody {
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   let body: PatchBody;
   try { body = await req.json() as PatchBody; } catch {

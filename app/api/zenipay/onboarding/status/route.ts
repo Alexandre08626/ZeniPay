@@ -12,7 +12,7 @@ const finixAuth = "Basic " + Buffer.from(`${FINIX_USER}:${FINIX_PASS}`).toString
 
 export async function GET(req: NextRequest) {
   try {
-    const session = requireZpSession(req);
+    const session = await requireZpSession(req);
     if (session instanceof NextResponse) return session;
     const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
     if (r instanceof NextResponse) return r;
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 // POST — Go Live action: switch merchant from sandbox to live
 export async function POST(req: NextRequest) {
   try {
-    const session = requireZpSession(req);
+    const session = await requireZpSession(req);
     if (session instanceof NextResponse) return session;
     const body = await req.json();
     const { action } = body;

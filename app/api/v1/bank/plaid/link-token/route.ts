@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   if (!isPlaidEnabled()) {
     return NextResponse.json({ available: false, provider: "plaid" });
   }
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
   if (r instanceof NextResponse) return r;

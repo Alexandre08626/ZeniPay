@@ -47,7 +47,7 @@ function addBusinessDays(base: Date, days: number): Date {
 }
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   if (!process.env.FINIX_API_USERNAME || !process.env.FINIX_API_PASSWORD) {
     return err("service_unavailable", "payment_not_available", 503);

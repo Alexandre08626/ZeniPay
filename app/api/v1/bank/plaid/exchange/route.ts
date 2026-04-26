@@ -37,7 +37,7 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = await req.json() as Body; } catch { return err("bad_request", "invalid_json", 400); }

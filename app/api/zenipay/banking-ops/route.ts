@@ -7,7 +7,7 @@ import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 const FEES: Record<string, number> = { ach: 0, wire_domestic: 15, wire_international: 30, physical_card: 10, card_replacement: 5, returned: 25, conversion: 0.005 };
 
 export async function GET(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
   if (r instanceof NextResponse) return r;
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const body = await req.json();
   const { action } = body;

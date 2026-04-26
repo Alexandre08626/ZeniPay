@@ -6,7 +6,7 @@ import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 // GET — load compliance data for a merchant
 export async function GET(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
   if (r instanceof NextResponse) return r;
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
 // PUT — update compliance data
 export async function PUT(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const body = await req.json();
   const r = resolveMerchantId(session, body.merchant_id ?? null);

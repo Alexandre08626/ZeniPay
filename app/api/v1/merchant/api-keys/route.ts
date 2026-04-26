@@ -13,7 +13,7 @@ const PERMS = new Set<KeyPermission>(["read", "write", "admin"]);
 const ENVS  = new Set<KeyEnv>(["live", "test"]);
 
 export async function GET(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
   if (r instanceof NextResponse) return r;
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const body = await req.json().catch(() => ({})) as {
     merchant_id?: string; name?: string; environment?: string; permissions?: string[];

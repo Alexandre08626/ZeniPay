@@ -13,7 +13,7 @@ import { auditAsync } from "@/lib/audit/audit-logger";
 import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
   if (r instanceof NextResponse) return r;

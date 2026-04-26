@@ -47,7 +47,7 @@ export default function SettingsPage() {
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState<Section>("profile");
-  const [showSecrets, setShowSecrets] = useState({ sandbox: false, live: false });
+  const [showSecrets, setShowSecrets] = useState({ test: false, live: false });
 
   const load = useCallback(async () => {
     const id = mid(); const email = memail();
@@ -126,7 +126,7 @@ export default function SettingsPage() {
               <Row label="Business type" value={merchant?.businessType || "—"} />
               <Row label="Website" value={merchant?.website || "—"} mono />
               <Row label="Plan" value={merchant?.plan || "Standard"} />
-              <Row label="Status" value={<StatusPill status={merchant?.status || "sandbox"} />} />
+              <Row label="Status" value={<StatusPill status={merchant?.status || "pending_kyb"} />} />
               <Row label="Member since" value={merchant?.createdAt ? zp.fmtDate(merchant.createdAt) : "—"} />
             </BankingCard>
           )}
@@ -138,13 +138,31 @@ export default function SettingsPage() {
           )}
           {section === "api" && (
             <>
+              <BankingCard>
+                <SectionTitle title="API Keys" subtitle="Use Test Mode while you integrate. Live Mode activates automatically when your account is approved." />
+                <ModeKeyRow
+                  mode="test"
+                  active={true}
+                  value={merchant?.sandboxKey || "—"}
+                  reveal={showSecrets.test}
+                  onToggle={() => setShowSecrets((s) => ({ ...s, test: !s.test }))}
+                  blurb="Use this key to integrate ZeniPay. Test transactions won't move real money."
+                />
+                <ModeKeyRow
+                  mode="live"
+                  active={merchant?.status === "active" || merchant?.status === "live"}
+                  value={merchant?.liveKey || "—"}
+                  reveal={showSecrets.live}
+                  onToggle={() => setShowSecrets((s) => ({ ...s, live: !s.live }))}
+                  blurb={
+                    merchant?.status === "active" || merchant?.status === "live"
+                      ? "Use this key to accept real payments."
+                      : "Activates automatically once your account is approved."
+                  }
+                />
+              </BankingCard>
               <ApiKeysSection merchantId={mid()} />
               <ApiUsageSection merchantId={mid()} />
-              <BankingCard style={{ marginTop: 14 }}>
-                <SectionTitle title="Legacy keys" subtitle="Auto-provisioned keys from the pre-PR 17 onboarding flow. Prefer the managed API keys above for new integrations." />
-                <KeyRow label="Sandbox key" value={merchant?.sandboxKey || "—"} reveal={showSecrets.sandbox} onToggle={() => setShowSecrets((s) => ({ ...s, sandbox: !s.sandbox }))} />
-                <KeyRow label="Live key" value={merchant?.liveKey || "—"} reveal={showSecrets.live} onToggle={() => setShowSecrets((s) => ({ ...s, live: !s.live }))} />
-              </BankingCard>
             </>
           )}
           {section === "notifications" && (
@@ -205,34 +223,62 @@ function Row({ label, value, mono }: { label: string; value: React.ReactNode; mo
   );
 }
 
-function KeyRow({ label, value, reveal, onToggle }: { label: string; value: string; reveal: boolean; onToggle: () => void }) {
-  const masked = reveal ? value : value.slice(0, 8) + "••••••••••••••••";
+function ModeKeyRow({ mode, active, value, reveal, onToggle, blurb }: {
+  mode: "test" | "live";
+  active: boolean;
+  value: string;
+  reveal: boolean;
+  onToggle: () => void;
+  blurb: string;
+}) {
+  const isLive = mode === "live";
+  const label = isLive ? "Live Mode" : "Test Mode";
+  const statusText = active
+    ? "Active"
+    : isLive ? "Pending review" : "Available";
+  const dotColor = active ? zp.semantic.success : zp.text.dim;
+  const masked = reveal ? value : value.slice(0, 9) + "•••••••••••••••";
+  const noKey = !value || value === "—";
+
   return (
-    <div style={{ padding: "12px 0", borderTop: `1px solid ${zp.surface.border}` }}>
-      <span style={{ fontSize: 11, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>{label}</span>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-        <span style={{ fontFamily: zp.font.mono, fontSize: 12, color: zp.text.primary, background: zp.surface.bg2, padding: "8px 12px", borderRadius: zp.radius.sm, flex: "1 1 260px", wordBreak: "break-all" as const }}>
-          {masked}
+    <div style={{ padding: "16px 0", borderTop: `1px solid ${zp.surface.border}` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{label}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: zp.weight.semibold, color: dotColor, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, display: "inline-block" }} />
+          {statusText}
         </span>
-        <GradientButton variant="secondary" size="sm" onClick={onToggle}>{reveal ? "Hide" : "Reveal"}</GradientButton>
-        <GradientButton variant="ghost" size="sm" onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText(value); }}>Copy</GradientButton>
       </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: zp.font.mono, fontSize: 12, color: noKey ? zp.text.dim : zp.text.primary, background: zp.surface.bg2, padding: "9px 12px", borderRadius: zp.radius.sm, flex: "1 1 260px", wordBreak: "break-all" as const }}>
+          {noKey ? "—" : masked}
+        </span>
+        {!noKey && (
+          <>
+            <GradientButton variant="secondary" size="sm" onClick={onToggle}>{reveal ? "Hide" : "View"}</GradientButton>
+            <GradientButton variant="ghost" size="sm" onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText(value); }}>Copy</GradientButton>
+          </>
+        )}
+      </div>
+      <p style={{ margin: "8px 2px 0", fontSize: 12, color: zp.text.muted }}>{blurb}</p>
     </div>
   );
 }
 
 function StatusPill({ status }: { status: string }) {
   const key = status?.toLowerCase() || "";
-  const m: Record<string, { bg: string; fg: string }> = {
-    live: { bg: zp.semantic.successBg, fg: zp.semantic.success },
-    active: { bg: zp.semantic.successBg, fg: zp.semantic.success },
-    sandbox: { bg: zp.surface.bg3, fg: zp.text.muted },
-    pending: { bg: zp.semantic.warningBg, fg: zp.semantic.warning },
+  const map: Record<string, { bg: string; fg: string; label: string }> = {
+    active:      { bg: zp.semantic.successBg, fg: zp.semantic.success, label: "Active" },
+    live:        { bg: zp.semantic.successBg, fg: zp.semantic.success, label: "Active" },
+    pending_kyb: { bg: zp.surface.bg3,        fg: zp.text.muted,       label: "Under review" },
+    pending:     { bg: zp.surface.bg3,        fg: zp.text.muted,       label: "Under review" },
+    rejected:    { bg: zp.semantic.dangerBg,  fg: zp.semantic.danger,  label: "Rejected" },
+    closed:      { bg: zp.semantic.dangerBg,  fg: zp.semantic.danger,  label: "Closed" },
   };
-  const s = m[key] ?? { bg: zp.surface.bg3, fg: zp.text.muted };
+  const s = map[key] ?? { bg: zp.surface.bg3, fg: zp.text.muted, label: "Under review" };
   return (
     <span style={{ fontSize: 10, fontWeight: zp.weight.semibold, padding: "3px 10px", borderRadius: zp.radius.pill, background: s.bg, color: s.fg, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-      {status || "—"}
+      {s.label}
     </span>
   );
 }

@@ -96,7 +96,7 @@ function ledgerKind(eventType: string, direction: "debit" | "credit"): ActivityK
 }
 
 export async function GET(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const merchantIdResult = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
   if (merchantIdResult instanceof NextResponse) return merchantIdResult;

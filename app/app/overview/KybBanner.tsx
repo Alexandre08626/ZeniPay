@@ -6,7 +6,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Clock, AlertCircle, X } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
 
 interface MerchantStatus {
@@ -33,28 +33,30 @@ export function KybBanner({ merchantId }: { merchantId: string }) {
 
   if (!merchant) return null;
   if (merchant.status === "pending_kyb") {
+    // Sober "under review" notice — no warning iconography, neutral
+    // blue tone. Banks don't make their customers feel like something
+    // is wrong while a routine review is in progress.
     return (
       <>
         <div style={{
-          marginBottom: 16, padding: "14px 18px", borderRadius: 14,
-          background: "rgba(245,166,35,0.08)", border: "1px solid rgba(245,166,35,0.3)",
+          marginBottom: 16, padding: "13px 18px", borderRadius: 12,
+          background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.20)",
           display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
         }}>
-          <Clock size={20} color="#D97706" style={{ flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 240 }}>
-            <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary }}>
-              Your account is pending verification (1-2 business days).
+            <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>
+              Your account is being reviewed
             </div>
             <div style={{ fontSize: 12, color: zp.text.muted, marginTop: 2 }}>
-              Payment links, payouts, and high-value transfers are disabled until verification is complete.
+              Estimated 1–2 business days. You can integrate in Test Mode in the meantime.
             </div>
           </div>
           <button
             onClick={() => setShowUpload(true)}
             style={{
-              background: zp.gradient.main, color: "#fff", border: "none",
-              padding: "9px 16px", borderRadius: 10,
-              fontSize: 13, fontWeight: zp.weight.semibold, cursor: "pointer",
+              background: "transparent", color: "#1D4ED8", border: "1px solid rgba(59,130,246,0.35)",
+              padding: "7px 14px", borderRadius: 8,
+              fontSize: 12, fontWeight: zp.weight.semibold, cursor: "pointer",
             }}
           >Upload documents</button>
         </div>

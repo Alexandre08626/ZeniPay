@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     // current session. The legacy "list everyone" path is for admin
     // tooling and now lives behind /api/v1/admin/*; this endpoint
     // never returns more than one row.
-    const session = requireZpSession(req);
+    const session = await requireZpSession(req);
     if (session instanceof NextResponse) return session;
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     // ── Delete merchant action ──
     if (body.action === "delete_merchant" && body.merchant_id) {
-      const session = requireZpSession(req);
+      const session = await requireZpSession(req);
       if (session instanceof NextResponse) return session;
       if (body.merchant_id !== session.merchant_id) {
         return NextResponse.json({ error: "forbidden_cross_tenant" }, { status: 403 });
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
 
     // ── Roll sandbox keys action ──
     if (body.action === "roll_sandbox_keys" && body.merchant_id) {
-      const session = requireZpSession(req);
+      const session = await requireZpSession(req);
       if (session instanceof NextResponse) return session;
       if (body.merchant_id !== session.merchant_id) {
         return NextResponse.json({ error: "forbidden_cross_tenant" }, { status: 403 });

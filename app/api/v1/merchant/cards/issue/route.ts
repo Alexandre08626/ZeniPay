@@ -29,7 +29,7 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const provider = getCardIssuingProvider();
   if (!provider) return err("coming_soon", "card_issuing_not_enabled", 503);

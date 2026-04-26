@@ -13,7 +13,7 @@ import { auditAsync } from "@/lib/audit/audit-logger";
 import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function POST(req: NextRequest) {
-  const session = requireZpSession(req);
+  const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   const body = await req.json().catch(() => ({})) as { merchant_id?: string; enrollment_id?: string };
   const r = resolveMerchantId(session, body.merchant_id ?? null);

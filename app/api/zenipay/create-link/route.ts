@@ -12,7 +12,7 @@ import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = requireZpSession(req);
+    const session = await requireZpSession(req);
     if (session instanceof NextResponse) return session;
     const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
     if (r instanceof NextResponse) return r;
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = requireZpSession(req);
+    const session = await requireZpSession(req);
     if (session instanceof NextResponse) return session;
     const { amount, currency = "CAD", description, expiry, merchant, merchant_id: directMerchantId, api_key } = await req.json();
 
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = requireZpSession(req);
+    const session = await requireZpSession(req);
     if (session instanceof NextResponse) return session;
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
