@@ -24,6 +24,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -53,10 +54,14 @@ function addBusinessDays(base: Date, days: number): Date {
 }
 
 export async function POST(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = await req.json() as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId     = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId     = r;
   const destinationId  = String(body.destination_id ?? "").trim();
   const fromAccountId  = String(body.from_account_id ?? "").trim();
   const currency       = String(body.currency ?? "CAD").toUpperCase();
@@ -64,7 +69,6 @@ export async function POST(req: NextRequest) {
   const memo           = body.memo ? String(body.memo).slice(0, 200) : "";
   const amountUnits    = typeof body.amount_units === "string" ? Number(body.amount_units) : (body.amount_units ?? NaN);
 
-  if (!merchantId)                           return err("bad_request", "merchant_id_required", 400);
   if (!destinationId)                        return err("bad_request", "destination_id_required", 400);
   if (!fromAccountId)                        return err("bad_request", "from_account_id_required", 400);
   if (!idempotencyKey || idempotencyKey.length < 8)

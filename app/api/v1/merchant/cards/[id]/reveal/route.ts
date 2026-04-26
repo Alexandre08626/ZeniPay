@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { getCardIssuingProvider } from "@/lib/card-issuing/provider-factory";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface RouteContext { params: Promise<{ id: string }> | { id: string }; }
 interface Body { merchant_id?: string }
@@ -25,14 +26,17 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest, ctx: RouteContext) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const provider = getCardIssuingProvider();
   if (!provider) return err("coming_soon", "card_issuing_not_enabled", 503);
 
   const { id } = await Promise.resolve(ctx.params);
   let body: Body = {};
   try { body = (await req.json()) as Body; } catch { /* empty body allowed */ }
-  const merchantId = String(body.merchant_id ?? "").trim();
-  if (!merchantId) return err("bad_request", "merchant_id_required", 400);
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
 
   const db = getSupabaseAdmin();
   const { data: card, error: fetchErr } = await db

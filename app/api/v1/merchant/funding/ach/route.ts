@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { createACHDebit, createBankAccountInstrument } from "@/lib/finix/ach-client";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -47,10 +48,14 @@ function addBusinessDays(base: Date, days: number): Date {
 }
 
 export async function POST(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = await req.json() as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId     = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId     = r;
   const accountHolder  = String(body.account_holder ?? "").trim();
   const routingNumber  = String(body.routing_number ?? "").replace(/\s/g, "");
   const accountNumber  = String(body.account_number ?? "").replace(/\s/g, "");
@@ -60,7 +65,6 @@ export async function POST(req: NextRequest) {
   const memo           = body.memo ? String(body.memo).slice(0, 200) : null;
   const amountUnits    = typeof body.amount_units === "string" ? Number(body.amount_units) : (body.amount_units ?? NaN);
 
-  if (!merchantId)                           return err("bad_request", "merchant_id_required", 400);
   if (!accountHolder || accountHolder.length < 2) return err("bad_request", "account_holder_required", 400);
   if (!/^\d{6,12}$/.test(routingNumber))     return err("bad_request", "routing_number_invalid", 400);
   if (!/^\d{4,20}$/.test(accountNumber))     return err("bad_request", "account_number_invalid", 400);

@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -24,17 +25,21 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = await req.json() as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const fromId     = String(body.from_business_account_id ?? "").trim();
   const toId       = String(body.to_personal_account_id ?? "").trim();
   const amount     = typeof body.amount === "string" ? Number(body.amount) : Number(body.amount ?? NaN);
   const currency   = String(body.currency ?? "CAD").toUpperCase();
   const memo       = body.memo ? String(body.memo).slice(0, 200) : "Transfer to personal";
 
-  if (!merchantId || !fromId || !toId) return err("bad_request", "missing_required_fields", 400);
+  if (!fromId || !toId) return err("bad_request", "missing_required_fields", 400);
   if (!Number.isFinite(amount) || amount <= 0) return err("bad_request", "amount_must_be_positive", 400);
 
   const db = getSupabaseAdmin();

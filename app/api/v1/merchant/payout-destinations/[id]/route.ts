@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface RouteContext { params: Promise<{ id: string }> | { id: string }; }
 
@@ -17,14 +18,17 @@ function err(code: string, message: string, status: number) {
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteContext) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const { id } = await Promise.resolve(ctx.params);
   const body = await req.json().catch(() => ({})) as {
     merchant_id?: string;
     nickname?: string;
     is_default?: boolean;
   };
-  const merchantId = String(body.merchant_id ?? "").trim();
-  if (!merchantId) return err("bad_request", "merchant_id_required", 400);
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
 
   const db = getSupabaseAdmin();
 
@@ -54,9 +58,12 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteContext) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const { id } = await Promise.resolve(ctx.params);
-  const merchantId = (req.nextUrl.searchParams.get("merchant_id") ?? "").trim();
-  if (!merchantId) return err("bad_request", "merchant_id_required", 400);
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
 
   const { error } = await getSupabaseAdmin()
     .from("zenipay_payout_destinations")

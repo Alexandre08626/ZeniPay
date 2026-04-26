@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -20,15 +21,19 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = (await req.json()) as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const accountId  = String(body.account_id ?? "").trim();
   const accountType = (body.account_type ?? "merchant") as Required<Body>["account_type"];
   const currency   = String(body.currency ?? "CAD").toUpperCase();
 
-  if (!merchantId || !accountId) return err("bad_request", "merchant_id_and_account_id_required", 400);
+  if (!accountId) return err("bad_request", "account_id_required", 400);
 
   const db = getSupabaseAdmin();
 

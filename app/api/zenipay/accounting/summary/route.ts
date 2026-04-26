@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
  * This is NOT ZeniPay platform accounting — it's each merchant's financial view.
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { pgrest } from "../../../../../modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 const EMPTY_RESPONSE = {
   totalRevenue: 0,
@@ -23,7 +24,11 @@ const EMPTY_RESPONSE = {
 
 export async function GET(req: NextRequest) {
   try {
-    const merchant_id = req.nextUrl.searchParams.get("merchant_id");
+    const session = requireZpSession(req);
+    if (session instanceof NextResponse) return session;
+    const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+    if (r instanceof NextResponse) return r;
+    const merchant_id = r;
 
     // ── 1. Payments from zenipay_payments table (via pgrest — bypass Next.js fetch cache) ──
     const paymentsPath = merchant_id

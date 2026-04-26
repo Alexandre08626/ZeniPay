@@ -2,11 +2,15 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 // GET — load compliance data for a merchant
 export async function GET(req: NextRequest) {
-  const merchant_id = req.nextUrl.searchParams.get("merchant_id");
-  if (!merchant_id) return NextResponse.json({ error: "Missing merchant_id" }, { status: 400 });
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchant_id = r;
 
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
@@ -39,9 +43,14 @@ export async function GET(req: NextRequest) {
 
 // PUT — update compliance data
 export async function PUT(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const body = await req.json();
-  const { merchant_id, ...updates } = body;
-  if (!merchant_id) return NextResponse.json({ error: "Missing merchant_id" }, { status: 400 });
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchant_id = r;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { merchant_id: _drop, ...updates } = body;
 
   const supabase = getSupabaseAdmin();
   updates.updated_at = new Date().toISOString();

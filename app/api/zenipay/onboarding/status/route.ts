@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 const FINIX_BASE = process.env.FINIX_ENV === "production"
   ? "https://finix.live-payments-api.com"
@@ -11,8 +12,11 @@ const finixAuth = "Basic " + Buffer.from(`${FINIX_USER}:${FINIX_PASS}`).toString
 
 export async function GET(req: NextRequest) {
   try {
-    const mid = req.nextUrl.searchParams.get("merchant_id");
-    if (!mid) return NextResponse.json({ error: "merchant_id required" }, { status: 400 });
+    const session = requireZpSession(req);
+    if (session instanceof NextResponse) return session;
+    const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+    if (r instanceof NextResponse) return r;
+    const mid = r;
     const supabase = getSupabaseAdmin();
     const { data: m } = await supabase.from("zenipay_merchants").select("id, business_name, email, status, onboarding_state, finix_identity_id, finix_merchant_id, merchant_data").eq("id", mid).single();
     if (!m) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -70,9 +74,13 @@ export async function GET(req: NextRequest) {
 // POST — Go Live action: switch merchant from sandbox to live
 export async function POST(req: NextRequest) {
   try {
+    const session = requireZpSession(req);
+    if (session instanceof NextResponse) return session;
     const body = await req.json();
-    const { merchant_id, action } = body;
-    if (!merchant_id) return NextResponse.json({ error: "merchant_id required" }, { status: 400 });
+    const { action } = body;
+    const r = resolveMerchantId(session, body.merchant_id ?? null);
+    if (r instanceof NextResponse) return r;
+    const merchant_id = r;
 
     const supabase = getSupabaseAdmin();
 

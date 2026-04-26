@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { getCardIssuingProvider } from "@/lib/card-issuing/provider-factory";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -26,20 +27,23 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const provider = getCardIssuingProvider();
   if (!provider) return err("coming_soon", "card_issuing_not_enabled", 503);
 
   let body: Body;
   try { body = (await req.json()) as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const cardholderName = String(body.cardholder_name ?? "").trim();
   const currency = String(body.currency ?? "CAD").toUpperCase();
   const accountId = body.account_id ? String(body.account_id) : null;
   const daily = body.spending_limit_daily != null ? Number(body.spending_limit_daily) : null;
   const monthly = body.spending_limit_monthly != null ? Number(body.spending_limit_monthly) : null;
 
-  if (!merchantId) return err("bad_request", "merchant_id_required", 400);
   if (cardholderName.length < 2) return err("bad_request", "cardholder_name_required", 400);
 
   let issued: Awaited<ReturnType<typeof provider.issueVirtualCard>>;
