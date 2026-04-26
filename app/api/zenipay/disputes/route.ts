@@ -2,11 +2,15 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 // GET — list disputes for a merchant
 export async function GET(req: NextRequest) {
-  const merchant_id = req.nextUrl.searchParams.get("merchant_id");
-  if (!merchant_id) return NextResponse.json({ disputes: [] });
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchant_id = r;
 
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
@@ -31,13 +35,18 @@ export async function GET(req: NextRequest) {
 
 // POST — create or update a dispute
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const body = await req.json();
   const { action, ...payload } = body;
   const supabase = getSupabaseAdmin();
 
   if (action === "create") {
-    const { merchant_id, payment_id, customer_name, customer_email, amount, currency, reason, card_network, card_last4 } = payload;
-    if (!merchant_id || !amount) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    const { payment_id, customer_name, customer_email, amount, currency, reason, card_network, card_last4 } = payload;
+    const r = resolveMerchantId(session, payload.merchant_id ?? null);
+    if (r instanceof NextResponse) return r;
+    const merchant_id = r;
+    if (!amount) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
     const deadline = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase.from("zenipay_disputes").insert({

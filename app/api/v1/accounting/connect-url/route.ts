@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 type Provider = "quickbooks" | "xero" | "wave" | "freshbooks";
 const FLAGS: Record<Provider, string> = {
@@ -19,11 +20,12 @@ const FLAGS: Record<Provider, string> = {
 };
 
 export async function GET(req: NextRequest) {
-  const merchantId = req.nextUrl.searchParams.get("merchant_id")?.trim();
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const provider   = (req.nextUrl.searchParams.get("provider") ?? "").toLowerCase() as Provider;
-  if (!merchantId) {
-    return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_required" } }, { status: 400 });
-  }
   if (!FLAGS[provider]) {
     return NextResponse.json({ error: { code: "bad_request", message: "unknown_provider" } }, { status: 400 });
   }

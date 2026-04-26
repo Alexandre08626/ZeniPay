@@ -8,12 +8,16 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
-  const mid = (req.nextUrl.searchParams.get("merchant_id") ?? "").trim();
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const mid = r;
   const status = req.nextUrl.searchParams.get("status");
   const limit = Math.min(Number(req.nextUrl.searchParams.get("limit") ?? "100") || 100, 500);
-  if (!mid) return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_required" } }, { status: 400 });
 
   const db = getSupabaseAdmin();
 

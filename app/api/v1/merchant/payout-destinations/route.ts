@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 const TYPES = new Set(["ach", "wire", "interac", "internal"]);
 
@@ -18,8 +19,11 @@ function err(code: string, message: string, status: number) {
 }
 
 export async function GET(req: NextRequest) {
-  const mid = (req.nextUrl.searchParams.get("merchant_id") ?? "").trim();
-  if (!mid) return err("bad_request", "merchant_id_required", 400);
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const mid = r;
 
   const { data, error } = await getSupabaseAdmin()
     .from("zenipay_payout_destinations")
@@ -35,6 +39,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const body = await req.json().catch(() => ({})) as {
     merchant_id?: string;
     nickname?: string;
@@ -49,12 +55,13 @@ export async function POST(req: NextRequest) {
     set_default?: boolean;
   };
 
-  const merchantId       = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId       = r;
   const nickname         = String(body.nickname ?? "").trim();
   const destinationType  = String(body.destination_type ?? "").trim().toLowerCase();
   const currency         = String(body.currency ?? "CAD").toUpperCase();
 
-  if (!merchantId)                           return err("bad_request", "merchant_id_required", 400);
   if (!nickname)                             return err("bad_request", "nickname_required", 400);
   if (!TYPES.has(destinationType))           return err("bad_request", `destination_type must be one of ${Array.from(TYPES).join(", ")}`, 400);
 

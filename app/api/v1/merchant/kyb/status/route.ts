@@ -6,10 +6,14 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
-  const mid = (req.nextUrl.searchParams.get("merchant_id") ?? "").trim();
-  if (!mid) return NextResponse.json({ error: "merchant_id_required" }, { status: 400 });
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const mid = r;
 
   const { data, error } = await getSupabaseAdmin()
     .from("zenipay_merchants")

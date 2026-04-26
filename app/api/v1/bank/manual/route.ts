@@ -16,6 +16,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -33,10 +34,14 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = await req.json() as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId     = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId     = r;
   const connectionType = (body.connection_type ?? "business") as "business" | "personal";
   const bankName       = String(body.bank_name ?? "").trim();
   const accountHolder  = String(body.account_holder ?? "").trim();
@@ -45,7 +50,6 @@ export async function POST(req: NextRequest) {
   const accountType    = (body.account_type ?? "checking") as "checking" | "savings";
   const currency       = (body.currency ?? "CAD") as "CAD" | "USD";
 
-  if (!merchantId) return err("bad_request", "merchant_id_required", 400);
   if (bankName.length < 2) return err("bad_request", "bank_name_required", 400);
   if (accountHolder.length < 2) return err("bad_request", "account_holder_required", 400);
   if (!/^\d{6,12}$/.test(routing)) return err("bad_request", "routing_number_invalid", 400);

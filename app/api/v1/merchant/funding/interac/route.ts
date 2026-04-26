@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { createInteracRequest } from "@/lib/finix/interac-client";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -29,10 +30,14 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = await req.json() as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId     = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId     = r;
   const payerName      = String(body.payer_name ?? "").trim();
   const payerEmail     = String(body.payer_email ?? "").trim().toLowerCase();
   const currency       = String(body.currency ?? "CAD").toUpperCase();
@@ -40,7 +45,6 @@ export async function POST(req: NextRequest) {
   const memo           = body.memo ? String(body.memo).slice(0, 200) : null;
   const amountUnits    = typeof body.amount_units === "string" ? Number(body.amount_units) : (body.amount_units ?? NaN);
 
-  if (!merchantId)                           return err("bad_request", "merchant_id_required", 400);
   if (payerName.length < 2)                  return err("bad_request", "payer_name_required", 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail))
                                              return err("bad_request", "payer_email_invalid", 400);

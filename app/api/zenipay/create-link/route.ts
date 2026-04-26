@@ -8,18 +8,22 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
   try {
-    const merchantId = req.nextUrl.searchParams.get("merchant_id");
+    const session = await requireZpSession(req);
+    if (session instanceof NextResponse) return session;
+    const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+    if (r instanceof NextResponse) return r;
+    const merchantId = r;
     const supabase = getSupabaseAdmin();
-    let query = supabase
+    const { data, error } = await supabase
       .from("zenipay_pay_links")
       .select("*")
+      .eq("merchant_id", merchantId)
       .order("created_at", { ascending: false })
       .limit(50);
-    if (merchantId) query = query.eq("merchant_id", merchantId);
-    const { data, error } = await query;
     if (error) return NextResponse.json({ links: [], error: error.message });
     return NextResponse.json({ links: data || [] });
   } catch (err) {
@@ -29,11 +33,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireZpSession(req);
+    if (session instanceof NextResponse) return session;
     const { amount, currency = "CAD", description, expiry, merchant, merchant_id: directMerchantId, api_key } = await req.json();
 
     if (!amount || parseFloat(String(amount)) <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
+    // Cross-tenant guard — directMerchantId, if sent, must match the session.
+    const r = resolveMerchantId(session, directMerchantId ?? null);
+    if (r instanceof NextResponse) return r;
 
     const supabase = getSupabaseAdmin();
     const id = `LINK-${Date.now().toString(36).toUpperCase()}`;
@@ -42,16 +51,18 @@ export async function POST(req: NextRequest) {
     const url = `${baseUrl}/pay/${id}?amount=${amount}&currency=${currency}&desc=${encodeURIComponent(description || "")}${merchantParam}`;
     const now = new Date().toISOString();
 
-    // ── Look up merchant by API key or use direct merchant_id ────────
-    let merchantId: string | null = directMerchantId || null;
-    if (!merchantId && api_key) {
+    // Always bind the new pay link to the authenticated merchant. The
+    // legacy api_key lookup is kept only as a sanity check that the key
+    // belongs to the same session merchant.
+    let merchantId: string = session.merchant_id;
+    if (api_key) {
       const { data: merchants } = await supabase
         .from("zenipay_merchants")
         .select("id, merchant_data")
         .or(`sandbox_key.eq.${api_key},live_key.eq.${api_key}`)
         .limit(1);
       const merchantRow = merchants?.[0];
-      if (merchantRow) {
+      if (merchantRow && merchantRow.id === session.merchant_id) {
         merchantId = merchantRow.id;
         const existing = merchantRow.merchant_data || {};
         const existingLinks: unknown[] = existing.payLinks || [];
@@ -87,10 +98,17 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const session = await requireZpSession(req);
+    if (session instanceof NextResponse) return session;
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("zenipay_pay_links").delete().eq("id", id);
+    // Restrict to links owned by the session merchant.
+    const { error } = await supabase
+      .from("zenipay_pay_links")
+      .delete()
+      .eq("id", id)
+      .eq("merchant_id", session.merchant_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ deleted: true, id });
   } catch (err) {

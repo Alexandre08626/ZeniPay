@@ -10,16 +10,18 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { isMXEnabled, getConnectWidgetUrl } from "@/lib/mx/mx-client";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
   if (!isMXEnabled()) {
     return NextResponse.json({ available: false, provider: "mx" });
   }
 
-  const merchantId = req.nextUrl.searchParams.get("merchant_id")?.trim();
-  if (!merchantId) {
-    return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_required" } }, { status: 400 });
-  }
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const type = (req.nextUrl.searchParams.get("type") ?? "business").toLowerCase() as "business" | "personal";
 
   try {

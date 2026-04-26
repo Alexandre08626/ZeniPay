@@ -7,18 +7,22 @@ export const dynamic = "force-dynamic";
  * POST — execute a payout (validates balance, creates ledger entry, records in DB)
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getWalletBalances, recordPayoutExecution, writeAuditLog, checkIdempotency, saveIdempotency } from "../../../../modules/zenipay/services/ledger";
 import type { WalletType } from "../../../../modules/zenipay/database/schema";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
-// ── GET: list payouts ──────────────────────────────────────────────────────
-export async function GET() {
+// ── GET: list payouts for the session merchant ─────────────────────────────
+export async function GET(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase
     .from("zenipay_payouts")
     .select("*")
+    .eq("merchant_id", session.merchant_id)
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -27,8 +31,10 @@ export async function GET() {
 }
 
 // ── POST: execute a payout ─────────────────────────────────────────────────
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = await requireZpSession(request);
+    if (session instanceof NextResponse) return session;
     const body = await request.json();
     const {
       recipient_type,
@@ -61,8 +67,9 @@ export async function POST(request: Request) {
     // ── Balance check — CRITICAL: cannot payout more than available ────────
     // Use merchant balance as source of truth (stays in sync with payments + payouts)
     const supabaseCheck = getSupabaseAdmin();
-    const merchant_id_check = body.merchant_id;
-    if (!merchant_id_check) return NextResponse.json({ error: "merchant_id is required" }, { status: 400 });
+    const r = resolveMerchantId(session, body.merchant_id ?? null);
+    if (r instanceof NextResponse) return r;
+    const merchant_id_check = r;
     let availableBalance = 0;
     const { data: mCheck } = await supabaseCheck
       .from("zenipay_merchants")
@@ -121,7 +128,7 @@ export async function POST(request: Request) {
     }).eq("id", payoutId);
 
     // ── Decrement merchant balance to stay in sync ────────────────────
-    const merchant_id = body.merchant_id;
+    const merchant_id = merchant_id_check;
     const { data: merchant } = await supabase
       .from("zenipay_merchants")
       .select("balance")

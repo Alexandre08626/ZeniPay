@@ -1,11 +1,16 @@
-// /register — 3-step signup.
-//   Step 1: account + business name + country
-//   Step 2: legal business info + address
-//   Step 3: owner info + terms
+// /register — banking-grade 3-step signup.
+//
+// Step 1 — Create your account:    email + password + business + country + 18+
+// Step 2 — Tell us about your business: legal name, type, EIN/BN, phone,
+//                                       website, address, industry, volume
+// Step 3 — Verify your identity:    name, DOB, SIN/SSN tail, consent + terms
 //
 // Submits to POST /api/auth/register which creates a Supabase Auth
-// user, a zenipay_merchants row (status='pending_kyb'), a primary
-// business account, and an agents.organizations mapping.
+// user, the merchant row (status='pending_kyb'), seeds the primary
+// business account with a ZP account number + routing code, mints
+// BOTH the test and live API keys, and posts the Supabase session
+// cookies on the response so the user lands on /app/overview already
+// signed in.
 
 "use client";
 
@@ -16,16 +21,21 @@ import { MarketingNav, MarketingFooter } from "@/app/components/marketing/Market
 import zp from "@/lib/design-system/zenipay-brand";
 
 type Country = "CA" | "US";
+type BusinessType = "corporation" | "llc" | "sole_proprietorship" | "partnership" | "non_profit";
+type Industry = "technology" | "ecommerce" | "travel" | "real_estate" | "healthcare" | "legal" | "finance" | "other";
+type Volume = "under_10k" | "10k_50k" | "50k_250k" | "over_250k";
 
 interface Form {
   email: string;
+  email_confirm: string;
   password: string;
-  confirmPassword: string;
+  password_confirm: string;
   business_name: string;
   country: Country;
+  age_confirmed: boolean;
 
   legal_business_name: string;
-  business_type: string;
+  business_type: BusinessType;
   ein_bn: string;
   phone: string;
   website: string;
@@ -34,24 +44,56 @@ interface Form {
   city: string;
   state_province: string;
   postal_code: string;
+  industry: Industry;
+  monthly_volume: Volume;
 
   first_name: string;
   last_name: string;
   owner_dob: string;
   owner_ssn_last4: string;
   owner_sin_last3: string;
+  identity_consent: boolean;
   terms_accepted: boolean;
 }
 
 const EMPTY: Form = {
-  email: "", password: "", confirmPassword: "",
-  business_name: "", country: "CA",
-  legal_business_name: "", business_type: "Corporation", ein_bn: "", phone: "", website: "",
+  email: "", email_confirm: "",
+  password: "", password_confirm: "",
+  business_name: "", country: "CA", age_confirmed: false,
+  legal_business_name: "", business_type: "corporation", ein_bn: "",
+  phone: "", website: "",
   address_line1: "", address_line2: "", city: "", state_province: "", postal_code: "",
+  industry: "technology", monthly_volume: "under_10k",
   first_name: "", last_name: "", owner_dob: "",
   owner_ssn_last4: "", owner_sin_last3: "",
-  terms_accepted: false,
+  identity_consent: false, terms_accepted: false,
 };
+
+const BUSINESS_TYPES: Array<{ value: BusinessType; label: string }> = [
+  { value: "corporation",         label: "Corporation" },
+  { value: "llc",                 label: "LLC" },
+  { value: "sole_proprietorship", label: "Sole Proprietorship" },
+  { value: "partnership",         label: "Partnership" },
+  { value: "non_profit",          label: "Non-profit" },
+];
+
+const INDUSTRIES: Array<{ value: Industry; label: string }> = [
+  { value: "technology",  label: "Technology" },
+  { value: "ecommerce",   label: "E-commerce" },
+  { value: "travel",      label: "Travel" },
+  { value: "real_estate", label: "Real Estate" },
+  { value: "healthcare",  label: "Healthcare" },
+  { value: "legal",       label: "Legal" },
+  { value: "finance",     label: "Finance" },
+  { value: "other",       label: "Other" },
+];
+
+const VOLUMES: Array<{ value: Volume; label: string }> = [
+  { value: "under_10k", label: "Under $10K" },
+  { value: "10k_50k",   label: "$10K – $50K" },
+  { value: "50k_250k",  label: "$50K – $250K" },
+  { value: "over_250k", label: "Over $250K" },
+];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -62,64 +104,75 @@ export default function RegisterPage() {
 
   const update = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
-  const pwStrength = useMemo(() => scorePassword(form.password), [form.password]);
-  const pwMatch = form.password && form.password === form.confirmPassword;
+  const pwScore = useMemo(() => scorePassword(form.password), [form.password]);
+  const pwMatch = !!form.password && form.password === form.password_confirm;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
+  const emailMatch = !!form.email && form.email.toLowerCase() === form.email_confirm.toLowerCase();
+  const dobAdult = useMemo(() => isAdult(form.owner_dob), [form.owner_dob]);
 
   const canAdvance1 =
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
-    pwStrength >= 3 &&
-    !!pwMatch &&
-    form.business_name.trim().length >= 2;
+    emailValid && emailMatch && pwScore >= 3 && pwMatch &&
+    form.business_name.trim().length >= 2 &&
+    form.age_confirmed;
 
   const canAdvance2 =
     form.legal_business_name.trim().length >= 2 &&
     form.ein_bn.trim().length >= 4 &&
+    form.phone.trim().length >= 7 &&
     form.address_line1.trim().length >= 2 &&
     form.city.trim().length >= 2 &&
+    form.state_province.trim().length >= 1 &&
     form.postal_code.trim().length >= 3;
 
   const canSubmit =
     form.first_name.trim().length >= 1 &&
     form.last_name.trim().length >= 1 &&
-    form.owner_dob.length > 0 &&
+    !!form.owner_dob && dobAdult &&
     (form.country === "CA" ? form.owner_sin_last3.length === 3 : form.owner_ssn_last4.length === 4) &&
-    form.terms_accepted;
+    form.identity_consent && form.terms_accepted;
 
   const submit = async () => {
     setErr(null);
-    if (!canSubmit) { setErr("Fill every required field and accept the terms."); return; }
+    if (!canSubmit) { setErr("Please complete every required field and accept the consents."); return; }
     setLoading(true);
     try {
       const r = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
-          email:              form.email.trim().toLowerCase(),
-          password:           form.password,
-          business_name:      form.business_name.trim(),
+          email:               form.email.trim().toLowerCase(),
+          password:            form.password,
+          business_name:       form.business_name.trim(),
           legal_business_name: form.legal_business_name.trim(),
-          business_type:      form.business_type,
-          ein_bn:             form.ein_bn.trim(),
-          phone:              form.phone.trim(),
-          website:            form.website.trim(),
-          address_line1:      form.address_line1.trim(),
-          address_line2:      form.address_line2.trim(),
-          city:               form.city.trim(),
-          state_province:     form.state_province.trim(),
-          postal_code:        form.postal_code.trim(),
-          country:            form.country,
-          owner_name:         `${form.first_name.trim()} ${form.last_name.trim()}`,
-          owner_dob:          form.owner_dob,
-          owner_ssn_last4:    form.country === "US" ? form.owner_ssn_last4 : null,
-          owner_sin_last3:    form.country === "CA" ? form.owner_sin_last3 : null,
-          terms_accepted:     form.terms_accepted,
+          business_type:       form.business_type,
+          ein_bn:              form.ein_bn.trim(),
+          phone:               form.phone.trim(),
+          website:             form.website.trim() || null,
+          address_line1:       form.address_line1.trim(),
+          address_line2:       form.address_line2.trim() || null,
+          city:                form.city.trim(),
+          state_province:      form.state_province.trim(),
+          postal_code:         form.postal_code.trim(),
+          country:             form.country,
+          industry:            form.industry,
+          monthly_volume:      form.monthly_volume,
+          owner_first_name:    form.first_name.trim(),
+          owner_last_name:     form.last_name.trim(),
+          owner_dob:           form.owner_dob,
+          owner_ssn_last4:     form.country === "US" ? form.owner_ssn_last4 : null,
+          owner_sin_last3:     form.country === "CA" ? form.owner_sin_last3 : null,
+          identity_consent:    form.identity_consent,
+          terms_accepted:      form.terms_accepted,
         }),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok || data?.error) {
-        setErr(data?.error?.message ?? data?.error ?? "Registration failed.");
+        setErr(prettyError(data));
         return;
       }
+      // Session cookies were set server-side. Mirror non-secret fields
+      // into sessionStorage so the existing legacy UI still works.
       if (typeof window !== "undefined") {
         sessionStorage.setItem("zp_client", data.merchant_id);
         sessionStorage.setItem("zp_client_email", form.email.trim().toLowerCase());
@@ -134,32 +187,36 @@ export default function RegisterPage() {
     }
   };
 
-  const einLabel = form.country === "US" ? "EIN" : "Business Number (BN)";
+  const einLabel = form.country === "US" ? "Employer Identification Number (EIN)" : "Business Number (BN)";
+  const provinceLabel = form.country === "CA" ? "Province" : "State";
+  const postalLabel = form.country === "CA" ? "Postal code" : "ZIP code";
 
   return (
-    <div style={{ background: zp.surface.bg1, minHeight: "100vh" }}>
+    <div style={{ background: "#FFFFFF", minHeight: "100vh", color: zp.text.primary }}>
       <MarketingNav />
 
-      <main style={{ maxWidth: 720, margin: "0 auto", padding: "64px 24px" }}>
+      <main style={{ maxWidth: 720, margin: "0 auto", padding: "56px 24px 80px" }}>
         <ProgressBar step={step} />
 
         <h1 style={{
-          margin: "36px 0 6px", fontFamily: zp.font.display,
-          fontSize: 32, fontWeight: zp.weight.semibold, letterSpacing: "-0.02em",
+          margin: "32px 0 6px", fontFamily: zp.font.display,
+          fontSize: 30, fontWeight: zp.weight.semibold, letterSpacing: "-0.02em",
           color: zp.text.primary,
         }}>
-          {step === 1 ? "Create your account" : step === 2 ? "About your business" : "Owner information"}
+          {step === 1 ? "Create your account"
+           : step === 2 ? "Tell us about your business"
+           : "Verify your identity"}
         </h1>
-        <p style={{ margin: "0 0 28px", fontSize: 14, color: zp.text.muted }}>
-          {step === 1 ? "You can change most of these later."
-           : step === 2 ? "We use this to open your ZeniPay account and to verify your business (KYB)."
-           : "The last step. We verify identity to keep the platform safe."}
+        <p style={{ margin: "0 0 24px", fontSize: 14, color: zp.text.muted, lineHeight: 1.5 }}>
+          {step === 1 ? "We'll set up a real ZeniPay business account. You can integrate immediately and start accepting payments once your account is approved."
+           : step === 2 ? "Your business information is required to open the account and to comply with banking regulations (KYB)."
+           : "As required by financial regulations, we need to verify the identity of the account owner."}
         </p>
 
         {err && (
-          <div style={{
-            marginBottom: 18, padding: "12px 14px", borderRadius: 12,
-            background: zp.semantic.dangerBg, color: zp.semantic.danger,
+          <div role="alert" style={{
+            marginBottom: 16, padding: "11px 14px", borderRadius: 10,
+            background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5",
             fontSize: 13, fontWeight: zp.weight.semibold,
           }}>{err}</div>
         )}
@@ -167,20 +224,31 @@ export default function RegisterPage() {
         {step === 1 && (
           <StepCard>
             <Field label="Business email">
-              <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} autoFocus style={inputStyle} />
+              <input type="email" autoComplete="email" autoFocus
+                value={form.email} onChange={(e) => update("email", e.target.value)} style={inputStyle} />
             </Field>
-            <Field label="Password" hint="8+ characters, 1 uppercase, 1 digit.">
-              <input type="password" value={form.password} onChange={(e) => update("password", e.target.value)} style={inputStyle} />
-              <PasswordStrength score={pwStrength} />
+            <Field label="Confirm business email">
+              <input type="email" autoComplete="email"
+                value={form.email_confirm} onChange={(e) => update("email_confirm", e.target.value)} style={inputStyle} />
+              {form.email_confirm && !emailMatch && (
+                <Hint danger>Emails don&apos;t match.</Hint>
+              )}
+            </Field>
+            <Field label="Password" hint="At least 12 characters, with 1 uppercase, 1 number, and 1 symbol.">
+              <input type="password" autoComplete="new-password"
+                value={form.password} onChange={(e) => update("password", e.target.value)} style={inputStyle} />
+              <PasswordStrength score={pwScore} />
             </Field>
             <Field label="Confirm password">
-              <input type="password" value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} style={inputStyle} />
-              {form.confirmPassword && !pwMatch && (
-                <div style={{ fontSize: 11, color: zp.semantic.danger, marginTop: 4, fontWeight: zp.weight.semibold }}>Passwords don’t match.</div>
+              <input type="password" autoComplete="new-password"
+                value={form.password_confirm} onChange={(e) => update("password_confirm", e.target.value)} style={inputStyle} />
+              {form.password_confirm && !pwMatch && (
+                <Hint danger>Passwords don&apos;t match.</Hint>
               )}
             </Field>
             <Field label="Business name">
-              <input value={form.business_name} onChange={(e) => update("business_name", e.target.value)} placeholder="Zeniva Inc." style={inputStyle} />
+              <input value={form.business_name} placeholder="Acme Inc."
+                onChange={(e) => update("business_name", e.target.value)} style={inputStyle} />
             </Field>
             <Field label="Country">
               <select value={form.country} onChange={(e) => update("country", e.target.value as Country)} style={inputStyle}>
@@ -188,114 +256,161 @@ export default function RegisterPage() {
                 <option value="US">United States</option>
               </select>
             </Field>
+            <Consent
+              checked={form.age_confirmed}
+              onChange={(v) => update("age_confirmed", v)}
+              label="I confirm I am 18 years or older and authorized to open this account on behalf of my business."
+            />
           </StepCard>
         )}
 
         {step === 2 && (
           <StepCard>
             <Field label="Legal business name">
-              <input value={form.legal_business_name} onChange={(e) => update("legal_business_name", e.target.value)} style={inputStyle} />
+              <input value={form.legal_business_name}
+                onChange={(e) => update("legal_business_name", e.target.value)} style={inputStyle} />
             </Field>
-            <Field label="Business type">
-              <select value={form.business_type} onChange={(e) => update("business_type", e.target.value)} style={inputStyle}>
-                <option>Corporation</option>
-                <option>LLC</option>
-                <option>Sole Proprietorship</option>
-                <option>Partnership</option>
-                <option>Other</option>
-              </select>
-            </Field>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Row cols="1fr 1fr">
+              <Field label="Business type">
+                <select value={form.business_type}
+                  onChange={(e) => update("business_type", e.target.value as BusinessType)} style={inputStyle}>
+                  {BUSINESS_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </Field>
               <Field label={einLabel}>
-                <input value={form.ein_bn} onChange={(e) => update("ein_bn", e.target.value)} style={inputStyle} />
+                <input value={form.ein_bn}
+                  onChange={(e) => update("ein_bn", e.target.value)} style={inputStyle} />
               </Field>
+            </Row>
+            <Row cols="1fr 1fr">
               <Field label="Phone">
-                <input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+1 (514) 555-0100" style={inputStyle} />
+                <input value={form.phone} placeholder={form.country === "US" ? "+1 (555) 555-0100" : "+1 (514) 555-0100"}
+                  onChange={(e) => update("phone", e.target.value)} style={inputStyle} />
               </Field>
-            </div>
-            <Field label="Website (optional)">
-              <input value={form.website} onChange={(e) => update("website", e.target.value)} placeholder="https://yoursite.com" style={inputStyle} />
-            </Field>
-            <Field label="Address line 1">
-              <input value={form.address_line1} onChange={(e) => update("address_line1", e.target.value)} style={inputStyle} />
+              <Field label="Website (optional)">
+                <input value={form.website} placeholder="https://"
+                  onChange={(e) => update("website", e.target.value)} style={inputStyle} />
+              </Field>
+            </Row>
+            <Field label="Street address">
+              <input value={form.address_line1}
+                onChange={(e) => update("address_line1", e.target.value)} style={inputStyle} />
             </Field>
             <Field label="Address line 2 (optional)">
-              <input value={form.address_line2} onChange={(e) => update("address_line2", e.target.value)} style={inputStyle} />
+              <input value={form.address_line2}
+                onChange={(e) => update("address_line2", e.target.value)} style={inputStyle} />
             </Field>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12 }}>
+            <Row cols="2fr 1fr 1fr">
               <Field label="City">
-                <input value={form.city} onChange={(e) => update("city", e.target.value)} style={inputStyle} />
+                <input value={form.city}
+                  onChange={(e) => update("city", e.target.value)} style={inputStyle} />
               </Field>
-              <Field label={form.country === "CA" ? "Province" : "State"}>
-                <input value={form.state_province} onChange={(e) => update("state_province", e.target.value)} style={inputStyle} />
+              <Field label={provinceLabel}>
+                <input value={form.state_province}
+                  onChange={(e) => update("state_province", e.target.value)} style={inputStyle} />
               </Field>
-              <Field label={form.country === "CA" ? "Postal" : "ZIP"}>
-                <input value={form.postal_code} onChange={(e) => update("postal_code", e.target.value)} style={inputStyle} />
+              <Field label={postalLabel}>
+                <input value={form.postal_code}
+                  onChange={(e) => update("postal_code", e.target.value)} style={inputStyle} />
               </Field>
-            </div>
+            </Row>
+            <Row cols="1fr 1fr">
+              <Field label="Industry">
+                <select value={form.industry}
+                  onChange={(e) => update("industry", e.target.value as Industry)} style={inputStyle}>
+                  {INDUSTRIES.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Estimated monthly volume">
+                <select value={form.monthly_volume}
+                  onChange={(e) => update("monthly_volume", e.target.value as Volume)} style={inputStyle}>
+                  {VOLUMES.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+                </select>
+              </Field>
+            </Row>
           </StepCard>
         )}
 
         {step === 3 && (
           <StepCard>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Row cols="1fr 1fr">
               <Field label="First name">
-                <input value={form.first_name} onChange={(e) => update("first_name", e.target.value)} style={inputStyle} />
+                <input value={form.first_name}
+                  onChange={(e) => update("first_name", e.target.value)} style={inputStyle} />
               </Field>
               <Field label="Last name">
-                <input value={form.last_name} onChange={(e) => update("last_name", e.target.value)} style={inputStyle} />
+                <input value={form.last_name}
+                  onChange={(e) => update("last_name", e.target.value)} style={inputStyle} />
               </Field>
-            </div>
-            <Field label="Date of birth">
-              <input type="date" value={form.owner_dob} onChange={(e) => update("owner_dob", e.target.value)} style={inputStyle} />
+            </Row>
+            <Field label="Date of birth" hint="You must be 18 years or older to open an account.">
+              <input type="date" value={form.owner_dob}
+                onChange={(e) => update("owner_dob", e.target.value)} style={inputStyle} />
+              {form.owner_dob && !dobAdult && (
+                <Hint danger>You must be at least 18 years old.</Hint>
+              )}
             </Field>
             {form.country === "US" ? (
-              <Field label="SSN — last 4 digits" hint="We only store the last 4 digits.">
+              <Field
+                label="Social Security Number (last 4)"
+                hint="We use this for identity verification only. It is encrypted and never stored in full."
+              >
                 <input
-                  inputMode="numeric" maxLength={4}
-                  value={form.owner_ssn_last4}
+                  inputMode="numeric" maxLength={4} value={form.owner_ssn_last4}
                   onChange={(e) => update("owner_ssn_last4", e.target.value.replace(/\D/g, "").slice(0, 4))}
                   style={inputStyle}
                 />
               </Field>
             ) : (
-              <Field label="SIN — last 3 digits" hint="We only store the last 3 digits.">
+              <Field
+                label="Social Insurance Number (last 3)"
+                hint="We use this for identity verification only. It is encrypted and never stored in full."
+              >
                 <input
-                  inputMode="numeric" maxLength={3}
-                  value={form.owner_sin_last3}
+                  inputMode="numeric" maxLength={3} value={form.owner_sin_last3}
                   onChange={(e) => update("owner_sin_last3", e.target.value.replace(/\D/g, "").slice(0, 3))}
                   style={inputStyle}
                 />
               </Field>
             )}
-            <label style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "12px 0", fontSize: 13, color: zp.text.primary }}>
-              <input type="checkbox" checked={form.terms_accepted} onChange={(e) => update("terms_accepted", e.target.checked)} style={{ marginTop: 3 }} />
-              <span>
-                I agree to ZeniPay’s{" "}
-                <Link href="/terms" style={{ color: zp.brand.cyan, fontWeight: zp.weight.semibold }}>Terms of Service</Link>
-                {" "}and{" "}
-                <Link href="/privacy" style={{ color: zp.brand.cyan, fontWeight: zp.weight.semibold }}>Privacy Policy</Link>.
-              </span>
-            </label>
+            <Consent
+              checked={form.identity_consent}
+              onChange={(v) => update("identity_consent", v)}
+              label="I confirm the information above is accurate and I consent to identity verification."
+            />
+            <Consent
+              checked={form.terms_accepted}
+              onChange={(v) => update("terms_accepted", v)}
+              label={
+                <>
+                  By creating an account, I agree to ZeniPay&apos;s{" "}
+                  <Link href="/terms" style={{ color: zp.brand.cyan, fontWeight: zp.weight.semibold }}>Terms of Service</Link>
+                  {" "}and{" "}
+                  <Link href="/privacy" style={{ color: zp.brand.cyan, fontWeight: zp.weight.semibold }}>Privacy Policy</Link>,
+                  {" "}and I consent to electronic communications.
+                </>
+              }
+            />
           </StepCard>
         )}
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 22, gap: 12, flexWrap: "wrap" }}>
           {step > 1 ? (
             <button
               type="button"
               onClick={() => setStep(((step as number) - 1) as 1 | 2)}
-              style={{
-                background: "transparent", border: "none",
-                color: zp.text.muted, fontSize: 13, fontWeight: zp.weight.semibold, cursor: "pointer",
-                padding: "10px 0",
-              }}
+              style={backBtn}
             >← Back</button>
           ) : <span />}
           {step < 3 ? (
             <button
               type="button"
-              onClick={() => { if ((step === 1 && canAdvance1) || (step === 2 && canAdvance2)) setStep((step + 1) as 2 | 3); }}
+              onClick={() => {
+                if ((step === 1 && canAdvance1) || (step === 2 && canAdvance2)) {
+                  setStep((step + 1) as 2 | 3);
+                  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
               disabled={(step === 1 && !canAdvance1) || (step === 2 && !canAdvance2)}
               style={{
                 ...gradientBtn,
@@ -314,7 +429,7 @@ export default function RegisterPage() {
                 cursor: loading || !canSubmit ? "not-allowed" : "pointer",
               }}
             >
-              {loading ? "Creating your account…" : "Create account →"}
+              {loading ? "Creating your account…" : "Create account"}
             </button>
           )}
         </div>
@@ -335,14 +450,14 @@ function ProgressBar({ step }: { step: 1 | 2 | 3 }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: zp.weight.bold, color: zp.text.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        <span style={{ fontSize: 11, fontWeight: zp.weight.semibold, color: zp.text.muted, letterSpacing: "0.12em", textTransform: "uppercase" }}>
           Step {step} of 3
         </span>
-        <span style={{ fontSize: 11, fontWeight: zp.weight.bold, color: zp.brand.violet, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        <span style={{ fontSize: 11, fontWeight: zp.weight.semibold, color: zp.brand.cyan, letterSpacing: "0.12em", textTransform: "uppercase" }}>
           {pct}% complete
         </span>
       </div>
-      <div style={{ height: 6, borderRadius: 999, background: zp.surface.bg2, overflow: "hidden" }}>
+      <div style={{ height: 4, borderRadius: 999, background: "#E5E7EB", overflow: "hidden" }}>
         <div style={{
           height: "100%", width: `${pct}%`,
           background: zp.gradient.main, borderRadius: 999,
@@ -356,8 +471,10 @@ function ProgressBar({ step }: { step: 1 | 2 | 3 }) {
 function StepCard({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      background: "#fff", border: `1px solid ${zp.surface.border}`,
-      borderRadius: 14, padding: 28,
+      background: "#FFFFFF",
+      border: "1px solid #E5E7EB",
+      borderRadius: 12,
+      padding: 26,
     }}>
       {children}
     </div>
@@ -368,22 +485,68 @@ function Field({ label, children, hint }: { label: string; children: React.React
   return (
     <div style={{ marginBottom: 16 }}>
       <label style={{
-        display: "block", fontSize: 10, fontWeight: zp.weight.semibold, color: zp.text.muted,
-        letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6,
+        display: "block", fontSize: 11, fontWeight: zp.weight.semibold, color: zp.text.primary,
+        marginBottom: 6,
       }}>{label}</label>
       {children}
-      {hint && <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 5 }}>{hint}</div>}
+      {hint && <Hint>{hint}</Hint>}
     </div>
+  );
+}
+
+function Hint({ children, danger }: { children: React.ReactNode; danger?: boolean }) {
+  return (
+    <div style={{
+      fontSize: 11,
+      color: danger ? "#B91C1C" : zp.text.muted,
+      marginTop: 5,
+      fontWeight: danger ? zp.weight.semibold : zp.weight.regular,
+    }}>{children}</div>
+  );
+}
+
+function Row({ cols, children }: { cols: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: cols, gap: 12 }}>
+      {children}
+    </div>
+  );
+}
+
+function Consent({ checked, onChange, label }: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: React.ReactNode;
+}) {
+  return (
+    <label style={{
+      display: "flex", gap: 10, alignItems: "flex-start",
+      padding: "12px 14px", marginTop: 10,
+      background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10,
+      fontSize: 13, color: zp.text.primary, lineHeight: 1.5,
+      cursor: "pointer",
+    }}>
+      <input
+        type="checkbox" checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ marginTop: 3, accentColor: zp.brand.cyan }}
+      />
+      <span>{label}</span>
+    </label>
   );
 }
 
 function PasswordStrength({ score }: { score: number }) {
   const pct = Math.min(100, (score / 4) * 100);
   const color = score <= 1 ? "#DC2626" : score === 2 ? "#D97706" : score === 3 ? "#16A34A" : zp.brand.violet;
-  const label = score === 0 ? "Too short" : score === 1 ? "Weak" : score === 2 ? "Fair" : score === 3 ? "Strong" : "Excellent";
+  const label = score === 0 ? "Too short"
+              : score === 1 ? "Weak"
+              : score === 2 ? "Fair"
+              : score === 3 ? "Strong"
+              : "Excellent";
   return (
     <div style={{ marginTop: 6 }}>
-      <div style={{ height: 4, borderRadius: 999, background: zp.surface.bg3, overflow: "hidden" }}>
+      <div style={{ height: 4, borderRadius: 999, background: "#E5E7EB", overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${pct}%`, background: color, transition: "width 0.2s" }} />
       </div>
       <div style={{ fontSize: 11, color, marginTop: 4, fontWeight: zp.weight.semibold }}>{label}</div>
@@ -391,24 +554,74 @@ function PasswordStrength({ score }: { score: number }) {
   );
 }
 
+// 4-level password score: Weak / Fair / Strong / Excellent.
+//   1 — meets minimum (12+ chars)
+//   2 — + length 14+ OR mixed case
+//   3 — + digits AND symbols
+//   4 — + length 18+ AND digits/symbols/case all present
 function scorePassword(pw: string): number {
-  let s = 0;
-  if (pw.length >= 8) s++;
-  if (pw.length >= 12) s++;
-  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
-  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) s++;
-  return s;
+  if (pw.length < 12) return 0;
+  let s = 1;
+  const hasUpper = /[A-Z]/.test(pw);
+  const hasLower = /[a-z]/.test(pw);
+  const hasDigit = /\d/.test(pw);
+  const hasSymbol = /[^A-Za-z0-9]/.test(pw);
+  if (hasUpper && hasLower) s++;
+  if (hasDigit && hasSymbol) s++;
+  if (pw.length >= 18 && hasUpper && hasLower && hasDigit && hasSymbol) s = 4;
+  return Math.min(4, s);
+}
+
+function isAdult(dobIso: string): boolean {
+  if (!dobIso) return false;
+  const dob = new Date(dobIso);
+  if (Number.isNaN(dob.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age >= 18;
+}
+
+function prettyError(data: unknown): string {
+  if (!data || typeof data !== "object") return "Registration failed.";
+  const e = (data as { error?: unknown }).error;
+  if (typeof e === "string") return e;
+  if (e && typeof e === "object" && "message" in e && typeof (e as { message: string }).message === "string") {
+    const code = (e as { code?: string }).code;
+    const msg = (e as { message: string }).message;
+    const map: Record<string, string> = {
+      email_already_registered: "This email is already registered. Sign in instead.",
+      password_weak:            "Password must be at least 12 characters with 1 uppercase, 1 number, and 1 symbol.",
+      owner_must_be_18_plus:    "You must be at least 18 years old.",
+      sin_last_3_required:      "Please enter the last 3 digits of your SIN.",
+      ssn_last_4_required:      "Please enter the last 4 digits of your SSN.",
+      identity_consent_required:"Please confirm identity verification consent.",
+      terms_must_be_accepted:   "Please accept the Terms of Service.",
+      rate_limited:             "Too many signup attempts. Please try again in an hour.",
+    };
+    return map[code ?? ""] ?? msg;
+  }
+  return "Registration failed.";
 }
 
 const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "11px 14px", borderRadius: zp.radius.sm,
-  border: `1px solid ${zp.surface.border}`, background: zp.surface.bg2,
-  color: zp.text.primary, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: zp.font.sans,
+  width: "100%", padding: "11px 14px", borderRadius: 10,
+  border: "1px solid #E5E7EB", background: "#FFFFFF",
+  color: zp.text.primary, fontSize: 14,
+  boxSizing: "border-box", outline: "none", fontFamily: zp.font.sans,
 };
 
 const gradientBtn: React.CSSProperties = {
-  background: zp.gradient.main, color: "#fff", border: "none",
-  padding: "12px 22px", borderRadius: 12,
-  fontSize: 14, fontWeight: zp.weight.semibold, cursor: "pointer",
-  boxShadow: "0 8px 20px rgba(15,184,201,0.28)",
+  background: zp.gradient.main, color: "#FFFFFF", border: "none",
+  padding: "12px 22px", borderRadius: 10,
+  fontSize: 14, fontWeight: zp.weight.semibold,
+  cursor: "pointer",
+  boxShadow: "0 4px 12px rgba(15,184,201,0.25)",
+};
+
+const backBtn: React.CSSProperties = {
+  background: "transparent", border: "none",
+  color: zp.text.muted, fontSize: 13, fontWeight: zp.weight.semibold,
+  cursor: "pointer", padding: "10px 0",
 };

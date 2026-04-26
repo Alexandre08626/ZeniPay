@@ -10,12 +10,16 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 const TYPES = new Set(["government_id", "business_registration", "bank_statement", "proof_of_address"]);
 
 export async function GET(req: NextRequest) {
-  const mid = (req.nextUrl.searchParams.get("merchant_id") ?? "").trim();
-  if (!mid) return NextResponse.json({ error: "merchant_id_required" }, { status: 400 });
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const mid = r;
 
   const { data, error } = await getSupabaseAdmin()
     .from("zenipay_kyb_documents")
@@ -27,15 +31,18 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const body = await req.json().catch(() => ({})) as {
     merchant_id?: string; document_type?: string; filename?: string; notes?: string;
   };
-  const merchantId = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const documentType = String(body.document_type ?? "").trim();
   const filename = String(body.filename ?? "").trim();
   const notes = body.notes ? String(body.notes).slice(0, 500) : null;
 
-  if (!merchantId) return NextResponse.json({ error: "merchant_id_required" }, { status: 400 });
   if (!TYPES.has(documentType)) return NextResponse.json({ error: `document_type invalid` }, { status: 400 });
   if (!filename) return NextResponse.json({ error: "filename_required" }, { status: 400 });
 

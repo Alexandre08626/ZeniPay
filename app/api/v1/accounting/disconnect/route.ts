@@ -10,12 +10,17 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function POST(req: NextRequest) {
-  const merchantId = req.nextUrl.searchParams.get("merchant_id")?.trim();
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const provider   = req.nextUrl.searchParams.get("provider")?.trim();
-  if (!merchantId || !provider) {
-    return NextResponse.json({ error: { code: "bad_request", message: "missing_fields" } }, { status: 400 });
+  if (!provider) {
+    return NextResponse.json({ error: { code: "bad_request", message: "provider_required" } }, { status: 400 });
   }
 
   const db = getSupabaseAdmin();

@@ -21,6 +21,7 @@ import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { getAccountDetail } from "@/lib/mx/mx-client";
 import { createBankAccountInstrument, createACHDebit } from "@/lib/finix/ach-client";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -46,6 +47,8 @@ function addBusinessDays(base: Date, days: number): Date {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   if (!process.env.FINIX_API_USERNAME || !process.env.FINIX_API_PASSWORD) {
     return err("service_unavailable", "payment_not_available", 503);
   }
@@ -53,13 +56,15 @@ export async function POST(req: NextRequest) {
   let body: Body;
   try { body = await req.json() as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId   = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId   = r;
   const connectionId = String(body.connection_id ?? "").trim();
   const currency     = String(body.currency ?? "CAD").toUpperCase();
   const memo         = body.memo ? String(body.memo).slice(0, 200) : null;
   const amountUnits  = typeof body.amount_units === "string" ? Number(body.amount_units) : (body.amount_units ?? NaN);
 
-  if (!merchantId || !connectionId) return err("bad_request", "missing_fields", 400);
+  if (!connectionId) return err("bad_request", "connection_id_required", 400);
   if (!Number.isFinite(amountUnits) || amountUnits <= 0) return err("bad_request", "amount_must_be_positive", 400);
 
   const db = getSupabaseAdmin();

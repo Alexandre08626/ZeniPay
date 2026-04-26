@@ -24,6 +24,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { exchangePublicToken, getAccountsAndAuth } from "@/lib/plaid/plaid-client";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -36,14 +37,18 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = await req.json() as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId     = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId     = r;
   const publicToken    = String(body.public_token ?? "").trim();
   const connectionType = (body.connection_type ?? "business") as "business" | "personal";
 
-  if (!merchantId || !publicToken) return err("bad_request", "missing_fields", 400);
+  if (!publicToken) return err("bad_request", "public_token_required", 400);
 
   // 1. Exchange public_token → access_token.
   let accessToken: string;

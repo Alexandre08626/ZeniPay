@@ -20,6 +20,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 const MICRO = BigInt(1_000_000);
 
@@ -44,17 +45,20 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: Body;
   try { body = await req.json() as Body; } catch { return err("bad_request", "invalid_json", 400); }
 
-  const merchantId     = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId     = r;
   const fromAccountId  = String(body.from_account_id ?? "").trim();
   const currency       = String(body.currency ?? "CAD").toUpperCase();
   const idempotencyKey = String(body.idempotency_key ?? "").trim();
   const memo           = body.memo ? String(body.memo).slice(0, 200) : "";
   const amountUnits    = typeof body.amount_units === "string" ? Number(body.amount_units) : (body.amount_units ?? NaN);
 
-  if (!merchantId)                           return err("bad_request", "merchant_id_required", 400);
   if (!fromAccountId)                        return err("bad_request", "from_account_id_required", 400);
   if (!idempotencyKey || idempotencyKey.length < 8)
                                              return err("bad_request", "idempotency_key_required", 400, { min_length: 8 });

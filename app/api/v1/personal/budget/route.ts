@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 const DEFAULTS: Array<{ name: string; icon: string; color: string; limit: number }> = [
   { name: "Housing",       icon: "🏠", color: "#FF6B9D", limit: 1500 },
@@ -42,10 +43,11 @@ async function ensureDefaults(db: ReturnType<typeof getSupabaseAdmin>, merchantI
 }
 
 export async function GET(req: NextRequest) {
-  const merchantId = req.nextUrl.searchParams.get("merchant_id")?.trim();
-  if (!merchantId) {
-    return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_required" } }, { status: 400 });
-  }
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const db = getSupabaseAdmin();
   try { await ensureDefaults(db, merchantId); } catch { /* table may not be applied yet */ }
   const { data, error } = await db
@@ -70,14 +72,18 @@ interface CreateBody {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: CreateBody;
   try { body = await req.json() as CreateBody; } catch {
     return NextResponse.json({ error: { code: "bad_request", message: "invalid_json" } }, { status: 400 });
   }
-  const merchantId = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const name = String(body.name ?? "").trim();
   const limit = Number(body.monthly_limit ?? 0);
-  if (!merchantId || !name || limit <= 0) {
+  if (!name || limit <= 0) {
     return NextResponse.json({ error: { code: "bad_request", message: "missing_required_fields" } }, { status: 400 });
   }
   const db = getSupabaseAdmin();
@@ -102,14 +108,18 @@ interface PatchBody {
 }
 
 export async function PATCH(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: PatchBody;
   try { body = await req.json() as PatchBody; } catch {
     return NextResponse.json({ error: { code: "bad_request", message: "invalid_json" } }, { status: 400 });
   }
-  const merchantId = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const id = String(body.id ?? "").trim();
-  if (!merchantId || !id) {
-    return NextResponse.json({ error: { code: "bad_request", message: "missing_required_fields" } }, { status: 400 });
+  if (!id) {
+    return NextResponse.json({ error: { code: "bad_request", message: "id_required" } }, { status: 400 });
   }
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.monthly_limit != null) update.monthly_limit = Number(body.monthly_limit);

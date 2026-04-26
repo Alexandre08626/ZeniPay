@@ -10,15 +10,17 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { auditAsync } from "@/lib/audit/audit-logger";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface RouteContext { params: Promise<{ id: string }> | { id: string }; }
 
 export async function DELETE(req: NextRequest, ctx: RouteContext) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const { id } = await Promise.resolve(ctx.params);
-  const merchantId = req.nextUrl.searchParams.get("merchant_id")?.trim();
-  if (!merchantId) {
-    return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_required" } }, { status: 400 });
-  }
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const db = getSupabaseAdmin();
   const { error } = await db
     .from("zenipay_bank_connections")

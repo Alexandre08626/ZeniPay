@@ -9,13 +9,15 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const sp = req.nextUrl.searchParams;
-  const merchantId = sp.get("merchant_id")?.trim();
-  if (!merchantId) {
-    return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_required" } }, { status: 400 });
-  }
+  const merchantIdResult = resolveMerchantId(session, sp.get("merchant_id"));
+  if (merchantIdResult instanceof NextResponse) return merchantIdResult;
+  const merchantId = merchantIdResult;
   const accountId = sp.get("account_id")?.trim();
   const type = sp.get("type")?.trim();
   const from = sp.get("from")?.trim();
@@ -46,11 +48,15 @@ interface CreateBody {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   let body: CreateBody;
   try { body = await req.json() as CreateBody; } catch {
     return NextResponse.json({ error: { code: "bad_request", message: "invalid_json" } }, { status: 400 });
   }
-  const merchantId = String(body.merchant_id ?? "").trim();
+  const merchantIdResult = resolveMerchantId(session, body.merchant_id ?? null);
+  if (merchantIdResult instanceof NextResponse) return merchantIdResult;
+  const merchantId = merchantIdResult;
   const accountId  = String(body.account_id  ?? "").trim();
   const type       = String(body.type ?? "").trim().toLowerCase();
   const amount     = Number(body.amount ?? NaN);
@@ -58,7 +64,7 @@ export async function POST(req: NextRequest) {
   const description = body.description ? String(body.description).slice(0, 200) : null;
   const category   = body.category ? String(body.category).slice(0, 64) : null;
 
-  if (!merchantId || !accountId) return NextResponse.json({ error: { code: "bad_request", message: "merchant_id_and_account_id_required" } }, { status: 400 });
+  if (!accountId) return NextResponse.json({ error: { code: "bad_request", message: "account_id_required" } }, { status: 400 });
   if (!["income", "expense", "transfer_in", "transfer_out"].includes(type)) {
     return NextResponse.json({ error: { code: "bad_request", message: "type_invalid" } }, { status: 400 });
   }

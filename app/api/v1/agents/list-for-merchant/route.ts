@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentBalances } from "@/lib/agents/zc-balances";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 async function pgrestGet<T>(path: string, accept?: string): Promise<T> {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,8 +39,11 @@ interface MappingRow { organization_id: string }
 interface WalletRow { agent_id: string; zp_account_number: string | null; zp_routing_code: string | null }
 
 export async function GET(req: NextRequest) {
-  const merchantId = (req.nextUrl.searchParams.get("merchant_id") ?? "").trim();
-  if (!merchantId) return err("bad_request", "merchant_id_required", 400);
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
 
   const mappingRows = await pgrestGet<MappingRow[]>(
     `zenipay_merchant_agent_org_map?merchant_id=eq.${encodeURIComponent(merchantId)}&select=organization_id`,

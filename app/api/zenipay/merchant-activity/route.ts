@@ -21,6 +21,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, pgrest } from "@/modules/zenipay/services/supabase";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 export type ActivityKind =
   | "payment_in"
@@ -95,10 +96,13 @@ function ledgerKind(eventType: string, direction: "debit" | "credit"): ActivityK
 }
 
 export async function GET(req: NextRequest) {
-  const mid = (req.nextUrl.searchParams.get("merchant_id") ?? "").trim();
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const merchantIdResult = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (merchantIdResult instanceof NextResponse) return merchantIdResult;
+  const mid = merchantIdResult;
   const accountIdFilter = (req.nextUrl.searchParams.get("account_id") ?? "").trim() || null;
   const limit = Math.min(Number(req.nextUrl.searchParams.get("limit") ?? "200") || 200, 500);
-  if (!mid) return NextResponse.json({ error: "merchant_id_required" }, { status: 400 });
 
   const db = getSupabaseAdmin();
 

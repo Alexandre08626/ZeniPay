@@ -7,13 +7,17 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { createMerchantApiKey, type KeyEnv, type KeyPermission } from "@/lib/merchant/api-keys";
+import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 const PERMS = new Set<KeyPermission>(["read", "write", "admin"]);
 const ENVS  = new Set<KeyEnv>(["live", "test"]);
 
 export async function GET(req: NextRequest) {
-  const mid = (req.nextUrl.searchParams.get("merchant_id") ?? "").trim();
-  if (!mid) return NextResponse.json({ error: "merchant_id_required" }, { status: 400 });
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  if (r instanceof NextResponse) return r;
+  const mid = r;
 
   const { data, error } = await getSupabaseAdmin()
     .from("zenipay_api_keys")
@@ -25,15 +29,18 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await requireZpSession(req);
+  if (session instanceof NextResponse) return session;
   const body = await req.json().catch(() => ({})) as {
     merchant_id?: string; name?: string; environment?: string; permissions?: string[];
   };
-  const merchantId = String(body.merchant_id ?? "").trim();
+  const r = resolveMerchantId(session, body.merchant_id ?? null);
+  if (r instanceof NextResponse) return r;
+  const merchantId = r;
   const name = String(body.name ?? "").trim();
   const env = (String(body.environment ?? "live").trim() as KeyEnv);
   const perms = ((body.permissions ?? []) as string[]).filter((p): p is KeyPermission => PERMS.has(p as KeyPermission));
 
-  if (!merchantId) return NextResponse.json({ error: "merchant_id_required" }, { status: 400 });
   if (!name)       return NextResponse.json({ error: "name_required" }, { status: 400 });
   if (!ENVS.has(env)) return NextResponse.json({ error: "environment must be live|test" }, { status: 400 });
   if (perms.length === 0) return NextResponse.json({ error: "at least one permission required" }, { status: 400 });
