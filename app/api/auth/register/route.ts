@@ -20,6 +20,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { setZpSessionCookie } from "@/lib/auth/zp-session";
 
 const COUNTRY_TO_CURRENCY: Record<string, string> = {
   CA: "CAD",
@@ -202,9 +203,11 @@ export async function POST(req: NextRequest) {
     // Agents mapping is non-critical for signup success.
   }
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     success:     true,
     merchant_id: merchantId,
     redirect:    "/app/overview",
   });
+  setZpSessionCookie(res, merchantId, "live");
+  return res;
 }
