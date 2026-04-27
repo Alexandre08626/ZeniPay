@@ -57,25 +57,52 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getSupabaseAdmin();
+
+  // profile_id is NOT NULL with no default, so fetch it from the
+  // merchant's personal profile (1:1 with the merchant in our model).
+  const { data: profile, error: profileErr } = await db
+    .from("zenipay_personal_profiles")
+    .select("id, country")
+    .eq("merchant_id", merchantId)
+    .maybeSingle();
+  if (profileErr) {
+    return NextResponse.json({ error: { code: "server_error", message: profileErr.message } }, { status: 500 });
+  }
+  if (!profile) {
+    return NextResponse.json(
+      { error: { code: "personal_profile_missing", message: "No personal profile linked to this account." } },
+      { status: 400 },
+    );
+  }
+
   const { data: existing } = await db
     .from("zenipay_personal_accounts")
     .select("id")
     .eq("merchant_id", merchantId);
   const isFirst = !existing || existing.length === 0;
-  const accountNumber = `PA${Math.random().toString(36).toUpperCase().slice(2, 12)}`;
 
-  const id = `pa_${crypto.randomUUID()}`;
+  // Normalize the user-facing account_type to the DB convention
+  // (personal_checking, personal_savings, …) so it lines up with the
+  // business-side pattern (business_checking) and with the row the
+  // /register/personal endpoint seeds at signup.
+  const dbAccountType = `personal_${accountType}`;
+  const country = (profile.country as string | null)?.toUpperCase() === "US" ? "US" : "CA";
+  const zpRoutingCode = country === "US" ? "ZPUS0001" : "ZPCA0001";
+  // 9-digit numeric, matches the format used at signup.
+  const zpAccountNumber = `ZP${Math.floor(Math.random() * 9e8 + 1e8)}`;
+
   const { data, error } = await db
     .from("zenipay_personal_accounts")
     .insert({
-      id,
-      merchant_id: merchantId,
-      account_name: name,
-      account_type: accountType,
-      account_number: accountNumber,
-      balance: 0,
+      profile_id:        profile.id,
+      merchant_id:       merchantId,
+      account_name:      name,
+      account_type:      dbAccountType,
+      balance:           0,
       currency,
-      is_primary: isFirst,
+      is_primary:        isFirst,
+      zp_account_number: zpAccountNumber,
+      zp_routing_code:   zpRoutingCode,
     })
     .select("*")
     .single();
