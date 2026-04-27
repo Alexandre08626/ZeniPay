@@ -178,11 +178,14 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
   }, [pathname]);
 
   // Resolve merchant status (personal_only vs everything else). Drives
-  // the Agents-tab visibility + the redirect below.
+  // the Business + Agents tab visibility and the redirect below. We
+  // seed from sessionStorage for instant first paint, then ALWAYS
+  // re-fetch in the background so a stale cache from a previous
+  // account or pre-fix deploy can't pin the wrong status forever.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const cached = sessionStorage.getItem("zp_client_status");
-    if (cached) { setMerchantStatus(cached); return; }
+    if (cached) setMerchantStatus(cached);
     const id = sessionStorage.getItem("zp_client");
     if (!id) return;
     let cancelled = false;
@@ -198,13 +201,15 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
     return () => { cancelled = true; };
   }, []);
 
-  // Bounce personal-only merchants out of /agents/*. The agents auth
-  // helper also blocks them at the API layer; this redirect is the UX
-  // arm of the same lockdown.
+  // Personal-only merchants only have the Personal mode. Bounce them
+  // out of every other product surface — /app/* (business),
+  // /agents/*, /admin/*. The server-side auth helpers also refuse
+  // these routes; this is the UX arm of the same lockdown so they
+  // never see broken pages.
   useEffect(() => {
-    if (isPersonalOnly && mode === "agents") {
-      router.replace("/personal/overview");
-    }
+    if (!isPersonalOnly) return;
+    if (mode === "personal") return;
+    router.replace("/personal/overview");
   }, [isPersonalOnly, mode, router]);
 
   const signOut = useCallback(() => {
@@ -225,7 +230,7 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
         userLabel={session?.label}
         userEmail={session?.email}
         onSignOut={signOut}
-        hideAgentsTab={isPersonalOnly}
+        personalOnly={isPersonalOnly}
       />
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
