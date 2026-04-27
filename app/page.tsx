@@ -61,6 +61,24 @@ function Hero() {
                      radial-gradient(circle at 90% 20%, rgba(123,79,191,0.08) 0%, transparent 55%)`,
       }} />
       <div style={{ position: "relative", maxWidth: 1160, margin: "0 auto", padding: "72px 24px 72px", textAlign: "center" }}>
+        {/* Logo — anchors the brand at the top of the hero. The
+            MarketingNav also has a small logo top-left, but a larger
+            mark above the headline reads as a banking-grade
+            statement on first paint. */}
+        <Image
+          src="/zenipay-logo-nobg.png"
+          alt="ZeniPay logo"
+          width={120}
+          height={120}
+          priority
+          style={{
+            width: 120, height: 120,
+            objectFit: "contain",
+            margin: "0 auto 18px",
+            display: "block",
+          }}
+        />
+
         <div style={{
           display: "inline-block", padding: "5px 12px",
           borderRadius: zp.radius.pill, background: zp.surface.bg2,
