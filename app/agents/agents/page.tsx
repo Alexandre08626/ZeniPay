@@ -42,10 +42,34 @@ export default function AgentsListPage() {
   };
   useEffect(() => { void refresh(); }, []);
 
+  // Fetch the merchant status fresh on mount instead of trusting
+  // sessionStorage — that cache can be stale if the user signed in
+  // before the personal_only / fleet rollout shipped, which leaves
+  // the "+ New agent" button visible on what should be a locked
+  // 5-agent personal fleet. The /api/zenipay/merchant-info endpoint
+  // is force-dynamic and we add cache:'no-store' so neither the
+  // browser nor any CDN can serve a stale response.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const s = sessionStorage.getItem("zp_client_status") || "";
-    setIsPersonal(s.toLowerCase() === "personal_only");
+    // Seed instantly from sessionStorage to avoid a flash of the
+    // wrong UI, then re-fetch authoritatively.
+    const cached = sessionStorage.getItem("zp_client_status") || "";
+    if (cached) setIsPersonal(cached.toLowerCase() === "personal_only");
+    const id = sessionStorage.getItem("zp_client") || "";
+    if (!id) return;
+    let cancelled = false;
+    void fetch(`/api/zenipay/merchant-info?id=${encodeURIComponent(id)}&_=${Date.now()}`, {
+      cache: "no-store",
+    })
+      .then((r) => r.json())
+      .then((d: { merchant?: { status?: string } }) => {
+        if (cancelled) return;
+        const s = (d?.merchant?.status ?? "").toLowerCase();
+        setIsPersonal(s === "personal_only");
+        try { sessionStorage.setItem("zp_client_status", s); } catch { /* ignore */ }
+      })
+      .catch(() => { /* non-fatal */ });
+    return () => { cancelled = true; };
   }, []);
 
   const realCards: AgentCardData[] = agents.map((a) => ({
