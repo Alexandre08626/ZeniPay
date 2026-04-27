@@ -202,12 +202,17 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
   }, []);
 
   // Personal-only merchants don't have a business entity, so bounce
-  // them out of /app/* and /admin/* (business / admin surfaces).
-  // /agents/* stays accessible — they get a 5-agent personal fleet
-  // seeded at signup and need to reach it.
+  // them out of /app/* (business surface). /agents/* stays accessible
+  // — they get a 5-agent personal fleet seeded at signup. /admin/*
+  // does NOT redirect here: the AdminGate component on every admin
+  // page checks an email allowlist and will 403 anyone who shouldn't
+  // be there. A personal_only merchant whose email IS allowlisted
+  // (e.g. an admin running tests on a personal test account) needs
+  // to reach /admin/* — gating it from the shell would lock them out
+  // entirely.
   useEffect(() => {
     if (!isPersonalOnly) return;
-    if (mode === "personal" || mode === "agents") return;
+    if (mode !== "merchant") return;
     router.replace("/personal/overview");
   }, [isPersonalOnly, mode, router]);
 
