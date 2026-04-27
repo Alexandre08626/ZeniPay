@@ -1,21 +1,27 @@
 // /api/v1/agents/agents/[id]/chat
 //
-// GET   — return the last 50 turns of this org's conversation with the
-//         agent so the frontend can hydrate the chat panel on mount.
+// GET    — return the last 50 turns of this org's conversation with the
+//          agent so the frontend can hydrate the chat panel on mount.
+// POST   — append a user message, call the provider cascade, persist
+//          the assistant reply, and return it.
+// DELETE — wipe this org's conversation with the agent.
 //
-// POST  — append a user message, call the provider cascade, persist the
-//         assistant reply, and return it. History fed to the provider
-//         comes from the DB (last 20 turns), not from the client — the
-//         server is the source of truth.
+// Provider cascade:
+//   1. Groq Llama 3.3 70B (free tier, supports tool-calling — primary)
+//   2. Anthropic Claude Haiku 4.5 (paid fallback, no tools in v1)
 //
-// Provider cascade (mirror of the Lina pattern in zeniva-travel):
-//   1. Groq Llama 3.3 70B (free tier — primary for cost)
-//   2. Anthropic Claude Haiku 4.5 (paid fallback)
+// Tool-calling: the Groq path exposes 3 read-only tools the agent can
+// invoke to look at the merchant's real data:
+//   - get_account_balances
+//   - get_recent_transactions
+//   - get_merchant_summary
+// Tools are server-side, scoped strictly to the merchant_id resolved
+// from this org via zenipay_merchant_agent_org_map. Up to 3 tool-loop
+// iterations per turn to handle simple chained reasoning.
 //
 // Persistence lives in agents.agent_chat_messages, scoped per
-// organization (one shared conversation per agent for the merchant —
-// not per individual user). Messages are written only on success;
-// failed provider calls don't pollute history.
+// organization. We persist only the user's text + the final assistant
+// text; tool round-trips stay on the server.
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,6 +29,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate, unauthorized } from "../../../_lib/auth";
 import { getAgentsDb } from "@/lib/agents/supabase-client";
+import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 
 interface RouteContext {
   params: Promise<{ id: string }> | { id: string };
@@ -56,6 +63,7 @@ const TIMEOUT_MS = Number(process.env.AGENT_CHAT_TIMEOUT_MS || 25_000);
 const HISTORY_TURNS_FOR_PROVIDER = 20;
 const HISTORY_TURNS_FOR_CLIENT   = 50;
 const MAX_MESSAGE_CHARS = 4000;
+const MAX_TOOL_ITERATIONS = 3;
 
 function defaultSystemPrompt(agent: AgentRow): string {
   const roleLine = agent.role ? `Specialty: ${agent.role}.` : "";
@@ -71,13 +79,160 @@ function defaultSystemPrompt(agent: AgentRow): string {
   ].filter(Boolean).join("\n");
 }
 
-async function callGroq(systemPrompt: string, history: ChatMessage[], message: string, model: string) {
+// ─── Tool definitions (OpenAI-compat, used by Groq) ────────────────────
+
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "get_account_balances",
+      description: "Get the merchant's ZeniPay account balances. Returns each account's name, type, current balance, and currency. Call this when the user asks about money on hand, available funds, or account composition.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_recent_transactions",
+      description: "Get the merchant's most recent money-movement events from the ledger (payments in, transfers, fees, payouts). Returns up to `limit` rows newest-first. Call this when the user asks about recent activity, last transactions, or specific money movements.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "integer",
+            description: "Number of rows to return. Defaults to 10. Cap is 50.",
+            minimum: 1,
+            maximum: 50,
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_merchant_summary",
+      description: "Get a high-level summary of the merchant: legal name, status, plan, country, primary currency, account count, and total balance across all accounts. Call this when the user asks 'who am I' or wants a one-shot overview.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+] as const;
+
+interface MerchantContext {
+  merchantId: string;
+}
+
+async function resolveMerchantForOrg(organizationId: string): Promise<MerchantContext | null> {
+  // The agent's organization is mapped to a merchant via the public-schema
+  // join table populated at signup. Without that link, we can't safely
+  // serve tool reads — return null and the model gets told the data is
+  // unavailable for this account.
+  const db = getSupabaseAdmin();
+  const { data, error } = await db
+    .from("zenipay_merchant_agent_org_map")
+    .select("merchant_id")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (error || !data?.merchant_id) return null;
+  return { merchantId: data.merchant_id as string };
+}
+
+interface ToolResult { ok: boolean; data?: unknown; error?: string }
+
+async function executeTool(name: string, args: Record<string, unknown>, ctx: MerchantContext): Promise<ToolResult> {
+  const db = getSupabaseAdmin();
+
+  if (name === "get_account_balances") {
+    const { data, error } = await db
+      .from("zenipay_accounts")
+      .select("account_name, account_type, balance, currency, is_primary, status")
+      .eq("merchant_id", ctx.merchantId)
+      .order("is_primary", { ascending: false });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, data: data ?? [] };
+  }
+
+  if (name === "get_recent_transactions") {
+    const rawLimit = typeof args.limit === "number" ? args.limit : 10;
+    const limit = Math.min(50, Math.max(1, Math.floor(rawLimit)));
+    const { data, error } = await db
+      .from("zenipay_ledger")
+      .select("event_type, direction, amount, currency, note, created_at")
+      .eq("merchant_id", ctx.merchantId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, data: data ?? [] };
+  }
+
+  if (name === "get_merchant_summary") {
+    const { data: merchant, error: merchantErr } = await db
+      .from("zenipay_merchants")
+      .select("business_name, status, plan, country")
+      .eq("id", ctx.merchantId)
+      .maybeSingle();
+    if (merchantErr) return { ok: false, error: merchantErr.message };
+    if (!merchant) return { ok: false, error: "merchant_not_found" };
+
+    const { data: accounts } = await db
+      .from("zenipay_accounts")
+      .select("balance, currency")
+      .eq("merchant_id", ctx.merchantId);
+    const totalsByCurrency: Record<string, number> = {};
+    for (const a of (accounts ?? []) as Array<{ balance: number | string; currency: string | null }>) {
+      const ccy = a.currency || "CAD";
+      totalsByCurrency[ccy] = (totalsByCurrency[ccy] ?? 0) + Number(a.balance ?? 0);
+    }
+    const { count: txCount } = await db
+      .from("zenipay_ledger")
+      .select("id", { count: "exact", head: true })
+      .eq("merchant_id", ctx.merchantId);
+
+    return {
+      ok: true,
+      data: {
+        business_name:    merchant.business_name,
+        status:           merchant.status,
+        plan:             merchant.plan,
+        country:          merchant.country,
+        account_count:    (accounts ?? []).length,
+        balances_by_currency: totalsByCurrency,
+        transaction_count: txCount ?? 0,
+      },
+    };
+  }
+
+  return { ok: false, error: `unknown_tool:${name}` };
+}
+
+// ─── Provider calls ────────────────────────────────────────────────────
+
+interface GroqMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | null;
+  tool_calls?: Array<{
+    id: string;
+    type: "function";
+    function: { name: string; arguments: string };
+  }>;
+  tool_call_id?: string;
+  name?: string;
+}
+
+interface GroqChoice {
+  message: GroqMessage;
+  finish_reason: string;
+}
+
+async function groqRequest(model: string, messages: GroqMessage[], withTools: boolean) {
   if (!GROQ_KEY) return null;
-  const messages = [
-    { role: "system", content: systemPrompt },
-    ...history,
-    { role: "user", content: message },
-  ];
+  const body: Record<string, unknown> = {
+    model,
+    messages,
+    temperature: 0.6,
+  };
+  if (withTools) body.tools = TOOLS;
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
@@ -87,18 +242,75 @@ async function callGroq(systemPrompt: string, history: ChatMessage[], message: s
         "Content-Type": "application/json",
         Authorization: `Bearer ${GROQ_KEY}`,
       },
-      body: JSON.stringify({ model, messages, temperature: 0.6 }),
+      body: JSON.stringify(body),
       signal: ctrl.signal,
     });
     clearTimeout(t);
     if (!resp.ok) return null;
-    const data = await resp.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim();
-    return reply ? { reply, model } : null;
+    const data = (await resp.json()) as { choices?: GroqChoice[] };
+    return data.choices?.[0] ?? null;
   } catch {
     clearTimeout(t);
     return null;
   }
+}
+
+async function callGroq(
+  systemPrompt: string,
+  history: ChatMessage[],
+  message: string,
+  model: string,
+  merchantCtx: MerchantContext | null,
+): Promise<{ reply: string; model: string; toolsUsed: string[] } | null> {
+  const messages: GroqMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...history.map((m) => ({ role: m.role, content: m.content }) as GroqMessage),
+    { role: "user", content: message },
+  ];
+
+  const toolsUsed: string[] = [];
+  const withTools = !!merchantCtx;
+
+  for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+    const choice = await groqRequest(model, messages, withTools);
+    if (!choice) return null;
+
+    const toolCalls = choice.message.tool_calls;
+    if (!toolCalls || toolCalls.length === 0) {
+      const reply = (choice.message.content ?? "").trim();
+      if (!reply) return null;
+      return { reply, model, toolsUsed };
+    }
+
+    // Append the assistant turn that requested the tool calls — the
+    // Groq API needs to see it in the next call's context.
+    messages.push({
+      role: "assistant",
+      content: choice.message.content ?? "",
+      tool_calls: toolCalls,
+    });
+
+    // Execute each tool call serially. This is fine for our 3 read-only
+    // tools; if we ever add slow tools we can parallelise.
+    for (const call of toolCalls) {
+      let parsed: Record<string, unknown> = {};
+      try { parsed = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>; }
+      catch { parsed = {}; }
+      const result = merchantCtx
+        ? await executeTool(call.function.name, parsed, merchantCtx)
+        : { ok: false, error: "no_merchant_linked_to_this_org" } as ToolResult;
+      toolsUsed.push(call.function.name);
+      messages.push({
+        role: "tool",
+        tool_call_id: call.id,
+        name: call.function.name,
+        content: JSON.stringify(result),
+      });
+    }
+  }
+
+  // Hit the iteration cap without producing a final answer.
+  return null;
 }
 
 async function callAnthropic(systemPrompt: string, history: ChatMessage[], message: string, model: string) {
@@ -136,6 +348,8 @@ async function callAnthropic(systemPrompt: string, history: ChatMessage[], messa
   }
 }
 
+// ─── DB helpers ────────────────────────────────────────────────────────
+
 interface StoredMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -157,9 +371,7 @@ async function loadHistory(agentId: string, limit: number): Promise<StoredMessag
     console.error("[agent_chat] loadHistory failed:", error.message);
     return [];
   }
-  // We fetch DESC for the LIMIT then flip to chronological order so the
-  // provider sees the conversation in the right direction.
-  return (data ?? []).reverse() as StoredMessage[];
+  return ((data ?? []) as unknown as StoredMessage[]).slice().reverse();
 }
 
 function toProviderHistory(rows: StoredMessage[]): ChatMessage[] {
@@ -179,6 +391,8 @@ async function loadAgent(agentId: string, organizationId: string): Promise<Agent
   if (error || !data) return null;
   return data as unknown as AgentRow;
 }
+
+// ─── Route handlers ────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const auth = await authenticate(req);
@@ -217,7 +431,15 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const agent = await loadAgent(id, auth.organizationId);
   if (!agent) return NextResponse.json({ error: "agent_not_found" }, { status: 404 });
 
-  const systemPrompt = agent.system_prompt?.trim() || defaultSystemPrompt(agent);
+  // Augment the system prompt with a note about which tools the agent
+  // has access to — Groq Llama is more reliable about USING tools when
+  // the system prompt names them. This is a no-op for orgs without a
+  // merchant link (tools won't be passed in that case anyway).
+  const merchantCtx = await resolveMerchantForOrg(auth.organizationId);
+  const baseSystemPrompt = agent.system_prompt?.trim() || defaultSystemPrompt(agent);
+  const systemPrompt = merchantCtx
+    ? `${baseSystemPrompt}\n\nYou have access to live tools that read this merchant's real data: get_account_balances, get_recent_transactions(limit), get_merchant_summary. Call them whenever a numeric answer is required — do NOT invent figures.`
+    : `${baseSystemPrompt}\n\nNote: this agent's organization is not yet linked to a merchant, so live data tools are unavailable. Tell the user clearly when they ask about specific numbers.`;
 
   // Provider preference: respect agent.provider if it matches a
   // supported one, else default to Groq → Anthropic cascade.
@@ -225,30 +447,35 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const groqModel = (preferred === "groq" && agent.provider_model) || GROQ_MODEL_DEFAULT;
   const anthropicModel = (preferred === "anthropic" && agent.provider_model) || ANTHROPIC_MODEL_DEFAULT;
 
-  // Server-side history — DON'T trust the client to send it. Last 20
-  // turns is enough context without blowing the prompt budget.
   const historyRows = await loadHistory(id, HISTORY_TURNS_FOR_PROVIDER);
   const history = toProviderHistory(historyRows);
 
-  // 1. Groq primary
-  let result = await callGroq(systemPrompt, history, message, groqModel);
+  // 1. Groq primary (with tools when a merchant is linked)
+  let result = await callGroq(systemPrompt, history, message, groqModel, merchantCtx);
   let provider: "groq" | "anthropic" | null = result ? "groq" : null;
-  // 2. Anthropic fallback
+  let toolsUsed: string[] = result?.toolsUsed ?? [];
+  let model = result?.model ?? groqModel;
+  let reply = result?.reply;
+
+  // 2. Anthropic fallback (no tools in v1)
   if (!result) {
-    result = await callAnthropic(systemPrompt, history, message, anthropicModel);
-    if (result) provider = "anthropic";
+    const ar = await callAnthropic(systemPrompt, history, message, anthropicModel);
+    if (ar) {
+      provider = "anthropic";
+      model = ar.model;
+      reply = ar.reply;
+      toolsUsed = [];
+    }
   }
 
-  if (!result || !provider) {
+  if (!reply || !provider) {
     return NextResponse.json(
       { error: "all_providers_unavailable", message: "Both Groq and Anthropic failed. Try again in a moment." },
       { status: 503 },
     );
   }
 
-  // Persist both turns now that we know the call succeeded. Failures
-  // here aren't fatal — we still return the reply to the user, the
-  // worst case is that this turn won't appear in future context.
+  // Persist both turns now that we know the call succeeded.
   const db = getAgentsDb();
   const insertRows = [
     {
@@ -265,9 +492,9 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       organization_id: auth.organizationId,
       user_id:         auth.userId ?? null,
       role:            "assistant",
-      content:         result.reply,
+      content:         reply,
       provider,
-      model:           result.model,
+      model,
     },
   ];
   const { error: persistErr } = await db.from("agent_chat_messages").insert(insertRows);
@@ -276,14 +503,13 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   }
 
   return NextResponse.json({
-    reply:    result.reply,
+    reply,
     provider,
-    model:    result.model,
+    model,
+    tools_used: toolsUsed,
   });
 }
 
-// DELETE — wipe this agent's conversation for the calling org. Used by
-// the "Clear chat" affordance in the panel.
 export async function DELETE(req: NextRequest, ctx: RouteContext) {
   const auth = await authenticate(req);
   if (!auth) return unauthorized();
