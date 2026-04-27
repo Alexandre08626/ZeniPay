@@ -1,17 +1,21 @@
-// POST /api/v1/agents/agents/[id]/chat
+// /api/v1/agents/agents/[id]/chat
 //
-// Conversational chat with a single agent. Loads the agent's identity
-// (name, role, agent_type, description, system_prompt) from agents.agents,
-// builds a system prompt if one isn't stored, and forwards the message
-// history to a provider cascade:
+// GET   — return the last 50 turns of this org's conversation with the
+//         agent so the frontend can hydrate the chat panel on mount.
 //
-//   1. Groq (Llama 3.3 70B, free tier — primary)
-//   2. Anthropic Claude Haiku (paid fallback when GROQ is rate-limited
-//      or returns an error)
+// POST  — append a user message, call the provider cascade, persist the
+//         assistant reply, and return it. History fed to the provider
+//         comes from the DB (last 20 turns), not from the client — the
+//         server is the source of truth.
 //
-// No DB persistence in v1 — the client keeps the message history in
-// component state. We pass the last 20 turns through to the provider on
-// each call.
+// Provider cascade (mirror of the Lina pattern in zeniva-travel):
+//   1. Groq Llama 3.3 70B (free tier — primary for cost)
+//   2. Anthropic Claude Haiku 4.5 (paid fallback)
+//
+// Persistence lives in agents.agent_chat_messages, scoped per
+// organization (one shared conversation per agent for the merchant —
+// not per individual user). Messages are written only on success;
+// failed provider calls don't pollute history.
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -31,7 +35,6 @@ interface ChatMessage {
 
 interface ChatBody {
   message?: string;
-  history?: ChatMessage[];
 }
 
 interface AgentRow {
@@ -50,19 +53,16 @@ const GROQ_MODEL_DEFAULT = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_MODEL_DEFAULT = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
 const TIMEOUT_MS = Number(process.env.AGENT_CHAT_TIMEOUT_MS || 25_000);
-const MAX_HISTORY = 20;
+const HISTORY_TURNS_FOR_PROVIDER = 20;
+const HISTORY_TURNS_FOR_CLIENT   = 50;
 const MAX_MESSAGE_CHARS = 4000;
 
 function defaultSystemPrompt(agent: AgentRow): string {
-  // Build a sensible persona when the row doesn't have one stored.
-  // Each agent gets framed by its name + role + type so Groq picks
-  // up the specialist tone (Atlas → security, Ben → finance, etc.).
   const roleLine = agent.role ? `Specialty: ${agent.role}.` : "";
-  const typeLine = `You handle ${agent.agent_type} questions for the merchant.`;
   const desc = agent.description ? `Context: ${agent.description}` : "";
   return [
     `You are ${agent.name}, a ZeniPay AI specialist.`,
-    typeLine,
+    `You handle ${agent.agent_type} questions for the merchant.`,
     roleLine,
     desc,
     "Be concise, concrete, and answer in the user's language (French or English — detect from the first message and stay there).",
@@ -136,6 +136,69 @@ async function callAnthropic(systemPrompt: string, history: ChatMessage[], messa
   }
 }
 
+interface StoredMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  provider: string | null;
+  model: string | null;
+  created_at: string;
+}
+
+async function loadHistory(agentId: string, limit: number): Promise<StoredMessage[]> {
+  const db = getAgentsDb();
+  const { data, error } = await db
+    .from("agent_chat_messages")
+    .select("id, role, content, provider, model, created_at")
+    .eq("agent_id", agentId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("[agent_chat] loadHistory failed:", error.message);
+    return [];
+  }
+  // We fetch DESC for the LIMIT then flip to chronological order so the
+  // provider sees the conversation in the right direction.
+  return (data ?? []).reverse() as StoredMessage[];
+}
+
+function toProviderHistory(rows: StoredMessage[]): ChatMessage[] {
+  return rows
+    .filter((r) => r.role === "user" || r.role === "assistant")
+    .map((r) => ({ role: r.role as "user" | "assistant", content: r.content }));
+}
+
+async function loadAgent(agentId: string, organizationId: string): Promise<AgentRow | null> {
+  const db = getAgentsDb();
+  const { data, error } = await db
+    .from("agents")
+    .select("id, name, description, agent_type, role, system_prompt, provider, provider_model")
+    .eq("id", agentId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as unknown as AgentRow;
+}
+
+export async function GET(req: NextRequest, ctx: RouteContext) {
+  const auth = await authenticate(req);
+  if (!auth) return unauthorized();
+  const { id } = await Promise.resolve(ctx.params);
+  const agent = await loadAgent(id, auth.organizationId);
+  if (!agent) return NextResponse.json({ error: "agent_not_found" }, { status: 404 });
+  const history = await loadHistory(id, HISTORY_TURNS_FOR_CLIENT);
+  return NextResponse.json({
+    messages: history.map((r) => ({
+      id:         r.id,
+      role:       r.role,
+      content:    r.content,
+      provider:   r.provider,
+      model:      r.model,
+      created_at: r.created_at,
+    })),
+  });
+}
+
 export async function POST(req: NextRequest, ctx: RouteContext) {
   const auth = await authenticate(req);
   if (!auth) return unauthorized();
@@ -151,56 +214,88 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: "message_too_long" }, { status: 400 });
   }
 
-  // Validate + clip the supplied history. We trust client state for v1
-  // (no DB persistence) but cap turn count + per-message size to keep
-  // upstream calls bounded.
-  const rawHistory = Array.isArray(body.history) ? body.history : [];
-  const history: ChatMessage[] = rawHistory
-    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-    .slice(-MAX_HISTORY)
-    .map((m) => ({ role: m.role, content: String(m.content).slice(0, MAX_MESSAGE_CHARS) }));
-
-  const db = getAgentsDb();
-  const { data: agent, error: agentErr } = await db
-    .from("agents")
-    .select("id, name, description, agent_type, role, system_prompt, provider, provider_model")
-    .eq("id", id)
-    .eq("organization_id", auth.organizationId)
-    .maybeSingle();
-  if (agentErr) return NextResponse.json({ error: "server_error", detail: agentErr.message }, { status: 500 });
+  const agent = await loadAgent(id, auth.organizationId);
   if (!agent) return NextResponse.json({ error: "agent_not_found" }, { status: 404 });
 
-  const a = agent as unknown as AgentRow;
-  const systemPrompt = a.system_prompt?.trim() || defaultSystemPrompt(a);
+  const systemPrompt = agent.system_prompt?.trim() || defaultSystemPrompt(agent);
 
-  // Provider selection: respect the agent's stored `provider` if it
-  // matches a supported one, otherwise default to Groq → Anthropic.
-  const preferred = (a.provider || "").toLowerCase();
-  const groqModel = (preferred === "groq" && a.provider_model) || GROQ_MODEL_DEFAULT;
-  const anthropicModel = (preferred === "anthropic" && a.provider_model) || ANTHROPIC_MODEL_DEFAULT;
+  // Provider preference: respect agent.provider if it matches a
+  // supported one, else default to Groq → Anthropic cascade.
+  const preferred = (agent.provider || "").toLowerCase();
+  const groqModel = (preferred === "groq" && agent.provider_model) || GROQ_MODEL_DEFAULT;
+  const anthropicModel = (preferred === "anthropic" && agent.provider_model) || ANTHROPIC_MODEL_DEFAULT;
+
+  // Server-side history — DON'T trust the client to send it. Last 20
+  // turns is enough context without blowing the prompt budget.
+  const historyRows = await loadHistory(id, HISTORY_TURNS_FOR_PROVIDER);
+  const history = toProviderHistory(historyRows);
 
   // 1. Groq primary
-  const groqReply = await callGroq(systemPrompt, history, message, groqModel);
-  if (groqReply) {
-    return NextResponse.json({
-      reply:    groqReply.reply,
-      provider: "groq",
-      model:    groqReply.model,
-    });
-  }
-
+  let result = await callGroq(systemPrompt, history, message, groqModel);
+  let provider: "groq" | "anthropic" | null = result ? "groq" : null;
   // 2. Anthropic fallback
-  const anthropicReply = await callAnthropic(systemPrompt, history, message, anthropicModel);
-  if (anthropicReply) {
-    return NextResponse.json({
-      reply:    anthropicReply.reply,
-      provider: "anthropic",
-      model:    anthropicReply.model,
-    });
+  if (!result) {
+    result = await callAnthropic(systemPrompt, history, message, anthropicModel);
+    if (result) provider = "anthropic";
   }
 
-  return NextResponse.json(
-    { error: "all_providers_unavailable", message: "Both Groq and Anthropic failed. Try again in a moment." },
-    { status: 503 },
-  );
+  if (!result || !provider) {
+    return NextResponse.json(
+      { error: "all_providers_unavailable", message: "Both Groq and Anthropic failed. Try again in a moment." },
+      { status: 503 },
+    );
+  }
+
+  // Persist both turns now that we know the call succeeded. Failures
+  // here aren't fatal — we still return the reply to the user, the
+  // worst case is that this turn won't appear in future context.
+  const db = getAgentsDb();
+  const insertRows = [
+    {
+      agent_id:        id,
+      organization_id: auth.organizationId,
+      user_id:         auth.userId ?? null,
+      role:            "user",
+      content:         message,
+      provider:        null,
+      model:           null,
+    },
+    {
+      agent_id:        id,
+      organization_id: auth.organizationId,
+      user_id:         auth.userId ?? null,
+      role:            "assistant",
+      content:         result.reply,
+      provider,
+      model:           result.model,
+    },
+  ];
+  const { error: persistErr } = await db.from("agent_chat_messages").insert(insertRows);
+  if (persistErr) {
+    console.error("[agent_chat] persist failed (non-fatal):", persistErr.message);
+  }
+
+  return NextResponse.json({
+    reply:    result.reply,
+    provider,
+    model:    result.model,
+  });
+}
+
+// DELETE — wipe this agent's conversation for the calling org. Used by
+// the "Clear chat" affordance in the panel.
+export async function DELETE(req: NextRequest, ctx: RouteContext) {
+  const auth = await authenticate(req);
+  if (!auth) return unauthorized();
+  const { id } = await Promise.resolve(ctx.params);
+  const agent = await loadAgent(id, auth.organizationId);
+  if (!agent) return NextResponse.json({ error: "agent_not_found" }, { status: 404 });
+  const db = getAgentsDb();
+  const { error } = await db
+    .from("agent_chat_messages")
+    .delete()
+    .eq("agent_id", id)
+    .eq("organization_id", auth.organizationId);
+  if (error) return NextResponse.json({ error: "server_error", detail: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
 }

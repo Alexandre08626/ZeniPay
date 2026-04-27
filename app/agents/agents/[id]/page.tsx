@@ -569,21 +569,48 @@ function AgentChatPanel({ agent }: { agent: Agent }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [hydrating, setHydrating] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
 
+  // Hydrate from the DB on mount — the conversation persists across
+  // page loads now, scoped per organization.
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await apiFetch<{
+          messages: Array<{ role: "user" | "assistant" | "system"; content: string; provider?: string | null }>;
+        }>(`/api/v1/agents/agents/${agent.id}/chat`);
+        if (cancelled) return;
+        const filtered = (data.messages ?? [])
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+        setMessages(filtered);
+        const lastAssistant = [...(data.messages ?? [])].reverse().find((m) => m.role === "assistant");
+        if (lastAssistant?.provider) setProvider(lastAssistant.provider);
+      } catch {
+        // Hydration failure is non-fatal — start with an empty thread.
+      } finally {
+        if (!cancelled) setHydrating(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [agent.id]);
+
   React.useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages.length, sending]);
+  }, [messages.length, sending, hydrating]);
 
   const send = async () => {
     const message = input.trim();
     if (!message || sending) return;
     setErr(null);
     setSending(true);
-    const nextHistory: ChatMessage[] = [...messages, { role: "user", content: message }];
-    setMessages(nextHistory);
+    // Optimistically append the user message; the server will persist
+    // both turns once the provider call succeeds.
+    setMessages((prev) => [...prev, { role: "user", content: message }]);
     setInput("");
     try {
       const data = await apiFetch<{
@@ -591,7 +618,7 @@ function AgentChatPanel({ agent }: { agent: Agent }) {
         error?: string; message?: string;
       }>(`/api/v1/agents/agents/${agent.id}/chat`, {
         method: "POST",
-        body: JSON.stringify({ message, history: messages.slice(-20) }),
+        body: JSON.stringify({ message }),
       });
       if (data?.error) {
         setErr(data.message || data.error);
@@ -605,6 +632,19 @@ function AgentChatPanel({ agent }: { agent: Agent }) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
+    }
+  };
+
+  const clearConversation = async () => {
+    if (sending || messages.length === 0) return;
+    if (typeof window !== "undefined" && !window.confirm(`Clear the conversation with ${agent.name}?`)) return;
+    setErr(null);
+    try {
+      await apiFetch(`/api/v1/agents/agents/${agent.id}/chat`, { method: "DELETE" });
+      setMessages([]);
+      setProvider(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -624,18 +664,35 @@ function AgentChatPanel({ agent }: { agent: Agent }) {
         <div>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Chat with {agent.name}</h3>
           <p style={{ margin: "2px 0 0", fontSize: 11, color: MUTED }}>
-            Ask anything in your agent&rsquo;s area of expertise. The conversation isn&rsquo;t saved.
+            Ask anything in your agent&rsquo;s area of expertise. The conversation is saved across visits.
           </p>
         </div>
-        {provider && (
-          <span style={{
-            fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 999,
-            background: "rgba(45,190,96,0.10)", color: ZP_GREEN,
-            textTransform: "uppercase", letterSpacing: "0.04em",
-          }}>
-            via {provider}
-          </span>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {provider && (
+            <span style={{
+              fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 999,
+              background: "rgba(45,190,96,0.10)", color: ZP_GREEN,
+              textTransform: "uppercase", letterSpacing: "0.04em",
+            }}>
+              via {provider}
+            </span>
+          )}
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => void clearConversation()}
+              disabled={sending}
+              style={{
+                fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8,
+                background: "transparent", color: MUTED,
+                border: `1px solid ${BORDER}`,
+                cursor: sending ? "not-allowed" : "pointer",
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       <div
@@ -651,7 +708,12 @@ function AgentChatPanel({ agent }: { agent: Agent }) {
           background: "#fafbfc",
         }}
       >
-        {messages.length === 0 && !sending && (
+        {hydrating && (
+          <p style={{ margin: 0, fontSize: 12, color: MUTED, textAlign: "center", padding: "20px 0", fontStyle: "italic" }}>
+            Loading conversation…
+          </p>
+        )}
+        {!hydrating && messages.length === 0 && !sending && (
           <p style={{ margin: 0, fontSize: 13, color: MUTED, textAlign: "center", padding: "24px 0" }}>
             Start a conversation with {agent.name}.
           </p>
