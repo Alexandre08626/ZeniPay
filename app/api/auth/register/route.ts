@@ -283,7 +283,7 @@ export async function POST(req: NextRequest) {
       id:            orgId,
       name:          businessName,
       owner_user_id: authUserId,
-      plan_tier:     "starter",
+      plan_tier:     "free",
       status:        "active",
     });
     if (!orgErr) {

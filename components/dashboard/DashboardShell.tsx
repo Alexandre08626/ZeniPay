@@ -201,14 +201,13 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
     return () => { cancelled = true; };
   }, []);
 
-  // Personal-only merchants only have the Personal mode. Bounce them
-  // out of every other product surface — /app/* (business),
-  // /agents/*, /admin/*. The server-side auth helpers also refuse
-  // these routes; this is the UX arm of the same lockdown so they
-  // never see broken pages.
+  // Personal-only merchants don't have a business entity, so bounce
+  // them out of /app/* and /admin/* (business / admin surfaces).
+  // /agents/* stays accessible — they get a 5-agent personal fleet
+  // seeded at signup and need to reach it.
   useEffect(() => {
     if (!isPersonalOnly) return;
-    if (mode === "personal") return;
+    if (mode === "personal" || mode === "agents") return;
     router.replace("/personal/overview");
   }, [isPersonalOnly, mode, router]);
 

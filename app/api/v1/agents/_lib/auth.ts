@@ -13,15 +13,18 @@
 // that header entirely and looks up the org via the join table
 // scoped to the cookie-bound merchant.
 //
-// Personal-only merchants get NO agents access (FIX 1 from the
-// cross-tenant lockdown plan): authenticate() returns null when
-// merchant.status === 'personal_only'. The /agents/* layout already
-// redirects them to /personal/overview as a second line of defence.
+// Personal-only merchants DO get an agents fleet — the /api/auth/
+// register/personal endpoint seeds 5 default agents (Leo / Ben / Atlas
+// / Vera / Kai) into a new org at signup. authenticate() treats them
+// like any other merchant; the org link in zenipay_merchant_agent_org_map
+// is the source of truth for what they see.
 //
-// For business merchants with no org link yet (legacy accounts pre
-// the join-table provisioning fix), we lazy-create an empty
-// agent_organizations row + map entry so they land on the empty
-// state rather than 401-ing.
+// For merchants without an org link yet (legacy business accounts pre
+// the join-table provisioning fix, OR a personal merchant whose seed
+// failed), authenticate() lazy-creates an empty agent_organizations
+// row + map entry so they land on the empty state rather than 401-ing.
+// The empty-org path won't seed agents — that's only on signup or via
+// an explicit backfill.
 
 import { NextRequest } from "next/server";
 import { verifyApiKey } from "@/lib/agents/api-keys";
@@ -80,7 +83,7 @@ async function provisionOrgForMerchant(merchant: MerchantRow): Promise<string | 
       id:            orgId,
       name:          merchant.business_name || merchant.email || "Untitled",
       owner_user_id: merchant.auth_user_id,
-      plan_tier:     "starter",
+      plan_tier:     "free",
       status:        "active",
     });
   if (orgErr) {
@@ -127,9 +130,6 @@ export async function authenticate(req: NextRequest): Promise<AgentsAuth | null>
 
   const merchant = await loadMerchant(session.merchant_id);
   if (!merchant) return null;
-
-  // Personal-only merchants don't have agents at all.
-  if ((merchant.status || "").toLowerCase() === "personal_only") return null;
 
   let orgId = await lookupOrgForMerchant(merchant.id);
   if (!orgId) {

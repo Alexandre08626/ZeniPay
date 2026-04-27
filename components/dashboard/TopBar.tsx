@@ -134,8 +134,10 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut, personalOnly }: 
       </Link>
 
       {/* Mode switcher pills — Personal / Business / Agents.
-          Personal-only merchants see Personal only. */}
-      {!personalOnly && <ModeSwitcher mode={mode} onSwitch={switchMode} />}
+          Personal-only merchants see Personal + Agents (Business hidden,
+          since they don't have a business entity, but the AI fleet
+          seeded at signup still belongs to them). */}
+      <ModeSwitcher mode={mode} onSwitch={switchMode} hideBusiness={personalOnly} />
 
       {/* Search */}
       <div style={{ position: "relative", flex: 1, maxWidth: 440 }}>
@@ -331,12 +333,13 @@ const menuItemStyle: React.CSSProperties = {
 interface ModeSwitcherProps {
   mode: DashboardMode;
   onSwitch: (next: DashboardMode) => void;
+  hideBusiness?: boolean;
 }
 
-function ModeSwitcher({ mode, onSwitch }: ModeSwitcherProps) {
+function ModeSwitcher({ mode, onSwitch, hideBusiness }: ModeSwitcherProps) {
   const items: Array<{ key: DashboardMode; Icon: typeof User }> = [
     { key: "personal", Icon: User },
-    { key: "merchant", Icon: Building2 },
+    ...(hideBusiness ? [] : [{ key: "merchant" as DashboardMode, Icon: Building2 }]),
     { key: "agents",   Icon: Bot },
   ];
   return (

@@ -22,6 +22,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { setSupabaseSessionCookies } from "@/lib/auth/zp-session";
 import { rateLimit } from "@/modules/zenipay/services/rate-limit";
+import { provisionPersonalFleet } from "@/lib/agents/provision-fleet";
 
 const COUNTRY_TO_CURRENCY: Record<string, string> = { CA: "CAD", US: "USD" };
 const COUNTRY_TO_ROUTING:  Record<string, string> = { CA: "ZPCA0001", US: "ZPUS0001" };
@@ -225,6 +226,22 @@ export async function POST(req: NextRequest) {
     await db.from("zenipay_merchants").delete().eq("id", merchantId);
     await sbAuth.auth.admin.deleteUser(authUserId).catch(() => {});
     return err("server_error", "account_insert_failed", 500, { detail: acctErr.message });
+  }
+
+  // ─── 4b. Provision the personal-fleet org (Leo, Ben, Atlas, Vera, Kai) ─
+  // Best-effort: if it fails the signup still succeeds — the lazy
+  // provision in the agents auth helper will retry on first /agents/*
+  // visit (without the fleet seed though, so we'd just have an empty
+  // org). The 5 agents come tied to the org via FK; deleting the
+  // merchant cascades them via the join table.
+  try {
+    await provisionPersonalFleet({
+      merchantId:  merchantId,
+      ownerUserId: authUserId,
+      name:        ownerName || email,
+    });
+  } catch (e) {
+    console.error("[register/personal] fleet provision failed:", e instanceof Error ? e.message : String(e));
   }
 
   // ─── 5. Sign the new user in so we can post a Supabase session ──────
