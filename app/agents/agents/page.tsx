@@ -26,6 +26,10 @@ export default function AgentsListPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [createdSecret, setCreatedSecret] = useState<{ privateKey: string; publicKey: string; name: string } | null>(null);
+  // Personal-only merchants get a fixed 5-agent fleet seeded at signup;
+  // they don't add or remove agents from this surface. The flag drives
+  // the "+ New agent" button visibility + the headline copy.
+  const [isPersonal, setIsPersonal] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
@@ -37,6 +41,12 @@ export default function AgentsListPage() {
     }
   };
   useEffect(() => { void refresh(); }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const s = sessionStorage.getItem("zp_client_status") || "";
+    setIsPersonal(s.toLowerCase() === "personal_only");
+  }, []);
 
   const realCards: AgentCardData[] = agents.map((a) => ({
     id: a.id,
@@ -62,7 +72,9 @@ export default function AgentsListPage() {
             fontSize: 11, fontWeight: 700, color: zp.brand.violet,
             letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4,
           }}>
-            {showDemo ? "Example fleet · Preview" : "Your fleet · ZeniCore live"}
+            {showDemo ? "Example fleet · Preview"
+             : isPersonal ? "Your personal fleet · 5 agents"
+             : "Your fleet · ZeniCore live"}
           </div>
           <h2 style={{
             margin: 0, fontFamily: zp.font.display, fontSize: 22,
@@ -78,23 +90,32 @@ export default function AgentsListPage() {
               gets its own wallet, card, and audit trail.
             </p>
           )}
+          {isPersonal && !showDemo && (
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: MUTED, maxWidth: 560 }}>
+              Personal accounts come with a fixed 5-agent fleet — Leo,
+              Ben, Atlas, Vera, Kai. To add or remove agents, upgrade
+              to a business account.
+            </p>
+          )}
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          style={{
-            background: ZP_GRAD,
-            color: "#fff",
-            border: "none",
-            padding: "11px 20px",
-            borderRadius: 10,
-            fontWeight: 700,
-            fontSize: 13,
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(45,190,96,0.25)",
-          }}
-        >
-          + New agent
-        </button>
+        {!isPersonal && (
+          <button
+            onClick={() => setShowCreate(true)}
+            style={{
+              background: ZP_GRAD,
+              color: "#fff",
+              border: "none",
+              padding: "11px 20px",
+              borderRadius: 10,
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(45,190,96,0.25)",
+            }}
+          >
+            + New agent
+          </button>
+        )}
       </div>
 
       {loading ? (
