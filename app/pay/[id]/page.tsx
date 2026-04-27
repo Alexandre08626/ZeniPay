@@ -35,13 +35,23 @@ function PayLinkContent() {
 
   const [name,    setName]    = useState("");
   const [email,   setEmail]   = useState("");
-  const [focused, setFocused] = useState<"name" | "email" | null>(null);
+  const [focused, setFocused] = useState<"name" | "email" | "routing" | "account" | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error,   setError]   = useState("");
   const [finixReady, setFinixReady] = useState(false);
   const [fraudSessionId, setFraudSessionId] = useState<string>("");
-  const [paymentResult, setPaymentResult] = useState<{ paymentId?: string; transferId?: string; card?: { brand?: string; last4?: string }; state?: string } | null>(null);
+  const [paymentResult, setPaymentResult] = useState<{ paymentId?: string; transferId?: string; card?: { brand?: string; last4?: string }; state?: string; eftStatus?: string; last4?: string } | null>(null);
+
+  // EFT (bank transfer) — alternative to card for amounts ≤ $2,500.
+  // Settles in 3-5 business days; we keep it on the same page behind
+  // a tab so customers don't have to re-enter their name/email.
+  const [paymentMode,   setPaymentMode]   = useState<"card" | "eft">("card");
+  const [routingNumber, setRoutingNumber] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountType,   setAccountType]   = useState<"checking" | "savings">("checking");
+  const EFT_MAX = 2500;
+  const eftBlocked = amount > EFT_MAX;
   const [linkMerchantId, setLinkMerchantId] = useState<string | null>(null);
   const [particles, setParticles] = useState<{ x: number; y: number; c: string; r: number; vx: number; vy: number; a: number }[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -156,6 +166,64 @@ function PayLinkContent() {
     if (!name) {
       setError(t("checkout.fillAllFields")); return;
     }
+    // Bank-transfer path — different submit, no Finix.js tokenization.
+    if (paymentMode === "eft") {
+      if (eftBlocked) {
+        setError(`Bank transfers are capped at $${EFT_MAX.toLocaleString()} per transaction. Use a card for larger amounts.`);
+        return;
+      }
+      const cleanRouting = routingNumber.replace(/\D/g, "");
+      const cleanAccount = accountNumber.replace(/\D/g, "");
+      if (cleanRouting.length < 8 || cleanRouting.length > 9) {
+        setError("Routing/transit number must be 8 digits (Canada) or 9 digits (US).");
+        return;
+      }
+      if (cleanAccount.length < 4) {
+        setError("Account number is too short.");
+        return;
+      }
+      setError(""); setLoading(true);
+      try {
+        const response = await fetch("/api/zenipay/eft/create-transfer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pay_link_id:    id,
+            merchant_id:    linkMerchantId || undefined,
+            amount,
+            currency,
+            customer_name:  name,
+            customer_email: email,
+            account_holder: name,
+            routing_number: cleanRouting,
+            account_number: cleanAccount,
+            account_type:   accountType,
+            description:    desc,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          setError(data?.error?.message || data?.error || "Bank transfer could not be initiated.");
+          setLoading(false);
+          return;
+        }
+        setPaymentResult({
+          paymentId:  data.paymentId,
+          transferId: data.transferId,
+          state:      data.state,
+          eftStatus:  data.eftStatus,
+          last4:      data.last4,
+        });
+        setSuccess(true);
+      } catch (innerErr) {
+        console.error("EFT error:", innerErr);
+        setError(t("checkout.paymentFailed"));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!finixFormRef.current) {
       setError("Payment form is still loading. Please wait a moment and try again."); return;
     }
@@ -233,21 +301,39 @@ function PayLinkContent() {
 
   if (success) {
     const pr = paymentResult;
+    const isEft = paymentMode === "eft";
+    const eftPending = isEft && pr?.eftStatus !== "succeeded";
     return (
       <div style={{ minHeight: "100vh", background: ZP_DARK, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
         <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 10 }} />
         <div style={{ textAlign: "center", color: "#fff", padding: 32, maxWidth: 480 }}>
-          <div style={{ fontSize: 72, marginBottom: 16 }}>✅</div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>{t("checkout.paymentConfirmed")}</h1>
+          <div style={{ fontSize: 72, marginBottom: 16 }}>{eftPending ? "⏳" : "✅"}</div>
+          <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>
+            {eftPending ? "Bank transfer initiated" : t("checkout.paymentConfirmed")}
+          </h1>
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, margin: "0 0 16px" }}>{fmtMoney(amount)} — {desc || "Payment"}</p>
+
+          {eftPending && (
+            <div style={{ background: "rgba(59,130,246,0.10)", border: "1px solid rgba(96,165,250,0.4)", borderRadius: 12, padding: "12px 16px", marginBottom: 14, textAlign: "left", fontSize: 13, lineHeight: 1.55 }}>
+              <strong style={{ color: "#93C5FD" }}>What happens next:</strong>
+              <span style={{ color: "rgba(255,255,255,0.7)" }}>
+                {" "}your bank typically takes 3–5 business days to clear the transfer. You&apos;ll get a confirmation email when funds settle.
+              </span>
+            </div>
+          )}
 
           {/* Payment details */}
           <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: "20px 24px", textAlign: "left" }}>
             {[
               { label: t("checkout.transactionId"), value: pr?.paymentId || "—" },
-              { label: t("checkout.status"), value: pr?.state === "SUCCEEDED" ? "Succeeded" : pr?.state || "Confirmed" },
+              { label: t("checkout.status"), value: isEft
+                ? (pr?.eftStatus === "succeeded" ? "Settled" : pr?.eftStatus === "failed" ? "Failed" : "Pending settlement")
+                : (pr?.state === "SUCCEEDED" ? "Succeeded" : pr?.state || "Confirmed") },
               { label: t("checkout.amount"), value: fmtMoney(amount) },
-              { label: t("checkout.card"), value: pr?.card ? `${pr.card.brand || "Card"} ••••${pr.card.last4 || ""}` : "—" },
+              { label: isEft ? "Method" : t("checkout.card"),
+                value: isEft
+                  ? `Bank ${accountType} ••••${pr?.last4 || ""}`
+                  : (pr?.card ? `${pr.card.brand || "Card"} ••••${pr.card.last4 || ""}` : "—") },
               { label: t("checkout.description"), value: desc || "—" },
               { label: t("checkout.payLink"), value: id },
               { label: t("checkout.date"), value: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) },
@@ -293,7 +379,63 @@ function PayLinkContent() {
 
         {/* Payment form */}
         <form onSubmit={handlePay} className="zp-checkout-form" style={{ background: "#fff", borderRadius: 20, padding: "28px 28px 24px", boxShadow: "0 8px 48px rgba(0,0,0,0.3)" }}>
-          <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 20px", color: "#0D1B3A" }}>{t("checkout.cardDetails")}</h2>
+          {/* Method toggle — Card / Bank transfer */}
+          <div role="tablist" aria-label="Payment method" style={{
+            display: "flex", gap: 6, padding: 4, background: "#F1F5F9",
+            borderRadius: 12, marginBottom: 20,
+          }}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={paymentMode === "card"}
+              onClick={() => { setPaymentMode("card"); setError(""); }}
+              style={{
+                flex: 1, padding: "9px 12px", borderRadius: 9, border: "none",
+                background: paymentMode === "card" ? "#fff" : "transparent",
+                color: paymentMode === "card" ? "#0D1B3A" : "#64748B",
+                fontSize: 13, fontWeight: 700, cursor: "pointer",
+                boxShadow: paymentMode === "card" ? "0 1px 3px rgba(15,23,42,0.08)" : "none",
+              }}
+            >
+              💳 Card
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={paymentMode === "eft"}
+              onClick={() => { setPaymentMode("eft"); setError(""); }}
+              style={{
+                flex: 1, padding: "9px 12px", borderRadius: 9, border: "none",
+                background: paymentMode === "eft" ? "#fff" : "transparent",
+                color: paymentMode === "eft" ? "#0D1B3A" : "#64748B",
+                fontSize: 13, fontWeight: 700, cursor: "pointer",
+                boxShadow: paymentMode === "eft" ? "0 1px 3px rgba(15,23,42,0.08)" : "none",
+              }}
+            >
+              🏦 Bank transfer
+            </button>
+          </div>
+
+          <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 20px", color: "#0D1B3A" }}>
+            {paymentMode === "card" ? t("checkout.cardDetails") : "Bank account details"}
+          </h2>
+
+          {paymentMode === "eft" && eftBlocked && (
+            <div style={{ padding: 12, borderRadius: 10, background: "#FEF3C7", border: "1px solid #FBBF24", marginBottom: 14 }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#92400E" }}>
+                Bank transfers are limited to ${EFT_MAX.toLocaleString()} per transaction.
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#78350F", lineHeight: 1.5 }}>
+                For ${amount.toLocaleString()}, please switch back to <strong>Card</strong> above.
+              </p>
+            </div>
+          )}
+
+          {paymentMode === "eft" && !eftBlocked && (
+            <div style={{ padding: 10, borderRadius: 8, background: "#EFF6FF", border: "1px solid #BFDBFE", marginBottom: 14, fontSize: 12, color: "#1E3A8A", lineHeight: 1.5 }}>
+              Bank transfers settle in <strong>3–5 business days</strong>. The merchant will be notified once funds clear.
+            </div>
+          )}
 
           {/* Name */}
           <div style={{ marginBottom: 14 }}>
@@ -317,9 +459,59 @@ function PayLinkContent() {
             />
           </div>
 
-          {/* Finix.js secure iframes (card number, expiry, CVC) */}
-          <div id="finix-form" style={{ marginBottom: 16 }} />
-          {!finixReady && <div style={{ padding: "10px 14px", color: "#64748B", fontSize: 13, marginBottom: 14 }}>{t("checkout.processing")}…</div>}
+          {/* Finix.js secure iframes (card number, expiry, CVC) — only when paying by card */}
+          <div id="finix-form" style={{ marginBottom: 16, display: paymentMode === "card" ? "block" : "none" }} />
+          {paymentMode === "card" && !finixReady && (
+            <div style={{ padding: "10px 14px", color: "#64748B", fontSize: 13, marginBottom: 14 }}>{t("checkout.processing")}…</div>
+          )}
+
+          {paymentMode === "eft" && (
+            <>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>Routing / transit number</label>
+                <input
+                  inputMode="numeric"
+                  value={routingNumber}
+                  onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                  onFocus={() => setFocused("routing")} onBlur={() => setFocused(null)}
+                  placeholder={currency === "CAD" ? "12345678 (8 digits)" : "123456789 (9 digits)"}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${focused === "routing" ? "#15B8C9" : "#E2E8F0"}`, fontSize: 14, outline: "none", boxSizing: "border-box", color: "#0D1B3A", background: "#F8FAFC", fontFamily: "ui-monospace, monospace" }}
+                />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>Account number</label>
+                <input
+                  inputMode="numeric"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 17))}
+                  onFocus={() => setFocused("account")} onBlur={() => setFocused(null)}
+                  placeholder="••••••••"
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${focused === "account" ? "#15B8C9" : "#E2E8F0"}`, fontSize: 14, outline: "none", boxSizing: "border-box", color: "#0D1B3A", background: "#F8FAFC", fontFamily: "ui-monospace, monospace" }}
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#64748B", display: "block", marginBottom: 6, letterSpacing: "0.06em" }}>Account type</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {(["checking", "savings"] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setAccountType(t)}
+                      style={{
+                        flex: 1, padding: "10px 12px", borderRadius: 10,
+                        border: `1.5px solid ${accountType === t ? "#15B8C9" : "#E2E8F0"}`,
+                        background: accountType === t ? "rgba(21,184,201,0.08)" : "#F8FAFC",
+                        color: accountType === t ? "#0F766E" : "#64748B",
+                        fontSize: 13, fontWeight: 700, textTransform: "capitalize", cursor: "pointer",
+                      }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {error && <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(220,38,38,0.08)", color: "#DC2626", fontSize: 13, marginBottom: 14, fontWeight: 600 }}>{error}</div>}
 
@@ -346,10 +538,21 @@ function PayLinkContent() {
           )}
 
           <button
-            type="submit" disabled={loading}
-            style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading ? "#94A3B8" : ZP_GRAD, color: "#fff", fontSize: 16, fontWeight: 900, cursor: loading ? "not-allowed" : "pointer", letterSpacing: "0.02em" }}
+            type="submit"
+            disabled={loading || (paymentMode === "eft" && eftBlocked)}
+            style={{
+              width: "100%", padding: "14px", borderRadius: 12, border: "none",
+              background: loading || (paymentMode === "eft" && eftBlocked) ? "#94A3B8" : ZP_GRAD,
+              color: "#fff", fontSize: 16, fontWeight: 900,
+              cursor: loading || (paymentMode === "eft" && eftBlocked) ? "not-allowed" : "pointer",
+              letterSpacing: "0.02em",
+            }}
           >
-            {loading ? t("checkout.processing") : `Pay ${fmtMoney(amount)}`}
+            {loading
+              ? t("checkout.processing")
+              : paymentMode === "eft"
+                ? `Send ${fmtMoney(amount)} by bank transfer`
+                : `Pay ${fmtMoney(amount)}`}
           </button>
 
           <div style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "#94A3B8", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
