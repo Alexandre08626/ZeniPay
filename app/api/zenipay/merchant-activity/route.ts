@@ -98,7 +98,10 @@ function ledgerKind(eventType: string, direction: "debit" | "credit"): ActivityK
 export async function GET(req: NextRequest) {
   const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
-  const merchantIdResult = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  // Pass req so admin emails (x-admin-email) can read cross-tenant
+  // — required for /admin/wallet and /admin/treasury surfaces that
+  // need to view ZeniPay corporate's data from an operator's session.
+  const merchantIdResult = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"), req);
   if (merchantIdResult instanceof NextResponse) return merchantIdResult;
   const mid = merchantIdResult;
   const accountIdFilter = (req.nextUrl.searchParams.get("account_id") ?? "").trim() || null;

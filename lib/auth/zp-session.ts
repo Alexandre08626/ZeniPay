@@ -159,20 +159,50 @@ export async function requireZpSession(req: NextRequest): Promise<ZpSession | Ne
 }
 
 /**
+ * Admin email allowlist. Requests carrying `x-admin-email` matching one
+ * of these are allowed to read cross-tenant data via resolveMerchantId.
+ * Mirrored in app/admin/AdminGate.tsx (frontend gate) — keep in sync.
+ */
+export const ADMIN_EMAIL_ALLOWLIST: ReadonlySet<string> = new Set([
+  "zenipay@zeniva.ca",
+  "info@zeniva.ca",
+  "alexandreblais26@gmail.com",
+]);
+
+/** True if the request carries an `x-admin-email` header matching the
+ *  allowlist. Used to bypass the cross-tenant guard for /admin/* pages
+ *  that legitimately need to read other merchants' data (e.g. the
+ *  ZeniPay corporate wallet view from an operator's session). */
+export function isAdminRequest(req: NextRequest): boolean {
+  const email = (req.headers.get("x-admin-email") ?? "").trim().toLowerCase();
+  return !!email && ADMIN_EMAIL_ALLOWLIST.has(email);
+}
+
+/**
  * Cross-tenant guard. If the request supplied a merchant_id that does
- * NOT match the session, returns 403. Otherwise returns the session
- * merchant_id. Always call this in routes that previously read
- * merchant_id from query/body.
+ * NOT match the session, returns 403 — UNLESS an `x-admin-email`
+ * header is present and allowlisted, in which case the claimed
+ * merchant_id is honored (admin override). Otherwise returns the
+ * session merchant_id. Always call this in routes that previously
+ * read merchant_id from query/body.
+ *
+ * Pass `req` (optional) when the route should accept admin overrides;
+ * leave it out for routes that should never accept cross-tenant
+ * claims regardless of the caller.
  */
 export function resolveMerchantId(
   session: ZpSession,
   claimedFromRequest: string | null | undefined,
+  req?: NextRequest,
 ): string | NextResponse {
-  if (
-    claimedFromRequest &&
-    claimedFromRequest.trim() &&
-    claimedFromRequest.trim() !== session.merchant_id
-  ) {
+  const claimed = claimedFromRequest?.trim() || "";
+  if (claimed && claimed !== session.merchant_id) {
+    if (req && isAdminRequest(req)) {
+      // Admin override — return the claimed merchant_id, not the
+      // session's. This is what makes /admin/wallet work from an
+      // operator session signed in as a different merchant.
+      return claimed;
+    }
     return NextResponse.json({ error: "forbidden_cross_tenant" }, { status: 403 });
   }
   return session.merchant_id;

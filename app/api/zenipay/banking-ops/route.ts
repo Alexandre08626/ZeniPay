@@ -9,7 +9,10 @@ const FEES: Record<string, number> = { ach: 0, wire_domestic: 15, wire_internati
 export async function GET(req: NextRequest) {
   const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
-  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"));
+  // Admin override via x-admin-email — see lib/auth/zp-session.ts.
+  // Lets /admin/wallet read ZeniPay corporate's data from an
+  // operator session signed in as a different merchant.
+  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"), req);
   if (r instanceof NextResponse) return r;
   const mid = r;
   const s = getSupabaseAdmin();

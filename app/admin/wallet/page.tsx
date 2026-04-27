@@ -65,9 +65,20 @@ function Inner() {
     setLoading(true);
     try {
       const ts = Date.now();
+      // The operator's session is bound to their own merchant (e.g.
+      // zeniva-001), but this page reads ZeniPay corporate's data —
+      // which would 403 the cross-tenant guard. We send x-admin-email
+      // so the server can apply the admin override (mirror of the
+      // adminFetch wrapper used by /api/v1/admin/* surfaces).
+      const adminEmail =
+        typeof window === "undefined"
+          ? ""
+          : (sessionStorage.getItem("zp_client_email") || "").trim().toLowerCase();
+      const headers: Record<string, string> = {};
+      if (adminEmail) headers["x-admin-email"] = adminEmail;
       const [banking, feed] = await Promise.all([
-        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid)}&_=${ts}`,                { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid)}&limit=10&_=${ts}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/zenipay/banking-ops?merchant_id=${encodeURIComponent(mid)}&_=${ts}`,                { cache: "no-store", headers }).then((r) => r.json()),
+        fetch(`/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(mid)}&limit=10&_=${ts}`, { cache: "no-store", headers }).then((r) => r.json()),
       ]);
       setAccounts(banking.accounts ?? []);
       setActivity(feed.activity ?? []);
