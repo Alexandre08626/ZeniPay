@@ -14,18 +14,62 @@ import { BankConnectionsPanel } from "@/app/components/shared/BankConnectionsPan
 
 interface Merchant {
   id: string;
+  accountKind?: "personal" | "business";
   businessName?: string;
+  legalBusinessName?: string;
+  businessType?: string;
+  einBn?: string;
+  industry?: string;
+  monthlyVolume?: string;
   ownerName?: string;
+  ownerFirstName?: string;
+  ownerLastName?: string;
+  ownerDob?: string;
   email?: string;
   phone?: string;
   website?: string;
-  businessType?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  stateProvince?: string;
+  postalCode?: string;
   country?: string;
   sandboxKey?: string;
   liveKey?: string;
   status?: string;
   plan?: string;
   createdAt?: string;
+}
+
+// Industries / volumes / business types must mirror the signup form so
+// the Edit-mode select options never drift from what the API accepts.
+const BUSINESS_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "corporation",         label: "Corporation" },
+  { value: "llc",                 label: "LLC" },
+  { value: "sole_proprietorship", label: "Sole Proprietorship" },
+  { value: "partnership",         label: "Partnership" },
+  { value: "non_profit",          label: "Non-profit" },
+];
+const INDUSTRY_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "technology",  label: "Technology" },
+  { value: "ecommerce",   label: "E-commerce" },
+  { value: "travel",      label: "Travel" },
+  { value: "real_estate", label: "Real Estate" },
+  { value: "healthcare",  label: "Healthcare" },
+  { value: "legal",       label: "Legal" },
+  { value: "finance",     label: "Finance" },
+  { value: "other",       label: "Other" },
+];
+const VOLUME_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "under_10k", label: "Under $10K" },
+  { value: "10k_50k",   label: "$10K – $50K" },
+  { value: "50k_250k",  label: "$50K – $250K" },
+  { value: "over_250k", label: "Over $250K" },
+];
+
+function labelOf(opts: Array<{ value: string; label: string }>, v?: string): string {
+  if (!v) return "";
+  return opts.find((o) => o.value === v)?.label ?? v;
 }
 
 type Section = "profile" | "business" | "payouts" | "banks" | "api" | "notifications" | "security";
@@ -120,15 +164,7 @@ export default function SettingsPage() {
             </BankingCard>
           )}
           {section === "business" && (
-            <BankingCard>
-              <SectionTitle title="Business" subtitle="Legal entity details shown on invoices + payment receipts." />
-              <Row label="Business name" value={merchant?.businessName || "—"} />
-              <Row label="Business type" value={merchant?.businessType || "—"} />
-              <Row label="Website" value={merchant?.website || "—"} mono />
-              <Row label="Plan" value={merchant?.plan || "Standard"} />
-              <Row label="Status" value={<StatusPill status={merchant?.status || "pending_kyb"} />} />
-              <Row label="Member since" value={merchant?.createdAt ? zp.fmtDate(merchant.createdAt) : "—"} />
-            </BankingCard>
+            <BusinessSection merchant={merchant} onSaved={(m) => setMerchant(m)} />
           )}
           {section === "payouts" && (
             <PayoutDestinationsSection merchantId={mid()} />
@@ -268,12 +304,13 @@ function ModeKeyRow({ mode, active, value, reveal, onToggle, blurb }: {
 function StatusPill({ status }: { status: string }) {
   const key = status?.toLowerCase() || "";
   const map: Record<string, { bg: string; fg: string; label: string }> = {
-    active:      { bg: zp.semantic.successBg, fg: zp.semantic.success, label: "Active" },
-    live:        { bg: zp.semantic.successBg, fg: zp.semantic.success, label: "Active" },
-    pending_kyb: { bg: zp.surface.bg3,        fg: zp.text.muted,       label: "Under review" },
-    pending:     { bg: zp.surface.bg3,        fg: zp.text.muted,       label: "Under review" },
-    rejected:    { bg: zp.semantic.dangerBg,  fg: zp.semantic.danger,  label: "Rejected" },
-    closed:      { bg: zp.semantic.dangerBg,  fg: zp.semantic.danger,  label: "Closed" },
+    active:        { bg: zp.semantic.successBg, fg: zp.semantic.success, label: "Active" },
+    live:          { bg: zp.semantic.successBg, fg: zp.semantic.success, label: "Active" },
+    pending_kyb:   { bg: zp.surface.bg3,        fg: zp.text.muted,       label: "Under review" },
+    pending:       { bg: zp.surface.bg3,        fg: zp.text.muted,       label: "Under review" },
+    personal_only: { bg: zp.surface.bg3,        fg: zp.text.muted,       label: "Personal" },
+    rejected:      { bg: zp.semantic.dangerBg,  fg: zp.semantic.danger,  label: "Rejected" },
+    closed:        { bg: zp.semantic.dangerBg,  fg: zp.semantic.danger,  label: "Closed" },
   };
   const s = map[key] ?? { bg: zp.surface.bg3, fg: zp.text.muted, label: "Under review" };
   return (
@@ -282,3 +319,247 @@ function StatusPill({ status }: { status: string }) {
     </span>
   );
 }
+
+// ─── Business section (display + edit) ──────────────────────────────────
+//
+// Read-mode shows every legal-entity field on the merchant. Hitting
+// "Edit" swaps the rows for inputs; "Save" PATCHes /merchant-info and
+// the parent re-renders with the fresh shape returned by the API.
+//
+// For a status='personal_only' merchant the section is empty by
+// design — show a clear CTA back to the personal flow instead of a
+// half-filled business form.
+
+interface BusinessFormState {
+  businessName: string;
+  legalBusinessName: string;
+  businessType: string;
+  einBn: string;
+  industry: string;
+  monthlyVolume: string;
+  phone: string;
+  website: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  stateProvince: string;
+  postalCode: string;
+}
+
+function emptyForm(m: Merchant | null): BusinessFormState {
+  return {
+    businessName:      m?.businessName      ?? "",
+    legalBusinessName: m?.legalBusinessName ?? "",
+    businessType:      m?.businessType      ?? "",
+    einBn:             m?.einBn             ?? "",
+    industry:          m?.industry          ?? "",
+    monthlyVolume:     m?.monthlyVolume     ?? "",
+    phone:             m?.phone             ?? "",
+    website:           m?.website           ?? "",
+    addressLine1:      m?.addressLine1      ?? "",
+    addressLine2:      m?.addressLine2      ?? "",
+    city:              m?.city              ?? "",
+    stateProvince:     m?.stateProvince     ?? "",
+    postalCode:        m?.postalCode        ?? "",
+  };
+}
+
+function BusinessSection({ merchant, onSaved }: {
+  merchant: Merchant | null;
+  onSaved: (m: Merchant) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<BusinessFormState>(() => emptyForm(merchant));
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  // Hydrate the form whenever the parent loads/updates the merchant —
+  // covers the initial fetch and any post-save refresh.
+  React.useEffect(() => { setForm(emptyForm(merchant)); }, [merchant]);
+
+  const country = merchant?.country || "CA";
+  const provinceLabel = country === "US" ? "State" : "Province";
+  const postalLabel   = country === "US" ? "ZIP code" : "Postal code";
+  const einLabel      = country === "US" ? "Employer Identification Number (EIN)" : "Business Number (BN)";
+  const isPersonal    = merchant?.accountKind === "personal" || merchant?.status === "personal_only";
+
+  const update = <K extends keyof BusinessFormState>(k: K, v: BusinessFormState[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const cancel = () => {
+    setForm(emptyForm(merchant));
+    setErr(null);
+    setEditing(false);
+  };
+
+  const save = async () => {
+    if (!merchant?.id) { setErr("Missing merchant id."); return; }
+    setSaving(true);
+    setErr(null);
+    try {
+      const r = await fetch("/api/zenipay/merchant-info", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ merchant_id: merchant.id, ...form }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || data?.error) {
+        setErr(typeof data?.error === "string" ? data.error : "Save failed.");
+        return;
+      }
+      if (data.merchant) onSaved(data.merchant as Merchant);
+      setEditing(false);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isPersonal) {
+    return (
+      <BankingCard>
+        <SectionTitle title="Business" subtitle="Legal entity details shown on invoices + payment receipts." />
+        <div style={{ padding: "20px 0 4px", fontSize: 13, color: zp.text.primary, lineHeight: 1.55 }}>
+          This is a <strong>personal</strong> ZeniPay account. Open a business
+          account to set legal-entity details that appear on invoices and
+          payment receipts.
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <a href="/register?type=business" style={{ display: "inline-block", padding: "9px 16px", borderRadius: zp.radius.md, background: zp.gradient.main, color: "#FFFFFF", fontSize: 13, fontWeight: zp.weight.semibold, textDecoration: "none" }}>
+            Open a business account →
+          </a>
+        </div>
+      </BankingCard>
+    );
+  }
+
+  return (
+    <BankingCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <SectionTitle title="Business" subtitle="Legal entity details shown on invoices + payment receipts." />
+        {!editing && (
+          <GradientButton variant="secondary" size="sm" onClick={() => setEditing(true)}>Edit</GradientButton>
+        )}
+      </div>
+
+      {err && (
+        <div role="alert" style={{
+          marginBottom: 12, padding: "10px 12px", borderRadius: 10,
+          background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5",
+          fontSize: 12, fontWeight: zp.weight.semibold,
+        }}>{err}</div>
+      )}
+
+      {!editing ? (
+        <>
+          <Row label="Business name"        value={merchant?.businessName       || "—"} />
+          <Row label="Legal business name"  value={merchant?.legalBusinessName  || merchant?.businessName || "—"} />
+          <Row label="Business type"        value={labelOf(BUSINESS_TYPE_OPTIONS, merchant?.businessType) || "—"} />
+          <Row label={einLabel}             value={merchant?.einBn              || "—"} mono />
+          <Row label="Industry"             value={labelOf(INDUSTRY_OPTIONS, merchant?.industry) || "—"} />
+          <Row label="Monthly volume"       value={labelOf(VOLUME_OPTIONS, merchant?.monthlyVolume) || "—"} />
+          <Row label="Phone"                value={merchant?.phone              || "—"} />
+          <Row label="Website"              value={merchant?.website            || "—"} mono />
+          <Row label="Email"                value={merchant?.email              || "—"} mono />
+          <Row label="Street address"       value={merchant?.addressLine1       || "—"} />
+          {merchant?.addressLine2 && <Row label="Address line 2" value={merchant.addressLine2} />}
+          <Row label="City"                 value={merchant?.city               || "—"} />
+          <Row label={provinceLabel}        value={merchant?.stateProvince      || "—"} />
+          <Row label={postalLabel}          value={merchant?.postalCode         || "—"} />
+          <Row label="Country"              value={country} />
+          <Row label="Plan"                 value={merchant?.plan               || "Standard"} />
+          <Row label="Status"               value={<StatusPill status={merchant?.status || "pending_kyb"} />} />
+          <Row label="Member since"         value={merchant?.createdAt ? zp.fmtDate(merchant.createdAt) : "—"} />
+        </>
+      ) : (
+        <div style={{ paddingTop: 6 }}>
+          <EditField label="Business name">
+            <input style={editInput} value={form.businessName} onChange={(e) => update("businessName", e.target.value)} />
+          </EditField>
+          <EditField label="Legal business name">
+            <input style={editInput} value={form.legalBusinessName} onChange={(e) => update("legalBusinessName", e.target.value)} />
+          </EditField>
+          <EditRow>
+            <EditField label="Business type">
+              <select style={editInput} value={form.businessType} onChange={(e) => update("businessType", e.target.value)}>
+                <option value="">—</option>
+                {BUSINESS_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </EditField>
+            <EditField label={einLabel}>
+              <input style={editInput} value={form.einBn} onChange={(e) => update("einBn", e.target.value)} />
+            </EditField>
+          </EditRow>
+          <EditRow>
+            <EditField label="Industry">
+              <select style={editInput} value={form.industry} onChange={(e) => update("industry", e.target.value)}>
+                <option value="">—</option>
+                {INDUSTRY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </EditField>
+            <EditField label="Monthly volume">
+              <select style={editInput} value={form.monthlyVolume} onChange={(e) => update("monthlyVolume", e.target.value)}>
+                <option value="">—</option>
+                {VOLUME_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </EditField>
+          </EditRow>
+          <EditRow>
+            <EditField label="Phone">
+              <input style={editInput} value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+            </EditField>
+            <EditField label="Website">
+              <input style={editInput} value={form.website} onChange={(e) => update("website", e.target.value)} placeholder="https://" />
+            </EditField>
+          </EditRow>
+          <EditField label="Street address">
+            <input style={editInput} value={form.addressLine1} onChange={(e) => update("addressLine1", e.target.value)} />
+          </EditField>
+          <EditField label="Address line 2">
+            <input style={editInput} value={form.addressLine2} onChange={(e) => update("addressLine2", e.target.value)} />
+          </EditField>
+          <EditRow cols="2fr 1fr 1fr">
+            <EditField label="City">
+              <input style={editInput} value={form.city} onChange={(e) => update("city", e.target.value)} />
+            </EditField>
+            <EditField label={provinceLabel}>
+              <input style={editInput} value={form.stateProvince} onChange={(e) => update("stateProvince", e.target.value)} />
+            </EditField>
+            <EditField label={postalLabel}>
+              <input style={editInput} value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
+            </EditField>
+          </EditRow>
+          <p style={{ margin: "12px 0 14px", fontSize: 11, color: zp.text.muted }}>
+            Email, country, plan and status are managed by ZeniPay support — contact us to change these.
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <GradientButton variant="ghost" size="sm" onClick={cancel}>Cancel</GradientButton>
+            <GradientButton variant="primary" size="sm" onClick={save}>{saving ? "Saving…" : "Save changes"}</GradientButton>
+          </div>
+        </div>
+      )}
+    </BankingCard>
+  );
+}
+
+function EditField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: zp.weight.semibold, color: zp.text.primary, marginBottom: 6, letterSpacing: "0.04em" }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function EditRow({ children, cols = "1fr 1fr" }: { children: React.ReactNode; cols?: string }) {
+  return <div style={{ display: "grid", gridTemplateColumns: cols, gap: 10 }}>{children}</div>;
+}
+
+const editInput: React.CSSProperties = {
+  width: "100%", padding: "10px 12px", borderRadius: 8,
+  border: `1px solid ${zp.surface.border}`, background: "#FFFFFF",
+  color: zp.text.primary, fontSize: 13, boxSizing: "border-box",
+  outline: "none", fontFamily: zp.font.sans,
+};
