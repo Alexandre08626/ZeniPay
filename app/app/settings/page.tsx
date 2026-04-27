@@ -74,7 +74,7 @@ function labelOf(opts: Array<{ value: string; label: string }>, v?: string): str
 
 type Section = "profile" | "business" | "payouts" | "banks" | "api" | "notifications" | "security";
 
-const SECTIONS: Array<{ id: Section; label: string; Icon: typeof User }> = [
+const ALL_SECTIONS: Array<{ id: Section; label: string; Icon: typeof User }> = [
   { id: "profile",       label: "Profile",       Icon: User },
   { id: "business",      label: "Business",      Icon: Building2 },
   { id: "payouts",       label: "Payouts",       Icon: Banknote },
@@ -83,6 +83,10 @@ const SECTIONS: Array<{ id: Section; label: string; Icon: typeof User }> = [
   { id: "notifications", label: "Notifications", Icon: Bell },
   { id: "security",      label: "Security",      Icon: Shield },
 ];
+
+// Personal-only merchants don't have a business entity, KYB, or API
+// keys — collapse the sidebar to what's actually relevant for them.
+const PERSONAL_HIDDEN_SECTIONS: Set<Section> = new Set<Section>(["business", "api"]);
 
 function mid() { return typeof window === "undefined" ? "" : sessionStorage.getItem("zp_client") || ""; }
 function memail() { return typeof window === "undefined" ? "" : sessionStorage.getItem("zp_client_email") || ""; }
@@ -107,22 +111,40 @@ export default function SettingsPage() {
   }, []);
   useEffect(() => { void load(); }, [load]);
 
+  // Sidebar items shown to the current merchant. Personal-only users
+  // skip Business + API keys; everyone else sees the full set.
+  const isPersonal = merchant?.accountKind === "personal" || merchant?.status === "personal_only";
+  const sections = isPersonal
+    ? ALL_SECTIONS.filter((s) => !PERSONAL_HIDDEN_SECTIONS.has(s.id))
+    : ALL_SECTIONS;
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const hash = window.location.hash.replace("#", "") as Section;
-    if (SECTIONS.some((s) => s.id === hash)) setSection(hash);
-  }, []);
+    if (sections.some((s) => s.id === hash)) setSection(hash);
+  }, [sections]);
+
+  // If a personal user lands on a hidden hash (e.g. #business after
+  // converting to personal_only), bounce them back to Profile.
+  useEffect(() => {
+    if (isPersonal && PERSONAL_HIDDEN_SECTIONS.has(section)) {
+      setSection("profile");
+      if (typeof window !== "undefined") window.history.replaceState(null, "", "#profile");
+    }
+  }, [isPersonal, section]);
 
   return (
     <DashboardShell mode="merchant">
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0, fontFamily: zp.font.display, fontSize: 32, letterSpacing: "-0.03em", fontWeight: zp.weight.semibold, color: zp.text.primary }}>Settings</h1>
-        <p style={{ margin: "4px 0 0", color: zp.text.muted, fontSize: 13 }}>Account, business, API keys, notifications.</p>
+        <p style={{ margin: "4px 0 0", color: zp.text.muted, fontSize: 13 }}>
+          {isPersonal ? "Profile, bank accounts, notifications." : "Account, business, API keys, notifications."}
+        </p>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 18 }} className="pr20-settings-grid">
         <aside>
-          {SECTIONS.map((s) => {
+          {sections.map((s) => {
             const active = section === s.id;
             return (
               <button
@@ -155,13 +177,7 @@ export default function SettingsPage() {
 
         <div>
           {section === "profile" && (
-            <BankingCard>
-              <SectionTitle title="Profile" subtitle="How you appear in ZeniPay and on customer receipts." />
-              <Row label="Owner name" value={merchant?.ownerName || "—"} />
-              <Row label="Email" value={merchant?.email || memail() || "—"} mono />
-              <Row label="Phone" value={merchant?.phone || "—"} />
-              <Row label="Country" value={merchant?.country || "CA"} />
-            </BankingCard>
+            <ProfileSection merchant={merchant} onSaved={(m) => setMerchant(m)} />
           )}
           {section === "business" && (
             <BusinessSection merchant={merchant} onSaved={(m) => setMerchant(m)} />
@@ -317,6 +333,204 @@ function StatusPill({ status }: { status: string }) {
     <span style={{ fontSize: 10, fontWeight: zp.weight.semibold, padding: "3px 10px", borderRadius: zp.radius.pill, background: s.bg, color: s.fg, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
       {s.label}
     </span>
+  );
+}
+
+// ─── Profile section (display + edit) ──────────────────────────────────
+//
+// "Profile" is the human behind the account. For business merchants
+// it's the account owner; for personal merchants it's everything
+// (name + address + DOB + KYC). Read mode lists the fields, Edit
+// mode swaps to a form.
+//
+// Email, country and DOB stay read-only — email is auth-bound, country
+// drives currency/routing, DOB is KYC. Personal users edit their full
+// address here; business users edit only contact info because the
+// top-level address columns store the BUSINESS address (managed in
+// the Business section).
+
+interface ProfileFormState {
+  ownerFirstName: string;
+  ownerLastName: string;
+  phone: string;
+  // Personal-only fields. For business merchants these inputs are
+  // hidden so we never accidentally overwrite the business address.
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  stateProvince: string;
+  postalCode: string;
+}
+
+function emptyProfileForm(m: Merchant | null): ProfileFormState {
+  return {
+    ownerFirstName: m?.ownerFirstName ?? "",
+    ownerLastName:  m?.ownerLastName  ?? "",
+    phone:          m?.phone          ?? "",
+    addressLine1:   m?.addressLine1   ?? "",
+    addressLine2:   m?.addressLine2   ?? "",
+    city:           m?.city           ?? "",
+    stateProvince:  m?.stateProvince  ?? "",
+    postalCode:     m?.postalCode     ?? "",
+  };
+}
+
+function ProfileSection({ merchant, onSaved }: {
+  merchant: Merchant | null;
+  onSaved: (m: Merchant) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<ProfileFormState>(() => emptyProfileForm(merchant));
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  React.useEffect(() => { setForm(emptyProfileForm(merchant)); }, [merchant]);
+
+  const country = merchant?.country || "CA";
+  const provinceLabel = country === "US" ? "State" : "Province";
+  const postalLabel   = country === "US" ? "ZIP code" : "Postal code";
+  const isPersonal    = merchant?.accountKind === "personal" || merchant?.status === "personal_only";
+
+  const update = <K extends keyof ProfileFormState>(k: K, v: ProfileFormState[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const cancel = () => {
+    setForm(emptyProfileForm(merchant));
+    setErr(null);
+    setEditing(false);
+  };
+
+  const save = async () => {
+    if (!merchant?.id) { setErr("Missing merchant id."); return; }
+    setSaving(true);
+    setErr(null);
+    try {
+      // Owner full-name mirrors first+last for legacy displays that
+      // read merchant.owner_name (invoice receipts, etc.).
+      const ownerName = `${form.ownerFirstName.trim()} ${form.ownerLastName.trim()}`.trim();
+      const payload: Record<string, unknown> = {
+        merchant_id:    merchant.id,
+        ownerFirstName: form.ownerFirstName.trim(),
+        ownerLastName:  form.ownerLastName.trim(),
+        ownerName,
+        phone:          form.phone.trim(),
+      };
+      if (isPersonal) {
+        payload.addressLine1  = form.addressLine1.trim();
+        payload.addressLine2  = form.addressLine2.trim();
+        payload.city          = form.city.trim();
+        payload.stateProvince = form.stateProvince.trim();
+        payload.postalCode    = form.postalCode.trim();
+      }
+      const r = await fetch("/api/zenipay/merchant-info", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || data?.error) {
+        setErr(typeof data?.error === "string" ? data.error : "Save failed.");
+        return;
+      }
+      if (data.merchant) onSaved(data.merchant as Merchant);
+      setEditing(false);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Display name falls back across first+last → ownerName → "—".
+  const displayName =
+    (merchant?.ownerFirstName || merchant?.ownerLastName)
+      ? `${merchant.ownerFirstName ?? ""} ${merchant.ownerLastName ?? ""}`.trim()
+      : merchant?.ownerName || "—";
+
+  return (
+    <BankingCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <SectionTitle
+          title="Profile"
+          subtitle={isPersonal
+            ? "Your personal info on this ZeniPay account."
+            : "How you appear in ZeniPay and on customer receipts."}
+        />
+        {!editing && (
+          <GradientButton variant="secondary" size="sm" onClick={() => setEditing(true)}>Edit</GradientButton>
+        )}
+      </div>
+
+      {err && (
+        <div role="alert" style={{
+          marginBottom: 12, padding: "10px 12px", borderRadius: 10,
+          background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5",
+          fontSize: 12, fontWeight: zp.weight.semibold,
+        }}>{err}</div>
+      )}
+
+      {!editing ? (
+        <>
+          <Row label={isPersonal ? "Full name" : "Owner name"} value={displayName} />
+          <Row label="Email" value={merchant?.email || memail() || "—"} mono />
+          <Row label="Phone" value={merchant?.phone || "—"} />
+          <Row label="Date of birth" value={merchant?.ownerDob ? zp.fmtDate(merchant.ownerDob) : "—"} />
+          {isPersonal && (
+            <>
+              <Row label="Street address" value={merchant?.addressLine1 || "—"} />
+              {merchant?.addressLine2 && <Row label="Address line 2" value={merchant.addressLine2} />}
+              <Row label="City" value={merchant?.city || "—"} />
+              <Row label={provinceLabel} value={merchant?.stateProvince || "—"} />
+              <Row label={postalLabel} value={merchant?.postalCode || "—"} />
+            </>
+          )}
+          <Row label="Country" value={country} />
+        </>
+      ) : (
+        <div style={{ paddingTop: 6 }}>
+          <EditRow>
+            <EditField label="First name">
+              <input style={editInput} autoComplete="given-name" value={form.ownerFirstName} onChange={(e) => update("ownerFirstName", e.target.value)} />
+            </EditField>
+            <EditField label="Last name">
+              <input style={editInput} autoComplete="family-name" value={form.ownerLastName} onChange={(e) => update("ownerLastName", e.target.value)} />
+            </EditField>
+          </EditRow>
+          <EditField label="Phone">
+            <input style={editInput} autoComplete="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+          </EditField>
+          {isPersonal && (
+            <>
+              <EditField label="Street address">
+                <input style={editInput} autoComplete="address-line1" value={form.addressLine1} onChange={(e) => update("addressLine1", e.target.value)} />
+              </EditField>
+              <EditField label="Address line 2">
+                <input style={editInput} autoComplete="address-line2" value={form.addressLine2} onChange={(e) => update("addressLine2", e.target.value)} />
+              </EditField>
+              <EditRow cols="2fr 1fr 1fr">
+                <EditField label="City">
+                  <input style={editInput} autoComplete="address-level2" value={form.city} onChange={(e) => update("city", e.target.value)} />
+                </EditField>
+                <EditField label={provinceLabel}>
+                  <input style={editInput} autoComplete="address-level1" value={form.stateProvince} onChange={(e) => update("stateProvince", e.target.value)} />
+                </EditField>
+                <EditField label={postalLabel}>
+                  <input style={editInput} autoComplete="postal-code" value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
+                </EditField>
+              </EditRow>
+            </>
+          )}
+          <p style={{ margin: "12px 0 14px", fontSize: 11, color: zp.text.muted }}>
+            Email, date of birth and country are managed by ZeniPay support — contact us to change these.
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <GradientButton variant="ghost" size="sm" onClick={cancel}>Cancel</GradientButton>
+            <GradientButton variant="primary" size="sm" onClick={save}>{saving ? "Saving…" : "Save changes"}</GradientButton>
+          </div>
+        </div>
+      )}
+    </BankingCard>
   );
 }
 
