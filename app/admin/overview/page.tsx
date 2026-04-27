@@ -6,6 +6,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import React, { useCallback, useEffect, useState } from "react";
 import { Activity, ArrowRight } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -16,6 +17,18 @@ import zp from "@/lib/design-system/zenipay-brand";
 import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 import { AdminGate } from "../AdminGate";
 import { adminFetch, adminEmail } from "../_lib/admin-fetch";
+
+// Avatars in /public/agents/. We slug the agent name to match the
+// filename. If the file doesn't exist (e.g. a custom agent), the
+// fallback below renders the initials circle as before.
+const KNOWN_AVATARS = new Set([
+  "atlas", "ben", "jade", "kai", "leo", "luna", "marco", "max",
+  "mia", "rex", "sofia", "vera",
+]);
+function avatarFor(name: string): string | null {
+  const slug = (name || "").trim().toLowerCase().replace(/\s+/g, "-");
+  return KNOWN_AVATARS.has(slug) ? `/agents/${slug}.png` : null;
+}
 
 interface Stats {
   merchants_active: number;
@@ -128,19 +141,34 @@ function Inner() {
         <BankingCard accent="violet">
           <BlockHeader title="Active agents" link={{ href: "/admin/agents", label: "All" }} inline />
           <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, marginTop: 10 }}>
-            {(feed?.active_agents ?? []).slice(0, 8).map((a) => (
-              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: `1px solid ${zp.surface.border}` }}>
-                <span style={{ width: 32, height: 32, borderRadius: "50%", background: zp.gradient.tintViolet, display: "inline-flex", alignItems: "center", justifyContent: "center", color: zp.brand.violet, fontSize: 12, fontWeight: zp.weight.semibold }}>
-                  {(a.name ?? "?").slice(0, 2).toUpperCase()}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
-                    {a.name}
+            {(feed?.active_agents ?? []).slice(0, 8).map((a) => {
+              const avatar = avatarFor(a.name);
+              return (
+                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: `1px solid ${zp.surface.border}` }}>
+                  {avatar ? (
+                    <span style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", background: zp.surface.bg2, flexShrink: 0, boxShadow: `0 0 0 2px rgba(123,79,191,0.20)` }}>
+                      <Image
+                        src={avatar}
+                        alt={`${a.name} avatar`}
+                        width={40}
+                        height={40}
+                        style={{ width: 40, height: 40, objectFit: "cover" }}
+                      />
+                    </span>
+                  ) : (
+                    <span style={{ width: 40, height: 40, borderRadius: "50%", background: zp.gradient.tintViolet, display: "inline-flex", alignItems: "center", justifyContent: "center", color: zp.brand.violet, fontSize: 13, fontWeight: zp.weight.semibold, flexShrink: 0 }}>
+                      {(a.name ?? "?").slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                      {a.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: zp.text.muted, textTransform: "capitalize" as const }}>{a.agent_type}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: zp.text.muted }}>{a.agent_type}</div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {(feed?.active_agents.length ?? 0) === 0 && <div style={{ fontSize: 13, color: zp.text.muted, padding: 8 }}>No active agents.</div>}
           </div>
         </BankingCard>
