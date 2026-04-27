@@ -43,6 +43,7 @@ export default function LandingPage() {
       <HowItWorks />
       <StatsRow />
       <ForEveryone />
+      <FAQSection />
       <FinalCTA />
       <MarketingFooter />
     </div>
@@ -511,6 +512,112 @@ function SignupCard({ Icon, accent, title, body, badge, features, cta }: {
         </Link>
       </div>
     </div>
+  );
+}
+
+// FAQ — visible mirror of the JSON-LD FAQPage in app/layout.tsx.
+// Google rewards keeping the rendered UI in sync with the structured
+// data, and AI search engines (ChatGPT, Perplexity, Claude.ai) prefer
+// citing pages where the answer is actually visible. Native
+// <details>/<summary> = accessible + zero JS.
+
+const FAQS: Array<{ q: string; a: string }> = [
+  {
+    q: "What is ZeniPay?",
+    a: "ZeniPay is the first online bank with AI-intelligent wallets. Every personal and business account ships with a fleet of specialized AI agents — accountant, finance, security, compliance, revenue — that read your live account data and answer your questions in plain language. ZeniPay also handles full banking operations: payments, payouts, ACH, wire transfers, invoicing, and 135+ currencies for Canadian and American customers.",
+  },
+  {
+    q: "What makes ZeniPay different from a regular online bank?",
+    a: "ZeniPay is the first online bank to build AI specialists directly into every account. Instead of searching FAQs or waiting for a human agent, you talk to Leo about bookkeeping, Ben about cashflow, Atlas about security, Vera about compliance, and Kai about revenue — and they answer using your real account data. Personal accounts come with 5 agents at no extra cost; business accounts can scale up to 9 specialists.",
+  },
+  {
+    q: "Is ZeniPay available in Canada?",
+    a: "Yes. ZeniPay is built first for Canada, with special focus on Quebec — bilingual (English / French) interface, CAD processing, FINTRAC-aligned compliance, Interac and ACH support. We also serve American businesses with USD processing, FedNow / RTP, and FinCEN-aligned compliance.",
+  },
+  {
+    q: "How does ZeniPay compare to Stripe or Wise?",
+    a: "Stripe is a payment processor; Wise is a money-transfer service. ZeniPay is an actual online bank — you open a real account with a routing number, hold balances, send and receive money, and access AI specialists who understand your account. Where Stripe charges extra for invoicing or analytics, ZeniPay includes them; where Wise stops at currency conversion, ZeniPay gives you a full banking surface plus AI agents that interpret your numbers.",
+  },
+  {
+    q: "What can the AI agents actually do?",
+    a: "Each agent has a specialty and reads your live ZeniPay data. Leo (accountant) classifies expenses, prepares period closes, and helps with tax-prep readiness. Ben (finance) tracks cashflow, balances, and savings strategy. Atlas (security) flags fraud signals and walks you through incident response. Vera (compliance) answers KYC and regulatory questions. Kai (revenue intelligence) forecasts income and savings targets. They detect French or English from your first message and reply in that language.",
+  },
+  {
+    q: "Is my money safe with ZeniPay?",
+    a: "Yes. ZeniPay is PCI DSS Level 1 compliant, encrypts data in transit and at rest, enforces SOC 2-grade signed audit trails, and uses HMAC-signed sessions plus Supabase Auth for account access. Every API endpoint is session-bound — no merchant can read another tenant's data, ever. AI agents only read data scoped to your own account, never anyone else's.",
+  },
+  {
+    q: "How do I open a personal account?",
+    a: "Visit zenipay.ca/register?type=personal and complete the 2-step signup — email, password, name, country (Canada or US), age confirmation, then your DOB, phone, address, and SIN/SSN tail for identity verification. The account is live in under 2 minutes and ships with 5 AI specialists ready to help.",
+  },
+  {
+    q: "How do I open a business account?",
+    a: "Visit zenipay.ca/register and complete the 3-step business signup — account, business details (legal name, EIN/BN, address, industry), and identity verification. Your account is created with a real ZeniPay routing number, both Test and Live API keys, and full access to invoicing, payouts, and the AI agent fleet.",
+  },
+];
+
+function FAQSection() {
+  return (
+    <section id="faq" style={{ padding: "96px 24px", background: zp.surface.bg2, borderTop: `1px solid ${zp.surface.border}` }}>
+      <div style={{ maxWidth: 880, margin: "0 auto" }}>
+        <div style={{ textAlign: "center" as const, marginBottom: 36 }}>
+          <p style={{
+            margin: 0, fontSize: 11, fontWeight: zp.weight.bold,
+            letterSpacing: "0.14em", textTransform: "uppercase", color: zp.brand.violet,
+          }}>
+            Frequently asked
+          </p>
+          <h2 style={{
+            margin: "10px 0 8px", fontFamily: zp.font.display,
+            fontSize: "clamp(28px, 4vw, 40px)", fontWeight: zp.weight.semibold,
+            letterSpacing: "-0.025em", color: zp.text.primary, lineHeight: 1.1,
+          }}>
+            Everything you'd want to ask the bank.
+          </h2>
+          <p style={{ margin: 0, fontSize: 15, color: zp.text.muted, maxWidth: 560, marginInline: "auto" }}>
+            And if it's not here, ask Leo, Ben, or Atlas — they answer in
+            English or French, in real time, on your account.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+          {FAQS.map((f) => (
+            <details
+              key={f.q}
+              style={{
+                background: "#fff",
+                border: `1px solid ${zp.surface.border}`,
+                borderRadius: zp.radius.lg,
+                padding: "14px 18px",
+              }}
+            >
+              <summary style={{
+                cursor: "pointer", fontSize: 15, fontWeight: zp.weight.semibold,
+                color: zp.text.primary, listStyle: "none",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                gap: 12,
+              }}>
+                {f.q}
+                <span aria-hidden style={{ color: zp.text.dim, fontSize: 18, lineHeight: 1 }}>+</span>
+              </summary>
+              <p style={{
+                margin: "10px 0 4px",
+                fontSize: 14, lineHeight: 1.6, color: zp.text.muted,
+              }}>
+                {f.a}
+              </p>
+            </details>
+          ))}
+        </div>
+
+        <p style={{ margin: "26px auto 0", textAlign: "center" as const, fontSize: 13, color: zp.text.muted }}>
+          Still have questions?{" "}
+          <a href="/contact" style={{ color: zp.brand.cyan, fontWeight: zp.weight.semibold, textDecoration: "underline" }}>
+            Talk to a banking specialist →
+          </a>
+        </p>
+      </div>
+    </section>
   );
 }
 

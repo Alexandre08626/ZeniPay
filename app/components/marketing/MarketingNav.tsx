@@ -146,13 +146,14 @@ export function MarketingNav() {
 }
 
 export function MarketingFooter() {
+  const year = new Date().getFullYear();
   return (
     <footer style={{ borderTop: `1px solid ${zp.surface.border}`, background: zp.surface.bg2, marginTop: 64 }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "52px 24px 32px" }}>
         <div style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.5fr) repeat(3, minmax(0, 1fr))",
-          gap: 40,
+          gridTemplateColumns: "minmax(0, 1.6fr) repeat(4, minmax(0, 1fr))",
+          gap: 36,
         }} className="mk-footer-grid">
           <div>
             <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
@@ -164,41 +165,64 @@ export function MarketingFooter() {
                 ZeniPay
               </span>
             </Link>
-            <p style={{ margin: "12px 0 0", fontSize: 13, color: zp.text.muted, maxWidth: 320 }}>
-              Corporate banking + AI agent wallets, under one roof.
+            <p style={{ margin: "12px 0 0", fontSize: 13, color: zp.text.muted, maxWidth: 300, lineHeight: 1.5 }}>
+              The first online bank with AI-intelligent wallets. Personal and
+              business banking in Canada and the US, with a built-in fleet of
+              AI specialists.
+            </p>
+            <p style={{ margin: "16px 0 0", fontSize: 12, color: zp.text.muted }}>
+              <a href="mailto:info@zeniva.ca" style={{ color: zp.text.muted, textDecoration: "none" }}>info@zeniva.ca</a>
             </p>
           </div>
+
+          <FooterCol title="Solutions" links={[
+            { label: "Banking",       href: "/banking" },
+            { label: "Payments",      href: "/payments" },
+            { label: "Payouts",       href: "/payouts" },
+            { label: "Accounting",    href: "/accounting" },
+            { label: "Pay Links",     href: "/paylinks" },
+            { label: "Financing",     href: "/financing" },
+            { label: "Tools",         href: "/tools" },
+          ]} />
+
           <FooterCol title="Product" links={[
-            { label: "Features", href: "/#features" },
-            { label: "Pricing", href: "/#pricing" },
-            { label: "Agents", href: "/agents/overview" },
-            { label: "Changelog", href: "/#" },
+            { label: "AI Agents",     href: "/agents/overview" },
+            { label: "Pricing",       href: "/pricing" },
+            { label: "Security",      href: "/security" },
+            { label: "Docs",          href: "/docs" },
+            { label: "Sign in",       href: "/login" },
+            { label: "Get started",   href: "/register" },
           ]} />
+
           <FooterCol title="Company" links={[
-            { label: "About", href: "/#" },
-            { label: "Contact", href: "mailto:info@zeniva.ca" },
-            { label: "Careers", href: "/#" },
+            { label: "About",         href: "/about" },
+            { label: "Blog",          href: "/blog" },
+            { label: "Contact",       href: "/contact" },
           ]} />
+
           <FooterCol title="Legal" links={[
-            { label: "Privacy", href: "/legal/privacy" },
-            { label: "Terms", href: "/legal/terms" },
-            { label: "Security", href: "/security" },
+            { label: "Privacy",       href: "/privacy" },
+            { label: "Terms",         href: "/terms" },
           ]} />
         </div>
+
         <div style={{
           borderTop: `1px solid ${zp.surface.border}`,
           marginTop: 40, paddingTop: 18, fontSize: 11, color: zp.text.dim,
           display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8,
         }}>
-          <span>© 2025 International Luxury Management Inc. (ZeniPay)</span>
-          <span>Finix-powered · Supabase infrastructure · Vercel hosting</span>
+          <span>© {year} International Luxury Management Inc. (ZeniPay)</span>
+          <span>Made in Québec · Serving Canada and the United States</span>
         </div>
 
         <style>{`
-          @media (max-width: 760px) {
-            .mk-footer-grid { grid-template-columns: 1fr 1fr !important; gap: 28px !important; }
+          @media (max-width: 900px) {
+            .mk-footer-grid { grid-template-columns: 1fr 1fr 1fr !important; gap: 28px !important; }
           }
-          @media (max-width: 480px) {
+          @media (max-width: 600px) {
+            .mk-footer-grid { grid-template-columns: 1fr 1fr !important; }
+          }
+          @media (max-width: 420px) {
             .mk-footer-grid { grid-template-columns: 1fr !important; }
           }
         `}</style>

@@ -1,4 +1,5 @@
 import { MetadataRoute } from "next";
+import { POSTS } from "./blog/posts";
 
 // Sitemap for crawlers (Google, Bing, DuckDuckGo, Yandex, AI search).
 // Priority is relative — 1.0 is the homepage, 0.9 the highest-intent
@@ -37,6 +38,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/register",
     "/login",
     "/contact",
+    "/about",
+  ];
+
+  const content = [
+    "/blog",
   ];
 
   const reference = [
@@ -54,8 +60,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...agents.map((p)      => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.9 })),
     ...persona.map((p)     => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.8 })),
     ...conversion.map((p)  => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.9 })),
+    ...content.map((p)     => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "weekly"  as const, priority: 0.8 })),
     ...reference.map((p)   => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.7 })),
     ...legal.map((p)       => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "yearly"  as const, priority: 0.3 })),
+    ...POSTS.map((p) => ({
+      url: `${base}/blog/${p.slug}`,
+      lastModified: new Date(p.date),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
   ];
 
   return entries;
