@@ -127,30 +127,53 @@ function BusinessRegisterFlow() {
   const emailMatch = !!form.email && form.email.toLowerCase() === form.email_confirm.toLowerCase();
   const dobAdult = useMemo(() => isAdult(form.owner_dob), [form.owner_dob]);
 
-  const canAdvance1 =
-    emailValid && emailMatch && pwScore >= 3 && pwMatch &&
-    form.business_name.trim().length >= 2 &&
-    form.age_confirmed;
+  // Returns the list of human-readable items still missing for the
+  // given step. Empty array = ready to advance. We surface this in the
+  // err banner on Continue-click instead of silently disabling the
+  // button — disabled buttons leave users guessing what's wrong.
+  function missingForStep1(): string[] {
+    const m: string[] = [];
+    if (!emailValid) m.push("a valid email");
+    if (!emailMatch) m.push("matching email confirmation");
+    if (pwScore < 3) m.push("a stronger password (12+ chars with 1 uppercase, 1 number, 1 symbol)");
+    if (!pwMatch) m.push("matching password confirmation");
+    if (form.business_name.trim().length < 2) m.push("your business name");
+    if (!form.age_confirmed) m.push("the 18+ confirmation");
+    return m;
+  }
+  function missingForStep2(): string[] {
+    const m: string[] = [];
+    if (form.legal_business_name.trim().length < 2) m.push("legal business name");
+    if (form.ein_bn.trim().length < 4) m.push(form.country === "US" ? "EIN" : "Business Number");
+    if (form.phone.trim().length < 7) m.push("phone number");
+    if (form.address_line1.trim().length < 2) m.push("street address");
+    if (form.city.trim().length < 2) m.push("city");
+    if (form.state_province.trim().length < 1) m.push(form.country === "CA" ? "province" : "state");
+    if (form.postal_code.trim().length < 3) m.push(form.country === "CA" ? "postal code" : "ZIP code");
+    return m;
+  }
 
-  const canAdvance2 =
-    form.legal_business_name.trim().length >= 2 &&
-    form.ein_bn.trim().length >= 4 &&
-    form.phone.trim().length >= 7 &&
-    form.address_line1.trim().length >= 2 &&
-    form.city.trim().length >= 2 &&
-    form.state_province.trim().length >= 1 &&
-    form.postal_code.trim().length >= 3;
-
-  const canSubmit =
-    form.first_name.trim().length >= 1 &&
-    form.last_name.trim().length >= 1 &&
-    !!form.owner_dob && dobAdult &&
-    (form.country === "CA" ? form.owner_sin_last3.length === 3 : form.owner_ssn_last4.length === 4) &&
-    form.identity_consent && form.terms_accepted;
+  function missingForSubmit(): string[] {
+    const m: string[] = [];
+    if (form.first_name.trim().length < 1) m.push("first name");
+    if (form.last_name.trim().length < 1) m.push("last name");
+    if (!form.owner_dob) m.push("date of birth");
+    else if (!dobAdult) m.push("you must be 18 or older");
+    if (form.country === "CA" && form.owner_sin_last3.length !== 3) m.push("last 3 of your SIN");
+    if (form.country === "US" && form.owner_ssn_last4.length !== 4) m.push("last 4 of your SSN");
+    if (!form.identity_consent) m.push("identity verification consent");
+    if (!form.terms_accepted) m.push("Terms of Service acceptance");
+    return m;
+  }
 
   const submit = async () => {
     setErr(null);
-    if (!canSubmit) { setErr("Please complete every required field and accept the consents."); return; }
+    const missing = missingForSubmit();
+    if (missing.length > 0) {
+      setErr("Still needed: " + missing.join(", ") + ".");
+      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     setLoading(true);
     try {
       const r = await fetch("/api/auth/register", {
@@ -423,27 +446,27 @@ function BusinessRegisterFlow() {
             <button
               type="button"
               onClick={() => {
-                if ((step === 1 && canAdvance1) || (step === 2 && canAdvance2)) {
-                  setStep((step + 1) as 2 | 3);
+                const missing = step === 1 ? missingForStep1() : missingForStep2();
+                if (missing.length > 0) {
+                  setErr("Still needed before you can continue: " + missing.join(", ") + ".");
                   if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+                  return;
                 }
+                setErr(null);
+                setStep((step + 1) as 2 | 3);
+                if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              disabled={(step === 1 && !canAdvance1) || (step === 2 && !canAdvance2)}
-              style={{
-                ...gradientBtn,
-                opacity: (step === 1 && !canAdvance1) || (step === 2 && !canAdvance2) ? 0.55 : 1,
-                cursor: (step === 1 && !canAdvance1) || (step === 2 && !canAdvance2) ? "not-allowed" : "pointer",
-              }}
+              style={gradientBtn}
             >Continue →</button>
           ) : (
             <button
               type="button"
               onClick={submit}
-              disabled={loading || !canSubmit}
+              disabled={loading}
               style={{
                 ...gradientBtn,
-                opacity: loading || !canSubmit ? 0.55 : 1,
-                cursor: loading || !canSubmit ? "not-allowed" : "pointer",
+                opacity: loading ? 0.55 : 1,
+                cursor: loading ? "not-allowed" : "pointer",
               }}
             >
               {loading ? "Creating your account…" : "Create account"}
@@ -519,25 +542,41 @@ function PersonalRegisterFlow() {
   const emailMatch = !!form.email && form.email.toLowerCase() === form.email_confirm.toLowerCase();
   const dobAdult = useMemo(() => isAdult(form.owner_dob), [form.owner_dob]);
 
-  const canAdvance1 =
-    emailValid && emailMatch && pwScore >= 3 && pwMatch &&
-    form.first_name.trim().length >= 1 &&
-    form.last_name.trim().length >= 1 &&
-    form.age_confirmed;
-
-  const canSubmit =
-    !!form.owner_dob && dobAdult &&
-    form.phone.trim().length >= 7 &&
-    form.address_line1.trim().length >= 2 &&
-    form.city.trim().length >= 2 &&
-    form.state_province.trim().length >= 1 &&
-    form.postal_code.trim().length >= 3 &&
-    (form.country === "CA" ? form.owner_sin_last3.length === 3 : form.owner_ssn_last4.length === 4) &&
-    form.identity_consent && form.terms_accepted;
+  function missingForStep1(): string[] {
+    const m: string[] = [];
+    if (!emailValid) m.push("a valid email");
+    if (!emailMatch) m.push("matching email confirmation");
+    if (pwScore < 3) m.push("a stronger password (12+ chars with 1 uppercase, 1 number, 1 symbol)");
+    if (!pwMatch) m.push("matching password confirmation");
+    if (form.first_name.trim().length < 1) m.push("first name");
+    if (form.last_name.trim().length < 1) m.push("last name");
+    if (!form.age_confirmed) m.push("the 18+ confirmation");
+    return m;
+  }
+  function missingForSubmit(): string[] {
+    const m: string[] = [];
+    if (!form.owner_dob) m.push("date of birth");
+    else if (!dobAdult) m.push("you must be 18 or older");
+    if (form.phone.trim().length < 7) m.push("phone number");
+    if (form.address_line1.trim().length < 2) m.push("street address");
+    if (form.city.trim().length < 2) m.push("city");
+    if (form.state_province.trim().length < 1) m.push(form.country === "CA" ? "province" : "state");
+    if (form.postal_code.trim().length < 3) m.push(form.country === "CA" ? "postal code" : "ZIP code");
+    if (form.country === "CA" && form.owner_sin_last3.length !== 3) m.push("last 3 of your SIN");
+    if (form.country === "US" && form.owner_ssn_last4.length !== 4) m.push("last 4 of your SSN");
+    if (!form.identity_consent) m.push("identity verification consent");
+    if (!form.terms_accepted) m.push("Terms of Service acceptance");
+    return m;
+  }
 
   const submit = async () => {
     setErr(null);
-    if (!canSubmit) { setErr("Please complete every required field and accept the consents."); return; }
+    const missing = missingForSubmit();
+    if (missing.length > 0) {
+      setErr("Still needed: " + missing.join(", ") + ".");
+      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     setLoading(true);
     try {
       const r = await fetch("/api/auth/register/personal", {
@@ -767,27 +806,27 @@ function PersonalRegisterFlow() {
             <button
               type="button"
               onClick={() => {
-                if (canAdvance1) {
-                  setStep(2);
+                const missing = missingForStep1();
+                if (missing.length > 0) {
+                  setErr("Still needed before you can continue: " + missing.join(", ") + ".");
                   if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+                  return;
                 }
+                setErr(null);
+                setStep(2);
+                if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              disabled={!canAdvance1}
-              style={{
-                ...gradientBtn,
-                opacity: !canAdvance1 ? 0.55 : 1,
-                cursor: !canAdvance1 ? "not-allowed" : "pointer",
-              }}
+              style={gradientBtn}
             >Continue →</button>
           ) : (
             <button
               type="button"
               onClick={submit}
-              disabled={loading || !canSubmit}
+              disabled={loading}
               style={{
                 ...gradientBtn,
-                opacity: loading || !canSubmit ? 0.55 : 1,
-                cursor: loading || !canSubmit ? "not-allowed" : "pointer",
+                opacity: loading ? 0.55 : 1,
+                cursor: loading ? "not-allowed" : "pointer",
               }}
             >
               {loading ? "Creating your account…" : "Create account"}
