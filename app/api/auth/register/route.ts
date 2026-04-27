@@ -270,14 +270,21 @@ export async function POST(req: NextRequest) {
     return err("server_error", "account_insert_failed", 500, { detail: acctErr.message });
   }
 
-  // ─── 4. Provision an agents.organizations mapping (best-effort) ─────
+  // ─── 4. Provision an agents organization mapping (best-effort) ──────
+  // The previous version targeted agents.organizations (non-existent)
+  // and skipped the NOT NULL columns on agent_organizations, so every
+  // business merchant created since signup launched ended up with no
+  // org link. The agents auth helper now lazy-provisions on first
+  // request as a safety net — but doing it at signup keeps the link
+  // immediate for the user's first agents-page visit.
   try {
     const orgId = `org_${crypto.randomUUID()}`;
-    const { error: orgErr } = await db.schema("agents").from("organizations").insert({
-      id:        orgId,
-      name:      businessName,
-      email,
-      created_at: nowIso,
+    const { error: orgErr } = await db.schema("agents").from("agent_organizations").insert({
+      id:            orgId,
+      name:          businessName,
+      owner_user_id: authUserId,
+      plan_tier:     "starter",
+      status:        "active",
     });
     if (!orgErr) {
       await db.from("zenipay_merchant_agent_org_map").insert({
@@ -285,8 +292,11 @@ export async function POST(req: NextRequest) {
         organization_id: orgId,
         created_at:      nowIso,
       });
+    } else {
+      console.error("[register] org provision failed:", orgErr.message);
     }
-  } catch {
+  } catch (e) {
+    console.error("[register] org provision threw:", e instanceof Error ? e.message : String(e));
     // Agents mapping is non-critical for signup success.
   }
 

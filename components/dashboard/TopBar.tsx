@@ -43,9 +43,12 @@ export interface TopBarProps {
   userLabel?: string;
   userEmail?: string;
   onSignOut?: () => void;
+  /** When true, hide the Agents pill — used for personal_only merchants
+   *  who don't have an AI agent fleet. */
+  hideAgentsTab?: boolean;
 }
 
-export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
+export function TopBar({ mode, userLabel, userEmail, onSignOut, hideAgentsTab }: TopBarProps) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -130,7 +133,7 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut }: TopBarProps) {
       </Link>
 
       {/* Mode switcher pills — Personal / Business / Agents */}
-      <ModeSwitcher mode={mode} onSwitch={switchMode} />
+      <ModeSwitcher mode={mode} onSwitch={switchMode} hideAgents={hideAgentsTab} />
 
       {/* Search */}
       <div style={{ position: "relative", flex: 1, maxWidth: 440 }}>
@@ -326,13 +329,14 @@ const menuItemStyle: React.CSSProperties = {
 interface ModeSwitcherProps {
   mode: DashboardMode;
   onSwitch: (next: DashboardMode) => void;
+  hideAgents?: boolean;
 }
 
-function ModeSwitcher({ mode, onSwitch }: ModeSwitcherProps) {
+function ModeSwitcher({ mode, onSwitch, hideAgents }: ModeSwitcherProps) {
   const items: Array<{ key: DashboardMode; Icon: typeof User }> = [
     { key: "personal", Icon: User },
     { key: "merchant", Icon: Building2 },
-    { key: "agents",   Icon: Bot },
+    ...(hideAgents ? [] : [{ key: "agents" as DashboardMode, Icon: Bot }]),
   ];
   return (
     <div

@@ -58,6 +58,7 @@ function clearMerchantSession() {
     sessionStorage.removeItem("zp_client_first_name");
     sessionStorage.removeItem("zp_client_mode");
     sessionStorage.removeItem("zp_client_sandbox_key");
+    sessionStorage.removeItem("zp_client_status");
   } catch { /* ignore */ }
 }
 
@@ -88,6 +89,10 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
     [pathname],
   );
   const mode = modeProp ?? inferredMode;
+  // Merchant status drives the Agents-tab visibility + the
+  // personal-only redirect below. Loaded once per session and cached.
+  const [merchantStatus, setMerchantStatus] = useState<string | null>(null);
+  const isPersonalOnly = (merchantStatus || "").toLowerCase() === "personal_only";
   // Lazy-init: read any existing session synchronously before first render.
   // Prevents a flash of "Loading…" for users who already have a valid
   // session, and — critically — ensures the session is in place before
@@ -172,6 +177,36 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
     setDrawerOpen(false);
   }, [pathname]);
 
+  // Resolve merchant status (personal_only vs everything else). Drives
+  // the Agents-tab visibility + the redirect below.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const cached = sessionStorage.getItem("zp_client_status");
+    if (cached) { setMerchantStatus(cached); return; }
+    const id = sessionStorage.getItem("zp_client");
+    if (!id) return;
+    let cancelled = false;
+    void fetch(`/api/zenipay/merchant-info?id=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((d: { merchant?: { status?: string } }) => {
+        if (cancelled) return;
+        const s = d?.merchant?.status ?? "";
+        setMerchantStatus(s);
+        try { sessionStorage.setItem("zp_client_status", s); } catch { /* ignore */ }
+      })
+      .catch(() => { /* non-fatal */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Bounce personal-only merchants out of /agents/*. The agents auth
+  // helper also blocks them at the API layer; this redirect is the UX
+  // arm of the same lockdown.
+  useEffect(() => {
+    if (isPersonalOnly && mode === "agents") {
+      router.replace("/personal/overview");
+    }
+  }, [isPersonalOnly, mode, router]);
+
   const signOut = useCallback(() => {
     if (mode === "agents") {
       clearAgentsSession();
@@ -190,6 +225,7 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
         userLabel={session?.label}
         userEmail={session?.email}
         onSignOut={signOut}
+        hideAgentsTab={isPersonalOnly}
       />
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
