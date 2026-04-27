@@ -19,13 +19,13 @@ import { MarketingNav, MarketingFooter } from "@/app/components/marketing/Market
 import zp from "@/lib/design-system/zenipay-brand";
 
 export const metadata: Metadata = {
-  title: "ZeniPay — The Bank for AI-Powered Enterprises",
+  title: "ZeniPay — The first online bank with AI-intelligent wallets",
   description:
-    "Corporate treasury + AI agent wallets in one platform. No Visa required.",
+    "Personal and business banking in Canada and the US, with a built-in fleet of AI specialists for accounting, finance, security, compliance, and revenue. Move money, run your books, get answers — instantly.",
   openGraph: {
-    title: "ZeniPay — The Bank for AI-Powered Enterprises",
+    title: "ZeniPay — The first online bank with AI-intelligent wallets",
     description:
-      "Corporate treasury + AI agent wallets in one platform. No Visa required.",
+      "Banking that thinks. Personal and business accounts with a fleet of AI specialists built in — accounting, finance, security, compliance, revenue.",
     url: "https://zenipay.ca",
     siteName: "ZeniPay",
   },
@@ -66,7 +66,7 @@ function Hero() {
           border: `1px solid ${zp.surface.border}`, marginBottom: 24,
         }}>
           <span className="zp-brand-text" style={{ fontSize: 11, fontWeight: zp.weight.bold, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-            The Future of Business Banking
+            The first online bank with AI wallets
           </span>
         </div>
 
@@ -75,15 +75,16 @@ function Hero() {
           fontSize: "clamp(40px, 6vw, 72px)", fontWeight: zp.weight.semibold,
           letterSpacing: "-0.035em", lineHeight: 1.02, color: zp.text.primary,
         }}>
-          Your company&rsquo;s bank.
+          Your bank.
           <br />
-          <span className="zp-brand-text">Your AI agents&rsquo; wallet.</span>
+          <span className="zp-brand-text">Now with AI built in.</span>
         </h1>
 
         <p style={{ margin: "22px auto 0", maxWidth: 640, fontSize: 17, lineHeight: 1.55, color: zp.text.muted }}>
-          ZeniPay is the first banking platform built for businesses running AI
-          agents. Corporate treasury for your team, autonomous wallets for your
-          agents — unified under one roof.
+          ZeniPay is the first online bank where every account ships with a
+          fleet of AI specialists — accounting, finance, security, compliance,
+          and revenue. Personal or business, in Canada and the US: move money,
+          run your books, get answers. Instantly.
         </p>
 
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 32, flexWrap: "wrap" }}>

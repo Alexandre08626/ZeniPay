@@ -32,43 +32,62 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://zenipay.ca"),
   title: {
-    default: "ZeniPay Agents — The bank for AI agents at enterprise scale.",
+    default: "ZeniPay — The first online bank with AI-intelligent wallets",
     template: "%s | ZeniPay",
   },
   description:
-    "ZeniPay Agents gives CFOs a complete banking stack for fleets of AI agents — virtual cards, multi-currency treasury, expense categorization, approval workflows, fraud detection, and a SOC2-grade signed audit trail.",
+    "ZeniPay is the first online bank where every account ships with a fleet of AI specialists. Personal and business banking in Canada and the US — with built-in agents for accounting, finance, security, compliance, and revenue intelligence. Move money, run your books, get answers — instantly.",
   keywords: [
-    "payment gateway Canada",
-    "payment processing Canada",
-    "passerelle de paiement Canada",
-    "accept credit card payments",
-    "online payment platform",
+    // Core positioning — online bank with AI
+    "online bank Canada",
+    "online bank with AI",
+    "AI banking",
+    "AI bank Canada",
+    "AI wallet",
+    "intelligent banking",
+    "AI-powered bank",
+    "neobank Canada",
+    "neobank Quebec",
+    "first online bank with AI agents",
+    "AI financial assistant",
+    "personal banking AI",
+    "business banking AI",
+    // FR
+    "banque en ligne Canada",
+    "banque en ligne Québec",
+    "banque IA",
+    "première banque IA",
+    "wallet intelligent",
+    "néobanque Québec",
+    "néobanque Canada",
+    "banque numérique Québec",
+    "compte bancaire en ligne",
+    "compte bancaire entreprise en ligne",
+    "agents IA financiers",
+    // Core product surfaces (still relevant for keyword breadth)
+    "online business banking Canada",
+    "personal account online Canada",
+    "best online bank Canada",
+    "fintech Canada",
+    "fintech Quebec",
     "Stripe alternative Canada",
     "alternative à Stripe Québec",
-    "payout platform",
-    "ACH payments",
-    "business payments Canada",
-    "payment API",
-    "fintech Canada",
-    "payment infrastructure",
-    "accept payments online",
-    "merchant services Canada",
-    "paiement en ligne Canada",
-    "ZeniPay",
-    "payment gateway Quebec",
-    "traitement de paiement",
+    "payment gateway Canada",
+    "passerelle de paiement Canada",
+    "accept credit card payments",
+    "ACH payments Canada",
+    "instant payouts Canada",
     "send payouts Canada",
-    "business banking Canada",
-    "invoicing platform",
-    "payment processing USA",
-    "payment gateway United States",
+    "invoicing platform Canada",
+    "merchant services Canada",
+    "ZeniPay",
   ],
   authors: [{ name: "ZeniPay Inc." }],
   creator: "ZeniPay Inc.",
   publisher: "ZeniPay Inc.",
   applicationName: "ZeniPay",
-  category: "Finance",
-  classification: "Payment Processing",
+  category: "Banking",
+  classification: "Online Banking",
   referrer: "origin-when-cross-origin",
   formatDetection: {
     email: false,
@@ -76,9 +95,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: "ZeniPay — Payment Infrastructure for Businesses",
+    title: "ZeniPay — The first online bank with AI-intelligent wallets",
     description:
-      "Accept payments, issue payouts, and manage your business finances with ZeniPay. The modern payment platform for Canadian & American businesses.",
+      "Personal and business banking in Canada and the US — with a built-in fleet of AI specialists for accounting, finance, security, compliance, and revenue. Move money, run your books, get answers — instantly.",
     url: "https://zenipay.ca",
     siteName: "ZeniPay",
     type: "website",
@@ -89,15 +108,15 @@ export const metadata: Metadata = {
         url: "https://zenipay.ca/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "ZeniPay — Modern Payment Infrastructure",
+        alt: "ZeniPay — The first online bank with AI-intelligent wallets",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ZeniPay — Accept Payments. Move Money. Scale Your Business.",
+    title: "ZeniPay — The first online bank with AI wallets",
     description:
-      "The modern payment platform for Canadian & American businesses. Accept cards, ACH, send payouts, manage invoices.",
+      "Banking that thinks. Personal and business accounts with a fleet of AI specialists built in — accounting, finance, security, compliance, revenue.",
     images: ["https://zenipay.ca/opengraph-image"],
   },
   icons: {
@@ -110,10 +129,18 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   alternates: {
     canonical: "https://zenipay.ca",
+    languages: {
+      "en-CA": "https://zenipay.ca",
+      "fr-CA": "https://zenipay.ca",
+      "en-US": "https://zenipay.ca",
+    },
   },
   robots: {
     index: true,
     follow: true,
+    "max-video-preview": -1,
+    "max-image-preview": "large",
+    "max-snippet": -1,
     googleBot: {
       index: true,
       follow: true,
@@ -124,7 +151,11 @@ export const metadata: Metadata = {
   },
 };
 
-// JSON-LD Structured Data
+// JSON-LD Structured Data — Organization + WebSite + FinancialService +
+// SoftwareApplication + FAQPage. This is what AI search engines
+// (ChatGPT, Perplexity, Claude.ai, Bing AI) and Google rich results
+// pull verbatim, so the copy here IS the SEO surface.
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -132,6 +163,7 @@ const jsonLd = {
       "@type": "Organization",
       "@id": "https://zenipay.ca/#organization",
       name: "ZeniPay",
+      legalName: "ZeniPay Inc.",
       url: "https://zenipay.ca",
       logo: {
         "@type": "ImageObject",
@@ -140,7 +172,7 @@ const jsonLd = {
         height: 1200,
       },
       description:
-        "Modern payment and financial infrastructure for businesses. Accept cards, move money, issue payouts — all in one platform.",
+        "ZeniPay is the first online bank with AI-intelligent wallets. Personal and business banking in Canada and the US, with a built-in fleet of AI specialists for accounting, finance, security, compliance, and revenue intelligence.",
       foundingDate: "2026",
       areaServed: [
         { "@type": "Country", name: "Canada" },
@@ -158,30 +190,55 @@ const jsonLd = {
       inLanguage: ["en-CA", "fr-CA", "en-US"],
     },
     {
+      "@type": "FinancialService",
+      "@id": "https://zenipay.ca/#financial-service",
+      name: "ZeniPay — Online bank with AI wallets",
+      url: "https://zenipay.ca",
+      description:
+        "Online bank for personal and business accounts in Canada and the US. Every account ships with a fleet of AI specialists (Leo accountant, Ben finance, Atlas security, Vera compliance, Kai revenue) that read live account data and answer in plain language.",
+      provider: { "@id": "https://zenipay.ca/#organization" },
+      areaServed: [
+        { "@type": "Country", name: "Canada" },
+        { "@type": "Country", name: "United States" },
+      ],
+      currenciesAccepted: "CAD, USD",
+      paymentAccepted: "Credit Card, Debit Card, ACH, Wire Transfer, RTP, FedNow",
+      serviceType: [
+        "Personal banking",
+        "Business banking",
+        "Payment processing",
+        "Payouts",
+        "AI financial assistance",
+      ],
+    },
+    {
       "@type": "SoftwareApplication",
       name: "ZeniPay",
       applicationCategory: "FinanceApplication",
       operatingSystem: "Web",
       url: "https://zenipay.ca",
       description:
-        "Payment gateway and financial infrastructure platform for Canadian and American businesses. Accept credit cards, debit, ACH, process instant payouts, and manage invoicing.",
+        "The first online bank with AI-intelligent wallets. Personal and business banking with a fleet of AI specialists for accounting, finance, security, compliance, and revenue intelligence — built into every account.",
       offers: {
         "@type": "Offer",
         price: "0",
         priceCurrency: "CAD",
-        description: "Free to get started — pay only per transaction",
+        description: "Free to open — personal accounts include 5 AI agents at no cost",
       },
       featureList: [
-        "Accept credit card payments",
-        "Accept debit payments",
-        "ACH bank transfers",
-        "Instant payouts (RTP/FedNow)",
-        "Wire transfers",
-        "Payment links",
-        "Invoicing",
+        "Online personal accounts (Canada & US)",
+        "Online business accounts (Canada & US)",
+        "5 AI specialists per personal account (Leo, Ben, Atlas, Vera, Kai)",
+        "Up to 9 AI specialists per business account",
+        "AI agents read live account data via tool calls",
+        "Persistent chat history per agent",
+        "Accept credit card and debit payments",
+        "ACH bank transfers + wire transfers",
+        "Instant payouts (RTP / FedNow)",
+        "Payment links + invoicing",
         "Multi-wallet architecture",
-        "Real-time analytics dashboard",
-        "QuickBooks integration",
+        "Real-time activity feed",
+        "QuickBooks / Xero / Wave / FreshBooks integration",
         "PCI DSS Level 1 compliant",
         "135+ currencies supported",
       ],
@@ -195,7 +252,15 @@ const jsonLd = {
           name: "What is ZeniPay?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "ZeniPay is a modern payment and financial infrastructure platform for Canadian and American businesses. It allows you to accept credit card payments, debit, ACH transfers, send instant payouts, manage invoices, and handle your business finances — all in one platform.",
+            text: "ZeniPay is the first online bank with AI-intelligent wallets. Every personal and business account ships with a fleet of specialized AI agents — accountant, finance, security, compliance, revenue — that read your live account data and answer your questions in plain language. ZeniPay also handles full banking operations: payments, payouts, ACH, wire transfers, invoicing, and 135+ currencies for Canadian and American customers.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "What makes ZeniPay different from a regular online bank?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "ZeniPay is the first online bank to build AI specialists directly into every account. Instead of searching FAQs or waiting for a human agent, you talk to Leo about your bookkeeping, Ben about cashflow, Atlas about security, Vera about compliance, and Kai about revenue — and they answer using your real account data. Personal accounts come with 5 agents at no extra cost; business accounts can scale up to 9 specialists.",
           },
         },
         {
@@ -203,31 +268,47 @@ const jsonLd = {
           name: "Is ZeniPay available in Canada?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes! ZeniPay is built for Canadian businesses, with special focus on Quebec. We support Canadian payment methods, CAD processing, and comply with Canadian financial regulations.",
+            text: "Yes. ZeniPay is built first for Canada, with special focus on Quebec — bilingual (English / French) interface, CAD processing, FINTRAC-aligned compliance, Interac and ACH support. We also serve American businesses with USD processing, FedNow / RTP, and FinCEN-aligned compliance.",
           },
         },
         {
           "@type": "Question",
-          name: "How does ZeniPay compare to Stripe?",
+          name: "How does ZeniPay compare to Stripe or Wise?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "ZeniPay is a modern alternative to Stripe designed specifically for Canadian and American businesses. We offer competitive transaction fees, instant payouts via RTP/FedNow, built-in invoicing, multi-wallet architecture, and dedicated support — features that Stripe charges extra for or doesn't offer.",
+            text: "Stripe is a payment processor; Wise is a money-transfer service. ZeniPay is an actual online bank — you open a real account with a routing number, hold balances, send and receive money, and access AI specialists who understand your account. Where Stripe charges extra for invoicing or analytics, ZeniPay includes them; where Wise stops at currency conversion, ZeniPay gives you a full banking surface plus AI agents that interpret your numbers.",
           },
         },
         {
           "@type": "Question",
-          name: "What payment methods does ZeniPay support?",
+          name: "What can the AI agents actually do?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "ZeniPay supports credit cards (Visa, Mastercard, Amex), debit cards, ACH bank transfers, wire transfers, and 135+ currencies. We process payments with 99.99% uptime and under 200ms latency.",
+            text: "Each agent has a specialty and can read your live ZeniPay data. Leo (accountant) classifies expenses, prepares period closes, and helps with tax-prep readiness. Ben (finance) tracks cashflow, balances, and savings strategy. Atlas (security) flags fraud signals and walks you through incident response. Vera (compliance) answers KYC and regulatory questions. Kai (revenue intelligence) forecasts income and savings targets. They detect French or English from your first message and reply in that language.",
           },
         },
         {
           "@type": "Question",
-          name: "Can I send payouts with ZeniPay?",
+          name: "Is my money safe with ZeniPay?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. ZeniPay supports instant payouts via ACH, real-time payments (RTP/FedNow), and wire transfers. You can pay employees, contractors, and partners individually or batch thousands of payouts at once via our API.",
+            text: "Yes. ZeniPay is PCI DSS Level 1 compliant, encrypts data in transit and at rest, enforces SOC2-grade signed audit trails, and uses HMAC-signed sessions plus Supabase Auth for account access. Every API endpoint is session-bound — no merchant can read another tenant's data, ever. AI agents only read data scoped to your own account, never anyone else's.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "How do I open a personal account?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Visit zenipay.ca/register?type=personal and complete the 2-step signup — email, password, name, country (Canada or US), age confirmation, then your DOB, phone, address, and SIN/SSN tail for identity verification. The account is live in under 2 minutes and ships with 5 AI specialists ready to help.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "How do I open a business account?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Visit zenipay.ca/register and complete the 3-step business signup — account, business details (legal name, EIN/BN, address, industry), and identity verification. Your account is created with a real ZeniPay routing number, both Test and Live API keys, and full access to invoicing, payouts, and the AI agent fleet.",
           },
         },
       ],

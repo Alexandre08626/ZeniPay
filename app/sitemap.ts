@@ -1,16 +1,62 @@
 import { MetadataRoute } from "next";
 
+// Sitemap for crawlers (Google, Bing, DuckDuckGo, Yandex, AI search).
+// Priority is relative — 1.0 is the homepage, 0.9 the highest-intent
+// commercial surfaces, 0.3 legal pages.
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://zenipay.ca";
-  return [
-    { url: base, lastModified: new Date(), changeFrequency: "weekly", priority: 1 },
-    { url: `${base}/payments`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.9 },
-    { url: `${base}/payouts`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.9 },
-    { url: `${base}/tools`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
-    { url: `${base}/docs`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
-    { url: `${base}/signup`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.9 },
-    { url: `${base}/login`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
-    { url: `${base}/privacy`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
-    { url: `${base}/terms`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
+  const now = new Date();
+
+  const product = [
+    "/payments",
+    "/payouts",
+    "/banking",
+    "/invoices",
+    "/paylinks",
+    "/accounting",
+    "/financing",
+    "/security",
+    "/tools",
+    "/analytics",
+    "/transactions",
   ];
+
+  const agents = [
+    "/agents/overview",
+  ];
+
+  const persona = [
+    "/merchant",
+    "/ben",
+  ];
+
+  const conversion = [
+    "/pricing",
+    "/signup",
+    "/register",
+    "/login",
+    "/contact",
+  ];
+
+  const reference = [
+    "/docs",
+  ];
+
+  const legal = [
+    "/privacy",
+    "/terms",
+  ];
+
+  const entries: MetadataRoute.Sitemap = [
+    { url: base, lastModified: now, changeFrequency: "weekly", priority: 1.0 },
+    ...product.map((p)     => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.9 })),
+    ...agents.map((p)      => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.9 })),
+    ...persona.map((p)     => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.8 })),
+    ...conversion.map((p)  => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.9 })),
+    ...reference.map((p)   => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.7 })),
+    ...legal.map((p)       => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "yearly"  as const, priority: 0.3 })),
+  ];
+
+  return entries;
 }
