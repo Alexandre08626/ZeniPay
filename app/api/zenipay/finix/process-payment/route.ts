@@ -266,6 +266,45 @@ export async function POST(req: NextRequest) {
             updated_at: now,
           }).eq("id", primaryAcct.id);
         }
+
+        // ─── 5b. Skim platform fee to ZeniPay corporate ─────────────────
+        // Pre-fix this fee was computed (above) but never landed anywhere
+        // — the merchant got the net deposit and the fee evaporated. Now
+        // we credit it to ZeniPay's primary corporate CAD account and
+        // post a `platform_fee_collected` ledger row so revenue is
+        // auditable.
+        if (fee > 0) {
+          const ZP_CORP_MERCHANT = "acc_1774740862294";
+          try {
+            const { data: corpAcct } = await supabase
+              .from("zenipay_accounts")
+              .select("id, balance")
+              .eq("merchant_id", ZP_CORP_MERCHANT)
+              .eq("is_primary", true)
+              .single();
+            if (corpAcct) {
+              await supabase.from("zenipay_accounts").update({
+                balance: (Number(corpAcct.balance) || 0) + fee,
+                updated_at: now,
+              }).eq("id", corpAcct.id);
+            }
+            await supabase.from("zenipay_ledger").insert({
+              id: `led_${Date.now()}_fee_${Math.random().toString(36).slice(2, 6)}`,
+              payment_id: paymentId,
+              merchant_id: ZP_CORP_MERCHANT,
+              event_type: "platform_fee_collected",
+              wallet_type: "platform",
+              direction: "credit",
+              amount: fee,
+              currency,
+              reference: paymentId,
+              note: `Platform fee from ${merchantId} on payment ${paymentId}`,
+              created_at: now,
+            });
+          } catch (feeErr) {
+            console.error("[DB] Platform fee skim failed:", feeErr instanceof Error ? feeErr.message : String(feeErr));
+          }
+        }
       } catch (e) {
         console.error("[DB] Merchant update failed");
       }
