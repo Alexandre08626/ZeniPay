@@ -82,7 +82,8 @@ function Inner() {
     } catch { /* ignore */ } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  useAutoRefresh(load, { intervalMs: 60_000 });
+  // Real-time admin view: refresh every 5s while tab visible.
+  useAutoRefresh(load, { intervalMs: 5_000 });
 
   const totalThisMonth = (summary.fees_this_month ?? 0) + (summary.yield_this_month ?? 0);
 

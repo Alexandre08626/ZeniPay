@@ -85,7 +85,8 @@ function Inner() {
     } finally { setLoading(false); }
   }, [mid]);
   useEffect(() => { void load(); }, [load]);
-  useAutoRefresh(load);
+  // Real-time admin view: refresh every 5s while tab visible.
+  useAutoRefresh(load, { intervalMs: 5_000 });
 
   // Sum CAD-equivalent total — we don't FX, so display each currency
   // separately in the subtitle.

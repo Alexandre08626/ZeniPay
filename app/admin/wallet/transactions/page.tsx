@@ -42,15 +42,26 @@ function Inner() {
     setLoading(true);
     try {
       const ts = Date.now();
+      // x-admin-email lifts the cross-tenant guard so an operator
+      // signed in as a different merchant can read ZeniPay corporate's
+      // activity. See lib/auth/zp-session.ts.
+      const adminEmail =
+        typeof window === "undefined"
+          ? ""
+          : (sessionStorage.getItem("zp_client_email") || "").trim().toLowerCase();
+      const headers: Record<string, string> = {};
+      if (adminEmail) headers["x-admin-email"] = adminEmail;
       const r = await fetch(
         `/api/zenipay/merchant-activity?merchant_id=${encodeURIComponent(ZENIPAY_CORPORATE_MERCHANT_ID)}&limit=500&_=${ts}`,
-        { cache: "no-store" },
+        { cache: "no-store", headers },
       ).then((x) => x.json());
       setRows(r.activity ?? []);
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  useAutoRefresh(load);
+  // Tight 5s polling on admin pages — real-time view of fees / yield
+  // hitting the corporate wallet without WebSockets.
+  useAutoRefresh(load, { intervalMs: 5_000 });
 
   return (
     <>

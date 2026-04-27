@@ -79,7 +79,8 @@ function Inner() {
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  useAutoRefresh(load);
+  // Real-time admin view: refresh every 5s while tab visible.
+  useAutoRefresh(load, { intervalMs: 5_000 });
 
   return (
     <>
