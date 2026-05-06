@@ -3,6 +3,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { processFinixPaymentWithInstrument } from "@/modules/zenipay/gateways/finix";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
+import { getActiveRate, type Currency } from "@/modules/zenipay/services/fx";
+
+// Finix is currently only configured for CAD settlement. Any non-CAD
+// pay link gets its amount converted to CAD via agents.fx_rates before
+// the charge hits the processor. The original (display) amount is kept
+// so the customer's invoice shows what they were quoted.
+const PROCESSOR_CURRENCY: Currency = "CAD";
+const SUPPORTED_CURRENCIES = new Set<Currency>(["CAD", "USD", "EUR", "USDC"]);
 
 /**
  * Finix Payment Processing — ALL writes via Supabase JS client (no edge function)
@@ -38,7 +46,42 @@ export async function POST(req: NextRequest) {
     }
     const now = new Date().toISOString();
     const paymentId = `ZNV-${Date.now().toString(36).toUpperCase()}`;
-    const amountNum = parseFloat(String(amount));
+    const displayAmount = parseFloat(String(amount));
+    const displayCurrency = String(currency).toUpperCase() as Currency;
+    if (!SUPPORTED_CURRENCIES.has(displayCurrency)) {
+      return NextResponse.json(
+        { error: `Unsupported currency: ${displayCurrency}` },
+        { status: 400 },
+      );
+    }
+
+    // Finix only settles CAD right now — convert any non-CAD pay link
+    // to CAD using the active fx_rates row before charging.
+    let chargeAmount = displayAmount;
+    let fxRateUsed: number | null = null;
+    if (displayCurrency !== PROCESSOR_CURRENCY) {
+      try {
+        fxRateUsed = await getActiveRate(displayCurrency, PROCESSOR_CURRENCY);
+        chargeAmount = Math.round(displayAmount * fxRateUsed * 100) / 100;
+      } catch (fxErr) {
+        return NextResponse.json(
+          {
+            error: "FX_UNAVAILABLE",
+            message: `Could not fetch ${displayCurrency} → ${PROCESSOR_CURRENCY} rate: ${fxErr instanceof Error ? fxErr.message : String(fxErr)}`,
+          },
+          { status: 503 },
+        );
+      }
+    }
+    // amountNum is what we record/credit downstream — always CAD because
+    // that's what Finix actually settles. Display values are tracked
+    // separately on the payment row.
+    const amountNum = chargeAmount;
+    const finixCurrency: Currency = PROCESSOR_CURRENCY;
+    const fxNote = fxRateUsed
+      ? `Original ${displayCurrency} ${displayAmount.toFixed(2)} · charged CAD ${chargeAmount.toFixed(2)} @ ${fxRateUsed.toFixed(4)}`
+      : "";
+    const finalDescription = [description || `Payment ${paymentId}`, fxNote].filter(Boolean).join(" | ");
 
     // ─── 1. PROCESS PAYMENT THROUGH FINIX ────────────────────────────────
     // PCI-compliant flow: client tokenizes via Finix.js, server only touches tokens.
@@ -46,9 +89,9 @@ export async function POST(req: NextRequest) {
     try {
       finixResult = await processFinixPaymentWithInstrument({
         instrumentId: instrument_id,
-        amount: amountNum,
-        currency,
-        description: description || `Payment ${paymentId}`,
+        amount: chargeAmount,
+        currency: finixCurrency,
+        description: finalDescription,
         paymentId,
         fraudSessionId: fraud_session_id,
       });
@@ -86,8 +129,8 @@ export async function POST(req: NextRequest) {
           merchant_id: bodyMerchantId ?? null,
           payment_link_id: pay_link_id ?? null,
           amount: amountNum,
-          currency,
-          description: description || `Payment ${paymentId}`,
+          currency: finixCurrency,
+          description: finalDescription,
           customer_name: customer_name ?? "",
           customer_email: customer_email ?? "",
           status: "failed",
@@ -119,8 +162,8 @@ export async function POST(req: NextRequest) {
         payment_link_id: pay_link_id,
         merchant_id: bodyMerchantId || "unknown",
         amount: amountNum,
-        currency,
-        description: description || "",
+        currency: finixCurrency,
+        description: finalDescription,
         customer_name: customer_name || "",
         customer_email: customer_email || "",
         status: "pending_3ds",
@@ -143,7 +186,10 @@ export async function POST(req: NextRequest) {
         transferId: finixResult.transferId,
         state: finixResult.state,
         amount: amountNum,
-        currency,
+        currency: finixCurrency,
+        display_amount: displayAmount,
+        display_currency: displayCurrency,
+        fx_rate: fxRateUsed,
         card: { brand: finixResult.brand, last4: finixResult.last4 },
       });
     }
@@ -184,8 +230,8 @@ export async function POST(req: NextRequest) {
       payment_link_id: pay_link_id,
       merchant_id: merchantId || "unknown",
       amount: amountNum,
-      currency,
-      description: description || "",
+      currency: finixCurrency,
+      description: finalDescription,
       customer_name: customer_name || "",
       customer_email: customer_email || "",
       status: paymentStatus,
@@ -215,8 +261,8 @@ export async function POST(req: NextRequest) {
         booking_id: `BK-${paymentId}`,
         customer_name: customer_name || "Client",
         customer_email: customer_email || "",
-        items: JSON.stringify([{ description: description || pay_link_id, qty: 1, unit_price: amountNum, total: amountNum }]),
-        subtotal: amountNum, tax: 0, total: amountNum, currency,
+        items: JSON.stringify([{ description: finalDescription || pay_link_id, qty: 1, unit_price: amountNum, total: amountNum }]),
+        subtotal: amountNum, tax: 0, total: amountNum, currency: finixCurrency,
         status: "paid", paid_at: now,
         merchant_name: merchantName || "", merchant_email: merchantEmail || "",
         notes: `ZeniPay Payment ${paymentId} | Finix: ${finixResult.transferId}`,
@@ -236,8 +282,9 @@ export async function POST(req: NextRequest) {
 
         const md = merchant?.merchant_data || {};
         const txn = {
-          id: paymentId, pay_link_id, amount: amountNum, currency,
-          description: description || "", customer_name: customer_name || "",
+          id: paymentId, pay_link_id, amount: amountNum, currency: finixCurrency,
+          display_amount: displayAmount, display_currency: displayCurrency, fx_rate: fxRateUsed,
+          description: finalDescription, customer_name: customer_name || "",
           card_last4: finixResult.last4, card_brand: finixResult.brand,
           status: "succeeded", gateway: "finix",
           transfer_id: finixResult.transferId, createdAt: now,
@@ -296,7 +343,7 @@ export async function POST(req: NextRequest) {
               wallet_type: "platform",
               direction: "credit",
               amount: fee,
-              currency,
+              currency: finixCurrency,
               reference: paymentId,
               note: `Platform fee from ${merchantId} on payment ${paymentId}`,
               created_at: now,
@@ -320,9 +367,9 @@ export async function POST(req: NextRequest) {
         wallet_type: "platform",
         direction: "credit",
         amount: amountNum,
-        currency,
+        currency: finixCurrency,
         reference: paymentId,
-        note: `Finix payment: ${description || pay_link_id}`,
+        note: `Finix payment: ${finalDescription || pay_link_id}`,
         created_at: now,
       });
     }
@@ -336,7 +383,10 @@ export async function POST(req: NextRequest) {
       success: true, paymentId,
       transferId: finixResult.transferId,
       state: finixResult.state,
-      amount: amountNum, currency,
+      amount: amountNum, currency: finixCurrency,
+      display_amount: displayAmount,
+      display_currency: displayCurrency,
+      fx_rate: fxRateUsed,
       card: { brand: finixResult.brand, last4: finixResult.last4 },
     };
 

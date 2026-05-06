@@ -73,8 +73,31 @@ function PayLinkContent() {
       .catch(() => {});
   }, [id]);
 
+  // Finix only settles CAD right now. If the link is in another currency
+  // (e.g. USD), show the customer the CAD equivalent that will hit their
+  // card. Backend re-fetches the same rate at charge time so the actual
+  // amount matches what we display here within seconds.
+  const [cadEquivalent, setCadEquivalent] = useState<number | null>(null);
+  useEffect(() => {
+    if (!currency || currency === "CAD" || !amount) {
+      setCadEquivalent(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/zenipay/fx-rate?from=${currency}&to=CAD`)
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled || typeof d?.rate !== "number") return;
+        setCadEquivalent(Math.round(amount * d.rate * 100) / 100);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [currency, amount]);
+
   const fmtMoney = (n: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
+  const fmtCad = (n: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "CAD" }).format(n);
 
   // Load Finix.js and mount tokenized card fields (PCI-compliant iframes)
   useEffect(() => {
@@ -373,6 +396,11 @@ function PayLinkContent() {
           <div className="zp-checkout-amount" style={{ fontSize: 42, fontWeight: 900, background: ZP_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "-1px" }}>
             {fmtMoney(amount)}
           </div>
+          {cadEquivalent != null && (
+            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 6, fontWeight: 600 }}>
+              ≈ {fmtCad(cadEquivalent)} CAD will be charged on your card
+            </div>
+          )}
           {desc && <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginTop: 6 }}>{desc}</div>}
           <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>via {merchant}</div>
         </div>
