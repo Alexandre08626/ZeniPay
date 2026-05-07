@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useParams } from "next/navigation";
 import { useT, LangToggle } from "../../../modules/zenipay/i18n";
+import ZeniPayLogo from "@/components/ZeniPayLogo";
 
 declare global {
   interface Window { Finix?: any; }
@@ -400,8 +401,15 @@ function PayLinkContent() {
         }
       `}</style>
       <div style={{ width: "100%", maxWidth: 440 }}>
-        {/* Lang toggle (header chrome) */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        {/* ZeniPay header — branding + lang toggle */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 18,
+          gap: 12,
+        }}>
+          <ZeniPayLogo size={140} showWordmark />
           <LangToggle />
         </div>
 
