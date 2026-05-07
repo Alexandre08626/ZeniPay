@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useParams } from "next/navigation";
-import ZeniPayLogo from "@/components/ZeniPayLogo";
 import { useT, LangToggle } from "../../../modules/zenipay/i18n";
 
 declare global {
@@ -58,6 +57,15 @@ function PayLinkContent() {
   const rafRef    = useRef<number>(0);
   const finixFormRef = useRef<any>(null);
 
+  // Merchant branding shown in the header. Comes from /link-info — falls
+  // back to the URL `m=` param if anything goes wrong.
+  const [merchantBrand, setMerchantBrand] = useState<{
+    name: string;
+    type: string | null;
+    website: string | null;
+    logoUrl: string | null;
+  } | null>(null);
+
   // Fetch the link's authoritative values from the DB. We override URL params
   // so a stale shared URL (e.g. old currency=USD) can't force the wrong currency.
   useEffect(() => {
@@ -69,6 +77,14 @@ function PayLinkContent() {
         if (d.currency) setCurrency(String(d.currency).toUpperCase());
         if (d.amount != null) setAmount(Number(d.amount));
         if (d.description) setDesc(String(d.description));
+        if (d.merchant && typeof d.merchant.name === "string") {
+          setMerchantBrand({
+            name: d.merchant.name,
+            type: d.merchant.type || null,
+            website: d.merchant.website || null,
+            logoUrl: d.merchant.logoUrl || null,
+          });
+        }
       })
       .catch(() => {});
   }, [id]);
@@ -384,11 +400,114 @@ function PayLinkContent() {
         }
       `}</style>
       <div style={{ width: "100%", maxWidth: 440 }}>
-        {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: 24, position: "relative" }}>
-          <span className="zp-checkout-logo"><ZeniPayLogo size={180} showWordmark /></span>
-          <div style={{ position: "absolute", top: 0, right: 0 }}><LangToggle /></div>
+        {/* Lang toggle (header chrome) */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <LangToggle />
         </div>
+
+        {/* Merchant brand card — identifies who's getting paid + what for */}
+        {(() => {
+          const brandName = merchantBrand?.name || merchant || "Merchant";
+          const initials = brandName
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((w) => w[0]?.toUpperCase() || "")
+            .join("") || "M";
+          // Deterministic gradient seed from the name so each merchant
+          // gets a stable colourful avatar even without an uploaded logo.
+          const seed = brandName.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+          const hueA = seed % 360;
+          const hueB = (hueA + 55) % 360;
+          const avatarBg = `linear-gradient(135deg, hsl(${hueA},70%,55%), hsl(${hueB},70%,40%))`;
+          const websiteHost = (() => {
+            if (!merchantBrand?.website) return null;
+            try { return new URL(merchantBrand.website).hostname.replace(/^www\./, ""); }
+            catch { return merchantBrand.website; }
+          })();
+          return (
+            <div style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 20,
+              padding: "18px 20px",
+              marginBottom: 14,
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+            }}>
+              {merchantBrand?.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={merchantBrand.logoUrl}
+                  alt={brandName}
+                  style={{
+                    width: 56, height: 56, borderRadius: 14, objectFit: "cover",
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <div
+                  aria-hidden
+                  style={{
+                    width: 56, height: 56, borderRadius: 14,
+                    background: avatarBg,
+                    color: "#fff", fontWeight: 900, fontSize: 22,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    letterSpacing: "-0.02em",
+                    flexShrink: 0,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  {initials}
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)",
+                  letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 2,
+                }}>
+                  Paying
+                </div>
+                <div style={{
+                  fontSize: 17, fontWeight: 800, color: "#fff",
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>
+                  {brandName}
+                </div>
+                <div style={{
+                  fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 2,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>
+                  {[merchantBrand?.type, websiteHost].filter(Boolean).join(" · ") || "Verified merchant"}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* What you're paying for */}
+        {desc && (
+          <div style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 16,
+            padding: "12px 16px",
+            marginBottom: 14,
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)",
+              letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4,
+            }}>
+              For
+            </div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.92)", fontWeight: 500, lineHeight: 1.4 }}>
+              {desc}
+            </div>
+          </div>
+        )}
 
         {/* Amount card */}
         <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "20px 24px", marginBottom: 20, textAlign: "center" }}>
@@ -401,8 +520,9 @@ function PayLinkContent() {
               ≈ {fmtCad(cadEquivalent)} CAD will be charged on your card
             </div>
           )}
-          {desc && <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginTop: 6 }}>{desc}</div>}
-          <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>via {merchant}</div>
+          <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, marginTop: 8, letterSpacing: "0.06em" }}>
+            Powered by ZeniPay · Secure
+          </div>
         </div>
 
         {/* Payment form */}
