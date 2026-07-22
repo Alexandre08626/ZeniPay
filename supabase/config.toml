@@ -1,0 +1,22 @@
+﻿[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+
+[db]
+port = 5432
+major_version = 15
+
+[analytics]
+enabled = false
+port = 54323
+
+[functions]
+enabled = true
+
+[auth]
+enabled = true
+
+[storage]
+enabled = true

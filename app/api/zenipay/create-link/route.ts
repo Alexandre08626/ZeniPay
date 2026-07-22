@@ -74,14 +74,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Save pay link to zenipay_pay_links table ─────────────────────────
-    await supabase.from("zenipay_pay_links").insert({
+    // ── Save pay link ─────────────────────────────────────────────────────
+    // Try zenipay_pay_links first (preferred), fall back to zenipay_invoices
+    // if the table doesn't exist yet (schema in transition).
+    const linkPayload = {
       id, url, amount: parseFloat(String(amount)), currency,
       description: description || "", merchant_id: merchantId,
       status: "active", uses: 0,
       expires_at: expiry ? new Date(expiry).toISOString() : null,
       created_at: now, updated_at: now,
-    });
+    };
+
+    const { error: insertError } = await supabase
+      .from("zenipay_pay_links")
+      .insert(linkPayload);
+
+    if (insertError && insertError.message?.includes("does not exist")) {
+      // Fall back to zenipay_invoices. Map pay link fields to invoice columns.
+      await supabase.from("zenipay_invoices").insert({
+        id, merchant_id: merchantId,
+        client_name: "", client_email: "",
+        amount: parseFloat(String(amount)), currency,
+        status: "active",
+        description: description || "",
+        due_date: expiry || null,
+        paid_at: null, created_at: now, updated_at: now,
+      });
+    } else if (insertError) {
+      console.warn("[create-link] pay_links insert error:", insertError);
+      // Non-table-missing error — still try the response below; the
+      // link was at least stored in the legacy merchant_data path above.
+    }
 
     return NextResponse.json({
       success: true, id, url,
