@@ -11,6 +11,18 @@ interface MerchantBrandRow {
   merchant_data?: any;
 }
 
+type LinkRow = { merchant_id: string | null; amount?: number | string; currency?: string; description?: string; status?: string };
+
+async function tryFetchLink(id: string, table: string): Promise<LinkRow[]> {
+  try {
+    return await pgrest(
+      `${table}?id=eq.${encodeURIComponent(id)}&select=merchant_id,amount,currency,description,status&limit=1`,
+    ) as LinkRow[];
+  } catch {
+    return []; // table may not exist — fall through
+  }
+}
+
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ merchant_id: null });
@@ -18,18 +30,12 @@ export async function GET(req: NextRequest) {
   try {
     // Try zenipay_pay_links first (payment links), then fall back to
     // zenipay_invoices (billed invoices). Both use the same ID format.
-    type LinkRow = { merchant_id: string | null; amount?: number | string; currency?: string; description?: string; status?: string };
 
-    let rows = await pgrest(
-      `zenipay_pay_links?id=eq.${encodeURIComponent(id)}&select=merchant_id,amount,currency,description,status&limit=1`,
-    ) as LinkRow[];
+    let rows = await tryFetchLink(id, "zenipay_pay_links");
     let row = rows[0];
 
     if (!row) {
-      // Fall back to zenipay_invoices
-      rows = await pgrest(
-        `zenipay_invoices?id=eq.${encodeURIComponent(id)}&select=merchant_id,amount,currency,description,status&limit=1`,
-      ) as LinkRow[];
+      rows = await tryFetchLink(id, "zenipay_invoices");
       row = rows[0];
     }
 
