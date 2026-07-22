@@ -90,9 +90,14 @@ export async function POST(req: NextRequest) {
       .insert(linkPayload);
 
     if (insertError && insertError.message?.includes("does not exist")) {
-      // Fall back to zenipay_invoices. Map pay link fields to invoice columns.
-      await supabase.from("zenipay_invoices").insert({
-        id, merchant_id: merchantId,
+      // Fall back to zenipay_invoices. Uses a UUID ID because zenipay_invoices
+      // has a UUID PK. The response still returns the LINK-XXX id for URL
+      // construction; the link-info API already falls back to the URL params
+      // when no DB record is found.
+      const { randomUUID } = await import("node:crypto");
+      const invoiceId = randomUUID();
+      const { error: invError } = await supabase.from("zenipay_invoices").insert({
+        id: invoiceId, merchant_id: merchantId,
         client_name: "", client_email: "",
         amount: parseFloat(String(amount)), currency,
         status: "active",
@@ -100,6 +105,9 @@ export async function POST(req: NextRequest) {
         due_date: expiry || null,
         paid_at: null, created_at: now, updated_at: now,
       });
+      if (invError) {
+        console.warn("[create-link] invoice fallback error:", invError);
+      }
     } else if (insertError) {
       console.warn("[create-link] pay_links insert error:", insertError);
       // Non-table-missing error — still try the response below; the
