@@ -6,7 +6,6 @@ import { pgrest } from "../../../../modules/zenipay/services/supabase";
 interface MerchantBrandRow {
   id: string;
   name?: string | null;
-  business_type?: string | null;
   website?: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config?: any;
@@ -57,7 +56,7 @@ export async function GET(req: NextRequest) {
     if (row.merchant_id) {
       try {
         const mrows = await pgrest(
-          `zenipay_merchants?id=eq.${encodeURIComponent(row.merchant_id)}&select=id,name,business_type,website,config&limit=1`,
+          `zenipay_merchants?id=eq.${encodeURIComponent(row.merchant_id)}&select=id,name,website,config&limit=1`,
         ) as MerchantBrandRow[];
         const m = mrows[0] as (MerchantBrandRow & { id: string }) | undefined;
         if (m) {
@@ -79,7 +78,7 @@ export async function GET(req: NextRequest) {
           merchant = {
             id: m.id,
             name,
-            type: m.business_type || cfg.businessType || null,
+            type: cfg.businessType || null,
             website: m.website || cfg.website || null,
             logoUrl,
           };
