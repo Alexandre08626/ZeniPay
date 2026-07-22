@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
-import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
+import { requireZpSession, resolveMerchantId, getZpSession } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
   try {
@@ -48,16 +48,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireZpSession(req);
-    if (session instanceof NextResponse) return session;
     const { amount, currency = "CAD", description, expiry, merchant, merchant_id: directMerchantId, api_key } = await req.json();
 
     if (!amount || parseFloat(String(amount)) <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
-    // Cross-tenant guard — directMerchantId, if sent, must match the session.
-    const r = resolveMerchantId(session, directMerchantId ?? null);
-    if (r instanceof NextResponse) return r;
 
     const supabase = getSupabaseAdmin();
     const id = `LINK-${Date.now().toString(36).toUpperCase()}`;
@@ -66,27 +61,40 @@ export async function POST(req: NextRequest) {
     const url = `${baseUrl}/pay/${id}?amount=${amount}&currency=${currency}&desc=${encodeURIComponent(description || "")}${merchantParam}`;
     const now = new Date().toISOString();
 
-    // Always bind the new pay link to the authenticated merchant. The
-    // legacy api_key lookup is kept only as a sanity check that the key
-    // belongs to the same session merchant.
-    let merchantId: string = session.merchant_id;
-    if (api_key) {
+    // Resolve merchant: prefer session auth, fall back to api_key for
+    // server-to-server calls (e.g. from Zeniva Travel backend).
+    const session = await getZpSession(req);
+    let merchantId: string | null = session?.merchant_id || null;
+
+    // Cross-tenant guard when session is available.
+    if (session && directMerchantId) {
+      const guard = resolveMerchantId(session, directMerchantId);
+      if (guard instanceof NextResponse) return guard;
+    }
+
+    if (!merchantId && api_key) {
+      // Server-to-server call (no session). Resolve via api_key.
       const { data: merchants } = await supabase
         .from("zenipay_merchants")
-        .select("id, merchant_data")
-        .or(`sandbox_key.eq.${api_key},live_key.eq.${api_key}`)
-        .limit(1);
-      const merchantRow = merchants?.[0];
-      if (merchantRow && merchantRow.id === session.merchant_id) {
-        merchantId = merchantRow.id;
-        const existing = merchantRow.merchant_data || {};
-        const existingLinks: unknown[] = existing.payLinks || [];
-        const newLink = { id, url, amount: parseFloat(String(amount)), currency, description: description || "", status: "active", uses: 0, createdAt: now };
-        await supabase
-          .from("zenipay_merchants")
-          .update({ merchant_data: { ...existing, payLinks: [newLink, ...existingLinks] }, updated_at: now })
-          .eq("id", merchantRow.id);
+        .select("id, api_keys, config")
+        .limit(10);
+      const merchantRow = merchants?.find((m: Record<string, unknown>) => {
+        const keys = (m.api_keys as Record<string, unknown>) || {};
+        const cfg = (m.config as Record<string, unknown>) || {};
+        const cfgKeys = (cfg.apiKeys as string[]) || [];
+        return Object.values(keys).includes(api_key) || cfgKeys.includes(api_key);
+      });
+      if (merchantRow) {
+        merchantId = merchantRow.id as string;
       }
+    }
+
+    if (!merchantId) {
+      // API key wasn't provided or didn't match — try full session auth
+      // to give a clearer error than "unauthorized".
+      const sessionCheck = await requireZpSession(req);
+      if (sessionCheck instanceof NextResponse) return sessionCheck;
+      merchantId = sessionCheck.merchant_id;
     }
 
     // ── Save pay link in merchant's config JSONB ─────────────────────────
