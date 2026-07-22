@@ -119,12 +119,16 @@ export async function POST(req: NextRequest) {
           const md = merchant.config || {};
           const payload = buildMerchantPayload(merchant, md, email);
           const res = NextResponse.json({ success: true, merchant: payload });
+          // Set Supabase auth cookies (preferred session path).
           setSupabaseSessionCookies(
             res,
             signInData.session.access_token,
             signInData.session.refresh_token,
             signInData.session.expires_in ?? 3600,
           );
+          // Also set the legacy HMAC cookie so API routes that haven't
+          // been migrated to auth_user_id work too (e.g. create-link).
+          setZpSessionCookie(res, merchant.id, merchant.status === "active" ? "live" : "test");
           return res;
         }
       }
