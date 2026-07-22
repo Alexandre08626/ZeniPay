@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { pgrest } from "../../../../modules/zenipay/services/supabase";
+import { pgrest, getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 
 interface MerchantBrandRow {
   id: string;
@@ -37,6 +37,31 @@ export async function GET(req: NextRequest) {
     if (!row) {
       rows = await tryFetchLink(id, "zenipay_invoices");
       row = rows[0];
+    }
+
+    // Third fallback: search merchant config.payLinks array (used when
+    // the zenipay_pay_links table hasn't been created yet).
+    if (!row) {
+      const { data: allMerchants } = await getSupabaseAdmin()
+        .from("zenipay_merchants")
+        .select("id, config");
+      if (allMerchants) {
+        for (const m of allMerchants) {
+          const cfg = (m.config || {}) as Record<string, unknown>;
+          const links = (cfg.payLinks as Array<Record<string, unknown>>) || [];
+          const found = links.find((l: Record<string, unknown>) => l.id === id) as Record<string, unknown> | undefined;
+          if (found) {
+            row = {
+              merchant_id: m.id,
+              amount: typeof found.amount === 'number' ? found.amount : parseFloat(String(found.amount || 0)),
+              currency: String(found.currency || 'CAD'),
+              description: String(found.description || ''),
+              status: String(found.status || 'active'),
+            };
+            break;
+          }
+        }
+      }
     }
 
     if (!row) return NextResponse.json({ merchant_id: null });

@@ -18,14 +18,29 @@ export async function GET(req: NextRequest) {
     if (r instanceof NextResponse) return r;
     const merchantId = r;
     const supabase = getSupabaseAdmin();
+
+    // Try zenipay_pay_links table first, fall back to config.payLinks
     const { data, error } = await supabase
       .from("zenipay_pay_links")
       .select("*")
       .eq("merchant_id", merchantId)
       .order("created_at", { ascending: false })
       .limit(50);
-    if (error) return NextResponse.json({ links: [], error: error.message });
-    return NextResponse.json({ links: data || [] });
+
+    if (!error && data?.length) {
+      return NextResponse.json({ links: data });
+    }
+
+    // Fall back to config.payLinks array
+    const { data: merchant } = await supabase
+      .from("zenipay_merchants")
+      .select("config")
+      .eq("id", merchantId)
+      .single();
+
+    const cfg = (merchant?.config || {}) as Record<string, unknown>;
+    const links = (cfg.payLinks as unknown[]) || [];
+    return NextResponse.json({ links: links as Record<string, unknown>[] });
   } catch (err) {
     return NextResponse.json({ links: [] });
   }
@@ -74,44 +89,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Save pay link ─────────────────────────────────────────────────────
-    // Try zenipay_pay_links first (preferred), fall back to zenipay_invoices
-    // if the table doesn't exist yet (schema in transition).
-    const linkPayload = {
-      id, url, amount: parseFloat(String(amount)), currency,
-      description: description || "", merchant_id: merchantId,
+    // ── Save pay link in merchant's config JSONB ─────────────────────────
+    // The zenipay_pay_links table may not exist yet; store the link in the
+    // merchant's `config.payLinks` array which is always available.
+    const newLink = {
+      id, url,
+      amount: parseFloat(String(amount)), currency,
+      description: description || "",
       status: "active", uses: 0,
-      expires_at: expiry ? new Date(expiry).toISOString() : null,
-      created_at: now, updated_at: now,
+      expires_at: expiry || null,
+      created_at: now,
     };
 
-    const { error: insertError } = await supabase
-      .from("zenipay_pay_links")
-      .insert(linkPayload);
+    // Read existing config, append link
+    const { data: merchantRow } = await supabase
+      .from("zenipay_merchants")
+      .select("config")
+      .eq("id", merchantId)
+      .single();
 
-    if (insertError && insertError.message?.includes("does not exist")) {
-      // Fall back to zenipay_invoices. Uses a UUID ID because zenipay_invoices
-      // has a UUID PK. The response still returns the LINK-XXX id for URL
-      // construction; the link-info API already falls back to the URL params
-      // when no DB record is found.
-      const { randomUUID } = await import("node:crypto");
-      const invoiceId = randomUUID();
-      const { error: invError } = await supabase.from("zenipay_invoices").insert({
-        id: invoiceId, merchant_id: merchantId,
-        client_name: "", client_email: "",
-        amount: parseFloat(String(amount)), currency,
-        status: "active",
-        description: description || "",
-        due_date: expiry || null,
-        paid_at: null, created_at: now, updated_at: now,
-      });
-      if (invError) {
-        console.warn("[create-link] invoice fallback error:", invError);
-      }
-    } else if (insertError) {
-      console.warn("[create-link] pay_links insert error:", insertError);
-      // Non-table-missing error — still try the response below; the
-      // link was at least stored in the legacy merchant_data path above.
+    const existingConfig = (merchantRow?.config || {}) as Record<string, unknown>;
+    const existingLinks = (existingConfig.payLinks as unknown[]) || [];
+    const updatedConfig = {
+      ...existingConfig,
+      payLinks: [newLink, ...existingLinks],
+    };
+
+    const { error: updateError } = await supabase
+      .from("zenipay_merchants")
+      .update({ config: updatedConfig, updated_at: now })
+      .eq("id", merchantId);
+
+    if (updateError) {
+      console.warn("[create-link] config save error:", updateError);
     }
 
     return NextResponse.json({
