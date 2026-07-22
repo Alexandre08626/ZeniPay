@@ -10,3 +10,6 @@ out/
 .env*.local
 .vercel
 .env*
+
+# Supabase temp files
+supabase/.temp/

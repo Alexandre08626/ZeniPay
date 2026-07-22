@@ -16,10 +16,23 @@ export async function GET(req: NextRequest) {
   if (!id) return NextResponse.json({ merchant_id: null });
 
   try {
-    const rows = await pgrest(
+    // Try zenipay_pay_links first (payment links), then fall back to
+    // zenipay_invoices (billed invoices). Both use the same ID format.
+    type LinkRow = { merchant_id: string | null; amount?: number | string; currency?: string; description?: string; status?: string };
+
+    let rows = await pgrest(
       `zenipay_pay_links?id=eq.${encodeURIComponent(id)}&select=merchant_id,amount,currency,description,status&limit=1`,
-    ) as Array<{ merchant_id: string | null; amount?: number | string; currency?: string; description?: string; status?: string }>;
-    const row = rows[0];
+    ) as LinkRow[];
+    let row = rows[0];
+
+    if (!row) {
+      // Fall back to zenipay_invoices
+      rows = await pgrest(
+        `zenipay_invoices?id=eq.${encodeURIComponent(id)}&select=merchant_id,amount,currency,description,status&limit=1`,
+      ) as LinkRow[];
+      row = rows[0];
+    }
+
     if (!row) return NextResponse.json({ merchant_id: null });
 
     // Pull merchant branding so the pay page can render the merchant's
