@@ -9,3 +9,4 @@ npm-debug.log*
 out/
 .env*.local
 .vercel
+.env*
