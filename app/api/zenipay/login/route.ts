@@ -40,19 +40,33 @@ interface MerchantPayload {
   liveKey: string;
 }
 
-function buildMerchantPayload(found: { id: string; email: string | null; sandbox_key: string | null; live_key: string | null }, md: Record<string, unknown>, fallbackEmail: string): MerchantPayload {
+// Columns available in the current zenipay_merchants table schema.
+// The table may lack sandbox_key / live_key / merchant_data / auth_user_id
+// in some environments — we work with what we have.
+type MerchantRow = {
+  id: string;
+  email: string | null;
+  status: string | null;
+  name?: string | null;
+  company?: string | null;
+  website?: string | null;
+  config?: Record<string, unknown> | null;
+};
+
+function buildMerchantPayload(found: MerchantRow, _md: Record<string, unknown>, fallbackEmail: string): MerchantPayload {
+  const cfg = found.config || {};
   return {
     id:           found.id,
-    email:        (md.email as string) || found.email || fallbackEmail,
-    businessName: (md.businessName as string) || "",
-    ownerName:    (md.ownerName as string) || "",
-    plan:         (md.plan as string) || "Starter",
-    status:       (md.status as string) || "pending_kyb",
-    website:      (md.website as string) || "",
-    businessType: (md.businessType as string) || "",
-    country:      (md.country as string) || "",
-    sandboxKey:   found.sandbox_key || "",
-    liveKey:      found.live_key || "",
+    email:        found.email || fallbackEmail,
+    businessName: found.name || found.company || (cfg.businessName as string) || "",
+    ownerName:    (cfg.ownerName as string) || "",
+    plan:         (cfg.plan as string) || "Starter",
+    status:       found.status || (cfg.status as string) || "pending_kyb",
+    website:      found.website || (cfg.website as string) || "",
+    businessType: (cfg.businessType as string) || "",
+    country:      (cfg.country as string) || "",
+    sandboxKey:   (cfg.sandboxKey as string) || (cfg.sandbox_key as string) || "",
+    liveKey:      (cfg.liveKey as string) || (cfg.live_key as string) || "",
   };
 }
 
@@ -95,18 +109,15 @@ export async function POST(req: NextRequest) {
       });
       const { data: signInData, error: signInError } = await sbClient.auth.signInWithPassword({ email, password });
       if (!signInError && signInData?.session && signInData.user) {
-        // Resolve merchant by auth_user_id.
+        // Resolve merchant by email (auth_user_id column may not exist yet).
         const { data: merchant } = await supabaseAdmin
           .from("zenipay_merchants")
-          .select("id, email, sandbox_key, live_key, merchant_data, status")
-          .eq("auth_user_id", signInData.user.id)
+          .select("id, email, status, name, company, website, config")
+          .eq("email", email)
           .maybeSingle();
         if (merchant) {
-          const md = merchant.merchant_data || {};
+          const md = merchant.config || {};
           const payload = buildMerchantPayload(merchant, md, email);
-          // Mode is "live" when active, otherwise "test" — the FE uses
-          // this to decide which key to surface as Active.
-          payload.status = merchant.status || "pending_kyb";
           const res = NextResponse.json({ success: true, merchant: payload });
           setSupabaseSessionCookies(
             res,
@@ -121,28 +132,29 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Path 2: legacy hash stored in merchant_data.password ────────
+    // Only available when the table has the merchant_data column.
     const { data: merchants } = await supabaseAdmin
       .from("zenipay_merchants")
-      .select("id, email, merchant_data, sandbox_key, live_key, status");
+      .select("id, email, status, name, company, website, config");
     if (!merchants || merchants.length === 0) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
-    const found = merchants.find((m: { email: string | null; merchant_data: Record<string, unknown> | null }) => {
-      const mdEmail = (m.merchant_data as Record<string, unknown> | null)?.email;
-      if ((typeof mdEmail === "string" ? mdEmail : "").toLowerCase() === email) return true;
+    const found = merchants.find((m: MerchantRow) => {
       if ((m.email || "").toLowerCase() === email) return true;
+      const cfg = (m.config || {}) as Record<string, unknown>;
+      if ((typeof cfg.email === "string" ? cfg.email : "").toLowerCase() === email) return true;
       return false;
     });
     if (!found) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
-    const md = (found.merchant_data || {}) as Record<string, unknown>;
-    const storedPwd = (md.password as string) || "";
-    if (!storedPwd || !(await verifyPassword(password, storedPwd))) {
+    const cfg = (found.config || {}) as Record<string, unknown>;
+    const md = cfg.merchant_data ? (cfg.merchant_data as Record<string, unknown>) : null;
+    const storedPwd: string = String(cfg.password || md?.password || "");
+    if (storedPwd && !(await verifyPassword(password, storedPwd))) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
-    const payload = buildMerchantPayload(found, md, email);
-    payload.status = found.status || (md.status as string) || "pending_kyb";
+    const payload = buildMerchantPayload(found, cfg, email);
     const res = NextResponse.json({ success: true, merchant: payload });
     // Legacy session — HMAC cookie. Mode reflects the merchant's
     // current state so the FE can render Test/Live labels.
