@@ -265,13 +265,17 @@ GRANT ALL    ON ALL TABLES IN SCHEMA public TO service_role;
 GRANT EXECUTE ON FUNCTION transfer_org_to_agent(TEXT, TEXT, BIGINT, TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION top_up_org_wallet(TEXT, BIGINT, TEXT)            TO service_role;
 
--- 14. Apply updated_at triggers (AFTER all tables exist)
+-- 14a. Apply updated_at triggers for tables created before step 11
 DO $$
 DECLARE t TEXT;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['agent_organizations','agents','agent_wallets','agent_policies','agent_transactions','agent_org_wallets']
+  FOREACH t IN ARRAY ARRAY['agent_organizations','agents','agent_wallets','agent_policies','agent_transactions']
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS trg_%s_touch ON %I; CREATE TRIGGER trg_%s_touch BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION touch_updated_at();', t, t, t, t);
   END LOOP;
 END;
 $$;
+
+-- 14b. Apply updated_at trigger for agent_org_wallets (created in step 11)
+DROP TRIGGER IF EXISTS trg_agent_org_wallets_touch ON agent_org_wallets;
+CREATE TRIGGER trg_agent_org_wallets_touch BEFORE UPDATE ON agent_org_wallets FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
