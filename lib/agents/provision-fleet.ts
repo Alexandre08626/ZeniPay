@@ -151,7 +151,6 @@ export async function provisionEmptyAgentOrg(params: {
   const db = getSupabaseAdmin();
   const orgId = `org_${crypto.randomUUID()}`;
   const { error: orgErr } = await db
-    .schema("agents")
     .from("agent_organizations")
     .insert({
       id:            orgId,
@@ -172,7 +171,7 @@ export async function provisionEmptyAgentOrg(params: {
     });
   if (mapErr) {
     console.error("[provision] org map insert failed:", mapErr.message);
-    await db.schema("agents").from("agent_organizations").delete().eq("id", orgId);
+    await db.from("agent_organizations").delete().eq("id", orgId);
     return null;
   }
   return orgId;
@@ -196,7 +195,7 @@ export async function seedFleet(orgId: string, fleet: AgentSeed[]): Promise<numb
     provider:        f.provider,
     provider_model:  f.provider_model,
   }));
-  const { data, error } = await db.schema("agents").from("agents").insert(rows).select("id");
+  const { data, error } = await db.from("agents").insert(rows).select("id");
   if (error) {
     console.error("[provision] fleet insert failed:", error.message);
     return 0;

@@ -77,7 +77,6 @@ async function provisionOrgForMerchant(merchant: MerchantRow): Promise<string | 
   const db = getSupabaseAdmin();
   const orgId = `org_${crypto.randomUUID()}`;
   const { error: orgErr } = await db
-    .schema("agents")
     .from("agent_organizations")
     .insert({
       id:            orgId,
@@ -99,7 +98,7 @@ async function provisionOrgForMerchant(merchant: MerchantRow): Promise<string | 
   if (mapErr) {
     console.error("[agents auth] org map insert failed:", mapErr.message);
     // Best-effort cleanup so we don't leave a dangling org.
-    await db.schema("agents").from("agent_organizations").delete().eq("id", orgId);
+    await db.from("agent_organizations").delete().eq("id", orgId);
     return null;
   }
   return orgId;

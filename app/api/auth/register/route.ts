@@ -279,7 +279,7 @@ export async function POST(req: NextRequest) {
   // immediate for the user's first agents-page visit.
   try {
     const orgId = `org_${crypto.randomUUID()}`;
-    const { error: orgErr } = await db.schema("agents").from("agent_organizations").insert({
+    const { error: orgErr } = await db.from("agent_organizations").insert({
       id:            orgId,
       name:          businessName,
       owner_user_id: authUserId,

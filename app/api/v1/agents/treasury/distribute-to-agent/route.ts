@@ -61,7 +61,6 @@ export async function POST(req: NextRequest) {
   const db = getSupabaseAdmin();
 
   const { data: agent } = await db
-    .schema("agents")
     .from("agents")
     .select("id, name, organization_id, status")
     .eq("id", toAgentId)
