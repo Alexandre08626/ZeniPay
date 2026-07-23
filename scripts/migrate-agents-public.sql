@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS agent_audit_log (
 CREATE INDEX IF NOT EXISTS idx_agent_audit_org   ON agent_audit_log(organization_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_audit_event ON agent_audit_log(event_type);
 
--- 9. Triggers
+-- 9. Audit trigger function (defined early, applied in step 14)
 CREATE OR REPLACE FUNCTION prevent_audit_mutation()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -145,18 +145,9 @@ CREATE TRIGGER trg_agent_audit_no_update
   BEFORE UPDATE OR DELETE OR TRUNCATE ON agent_audit_log
   FOR EACH STATEMENT EXECUTE FUNCTION prevent_audit_mutation();
 
+-- touch_updated_at function — triggers applied after all tables exist (step 14)
 CREATE OR REPLACE FUNCTION touch_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at := NOW(); RETURN NEW; END; $$;
-
-DO $$
-DECLARE t TEXT;
-BEGIN
-  FOREACH t IN ARRAY ARRAY['agent_organizations','agents','agent_wallets','agent_policies','agent_transactions','agent_org_wallets']
-  LOOP
-    EXECUTE format('DROP TRIGGER IF EXISTS trg_%s_touch ON %I; CREATE TRIGGER trg_%s_touch BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION touch_updated_at();', t, t, t, t);
-  END LOOP;
-END;
-$$;
 
 -- 10. RLS
 ALTER TABLE agent_organizations         ENABLE ROW LEVEL SECURITY;
@@ -273,3 +264,14 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL    ON ALL TABLES IN SCHEMA public TO service_role;
 GRANT EXECUTE ON FUNCTION transfer_org_to_agent(TEXT, TEXT, BIGINT, TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION top_up_org_wallet(TEXT, BIGINT, TEXT)            TO service_role;
+
+-- 14. Apply updated_at triggers (AFTER all tables exist)
+DO $$
+DECLARE t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['agent_organizations','agents','agent_wallets','agent_policies','agent_transactions','agent_org_wallets']
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS trg_%s_touch ON %I; CREATE TRIGGER trg_%s_touch BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION touch_updated_at();', t, t, t, t);
+  END LOOP;
+END;
+$$;
