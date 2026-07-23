@@ -76,38 +76,39 @@ async function ensureAuthUser(email: string): Promise<string> {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("missing supabase env");
 
-  // Try to find an existing user by email via the Admin API.
-  const searchRes = await fetch(`${url}/auth/v1/admin/users?email=${encodeURIComponent(email)}`, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-    cache: "no-store",
-  });
-  if (searchRes.ok) {
-    const body = await searchRes.json();
-    const users = Array.isArray(body?.users) ? body.users : [];
-    const match = users.find((u: { email?: string; id?: string }) => u.email === email);
-    if (match?.id) return match.id;
-  }
+  const headers = {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+  };
 
-  // Create one.
+  // 1. Try to create the user. If it succeeds, we're done.
   const createRes = await fetch(`${url}/auth/v1/admin/users`, {
     method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "content-type": "application/json",
-    },
+    headers: { ...headers, "content-type": "application/json" },
     body: JSON.stringify({ email, email_confirm: true }),
     cache: "no-store",
   });
-  if (!createRes.ok) {
-    const t = await createRes.text();
-    throw new Error(`auth admin createUser failed ${createRes.status}: ${t}`);
+  if (createRes.ok) {
+    const created = await createRes.json();
+    const id: string | undefined = created?.id || created?.user?.id;
+    if (id) return id;
   }
-  const created = await createRes.json();
-  const id: string | undefined = created?.id || created?.user?.id;
-  if (!id) throw new Error("createUser returned no id");
-  return id;
+
+  // 2. If create failed because the email already exists, find the existing user.
+  //    The search endpoint (`?email=...`) doesn't reliably find users, so we
+  //    list all users and filter client-side instead.
+  if (createRes.status === 422) {
+    const listRes = await fetch(`${url}/auth/v1/admin/users`, { headers, cache: "no-store" });
+    if (listRes.ok) {
+      const body = await listRes.json();
+      const users: Array<{ email?: string; id?: string }> = body?.users ?? [];
+      const match = users.find((u) => u.email === email);
+      if (match?.id) return match.id;
+    }
+    throw new Error(`User with email "${email}" exists but could not be resolved`);
+  }
+
+  // 3. Unexpected error from create.
+  const t = await createRes.text();
+  throw new Error(`auth admin createUser failed ${createRes.status}: ${t}`);
 }
