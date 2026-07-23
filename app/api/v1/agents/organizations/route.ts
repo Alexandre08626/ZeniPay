@@ -102,7 +102,7 @@ async function ensureAuthUser(email: string): Promise<string> {
     if (listRes.ok) {
       const body = await listRes.json();
       const users: Array<{ email?: string; id?: string }> = body?.users ?? [];
-      const match = users.find((u) => u.email === email);
+      const match = users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
       if (match?.id) return match.id;
     }
     throw new Error(`User with email "${email}" exists but could not be resolved`);
