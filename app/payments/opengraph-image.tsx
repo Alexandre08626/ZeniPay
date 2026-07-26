@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { readFile } from "fs/promises";
 import { join } from "path";
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const alt = "ZeniPay Payments";
 export const size = { width: 1200, height: 630 };

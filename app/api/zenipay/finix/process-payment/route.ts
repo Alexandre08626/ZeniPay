@@ -195,13 +195,18 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── 2. FIND MERCHANT ─────────────────────────────────────────────────
+    // CRITICAL: merchant_id is resolved ONLY from the pay_link record, NEVER
+    // from the client-provided body. This prevents a payment from being
+    // credited to the wrong merchant (CWE-602 / cross-tenant forgery).
     let merchantId: string | null = null;
     let linkUses = 0;
 
+    // Try the canonical pay_links table first
     const { data: link } = await supabase
-      .from("zenipay_pay_links").select("merchant_id, uses").eq("id", pay_link_id).single();
+      .from("zenipay_pay_links").select("merchant_id, uses").eq("id", pay_link_id).maybeSingle();
     if (link) { merchantId = link.merchant_id; linkUses = link.uses || 0; }
 
+    // Fallback to JSONB array scan (for pay links created before the table existed)
     if (!merchantId) {
       const { data: allMerchants } = await supabase.from("zenipay_merchants").select("id, merchant_data");
       for (const m of (allMerchants || [])) {
@@ -210,7 +215,8 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-    if (!merchantId && bodyMerchantId) merchantId = bodyMerchantId;
+    // NEVER fall back to bodyMerchantId — that would let the client choose
+    // which merchant gets credited (cross-tenant attack vector).
 
     // ─── 2b. FETCH MERCHANT DATA ──────────────────────────────────────────
     let merchantName = "", merchantEmail = "";
@@ -272,12 +278,12 @@ export async function POST(req: NextRequest) {
       if (invErr) console.error("[DB] Invoice creation failed");
     }
 
-    // ─── 5. UPDATE MERCHANT STATS ─────────────────────────────────────────
+    // ─── 5. UPDATE MERCHANT STATS (ATOMIC via RPC) ─────────────────────────
     if (merchantId && finixResult.state === "SUCCEEDED") {
       try {
         const { data: merchant } = await supabase
           .from("zenipay_merchants")
-          .select("merchant_data, volume, tx_count, balance")
+          .select("merchant_data")
           .eq("id", merchantId).single();
 
         const md = merchant?.merchant_data || {};
@@ -290,50 +296,50 @@ export async function POST(req: NextRequest) {
           transfer_id: finixResult.transferId, createdAt: now,
         };
 
+        // Atomic: balance += amount, volume += amount, tx_count += 1
+        await supabase.rpc("zenipay_merchant_add_stats", {
+          p_merchant_id: merchantId,
+          p_balance_delta: amountNum,
+          p_volume_delta: amountNum,
+          p_tx_count_delta: 1,
+        });
+
         await supabase.from("zenipay_merchants").update({
           merchant_data: { ...md, transactions: [txn, ...(md.transactions || []).slice(0, 99)] },
-          balance: (Number(merchant?.balance) || 0) + amountNum,
-          volume: (Number(merchant?.volume) || 0) + amountNum,
-          tx_count: (Number(merchant?.tx_count) || 0) + 1,
           updated_at: now,
         }).eq("id", merchantId);
 
-        // Also update the primary banking account balance (net = gross - fees)
+        // Also update the primary banking account balance (net = gross - fees) — atomic
         const fee = amountNum * 0.029 + 0.30;
         const netDeposit = amountNum - fee;
         const { data: primaryAcct } = await supabase
           .from("zenipay_accounts")
-          .select("id, balance")
+          .select("id")
           .eq("merchant_id", merchantId)
           .eq("is_primary", true)
           .single();
         if (primaryAcct) {
-          await supabase.from("zenipay_accounts").update({
-            balance: (Number(primaryAcct.balance) || 0) + netDeposit,
-            updated_at: now,
-          }).eq("id", primaryAcct.id);
+          await supabase.rpc("zenipay_account_add_balance", {
+            p_account_id: primaryAcct.id,
+            p_amount: netDeposit,
+          });
         }
 
-        // ─── 5b. Skim platform fee to ZeniPay corporate ─────────────────
-        // Pre-fix this fee was computed (above) but never landed anywhere
-        // — the merchant got the net deposit and the fee evaporated. Now
-        // we credit it to ZeniPay's primary corporate CAD account and
-        // post a `platform_fee_collected` ledger row so revenue is
-        // auditable.
+        // ─── 5b. Skim platform fee to ZeniPay corporate (atomic) ─────────
         if (fee > 0) {
           const ZP_CORP_MERCHANT = "acc_1774740862294";
           try {
             const { data: corpAcct } = await supabase
               .from("zenipay_accounts")
-              .select("id, balance")
+              .select("id")
               .eq("merchant_id", ZP_CORP_MERCHANT)
               .eq("is_primary", true)
               .single();
             if (corpAcct) {
-              await supabase.from("zenipay_accounts").update({
-                balance: (Number(corpAcct.balance) || 0) + fee,
-                updated_at: now,
-              }).eq("id", corpAcct.id);
+              await supabase.rpc("zenipay_account_add_balance", {
+                p_account_id: corpAcct.id,
+                p_amount: fee,
+              });
             }
             await supabase.from("zenipay_ledger").insert({
               id: `led_${Date.now()}_fee_${Math.random().toString(36).slice(2, 6)}`,

@@ -43,16 +43,17 @@ export interface AgentsAuth {
 interface MerchantRow {
   id: string;
   status: string | null;
-  auth_user_id: string | null;
-  business_name: string | null;
   email: string | null;
+  // config JSONB holds business_name etc. in the production schema
+  // (which does NOT have business_name / auth_user_id as top-level columns).
+  config?: Record<string, unknown> | null;
 }
 
 async function loadMerchant(merchantId: string): Promise<MerchantRow | null> {
   const db = getSupabaseAdmin();
   const { data, error } = await db
     .from("zenipay_merchants")
-    .select("id, status, auth_user_id, business_name, email")
+    .select("id, status, email, config")
     .eq("id", merchantId)
     .maybeSingle();
   if (error || !data) return null;
@@ -70,18 +71,18 @@ async function lookupOrgForMerchant(merchantId: string): Promise<string | null> 
 }
 
 // Lazy-provision an empty org for a business merchant that doesn't
-// have one yet. Returns the new org id, or null if we can't (e.g.
-// merchant has no auth_user_id — legacy data we can't safely link).
+// have one yet. Returns the new org id, or null if provisioning fails.
 async function provisionOrgForMerchant(merchant: MerchantRow): Promise<string | null> {
-  if (!merchant.auth_user_id) return null;
   const db = getSupabaseAdmin();
   const orgId = `org_${crypto.randomUUID()}`;
+  const cfg = (merchant.config || {}) as Record<string, unknown>;
+  const bizName = (typeof cfg.business_name === "string" ? cfg.business_name : null) || merchant.email || "Untitled";
   const { error: orgErr } = await db
     .from("agent_organizations")
     .insert({
       id:            orgId,
-      name:          merchant.business_name || merchant.email || "Untitled",
-      owner_user_id: merchant.auth_user_id,
+      name:          bizName,
+      owner_user_id: merchant.id,
       plan_tier:     "free",
       status:        "active",
     });
@@ -139,7 +140,7 @@ export async function authenticate(req: NextRequest): Promise<AgentsAuth | null>
   return {
     organizationId: orgId,
     via:            "session",
-    userId:         session.auth_user_id || merchant.auth_user_id || undefined,
+    userId:         session.auth_user_id || undefined,
   };
 }
 

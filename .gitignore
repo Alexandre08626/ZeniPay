@@ -13,3 +13,9 @@ out/
 
 # Supabase temp files
 supabase/.temp/
+
+# Temp scratch files (connect_*, check_*, find_*, run_*)
+check_*.js
+connect_*.js
+find_*.js
+run_*.js

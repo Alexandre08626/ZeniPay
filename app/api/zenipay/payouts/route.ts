@@ -4,7 +4,8 @@ export const dynamic = "force-dynamic";
  * ZeniPay Payouts API
  *
  * GET  — list payouts from DB
- * POST — execute a payout (validates balance, creates ledger entry, records in DB)
+ * POST — execute a payout (validates balance, creates ledger entry,
+ *        records in DB, and triggers Finix settlement in production)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,6 +13,7 @@ import { getWalletBalances, recordPayoutExecution, writeAuditLog, checkIdempoten
 import type { WalletType } from "../../../../modules/zenipay/database/schema";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
+import { createSettlement } from "@/lib/finix/settlement-client";
 
 // ── GET: list payouts for the session merchant ─────────────────────────────
 export async function GET(req: NextRequest) {
@@ -65,7 +67,6 @@ export async function POST(request: NextRequest) {
     if (cached) return Response.json({ ...cached, idempotent_replay: true });
 
     // ── Balance check — CRITICAL: cannot payout more than available ────────
-    // Use merchant balance as source of truth (stays in sync with payments + payouts)
     const supabaseCheck = getSupabaseAdmin();
     const r = resolveMerchantId(session, body.merchant_id ?? null);
     if (r instanceof NextResponse) return r;
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
       amount: parsedAmount,
       currency,
       method,
-      status: "processing",
+      status: "pending",
       reference,
       note,
       created_at: new Date().toISOString(),
@@ -121,11 +122,39 @@ export async function POST(request: NextRequest) {
       reference: reference || payoutId,
     });
 
-    // ── Mark payout as paid ───────────────────────────────────────────────
-    await supabase.from("zenipay_payouts").update({
-      status: "paid",
-      executed_at: new Date().toISOString(),
-    }).eq("id", payoutId);
+    // ── Try Finix settlement (production only) ─────────────────────────
+    // Pushes funds from the Finix merchant account to the linked bank.
+    // The webhook handler will update payout to "paid" when cleared.
+    let settlementId: string | null = null;
+    let settlementStatus: string | null = null;
+    const isProduction =
+      process.env.FINIX_ENV === "production" &&
+      !!process.env.FINIX_MERCHANT_ID &&
+      !!process.env.FINIX_MERCHANT_IDENTITY_ID;
+
+    if (isProduction) {
+      try {
+        const settleRes = await createSettlement({
+          currency: currency === "USD" ? "USD" : "CAD",
+          idempotencyKey: idemKey,
+        });
+        if (settleRes.status < 400 && settleRes.data?.id) {
+          settlementId = settleRes.data.id;
+          settlementStatus = settleRes.data.state || "PENDING";
+        }
+      } catch (settleErr) {
+        console.warn("[ZeniPay Payouts] Finix settlement failed — payout recorded:", settleErr);
+      }
+    }
+
+    // ── Update payout status ─────────────────────────────────────────
+    const finalStatus = settlementId ? "processing" : "paid";
+    const updateData: Record<string, string | null> = { status: finalStatus };
+    if (settlementId) updateData.finix_settlement_id = settlementId;
+    if (settlementStatus) updateData.finix_settlement_status = settlementStatus;
+    if (!settlementId) updateData.executed_at = new Date().toISOString();
+
+    await supabase.from("zenipay_payouts").update(updateData).eq("id", payoutId);
 
     // ── Decrement merchant balance to stay in sync ────────────────────
     const merchant_id = merchant_id_check;
@@ -146,7 +175,10 @@ export async function POST(request: NextRequest) {
       action: "payout_executed",
       entityType: "payout",
       entityId: payoutId,
-      changes: { amount: parsedAmount, currency, recipient: recipient_name, from_wallet },
+      changes: {
+        amount: parsedAmount, currency, recipient: recipient_name,
+        from_wallet, settlement_id: settlementId, status: finalStatus,
+      },
     });
 
     const result = {
@@ -156,8 +188,11 @@ export async function POST(request: NextRequest) {
       currency,
       recipient: recipient_name,
       method,
-      status: "paid",
-      message: `$${parsedAmount.toFixed(2)} sent to ${recipient_name}`,
+      status: finalStatus,
+      finix_settlement_id: settlementId || undefined,
+      message: settlementId
+        ? `$${parsedAmount.toFixed(2)} submitted — funds arrive in 2-3 business days`
+        : `$${parsedAmount.toFixed(2)} sent to ${recipient_name}`,
     };
 
     await saveIdempotency(idemKey, "payout", result as Record<string, unknown>);

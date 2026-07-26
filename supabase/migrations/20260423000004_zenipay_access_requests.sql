@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.zenipay_access_requests (
   agent_fleet_size TEXT,
   message       TEXT,
   source        TEXT NOT NULL DEFAULT 'landing'
-                    CHECK (source IN ('landing','pricing','security','contact','access')),
+                    CHECK (source IN ('landing','pricing','security','contact','access','dashboard','dashboard-zeniva-travel','dashboard-zeniva-agency','dashboard-zenipay','dashboard-zeniva-dev')),
   user_agent    TEXT,
   ip_hint       TEXT,
   status        TEXT NOT NULL DEFAULT 'new'

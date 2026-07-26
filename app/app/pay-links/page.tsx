@@ -43,7 +43,7 @@ export default function PayLinksPage() {
   const [links, setLinks] = useState<PayLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [justCreated, setJustCreated] = useState<{ url: string; id: string } | null>(null);
+  const [justCreated, setJustCreated] = useState<{ url: string; id: string; amount: number; currency: string; description: string } | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "archived">("all");
 
   const load = useCallback(async () => {
@@ -160,7 +160,22 @@ export default function PayLinksPage() {
       {createOpen && (
         <CreateLinkModal
           onClose={() => setCreateOpen(false)}
-          onCreated={async (created) => { setJustCreated(created); setCreateOpen(false); await load(); }}
+          onCreated={async (created) => { 
+            setJustCreated(created); 
+            setCreateOpen(false); 
+            // Add to local state immediately so it shows up even if GET fails
+            setLinks(prev => [{
+              id: created.id,
+              url: created.url,
+              amount: created.amount,
+              currency: created.currency,
+              description: created.description || '',
+              status: 'active',
+              uses: 0,
+              created_at: new Date().toISOString(),
+            } as PayLink, ...prev]);
+            await load(); 
+          }}
         />
       )}
       {justCreated && <LinkCreatedToast url={justCreated.url} onDismiss={() => setJustCreated(null)} />}
@@ -183,7 +198,7 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function CreateLinkModal({ onClose, onCreated }: { onClose: () => void; onCreated: (r: { id: string; url: string }) => void }) {
+function CreateLinkModal({ onClose, onCreated }: { onClose: () => void; onCreated: (r: { id: string; url: string; amount: number; currency: string; description: string }) => void }) {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [currency, setCurrency] = useState("CAD");
@@ -201,7 +216,7 @@ function CreateLinkModal({ onClose, onCreated }: { onClose: () => void; onCreate
         body: JSON.stringify({ amount: amt, currency, description, expiry: expiry || undefined, merchant_id: mid() }),
       });
       const data = await r.json();
-      if (data.url && data.id) onCreated({ id: data.id, url: data.url });
+      if (data.url && data.id) onCreated({ id: data.id, url: data.url, amount: amt, currency, description });
       else setErr(data.error || "Failed to create link.");
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setSaving(false); }

@@ -21,3 +21,13 @@ ALTER TABLE public.zenipay_merchants
   ADD COLUMN IF NOT EXISTS merchant_data JSONB DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS sandbox_key TEXT,
   ADD COLUMN IF NOT EXISTS live_key TEXT;
+
+-- RLS: all access goes through API routes using service_role client.
+-- The public /pay/[id] page and merchant dashboard both use the API.
+-- No client-side Supabase queries access this table directly.
+ALTER TABLE public.zenipay_pay_links ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "service_role_all" ON public.zenipay_pay_links
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+GRANT ALL ON public.zenipay_pay_links TO service_role;

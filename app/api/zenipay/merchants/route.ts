@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get("x-forwarded-for") || "unknown";
-    if (!rateLimit(`signup:${ip}`, 3, 300000)) {
+    if (!(await rateLimit(`signup:${ip}`, 3, 300000))) {
       return NextResponse.json({ error: "Too many signups. Try again later." }, { status: 429 });
     }
 

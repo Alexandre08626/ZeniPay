@@ -6,8 +6,8 @@ export const FINIX_CONFIG = {
   apiUsername: process.env.FINIX_API_USERNAME || "",
   apiPassword: process.env.FINIX_API_PASSWORD || "",
   applicationId: process.env.FINIX_APPLICATION_ID || "",
-  merchantId: process.env.FINIX_MERCHANT_ID || "MUcTenaz57m9JrwwRZwpSfDc",
-  identityId: process.env.FINIX_MERCHANT_IDENTITY_ID || "IDoCxHhKh8e1M1MjeW3RDoKD",
+  merchantId: process.env.FINIX_MERCHANT_ID || "",
+  identityId: process.env.FINIX_MERCHANT_IDENTITY_ID || "",
   environment: (process.env.FINIX_ENV || "sandbox") as "sandbox" | "production",
   apiVersion: "2022-02-01",
 };

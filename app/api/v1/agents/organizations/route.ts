@@ -11,6 +11,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentsDb } from "@/lib/agents/supabase-client";
 import { logEvent } from "@/lib/agents/audit-log";
+import { setZpSessionCookie } from "@/lib/auth/zp-session";
+import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,7 +35,9 @@ export async function POST(req: NextRequest) {
       .limit(1);
     if (Array.isArray(existing) && existing.length > 0) {
       const organizationId = existing[0].organization_id;
-      return NextResponse.json({ organization_id: organizationId, user_id: userId, created: false });
+      const res = NextResponse.json({ organization_id: organizationId, user_id: userId, created: false });
+      await attachMerchantSession(res, userId, email, organizationId);
+      return res;
     }
 
     // 3. Create org + owner membership atomically-ish (two inserts).
@@ -63,7 +67,9 @@ export async function POST(req: NextRequest) {
       payload: { email, name: orgName },
     });
 
-    return NextResponse.json({ organization_id: org.id, user_id: userId, created: true });
+    const res = NextResponse.json({ organization_id: org.id, user_id: userId, created: true });
+    await attachMerchantSession(res, userId, email, org.id);
+    return res;
   } catch (err) {
     console.error("[agents/organizations] fatal", err);
     return NextResponse.json({ error: "internal" }, { status: 500 });
@@ -98,7 +104,7 @@ async function ensureAuthUser(email: string): Promise<string> {
   //    The search endpoint (`?email=...`) doesn't reliably find users, so we
   //    list all users and filter client-side instead.
   if (createRes.status === 422) {
-    const listRes = await fetch(`${url}/auth/v1/admin/users`, { headers, cache: "no-store" });
+    const listRes = await fetch(`${url}/auth/v1/admin/users?page=1&per_page=1000`, { headers, cache: "no-store" });
     if (listRes.ok) {
       const body = await listRes.json();
       const users: Array<{ email?: string; id?: string }> = body?.users ?? [];
@@ -111,4 +117,68 @@ async function ensureAuthUser(email: string): Promise<string> {
   // 3. Unexpected error from create.
   const t = await createRes.text();
   throw new Error(`auth admin createUser failed ${createRes.status}: ${t}`);
+}
+
+/**
+ * If the user has an existing merchant record (by auth_user_id or email),
+ * set the legacy zp_session cookie and link the agent org to that merchant.
+ * This allows agents who also have a merchant account to seamlessly use
+ * merchant features (e.g. payment links) without a separate login.
+ */
+async function attachMerchantSession(
+  res: NextResponse,
+  userId: string,
+  email: string,
+  organizationId: string,
+): Promise<void> {
+  try {
+    const supabase = getSupabaseAdmin();
+
+    // Look for a merchant linked to this user (by auth_user_id first, then email).
+    let merchant: Record<string, unknown> | null = null;
+    const { data: byUserId } = await supabase
+      .from("zenipay_merchants")
+      .select("id, status")
+      .eq("auth_user_id", userId)
+      .limit(1);
+    if (Array.isArray(byUserId) && byUserId.length > 0) {
+      merchant = byUserId[0] as Record<string, unknown>;
+    } else {
+      const { data: byEmail } = await supabase
+        .from("zenipay_merchants")
+        .select("id, status")
+        .eq("email", email)
+        .limit(1);
+      if (Array.isArray(byEmail) && byEmail.length > 0) {
+        merchant = byEmail[0] as Record<string, unknown>;
+      }
+    }
+    if (!merchant) return; // No merchant record — nothing to do.
+
+    const merchantId = merchant.id as string;
+    const mode = merchant.status === "active" ? "live" : "test";
+
+    // Set the legacy HMAC session cookie so merchant API routes
+    // (e.g. /api/zenipay/create-link) see an authenticated session.
+    setZpSessionCookie(res, merchantId, mode);
+
+    // Ensure the org-to-merchant link exists so agents API routes
+    // that scope via zenipay_merchant_agent_org_map can resolve.
+    const { data: existingLink } = await supabase
+      .from("zenipay_merchant_agent_org_map")
+      .select("id")
+      .eq("merchant_id", merchantId)
+      .eq("organization_id", organizationId)
+      .limit(1);
+
+    if (!existingLink || existingLink.length === 0) {
+      await supabase
+        .from("zenipay_merchant_agent_org_map")
+        .insert({ merchant_id: merchantId, organization_id: organizationId });
+    }
+  } catch (err) {
+    // Non-fatal — the agents login already succeeded; the cookie is
+    // a convenience that shouldn't block entry.
+    console.warn("[agents/organizations] attachMerchantSession skipped", err);
+  }
 }

@@ -87,11 +87,65 @@ export async function POST(request: Request) {
           // Check if invoice already exists
           const { data: payment } = await supabase
             .from("zenipay_payments")
-            .select("id, customer_name, customer_email, description, amount, currency, merchant_id")
+            .select("id, customer_name, customer_email, description, amount, currency, merchant_id, payment_method")
             .eq("gateway_transfer_id", transferId)
             .single();
 
           if (payment) {
+            // ── LEDGER ENTRY (missing for EFT / webhook-completed payments) ──
+            const { data: existingLedger } = await supabase
+              .from("zenipay_ledger")
+              .select("id")
+              .eq("payment_id", payment.id)
+              .limit(1);
+            if (!existingLedger || existingLedger.length === 0) {
+              await supabase.from("zenipay_ledger").insert({
+                id: `led_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                payment_id: payment.id,
+                merchant_id: payment.merchant_id || null,
+                event_type: "customer_payment",
+                wallet_type: "platform",
+                direction: "credit",
+                amount: Number(payment.amount) || 0,
+                currency: payment.currency || "CAD",
+                reference: payment.id,
+                note: `Webhook-completed payment: ${payment.description || payment.id} (${payment.payment_method || "card"})`,
+                created_at: now,
+              });
+            }
+
+            // ── MERCHANT BALANCE UPDATE (atomic, missing for EFT) ────────────
+            if (payment.merchant_id && payment.amount > 0) {
+              const amt = Number(payment.amount);
+              const fee = amt * 0.029 + 0.30;
+              const netDeposit = amt - fee;
+
+              // Credit merchant balance & stats atomically
+              const { error: statsErr } = await supabase.rpc("zenipay_merchant_add_stats", {
+                p_merchant_id: payment.merchant_id,
+                p_balance_delta: amt,
+                p_volume_delta: amt,
+                p_tx_count_delta: 1,
+              });
+              if (statsErr) console.error("[webhook] merchant stats update failed:", statsErr.message);
+
+              // Credit merchant's primary account (net after fees)
+              const { data: primaryAcct } = await supabase
+                .from("zenipay_accounts")
+                .select("id")
+                .eq("merchant_id", payment.merchant_id)
+                .eq("is_primary", true)
+                .maybeSingle();
+              if (primaryAcct) {
+                const { error: acctErr } = await supabase.rpc("zenipay_account_add_balance", {
+                  p_account_id: primaryAcct.id,
+                  p_amount: netDeposit,
+                });
+                if (acctErr) console.error("[webhook] account balance update failed:", acctErr.message);
+              }
+            }
+
+            // ── INVOICE CREATION ────────────────────────────────────────────
             const { data: existingInv } = await supabase
               .from("zenipay_invoices")
               .select("id")

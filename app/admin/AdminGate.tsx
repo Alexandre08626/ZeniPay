@@ -12,6 +12,7 @@ import { ShieldOff } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
 
 const ALLOWLIST = new Set([
+  "dev@zeniva.ca",
   "zenipay@zeniva.ca",
   "info@zeniva.ca",
   "alexandreblais26@gmail.com",

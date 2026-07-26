@@ -19,7 +19,9 @@ export async function GET(req: NextRequest) {
     const merchantId = r;
     const supabase = getSupabaseAdmin();
 
-    // Try zenipay_pay_links table first, fall back to config.payLinks
+    let links: unknown[] = [];
+
+    // Try zenipay_pay_links table first
     const { data, error } = await supabase
       .from("zenipay_pay_links")
       .select("*")
@@ -27,21 +29,36 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (!error && data?.length) {
-      return NextResponse.json({ links: data });
+    if (error) {
+      // Table doesn't exist yet (42P01) — fall through to JSONB
+      if (error.code !== "42P01") {
+        console.warn("[pay-links] table error:", error.message);
+      }
+    } else if (data?.length) {
+      links = data;
+      return NextResponse.json({ links });
     }
 
-    // Fall back to config.payLinks array
+    // Fall back to merchant_data.payLinks array
     const { data: merchant } = await supabase
       .from("zenipay_merchants")
-      .select("config")
+      .select("merchant_data")
       .eq("id", merchantId)
       .single();
 
-    const cfg = (merchant?.config || {}) as Record<string, unknown>;
-    const links = (cfg.payLinks as unknown[]) || [];
-    return NextResponse.json({ links: links as Record<string, unknown>[] });
+    const md = (merchant?.merchant_data || {}) as Record<string, unknown>;
+    links = (md.payLinks as unknown[]) || [];
+
+    // If we found links in JSONB, return them sorted by created_at DESC
+    const sortedLinks = [...links].sort((a: any, b: any) => {
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return db - da;
+    });
+
+    return NextResponse.json({ links: sortedLinks });
   } catch (err) {
+    console.error("[pay-links GET] error:", err);
     return NextResponse.json({ links: [] });
   }
 }
@@ -76,12 +93,12 @@ export async function POST(req: NextRequest) {
       // Server-to-server call (no session). Resolve via api_key.
       const { data: merchants } = await supabase
         .from("zenipay_merchants")
-        .select("id, api_keys, config")
+        .select("id, api_keys, merchant_data")
         .limit(10);
       const merchantRow = merchants?.find((m: Record<string, unknown>) => {
         const keys = (m.api_keys as Record<string, unknown>) || {};
-        const cfg = (m.config as Record<string, unknown>) || {};
-        const cfgKeys = (cfg.apiKeys as string[]) || [];
+        const md = (m.merchant_data as Record<string, unknown>) || {};
+        const cfgKeys = (md.apiKeys as string[]) || [];
         return Object.values(keys).includes(api_key) || cfgKeys.includes(api_key);
       });
       if (merchantRow) {
@@ -97,39 +114,51 @@ export async function POST(req: NextRequest) {
       merchantId = sessionCheck.merchant_id;
     }
 
-    // ── Save pay link in merchant's config JSONB ─────────────────────────
-    // The zenipay_pay_links table may not exist yet; store the link in the
-    // merchant's `config.payLinks` array which is always available.
-    const newLink = {
+    // ── Save pay link in the zenipay_pay_links table (canonical store) ──
+    // Also save to merchant_data.payLinks JSONB for backward compatibility
+    // with existing routes that scan JSONB arrays.
+    const linkRow = {
       id, url,
       amount: parseFloat(String(amount)), currency,
       description: description || "",
+      merchant_id: merchantId,
       status: "active", uses: 0,
       expires_at: expiry || null,
       created_at: now,
+      updated_at: now,
     };
 
-    // Read existing config, append link
+    // Try table insert first (may fail if table doesn't exist yet)
+    const { error: tableError } = await supabase
+      .from("zenipay_pay_links")
+      .upsert(linkRow, { onConflict: "id" });
+
+    if (tableError) {
+      console.warn("[create-link] table insert error (table may not exist):", tableError.message);
+    }
+
+    // Always save to merchant_data.payLinks JSONB as fallback
     const { data: merchantRow } = await supabase
       .from("zenipay_merchants")
-      .select("config")
+      .select("merchant_data")
       .eq("id", merchantId)
       .single();
 
-    const existingConfig = (merchantRow?.config || {}) as Record<string, unknown>;
-    const existingLinks = (existingConfig.payLinks as unknown[]) || [];
-    const updatedConfig = {
-      ...existingConfig,
-      payLinks: [newLink, ...existingLinks],
+    const existingMd = (merchantRow?.merchant_data || {}) as Record<string, unknown>;
+    const existingLinks = (existingMd.payLinks as unknown[]) || [];
+    const newLinkMeta = { id, url, amount: linkRow.amount, currency, description: linkRow.description, status: linkRow.status, uses: linkRow.uses, expires_at: linkRow.expires_at, created_at: now };
+    const updatedMd = {
+      ...existingMd,
+      payLinks: [newLinkMeta, ...existingLinks],
     };
 
     const { error: updateError } = await supabase
       .from("zenipay_merchants")
-      .update({ config: updatedConfig, updated_at: now })
+      .update({ merchant_data: updatedMd, updated_at: now })
       .eq("id", merchantId);
 
     if (updateError) {
-      console.warn("[create-link] config save error:", updateError);
+      console.warn("[create-link] merchant_data save error:", updateError);
     }
 
     return NextResponse.json({

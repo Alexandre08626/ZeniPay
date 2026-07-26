@@ -102,7 +102,7 @@ function genRandomDigits(n: number): string {
 export async function POST(req: NextRequest) {
   // ── Rate limit ────────────────────────────────────────────────────
   const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  if (!rateLimit(`register:${ip}`, 5, 3_600_000)) {
+  if (!(await rateLimit(`register:${ip}`, 5, 3_600_000))) {
     return err("rate_limited", "Too many signup attempts. Please try again in an hour.", 429);
   }
 

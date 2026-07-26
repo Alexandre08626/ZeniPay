@@ -2,7 +2,10 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 
-const FINIX_BASE = "https://finix.sandbox-payments-api.com";
+const FINIX_BASE =
+  process.env.FINIX_ENV === "production"
+    ? "https://finix.live-payments-api.com"
+    : "https://finix.sandbox-payments-api.com";
 
 function finixAuth() {
   const user = process.env.FINIX_API_USERNAME || "";

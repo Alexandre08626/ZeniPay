@@ -59,18 +59,46 @@ async function tryReadSupabaseAuth(req: NextRequest): Promise<ZpSession | null> 
   if (!client) return null;
   const { data, error } = await client.auth.getUser(token);
   if (error || !data?.user) return null;
-  // Resolve merchant by auth_user_id.
-  const { data: merchant } = await getSupabaseAdmin()
-    .from("zenipay_merchants")
-    .select("id, status")
-    .eq("auth_user_id", data.user.id)
-    .maybeSingle();
-  if (!merchant) return null;
-  return {
-    merchant_id: merchant.id as string,
-    mode: merchant.status === "active" ? "live" : "test",
-    auth_user_id: data.user.id,
-  };
+
+  // Resolve merchant — try auth_user_id first, fall back to email
+  // (the auth_user_id column may not exist in all deployments).
+  const admin = getSupabaseAdmin();
+  const userEmail = data.user.email?.toLowerCase().trim();
+
+  // Attempt 1: lookup by auth_user_id
+  if (data.user.id) {
+    const { data: merchant } = await admin
+      .from("zenipay_merchants")
+      .select("id, status")
+      .eq("auth_user_id", data.user.id)
+      .maybeSingle();
+    if (merchant?.id) {
+      return {
+        merchant_id: merchant.id as string,
+        mode: merchant.status === "active" ? "live" : "test",
+        auth_user_id: data.user.id,
+      };
+    }
+  }
+
+  // Attempt 2: fallback to email lookup (for deployments where
+  // auth_user_id column hasn't been added yet)
+  if (userEmail) {
+    const { data: merchant } = await admin
+      .from("zenipay_merchants")
+      .select("id, status")
+      .eq("email", userEmail)
+      .maybeSingle();
+    if (merchant?.id) {
+      return {
+        merchant_id: merchant.id as string,
+        mode: merchant.status === "active" ? "live" : "test",
+        auth_user_id: data.user.id,
+      };
+    }
+  }
+
+  return null;
 }
 
 function parseBearer(header: string | null): string | null {

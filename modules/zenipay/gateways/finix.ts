@@ -73,6 +73,28 @@ function finixAuth() {
   return "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
 }
 
+/**
+ * Validate Finix configuration is present.
+ * Throws a descriptive error listing exactly which vars are missing.
+ * Call this at the start of any Finix payment operation.
+ */
+export function requireFinixConfig(): void {
+  const required = [
+    ["FINIX_MERCHANT_ID", process.env.FINIX_MERCHANT_ID],
+    ["FINIX_API_USERNAME", process.env.FINIX_API_USERNAME],
+    ["FINIX_API_PASSWORD", process.env.FINIX_API_PASSWORD],
+    ["FINIX_MERCHANT_IDENTITY_ID", process.env.FINIX_MERCHANT_IDENTITY_ID],
+    ["FINIX_ENV", process.env.FINIX_ENV],
+  ] as const;
+  const missing = required.filter(([, v]) => !v).map(([k]) => k);
+  if (missing.length > 0) {
+    throw new Error(
+      `Finix configuration incomplete. Missing env vars: ${missing.join(", ")}. ` +
+      `Set these in your .env.local or Vercel environment variables.`
+    );
+  }
+}
+
 async function finixRequest(method: string, path: string, body?: object) {
   const res = await fetch(`${FINIX_BASE}${path}`, {
     method,
@@ -159,8 +181,8 @@ export async function processFinixPaymentWithInstrument(params: {
   paymentId: string;
   fraudSessionId?: string;
 }) {
+  requireFinixConfig(); // throws descriptive error if any Finix env var is missing
   const merchantId = process.env.FINIX_MERCHANT_ID || "";
-  if (!merchantId) throw new Error("FINIX_MERCHANT_ID not configured");
 
   let sourceId = params.instrumentId;
   let brand = "";

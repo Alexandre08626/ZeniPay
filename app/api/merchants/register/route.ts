@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   try {
     // Rate limiting: 5 registrations per IP per hour
     const ip = req.headers.get("x-forwarded-for") || "unknown";
-    if (!rateLimit(`merchant_register:${ip}`, 5, 3600000)) {
+    if (!(await rateLimit(`merchant_register:${ip}`, 5, 3600000))) {
       return NextResponse.json(
         { error: "Too many registration attempts. Please try again later." },
         { status: 429 }

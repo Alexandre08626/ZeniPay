@@ -2,8 +2,16 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 
+const ADMIN_EMAILS = new Set(["zenipay@zeniva.ca", "info@zeniva.ca", "alexandreblais26@gmail.com"]);
+
 export async function POST(req: NextRequest) {
   try {
+    // Auth: require valid admin email in x-admin-email header
+    const adminEmail = (req.headers.get("x-admin-email") || "").trim().toLowerCase();
+    if (!adminEmail || !ADMIN_EMAILS.has(adminEmail)) {
+      return NextResponse.json({ error: "Unauthorized — admin access required" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { action, merchant_id, ...params } = body;
     if (!action || !merchant_id) return NextResponse.json({ error: "action and merchant_id required" }, { status: 400 });
@@ -52,14 +60,14 @@ export async function POST(req: NextRequest) {
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      // Debit merchant balance
-      const { data: merchant } = await supabase.from("zenipay_merchants").select("balance").eq("id", merchant_id).single();
-      if (merchant) {
-        await supabase.from("zenipay_merchants").update({
-          balance: Math.max(0, Number(merchant.balance) - Number(amount)),
-          updated_at: new Date().toISOString(),
-        }).eq("id", merchant_id);
-      }
+      // Debit merchant balance atomically
+      const { error: rpcError } = await supabase.rpc("zenipay_merchant_add_stats", {
+        p_merchant_id: merchant_id,
+        p_balance_delta: -Number(amount),
+        p_volume_delta: 0,
+        p_tx_count_delta: 0,
+      });
+      if (rpcError) console.error("[admin/actions] balance debit failed:", rpcError.message);
       return NextResponse.json({ success: true, payout_id: payoutId });
     }
 

@@ -128,7 +128,20 @@ export async function POST(req: NextRequest) {
       if (!balErr) await db.from("zenipay_accounts")
         .update({ balance, updated_at: now })
         .eq("id", fromAccountId);
-      if (!ledErr) await db.from("zenipay_ledger").delete().eq("id", ledgerId);
+      if (!ledErr) {
+        // Append-only: insert a compensating reversal instead of DELETE.
+        await db.from("zenipay_ledger").insert({
+          merchant_id: merchantId,
+          event_type: "reversal",
+          wallet_type: "platform",
+          direction: "credit",
+          amount: amountUnits,
+          currency,
+          reference: idempotencyKey,
+          note: `Reversal of ${ledgerId} due to step_a_merchant_debit_failed`,
+          created_at: new Date().toISOString(),
+        });
+      }
       return err("server_error", "step_a_merchant_debit_failed", 500, { bal: balErr?.message, ledger: ledErr?.message });
     }
     ledgerRowId = ledgerId;
@@ -138,7 +151,27 @@ export async function POST(req: NextRequest) {
     await db.from("zenipay_accounts")
       .update({ balance, updated_at: new Date().toISOString() })
       .eq("id", fromAccountId);
-    if (ledgerRowId) await db.from("zenipay_ledger").delete().eq("id", ledgerRowId);
+    if (ledgerRowId) {
+      // Append-only: fetch the original row and insert a compensating reversal.
+      const { data: originalRow } = await db
+        .from("zenipay_ledger")
+        .select("merchant_id, event_type, wallet_type, direction, amount, currency, reference")
+        .eq("id", ledgerRowId)
+        .maybeSingle();
+      if (originalRow) {
+        await db.from("zenipay_ledger").insert({
+          merchant_id: originalRow.merchant_id,
+          event_type: "reversal",
+          wallet_type: originalRow.wallet_type,
+          direction: originalRow.direction === "debit" ? "credit" : "debit",
+          amount: originalRow.amount,
+          currency: originalRow.currency,
+          reference: originalRow.reference ?? ledgerRowId,
+          note: `Reversal of ${ledgerRowId} due to treasury_fund_failed`,
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
   };
 
   // ─── STEP B: zc_fund_treasury ───────────────────────────────────────

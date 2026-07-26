@@ -41,8 +41,8 @@ interface MerchantPayload {
 }
 
 // Columns available in the current zenipay_merchants table schema.
-// The table may lack sandbox_key / live_key / merchant_data / auth_user_id
-// in some environments — we work with what we have.
+// The production schema uses a different set of columns (config JSONB
+// instead of merchant_data). We resolve any way we can.
 type MerchantRow = {
   id: string;
   email: string | null;
@@ -53,20 +53,24 @@ type MerchantRow = {
   config?: Record<string, unknown> | null;
 };
 
-function buildMerchantPayload(found: MerchantRow, _md: Record<string, unknown>, fallbackEmail: string): MerchantPayload {
-  const cfg = found.config || {};
+function getConfig(row: MerchantRow): Record<string, unknown> {
+  return (row.config || {}) as Record<string, unknown>;
+}
+
+function buildMerchantPayload(found: MerchantRow, cfg: Record<string, unknown>, fallbackEmail: string): MerchantPayload {
+  const md = cfg.merchant_data as Record<string, unknown> | undefined;
   return {
     id:           found.id,
     email:        found.email || fallbackEmail,
-    businessName: found.name || found.company || (cfg.businessName as string) || "",
-    ownerName:    (cfg.ownerName as string) || "",
-    plan:         (cfg.plan as string) || "Starter",
-    status:       found.status || (cfg.status as string) || "pending_kyb",
-    website:      found.website || (cfg.website as string) || "",
-    businessType: (cfg.businessType as string) || "",
-    country:      (cfg.country as string) || "",
-    sandboxKey:   (cfg.sandboxKey as string) || (cfg.sandbox_key as string) || "",
-    liveKey:      (cfg.liveKey as string) || (cfg.live_key as string) || "",
+    businessName: found.name || found.company || (md?.businessName as string) || (cfg.businessName as string) || "",
+    ownerName:    (md?.ownerName as string) || (cfg.ownerName as string) || "",
+    plan:         (md?.plan as string) || (cfg.plan as string) || "Starter",
+    status:       found.status || (md?.status as string) || (cfg.status as string) || "pending_kyb",
+    website:      found.website || (md?.website as string) || (cfg.website as string) || "",
+    businessType: (md?.businessType as string) || (cfg.businessType as string) || "",
+    country:      (md?.country as string) || (cfg.country as string) || "",
+    sandboxKey:   (md?.sandboxKey as string) || (md?.sandbox_key as string) || (cfg.sandboxKey as string) || "",
+    liveKey:      (md?.liveKey as string) || (md?.live_key as string) || (cfg.liveKey as string) || "",
   };
 }
 
@@ -74,25 +78,25 @@ export async function POST(req: NextRequest) {
   try {
     // ── Rate limit ──────────────────────────────────────────────────
     const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-    if (!rateLimit(`login:${ip}`, 10, 600_000)) {
+    if (!(await rateLimit(`login:${ip}`, 10, 600_000))) {
       return NextResponse.json({ error: "Too many login attempts. Try again in a few minutes." }, { status: 429 });
     }
 
     const body = await req.json();
     const rawEmail = (body.email || "").trim().toLowerCase();
-    // Alias map for known email-form mismatches between what users
-    // type and what's stored in zenipay_merchants. Add new entries
-    // as we discover them; do NOT silently rewrite the user's input
-    // for anything unrelated.
+    const password = body.password || "";
+    
+    if (!rawEmail || !password) {
+      return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
+    }
+    
+    // Alias map for known email-form mismatches
+    // between what the user types and what's stored in zenipay_merchants.
     const EMAIL_ALIASES: Record<string, string> = {
       "zenipay@zeniva.ca":     "info@zeniva.ca",
       "info@zenivatravel.com": "info@zeniva.ca",
     };
     const email = EMAIL_ALIASES[rawEmail] ?? rawEmail;
-    const password = body.password || "";
-    if (!email || !password) {
-      return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
-    }
 
     const supabaseAdmin = getSupabaseAdmin();
     const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -116,8 +120,8 @@ export async function POST(req: NextRequest) {
           .eq("email", email)
           .maybeSingle();
         if (merchant) {
-          const md = merchant.config || {};
-          const payload = buildMerchantPayload(merchant, md, email);
+          const cfg = getConfig(merchant);
+          const payload = buildMerchantPayload(merchant, cfg, email);
           const res = NextResponse.json({ success: true, merchant: payload });
           // Set Supabase auth cookies (preferred session path).
           setSupabaseSessionCookies(
@@ -135,8 +139,9 @@ export async function POST(req: NextRequest) {
       // Fall through to legacy on signInError or no merchant link.
     }
 
-    // ── Path 2: legacy hash stored in merchant_data.password ────────
-    // Only available when the table has the merchant_data column.
+    // ── Path 2: legacy hash stored in config.password ────────
+    // Works with both the simplified schema (config JSONB) and the
+    // old merchant_data schema.
     const { data: merchants } = await supabaseAdmin
       .from("zenipay_merchants")
       .select("id, email, status, name, company, website, config");
@@ -145,15 +150,17 @@ export async function POST(req: NextRequest) {
     }
     const found = merchants.find((m: MerchantRow) => {
       if ((m.email || "").toLowerCase() === email) return true;
-      const cfg = (m.config || {}) as Record<string, unknown>;
-      if ((typeof cfg.email === "string" ? cfg.email : "").toLowerCase() === email) return true;
+      const cfg = getConfig(m);
+      const md = cfg.merchant_data as Record<string, unknown> | undefined;
+      if ((typeof cfg.email === "string" ? cfg.email as string : "").toLowerCase() === email) return true;
+      if (md && (typeof md.email === "string" ? md.email as string : "").toLowerCase() === email) return true;
       return false;
     });
     if (!found) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
-    const cfg = (found.config || {}) as Record<string, unknown>;
-    const md = cfg.merchant_data ? (cfg.merchant_data as Record<string, unknown>) : null;
+    const cfg = getConfig(found);
+    const md = cfg.merchant_data as Record<string, unknown> | undefined;
     const storedPwd: string = String(cfg.password || md?.password || "");
     if (storedPwd && !(await verifyPassword(password, storedPwd))) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });

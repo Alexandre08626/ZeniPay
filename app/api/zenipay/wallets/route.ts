@@ -9,8 +9,18 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getWalletBalances } from "../../../../modules/zenipay/services/ledger";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    // Require admin or merchant auth
+    const adminEmail = (req.headers.get("x-admin-email") || "").trim().toLowerCase();
+    const merchantId = req.headers.get("x-merchant-id") || "";
+    if (!adminEmail && !merchantId) {
+      return NextResponse.json({ error: "Unauthorized — x-admin-email or x-merchant-id required" }, { status: 401 });
+    }
+    if (adminEmail && !["zenipay@zeniva.ca", "info@zeniva.ca", "alexandreblais26@gmail.com"].includes(adminEmail)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Attempt to get balances from ledger service (which reads from VIEW or computes from ledger)
     const wallets = await getWalletBalances();
 

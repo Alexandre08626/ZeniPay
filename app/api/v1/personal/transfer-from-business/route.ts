@@ -93,9 +93,20 @@ export async function POST(req: NextRequest) {
     .update({ balance: newDstBalance })
     .eq("id", toId);
   if (creditErr) {
-    // Rollback step 1.
+    // Rollback step 1: revert the balance and insert a compensating reversal.
     await db.from("zenipay_accounts").update({ balance: Number(src.balance ?? 0) }).eq("id", fromId);
-    await db.from("zenipay_ledger").delete().eq("id", ledgerId);
+    // Append-only: insert a reversal entry instead of DELETE.
+    await db.from("zenipay_ledger").insert({
+      merchant_id: merchantId,
+      event_type: "reversal",
+      wallet_type: "platform",
+      direction: "credit",
+      amount,
+      currency,
+      reference: ledgerId,
+      note: `Reversal of ${ledgerId} due to step_3_personal_credit_failed`,
+      created_at: new Date().toISOString(),
+    });
     return err("server_error", "step_3_personal_credit_failed", 500, creditErr.message);
   }
 

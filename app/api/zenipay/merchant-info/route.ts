@@ -21,85 +21,74 @@ import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase"
 import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 // Columns we read straight from the merchants table for the GET payload.
+// Production schema: id, name, email, company, website, status, config JSONB, …
+// The codebase migration lists business_name / owner_name / merchant_data etc,
+// but production was created manually with a different layout.
 const READ_COLUMNS = [
   "id",
-  "business_name", "legal_business_name", "email", "business_type", "ein_bn",
-  "phone", "website",
-  "address_line1", "address_line2", "city", "state_province", "postal_code", "country",
-  "monthly_volume",
-  "owner_name", "owner_dob", "owner_ssn_last4", "owner_sin_last3",
-  "status", "plan", "onboarding_state",
-  "merchant_data", "sandbox_key", "live_key",
-  "auth_user_id",
-  "created_at",
+  "name", "email", "company", "website",
+  "status", "config", "created_at",
 ].join(", ");
 
 interface MerchantRow {
   id: string;
-  business_name?: string | null;
-  legal_business_name?: string | null;
+  name?: string | null;
   email?: string | null;
-  business_type?: string | null;
-  ein_bn?: string | null;
-  phone?: string | null;
+  company?: string | null;
   website?: string | null;
-  address_line1?: string | null;
-  address_line2?: string | null;
-  city?: string | null;
-  state_province?: string | null;
-  postal_code?: string | null;
-  country?: string | null;
-  monthly_volume?: string | null;
-  owner_name?: string | null;
-  owner_dob?: string | null;
-  owner_ssn_last4?: string | null;
-  owner_sin_last3?: string | null;
   status?: string | null;
-  plan?: string | null;
-  onboarding_state?: string | null;
-  merchant_data?: Record<string, unknown> | null;
-  sandbox_key?: string | null;
-  live_key?: string | null;
-  auth_user_id?: string | null;
+  config?: Record<string, unknown> | null;
   created_at?: string | null;
 }
 
 function shape(row: MerchantRow) {
-  const md = (row.merchant_data || {}) as Record<string, unknown>;
-  const mdStr = (k: string): string => (typeof md[k] === "string" ? (md[k] as string) : "");
+  const cfg = (row.config || {}) as Record<string, unknown>;
+  const cfgStr = (k: string): string => (typeof cfg[k] === "string" ? (cfg[k] as string) : "");
   const accountKind =
-    (mdStr("account_kind") || mdStr("accountKind") || (row.status === "personal_only" ? "personal" : "business")) as
+    (cfgStr("account_kind") || cfgStr("accountKind") || (row.status === "personal_only" ? "personal" : "business")) as
       | "personal" | "business";
   return {
     id:                 row.id,
     accountKind,
-    email:              row.email || mdStr("email"),
-    businessName:       row.business_name || mdStr("businessName"),
-    legalBusinessName:  row.legal_business_name || mdStr("legalBusinessName"),
-    businessType:       row.business_type || mdStr("businessType"),
-    einBn:              row.ein_bn || mdStr("einBn") || mdStr("ein_bn"),
-    phone:              row.phone || mdStr("phone"),
-    website:            row.website || mdStr("website"),
-    addressLine1:       row.address_line1 || mdStr("addressLine1") || mdStr("address_line1"),
-    addressLine2:       row.address_line2 || mdStr("addressLine2") || mdStr("address_line2"),
-    city:               row.city || mdStr("city"),
-    stateProvince:      row.state_province || mdStr("stateProvince") || mdStr("state_province"),
-    postalCode:         row.postal_code || mdStr("postalCode") || mdStr("postal_code"),
-    country:            row.country || mdStr("country") || "CA",
-    industry:           mdStr("industry"),
-    monthlyVolume:      row.monthly_volume || mdStr("monthlyVolume") || mdStr("monthly_volume"),
-    ownerName:          row.owner_name || mdStr("ownerName"),
-    ownerFirstName:     mdStr("owner_first_name") || mdStr("ownerFirstName"),
-    ownerLastName:      mdStr("owner_last_name") || mdStr("ownerLastName"),
-    ownerDob:           row.owner_dob || mdStr("ownerDob"),
-    ownerSsnLast4:      row.owner_ssn_last4 || "",
-    ownerSinLast3:      row.owner_sin_last3 || "",
+    email:              row.email || "",
+    businessName:       row.name || cfgStr("business_name") || cfgStr("businessName"),
+    legalBusinessName:  row.company || cfgStr("legal_business_name") || cfgStr("legalBusinessName") || "",
+    businessType:       cfgStr("business_type") || cfgStr("businessType") || "",
+    einBn:              cfgStr("ein_bn") || cfgStr("einBn") || "",
+    phone:              cfgStr("phone") || "",
+    website:            row.website || "",
+    addressLine1:       cfgStr("address_line1") || cfgStr("addressLine1") || "",
+    addressLine2:       cfgStr("address_line2") || cfgStr("addressLine2") || "",
+    city:               cfgStr("city") || "",
+    stateProvince:      cfgStr("state_province") || cfgStr("stateProvince") || "",
+    postalCode:         cfgStr("postal_code") || cfgStr("postalCode") || "",
+    country:            cfgStr("country") || "CA",
+    industry:           cfgStr("industry") || "",
+    monthlyVolume:      cfgStr("monthly_volume") || cfgStr("monthlyVolume") || cfgStr("monthlyVolume") || "",
+    ownerName:          cfgStr("owner_name") || cfgStr("ownerName") || "",
+    ownerFirstName:     cfgStr("owner_first_name") || cfgStr("ownerFirstName") || "",
+    ownerLastName:      cfgStr("owner_last_name") || cfgStr("ownerLastName") || "",
+    ownerDob:           cfgStr("owner_dob") || cfgStr("ownerDob") || "",
+    ownerSsnLast4:      cfgStr("owner_ssn_last4") || "",
+    ownerSinLast3:      cfgStr("owner_sin_last3") || "",
     status:             row.status || "pending_kyb",
-    plan:               row.plan || "Starter",
-    onboardingState:    row.onboarding_state || "",
-    sandboxKey:         row.sandbox_key || "",
-    liveKey:            row.live_key || "",
+    plan:               (cfgStr("plan") || "Starter") as string,
+    onboardingState:    cfgStr("onboarding_state") || "",
+    sandboxKey:         cfgStr("sandbox_key") || "",
+    liveKey:            cfgStr("live_key") || "",
     createdAt:          row.created_at || null,
+  };
+}
+
+/** Strip-sensitive variant of shape() for unauthenticated email lookups. */
+function shapePublic(row: MerchantRow) {
+  const s = shape(row);
+  return {
+    ...s,
+    ownerSsnLast4: "",
+    ownerSinLast3: "",
+    sandboxKey:    "",
+    liveKey:       "",
   };
 }
 
@@ -109,7 +98,15 @@ export async function GET(req: NextRequest) {
     const id = req.nextUrl.searchParams.get("id");
     const supabase = getSupabaseAdmin();
 
+    // 1. Authenticated path — require a valid ZP session.
+    const session = await requireZpSession(req);
+    const authed = !(session instanceof NextResponse);
+
+    // 2. id= lookup — session-gated.
     if (id) {
+      if (!authed) return session; // 401
+      const r = resolveMerchantId(session, id);
+      if (r instanceof NextResponse) return r;
       const { data } = await supabase
         .from("zenipay_merchants")
         .select(READ_COLUMNS)
@@ -118,22 +115,22 @@ export async function GET(req: NextRequest) {
       if (data) return NextResponse.json({ merchant: shape(data as unknown as MerchantRow) });
     }
 
+    // 3. Email lookup — allowed without session for legacy bootstrap,
+    //    but sensitive fields are stripped.
     if (email) {
-      // Email lookups are used during the legacy bootstrap (no session
-      // available yet). We scan by both the top-level column and the
-      // legacy merchant_data.email fallback.
       const { data: merchants } = await supabase
         .from("zenipay_merchants")
         .select(READ_COLUMNS);
       const found = ((merchants || []) as unknown as MerchantRow[]).find((m) => {
-        const mdEmail = (m.merchant_data as Record<string, unknown> | null)?.email;
-        const mdEmailStr = typeof mdEmail === "string" ? mdEmail.toLowerCase() : "";
-        return (m.email?.toLowerCase() === email.toLowerCase()) || mdEmailStr === email.toLowerCase();
+        const cfg = (m.config || {}) as Record<string, unknown>;
+        const cfgEmail = typeof cfg.email === "string" ? cfg.email.toLowerCase() : "";
+        return (m.email?.toLowerCase() === email.toLowerCase()) || cfgEmail === email.toLowerCase();
       });
-      if (found) return NextResponse.json({ merchant: shape(found as unknown as MerchantRow) });
+      if (found) return NextResponse.json({ merchant: shapePublic(found as unknown as MerchantRow) });
     }
 
-    return NextResponse.json({ merchant: null });
+    // 4. No recognised parameter — 401.
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   } catch (err) {
     console.error("[Merchant Info GET]", err);
     return NextResponse.json({ merchant: null });
@@ -152,21 +149,11 @@ const EDITABLE_FIELDS = new Set([
 ]);
 
 // Map of camelCase field → top-level column. Keys not in this map are
-// stored in merchant_data only.
+// stored in config only.
 const TOP_LEVEL_MAP: Record<string, string> = {
-  businessName:       "business_name",
-  legalBusinessName:  "legal_business_name",
-  businessType:       "business_type",
-  einBn:              "ein_bn",
-  phone:              "phone",
+  businessName:       "name",
+  legalBusinessName:  "company",
   website:            "website",
-  addressLine1:       "address_line1",
-  addressLine2:       "address_line2",
-  city:               "city",
-  stateProvince:      "state_province",
-  postalCode:         "postal_code",
-  monthlyVolume:      "monthly_volume",
-  ownerName:          "owner_name",
 };
 
 export async function PATCH(req: NextRequest) {
@@ -197,23 +184,23 @@ export async function PATCH(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { data: existing, error: readErr } = await supabase
     .from("zenipay_merchants")
-    .select("merchant_data")
+    .select("config")
     .eq("id", merchant_id)
     .maybeSingle();
   if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
   if (!existing) return NextResponse.json({ error: "merchant_not_found" }, { status: 404 });
 
   const nowIso = new Date().toISOString();
-  // Merge edits into merchant_data so legacy readers (the Finix flow,
-  // older UI surfaces) keep finding the latest values where they expect.
+  // Merge edits into config JSONB — this is the canonical store for
+  // contact/owner/profile fields in the production schema.
   const md = {
-    ...(existing.merchant_data || {}),
+    ...((existing as Record<string, unknown>).config as Record<string, unknown> || {}),
     ...fields,
     updated_at: nowIso,
   };
 
   const update: Record<string, unknown> = {
-    merchant_data: md,
+    config: md,
     updated_at: nowIso,
   };
   for (const [k, col] of Object.entries(TOP_LEVEL_MAP)) {

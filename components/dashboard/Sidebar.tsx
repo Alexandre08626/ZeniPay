@@ -54,6 +54,7 @@ const MERCHANT_NAV: NavItem[] = [
 
   { href: "/app/invoices",     label: "Invoices",      Icon: FileText,        group: "tools" },
   { href: "/app/contacts",     label: "Contacts",      Icon: Users,           group: "tools" },
+  { href: "/app/payouts",      label: "Payouts",       Icon: SendHorizontal,  group: "tools" },
   { href: "/app/pay-links",    label: "Payment links", Icon: LinkIcon,        group: "tools" },
   { href: "/app/settings",     label: "Settings",      Icon: SettingsIcon,    group: "tools" },
 ];

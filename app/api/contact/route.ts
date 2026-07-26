@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const VALID_SOURCES = new Set(["landing", "pricing", "security", "contact", "access"]);
+const VALID_SOURCES = new Set(["landing", "pricing", "security", "contact", "access", "dashboard", "dashboard-zeniva-travel", "dashboard-zeniva-agency", "dashboard-zenipay", "dashboard-zeniva-dev"]);
 
 export async function POST(req: NextRequest) {
   try {

@@ -8,7 +8,7 @@ interface MerchantBrandRow {
   name?: string | null;
   website?: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  config?: any;
+  merchant_data?: any;
 }
 
 type LinkRow = { merchant_id: string | null; amount?: number | string; currency?: string; description?: string; status?: string };
@@ -39,16 +39,16 @@ export async function GET(req: NextRequest) {
       row = rows[0];
     }
 
-    // Third fallback: search merchant config.payLinks array (used when
+    // Third fallback: search merchant merchant_data.payLinks array (used when
     // the zenipay_pay_links table hasn't been created yet).
     if (!row) {
       const { data: allMerchants } = await getSupabaseAdmin()
         .from("zenipay_merchants")
-        .select("id, config");
+        .select("id, merchant_data");
       if (allMerchants) {
         for (const m of allMerchants) {
-          const cfg = (m.config || {}) as Record<string, unknown>;
-          const links = (cfg.payLinks as Array<Record<string, unknown>>) || [];
+          const md = (m.merchant_data || {}) as Record<string, unknown>;
+          const links = (md.payLinks as Array<Record<string, unknown>>) || [];
           const found = links.find((l: Record<string, unknown>) => l.id === id) as Record<string, unknown> | undefined;
           if (found) {
             row = {
@@ -81,30 +81,30 @@ export async function GET(req: NextRequest) {
     if (row.merchant_id) {
       try {
         const mrows = await pgrest(
-          `zenipay_merchants?id=eq.${encodeURIComponent(row.merchant_id)}&select=id,name,website,config&limit=1`,
+          `zenipay_merchants?id=eq.${encodeURIComponent(row.merchant_id)}&select=id,name,website,merchant_data&limit=1`,
         ) as MerchantBrandRow[];
         const m = mrows[0] as (MerchantBrandRow & { id: string }) | undefined;
         if (m) {
-          const cfg = m.config || {};
-          const name = String(m.name || cfg.businessName || "Merchant").trim();
-          const settingsBiz = cfg.settings_business || {};
-          const branding = cfg.branding || cfg.brand || {};
+          const md = m.merchant_data || {};
+          const name = String(m.name || md.businessName || "Merchant").trim();
+          const settingsBiz = md.settings_business || {};
+          const branding = md.branding || md.brand || {};
           // Optional logo locations we already see in the wild — no
           // upload UI exists yet, but if a merchant ever stuffs a URL
           // into one of these we'll surface it.
           const logoUrl =
             (typeof branding.logoUrl === "string" && branding.logoUrl) ||
             (typeof branding.logo === "string" && branding.logo) ||
-            (typeof cfg.logoUrl === "string" && cfg.logoUrl) ||
-            (typeof cfg.logo === "string" && cfg.logo) ||
+            (typeof md.logoUrl === "string" && md.logoUrl) ||
+            (typeof md.logo === "string" && md.logo) ||
             (typeof settingsBiz.logoUrl === "string" && settingsBiz.logoUrl) ||
             (typeof settingsBiz.logo === "string" && settingsBiz.logo) ||
             null;
           merchant = {
             id: m.id,
             name,
-            type: cfg.businessType || null,
-            website: m.website || cfg.website || null,
+            type: md.businessType || null,
+            website: m.website || md.website || null,
             logoUrl,
           };
         }
