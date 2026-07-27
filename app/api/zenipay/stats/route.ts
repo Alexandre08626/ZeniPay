@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (err) {
-    console.error("[ZeniPay Stats]", err);
-    return NextResponse.json({ error: "Stats unavailable" }, { status: 500 });
+    console.error("[ZeniPay Stats] Fatal:", err);
+    return NextResponse.json({ error: "Stats unavailable", detail: String(err) }, { status: 500 });
   }
 }
