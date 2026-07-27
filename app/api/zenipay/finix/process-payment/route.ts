@@ -325,31 +325,18 @@ export async function POST(req: NextRequest) {
           updated_at: now,
         }).eq("id", merchantId);
 
-        // ─── 5b. Update primary account balance in zenipay_accounts ─────
-        // Fallback if RPC not available: store inside account_data JSONB
-        const netDeposit = amountNum - fee;
-        const { data: primaryAcct } = await supabase
-          .from("zenipay_accounts")
-          .select("id, account_data")
-          .eq("merchant_id", merchantId)
-          .eq("is_primary", true)
-          .maybeSingle();
-        if (primaryAcct) {
-          const acctData = (primaryAcct.account_data || {}) as Record<string, unknown>;
-          const acctBalance = Number(acctData.balance || 0);
-          try {
-            await supabase.rpc("zenipay_account_add_balance", {
-              p_account_id: primaryAcct.id,
-              p_amount: netDeposit,
-            });
-          } catch { /* RPC not available — JSONB fallback below */ }
-          await supabase.from("zenipay_accounts")
-            .update({
-              account_data: { ...acctData, balance: acctBalance + netDeposit },
-              updated_at: now,
-            })
-            .eq("id", primaryAcct.id);
-        }
+        // ─── 5b. Update primary account balance (best-effort) ────────────
+        // RPC may not exist in production — that's OK; balance is already
+        // recorded in merchant_data JSONB above.
+        try {
+          const { data: pa } = await supabase
+            .from("zenipay_accounts")
+            .select("id")
+            .eq("merchant_id", merchantId)
+            .eq("is_primary", true)
+            .maybeSingle();
+          if (pa) await supabase.rpc("zenipay_account_add_balance", { p_account_id: pa.id, p_amount: amountNum - fee });
+        } catch { /* best-effort */ }
 
         // ─── 5c. Skim platform fee to ZeniPay corporate ──────────────────
         if (fee > 0) {
@@ -357,25 +344,17 @@ export async function POST(req: NextRequest) {
           try {
             const { data: corpAcct } = await supabase
               .from("zenipay_accounts")
-              .select("id, account_data")
+              .select("id")
               .eq("merchant_id", ZP_CORP_MERCHANT)
               .eq("is_primary", true)
               .maybeSingle();
             if (corpAcct) {
-              const corpData = (corpAcct.account_data || {}) as Record<string, unknown>;
-              const corpBalance = Number(corpData.balance || 0);
               try {
                 await supabase.rpc("zenipay_account_add_balance", {
                   p_account_id: corpAcct.id,
                   p_amount: fee,
                 });
-              } catch { /* RPC not available */ }
-              await supabase.from("zenipay_accounts")
-                .update({
-                  account_data: { ...corpData, balance: corpBalance + fee },
-                  updated_at: now,
-                })
-                .eq("id", corpAcct.id);
+              } catch { /* RPC not available — fee batch processing will handle */ }
             }
             await supabase.from("zenipay_ledger").insert({
               id: `led_${Date.now()}_fee_${Math.random().toString(36).slice(2, 6)}`,
