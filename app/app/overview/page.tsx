@@ -151,8 +151,11 @@ export default function OverviewPage() {
   useAutoRefresh(load);
 
   const totalBalance = useMemo(
-    () => accounts.reduce((s, a) => s + Number(a.balance || 0), 0),
-    [accounts],
+    () => Math.max(
+      accounts.reduce((s, a) => s + Number(a.balance || 0), 0),
+      merchantRevenue,
+    ),
+    [accounts, merchantRevenue],
   );
   const primaryCurrency = accounts[0]?.currency || "CAD";
   const openInvoices = useMemo(() => invoices.filter((i) => i.status !== "paid"), [invoices]);
