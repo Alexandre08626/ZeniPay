@@ -278,7 +278,9 @@ export async function POST(req: NextRequest) {
       if (invErr) console.error("[DB] Invoice creation failed");
     }
 
-    // ─── 5. UPDATE MERCHANT STATS ─────────────────────────────────────────
+    // ─── 5. UPDATE MERCHANT DATA (JSONB) ────────────────────────────────
+    // Production schema does NOT have balance/volume/tx_count as top-level
+    // columns. Everything lives inside merchant_data JSONB.
     if (merchantId && finixResult.state === "SUCCEEDED") {
       try {
         const { data: merchant } = await supabase
@@ -286,18 +288,23 @@ export async function POST(req: NextRequest) {
           .select("merchant_data")
           .eq("id", merchantId).single();
 
-        const md = merchant?.merchant_data || {};
-        const txn = {
+        const md = (merchant?.merchant_data || {}) as Record<string, unknown>;
+        const existingBalance  = Number(md.balance || 0);
+        const existingVolume   = Number(md.volume || 0);
+        const existingTxCount  = Number(md.tx_count || 0);
+        const existingTxs      = (md.transactions || []) as unknown[];
+        const fee = amountNum * 0.029 + 0.30;
+
+        const txn: Record<string, unknown> = {
           id: paymentId, pay_link_id, amount: amountNum, currency: finixCurrency,
           display_amount: displayAmount, display_currency: displayCurrency, fx_rate: fxRateUsed,
           description: finalDescription, customer_name: customer_name || "",
           card_last4: finixResult.last4, card_brand: finixResult.brand,
-          status: "succeeded", gateway: "finix",
+          status: "succeeded", gateway: "finix", fee,
           transfer_id: finixResult.transferId, createdAt: now,
         };
 
-        // Attempt atomic RPC (requires migration 20260724000002); fall back to
-        // read-then-write if the function hasn't been created on this DB yet.
+        // Try atomic RPC (fails gracefully if migration 20260724000002 not applied)
         try {
           await supabase.rpc("zenipay_merchant_add_stats", {
             p_merchant_id: merchantId,
@@ -305,81 +312,70 @@ export async function POST(req: NextRequest) {
             p_volume_delta: amountNum,
             p_tx_count_delta: 1,
           });
-        } catch {
-          // Fallback: incremental update without RPC
-          const { data: curr } = await supabase
-            .from("zenipay_merchants")
-            .select("balance, volume, tx_count")
-            .eq("id", merchantId)
-            .single();
-          await supabase.from("zenipay_merchants")
-            .update({
-              balance:  (curr?.balance  || 0) + amountNum,
-              volume:   (curr?.volume   || 0) + amountNum,
-              tx_count: (curr?.tx_count || 0) + 1,
-              updated_at: now,
-            })
-            .eq("id", merchantId);
-        }
+        } catch { /* RPC not available — JSONB update below handles it */ }
 
         await supabase.from("zenipay_merchants").update({
-          merchant_data: { ...md, transactions: [txn, ...(md.transactions || []).slice(0, 99)] },
+          merchant_data: {
+            ...md,
+            balance:      existingBalance  + amountNum,
+            volume:       existingVolume   + amountNum,
+            tx_count:     existingTxCount  + 1,
+            transactions: [txn, ...existingTxs.slice(0, 99)],
+          },
           updated_at: now,
         }).eq("id", merchantId);
 
-        // Also update the primary banking account balance (net = gross - fees)
-        const fee = amountNum * 0.029 + 0.30;
+        // ─── 5b. Update primary account balance in zenipay_accounts ─────
+        // Fallback if RPC not available: store inside account_data JSONB
         const netDeposit = amountNum - fee;
         const { data: primaryAcct } = await supabase
           .from("zenipay_accounts")
-          .select("id")
+          .select("id, account_data")
           .eq("merchant_id", merchantId)
           .eq("is_primary", true)
-          .single();
+          .maybeSingle();
         if (primaryAcct) {
+          const acctData = (primaryAcct.account_data || {}) as Record<string, unknown>;
+          const acctBalance = Number(acctData.balance || 0);
           try {
             await supabase.rpc("zenipay_account_add_balance", {
               p_account_id: primaryAcct.id,
               p_amount: netDeposit,
             });
-          } catch {
-            const { data: acctCurr } = await supabase
-              .from("zenipay_accounts")
-              .select("balance")
-              .eq("id", primaryAcct.id)
-              .single();
-            await supabase.from("zenipay_accounts")
-              .update({ balance: (acctCurr?.balance || 0) + netDeposit, updated_at: now })
-              .eq("id", primaryAcct.id);
-          }
+          } catch { /* RPC not available — JSONB fallback below */ }
+          await supabase.from("zenipay_accounts")
+            .update({
+              account_data: { ...acctData, balance: acctBalance + netDeposit },
+              updated_at: now,
+            })
+            .eq("id", primaryAcct.id);
         }
 
-        // ─── 5b. Skim platform fee to ZeniPay corporate ──────────────────
+        // ─── 5c. Skim platform fee to ZeniPay corporate ──────────────────
         if (fee > 0) {
           const ZP_CORP_MERCHANT = "acc_1774740862294";
           try {
             const { data: corpAcct } = await supabase
               .from("zenipay_accounts")
-              .select("id")
+              .select("id, account_data")
               .eq("merchant_id", ZP_CORP_MERCHANT)
               .eq("is_primary", true)
-              .single();
+              .maybeSingle();
             if (corpAcct) {
+              const corpData = (corpAcct.account_data || {}) as Record<string, unknown>;
+              const corpBalance = Number(corpData.balance || 0);
               try {
                 await supabase.rpc("zenipay_account_add_balance", {
                   p_account_id: corpAcct.id,
                   p_amount: fee,
                 });
-              } catch {
-                const { data: corpCurr } = await supabase
-                  .from("zenipay_accounts")
-                  .select("balance")
-                  .eq("id", corpAcct.id)
-                  .single();
-                await supabase.from("zenipay_accounts")
-                  .update({ balance: (corpCurr?.balance || 0) + fee, updated_at: now })
-                  .eq("id", corpAcct.id);
-              }
+              } catch { /* RPC not available */ }
+              await supabase.from("zenipay_accounts")
+                .update({
+                  account_data: { ...corpData, balance: corpBalance + fee },
+                  updated_at: now,
+                })
+                .eq("id", corpAcct.id);
             }
             await supabase.from("zenipay_ledger").insert({
               id: `led_${Date.now()}_fee_${Math.random().toString(36).slice(2, 6)}`,
@@ -399,7 +395,7 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (e) {
-        console.error("[DB] Merchant update failed");
+        console.error("[DB] Merchant update failed", e instanceof Error ? e.message : String(e));
       }
     }
 

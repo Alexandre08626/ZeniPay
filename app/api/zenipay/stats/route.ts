@@ -14,17 +14,19 @@ export async function GET(req: NextRequest) {
     const merchant_id: string = r;
     const wallets = await getWalletBalances(merchant_id);
 
-    // ─── 1. Read merchant balance + keys directly (no cache) ─────────────
+    // ─── 1. Read merchant data from JSONB (production schema may not have
+    //     balance/tx_count as top-level columns) ───────────────────────────
     let merchantBalance = 0;
     let merchantTxCount = 0;
     let sandboxKey = "";
     let sandboxSecret = "";
     let liveKey = "";
     if (merchant_id) {
-      const mData = await pgrest(`zenipay_merchants?id=eq.${encodeURIComponent(merchant_id)}&select=balance,tx_count,sandbox_key,sandbox_secret,live_key`) as { balance: number; tx_count: number; sandbox_key?: string; sandbox_secret?: string; live_key?: string }[];
+      const mData = await pgrest(`zenipay_merchants?id=eq.${encodeURIComponent(merchant_id)}&select=merchant_data,sandbox_key,sandbox_secret,live_key`) as { merchant_data?: Record<string, unknown>; sandbox_key?: string; sandbox_secret?: string; live_key?: string }[];
       if (mData[0]) {
-        merchantBalance = Number(mData[0].balance) || 0;
-        merchantTxCount = Number(mData[0].tx_count) || 0;
+        const md = mData[0].merchant_data || {};
+        merchantBalance = Number(md.balance) || 0;
+        merchantTxCount = Number(md.tx_count) || 0;
         sandboxKey = mData[0].sandbox_key || "";
         sandboxSecret = mData[0].sandbox_secret || "";
         liveKey = mData[0].live_key || "";
