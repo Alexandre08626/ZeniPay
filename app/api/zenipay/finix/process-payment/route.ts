@@ -278,7 +278,7 @@ export async function POST(req: NextRequest) {
       if (invErr) console.error("[DB] Invoice creation failed");
     }
 
-    // ─── 5. UPDATE MERCHANT STATS (ATOMIC via RPC) ─────────────────────────
+    // ─── 5. UPDATE MERCHANT STATS ─────────────────────────────────────────
     if (merchantId && finixResult.state === "SUCCEEDED") {
       try {
         const { data: merchant } = await supabase
@@ -296,20 +296,38 @@ export async function POST(req: NextRequest) {
           transfer_id: finixResult.transferId, createdAt: now,
         };
 
-        // Atomic: balance += amount, volume += amount, tx_count += 1
-        await supabase.rpc("zenipay_merchant_add_stats", {
-          p_merchant_id: merchantId,
-          p_balance_delta: amountNum,
-          p_volume_delta: amountNum,
-          p_tx_count_delta: 1,
-        });
+        // Attempt atomic RPC (requires migration 20260724000002); fall back to
+        // read-then-write if the function hasn't been created on this DB yet.
+        try {
+          await supabase.rpc("zenipay_merchant_add_stats", {
+            p_merchant_id: merchantId,
+            p_balance_delta: amountNum,
+            p_volume_delta: amountNum,
+            p_tx_count_delta: 1,
+          });
+        } catch {
+          // Fallback: incremental update without RPC
+          const { data: curr } = await supabase
+            .from("zenipay_merchants")
+            .select("balance, volume, tx_count")
+            .eq("id", merchantId)
+            .single();
+          await supabase.from("zenipay_merchants")
+            .update({
+              balance:  (curr?.balance  || 0) + amountNum,
+              volume:   (curr?.volume   || 0) + amountNum,
+              tx_count: (curr?.tx_count || 0) + 1,
+              updated_at: now,
+            })
+            .eq("id", merchantId);
+        }
 
         await supabase.from("zenipay_merchants").update({
           merchant_data: { ...md, transactions: [txn, ...(md.transactions || []).slice(0, 99)] },
           updated_at: now,
         }).eq("id", merchantId);
 
-        // Also update the primary banking account balance (net = gross - fees) — atomic
+        // Also update the primary banking account balance (net = gross - fees)
         const fee = amountNum * 0.029 + 0.30;
         const netDeposit = amountNum - fee;
         const { data: primaryAcct } = await supabase
@@ -319,13 +337,24 @@ export async function POST(req: NextRequest) {
           .eq("is_primary", true)
           .single();
         if (primaryAcct) {
-          await supabase.rpc("zenipay_account_add_balance", {
-            p_account_id: primaryAcct.id,
-            p_amount: netDeposit,
-          });
+          try {
+            await supabase.rpc("zenipay_account_add_balance", {
+              p_account_id: primaryAcct.id,
+              p_amount: netDeposit,
+            });
+          } catch {
+            const { data: acctCurr } = await supabase
+              .from("zenipay_accounts")
+              .select("balance")
+              .eq("id", primaryAcct.id)
+              .single();
+            await supabase.from("zenipay_accounts")
+              .update({ balance: (acctCurr?.balance || 0) + netDeposit, updated_at: now })
+              .eq("id", primaryAcct.id);
+          }
         }
 
-        // ─── 5b. Skim platform fee to ZeniPay corporate (atomic) ─────────
+        // ─── 5b. Skim platform fee to ZeniPay corporate ──────────────────
         if (fee > 0) {
           const ZP_CORP_MERCHANT = "acc_1774740862294";
           try {
@@ -336,10 +365,21 @@ export async function POST(req: NextRequest) {
               .eq("is_primary", true)
               .single();
             if (corpAcct) {
-              await supabase.rpc("zenipay_account_add_balance", {
-                p_account_id: corpAcct.id,
-                p_amount: fee,
-              });
+              try {
+                await supabase.rpc("zenipay_account_add_balance", {
+                  p_account_id: corpAcct.id,
+                  p_amount: fee,
+                });
+              } catch {
+                const { data: corpCurr } = await supabase
+                  .from("zenipay_accounts")
+                  .select("balance")
+                  .eq("id", corpAcct.id)
+                  .single();
+                await supabase.from("zenipay_accounts")
+                  .update({ balance: (corpCurr?.balance || 0) + fee, updated_at: now })
+                  .eq("id", corpAcct.id);
+              }
             }
             await supabase.from("zenipay_ledger").insert({
               id: `led_${Date.now()}_fee_${Math.random().toString(36).slice(2, 6)}`,

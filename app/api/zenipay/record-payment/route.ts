@@ -70,18 +70,19 @@ export async function POST(req: NextRequest) {
       };
 
       // ── 3. Create invoice in zenipay_invoices table (merchant-branded) ──
-      // Lookup merchant info for invoice branding
+      // Lookup merchant info for invoice branding (config JSONB has business_name)
       let mName = "";
       let mEmail = "";
       let mLogo = "";
       if (merchantId) {
         const { data: mInfo } = await supabase
           .from("zenipay_merchants")
-          .select("business_name, email")
+          .select("config, email")
           .eq("id", merchantId)
-          .single();
+          .maybeSingle();
         if (mInfo) {
-          mName = mInfo.business_name || "";
+          const cfg = (mInfo.config || {}) as Record<string, unknown>;
+          mName = (typeof cfg.business_name === "string" ? cfg.business_name : null) || "";
           mEmail = mInfo.email || "";
         }
       }
