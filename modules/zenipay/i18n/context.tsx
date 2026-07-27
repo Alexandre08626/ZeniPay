@@ -27,7 +27,9 @@ interface LangCtx {
   t: (key: string) => string;
 }
 
-const Ctx = createContext<LangCtx>({ lang: "en", setLang: () => {}, t: (k) => k });
+// Default context resolves to English — children before mount (SSR / hydration)
+// still get real translations instead of raw keys.
+const Ctx = createContext<LangCtx>({ lang: "en", setLang: () => {}, t: (k) => get(dicts.en, k) });
 
 export function LangProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
@@ -48,8 +50,12 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
     return get(dicts[lang], key);
   }, [lang]);
 
-  // Avoid hydration mismatch: render children only after mount
-  if (!mounted) return <>{children}</>;
+  // Before mount (SSR / first client render), provide the English context
+  // so t() resolves properly instead of returning raw keys. After mount,
+  // the real lang from localStorage kicks in.
+  if (!mounted) {
+    return <Ctx.Provider value={{ lang: "en", setLang, t }}>{children}</Ctx.Provider>;
+  }
 
   return <Ctx.Provider value={{ lang, setLang, t }}>{children}</Ctx.Provider>;
 }

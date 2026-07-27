@@ -29,6 +29,15 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "600"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d1633" },
+  ],
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://zenipay.ca"),
   title: {
