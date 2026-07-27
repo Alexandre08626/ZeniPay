@@ -108,6 +108,7 @@ export default function OverviewPage() {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
+  const [merchantRevenue, setMerchantRevenue] = useState(0);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -138,6 +139,7 @@ export default function OverviewPage() {
       setPayments(stats.recent_transactions ?? []);
       setPayouts(stats.recent_payouts ?? []);
       setInvoices(stats.recent_invoices ?? []);
+      setMerchantRevenue(Number(stats.merchant_balance ?? stats.stats?.total_revenue ?? 0));
       setActivityFeed((activity.activity ?? []) as ActivityRow[]);
     } finally {
       setLoading(false);
