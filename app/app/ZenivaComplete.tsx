@@ -2481,6 +2481,86 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     );
   }
 
+  // ── Reusable Devis (Quote) Form ─────────────────────────────────────────────
+  const quoteDevisForm = (
+    <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+      <h4 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 15, color: "#0f172a" }}>📋 Create Devis</h4>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Customer Name *</label><input value={quoteForm.customer_name} onChange={e => setQuoteForm(p => ({...p, customer_name: e.target.value}))} placeholder="John Doe" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+        <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Customer Email</label><input value={quoteForm.customer_email} onChange={e => setQuoteForm(p => ({...p, customer_email: e.target.value}))} placeholder="john@email.com" type="email" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+        <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Description</label><input value={quoteForm.description} onChange={e => setQuoteForm(p => ({...p, description: e.target.value}))} placeholder="Service or product" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+        <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Amount (USD) *</label><input value={quoteForm.amount} onChange={e => setQuoteForm(p => ({...p, amount: e.target.value}))} placeholder="0.00" type="number" step="0.01" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+        <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Tax</label><input value={quoteForm.tax} onChange={e => setQuoteForm(p => ({...p, tax: e.target.value}))} placeholder="0.00" type="number" step="0.01" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+        <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Validity (days)</label><input value={quoteForm.validity_days} onChange={e => setQuoteForm(p => ({...p, validity_days: e.target.value}))} placeholder="30" type="number" min="1" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+      </div>
+      <div style={{ marginTop: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Notes</label><textarea value={quoteForm.notes} onChange={e => setQuoteForm(p => ({...p, notes: e.target.value}))} placeholder="Quote terms..." rows={2} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const, resize: "vertical" as const }} /></div>
+      <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 13, color: "#64748b" }}>Total: <strong style={{ color: "#0f172a", fontSize: 18 }}>{fmt((parseFloat(quoteForm.amount) || 0) + (parseFloat(quoteForm.tax) || 0))}</strong></span>
+        <button onClick={createQuote} disabled={quoteSaving || !quoteForm.customer_name || !quoteForm.amount} style={{ background: quoteSaving ? "#94a3b8" : `linear-gradient(135deg, ${ZPGREEN}, ${BLUE})`, color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>{quoteSaving ? "Creating..." : "Create Devis"}</button>
+      </div>
+    </div>
+  );
+
+  // ── Reusable Devis quote list ─────────────────────────────────────────────
+  const devisListBlock = (
+    <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h3 style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#0f172a" }}>📋 Devis ({zpQuotes.length})</h3>
+        <button onClick={() => setShowNewQuote(!showNewQuote)} style={{ background: showNewQuote ? "#94a3b8" : ZPGREEN, color: "white", border: "none", borderRadius: 9999, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          {showNewQuote ? "Cancel" : "+ New Devis"}
+        </button>
+      </div>
+      {showNewQuote && quoteDevisForm}
+      {zpQuotes.length === 0 ? (
+        <div style={{ textAlign: "center" as const, padding: "40px 20px" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+          <p style={{ margin: "0 0 8px", fontWeight: 700, color: "#374151" }}>No devis yet</p>
+          <p style={{ margin: 0, fontSize: 13, color: "#94a3b8" }}>Create professional quotes with your company branding.</p>
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" as const }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+          <thead>
+            <tr style={{ background: "#f8fafc" }}>
+              {["Quote #", "Client", "Amount", "Date", "Expires", "Status", ""].map(h => (
+                <th key={h} style={{ padding: "10px 16px", textAlign: "left" as const, fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {zpQuotes.map(qte => {
+              const isExpired = qte.expires_at && new Date(qte.expires_at) < new Date() && qte.status !== "accepted";
+              const displayStatus = isExpired && qte.status === "draft" ? "expired" : qte.status;
+              return (
+              <tr key={qte.id} style={{ borderTop: "1px solid #f1f5f9" }}>
+                <td style={{ padding: "12px 16px", fontSize: 12, fontFamily: "monospace", color: PURPLE, fontWeight: 700 }}>{qte.quote_number || qte.id}</td>
+                <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 500, color: "#0f172a" }}>{qte.customer_name || "—"}</td>
+                <td style={{ padding: "12px 16px", fontWeight: 800, color: GREEN }}>{fmt(qte.total)}</td>
+                <td style={{ padding: "12px 16px", fontSize: 12, color: "#94a3b8" }}>{new Date(qte.created_at).toLocaleDateString("en-CA")}</td>
+                <td style={{ padding: "12px 16px", fontSize: 12, color: isExpired ? RED : "#94a3b8" }}>{qte.expires_at ? new Date(qte.expires_at).toLocaleDateString("en-CA") : "—"}</td>
+                <td style={{ padding: "12px 16px" }}>
+                  <span style={{
+                    background: displayStatus === "accepted" ? "#d1fae5" : displayStatus === "sent" ? "#fef3c7" : displayStatus === "expired" ? "#fee2e2" : "#f1f5f9",
+                    color: displayStatus === "accepted" ? "#065f46" : displayStatus === "sent" ? "#92400e" : displayStatus === "expired" ? "#dc2626" : "#64748b",
+                    fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 9999
+                  }}>{displayStatus}</span>
+                </td>
+                <td style={{ padding: "12px 16px" }}>
+                  <button onClick={() => setViewQuote(qte)}
+                    style={{ background: `${PURPLE}10`, border: `1px solid ${PURPLE}30`, borderRadius: 8, padding: "6px 14px", fontSize: 11, cursor: "pointer", color: PURPLE, fontWeight: 700 }}>
+                    📋 View
+                  </button>
+                </td>
+              </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
     <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Inter',system-ui,sans-serif", display: "flex" }}>
@@ -2958,9 +3038,14 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 <h3 style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 16 }}>📄 {t("nav.invoices")}</h3>
                 <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>{zpInvoices.length} invoice{zpInvoices.length !== 1 ? "s" : ""}</p>
               </div>
-              <button onClick={() => setShowNewInv(!showNewInv)} style={{ background: showNewInv ? "rgba(255,255,255,0.2)" : BLUE, color: "white", border: "none", borderRadius: 9999, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                {showNewInv ? "Cancel" : "+ New Invoice"}
-              </button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                <button onClick={() => setShowNewInv(!showNewInv)} style={{ background: showNewInv ? "rgba(255,255,255,0.2)" : BLUE, color: "white", border: "none", borderRadius: 9999, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  {showNewInv ? "Cancel" : "+ New Invoice"}
+                </button>
+                <button onClick={() => setShowNewQuote(!showNewQuote)} style={{ background: showNewQuote ? "rgba(255,255,255,0.2)" : ZPGREEN, color: "white", border: "none", borderRadius: 9999, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  {showNewQuote ? "Cancel" : "+ Devis"}
+                </button>
+              </div>
             </div>
 
             {/* New Invoice Form */}
@@ -3024,93 +3109,16 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
                 </div>
               )}
             </div>
+
+            {/* Devis (Quotes) - inside Invoices tab */}
+            {devisListBlock}
           </div>
         )}
 
         {/* ════ QUOTES (DEVIS) ════ */}
         {tab === "quotes" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 8 }}>
-            {/* Quotes Header */}
-            <div style={{ background: `linear-gradient(135deg, ${DARK}, #1a2f6e)`, borderRadius: 16, padding: "20px 24px", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 12 }}>
-              <div>
-                <h3 style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 16 }}>📋 Quotes / Devis</h3>
-                <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>{zpQuotes.length} quote{zpQuotes.length !== 1 ? "s" : ""}</p>
-              </div>
-              <button onClick={() => setShowNewQuote(!showNewQuote)} style={{ background: showNewQuote ? "rgba(255,255,255,0.2)" : ZPGREEN, color: "white", border: "none", borderRadius: 9999, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                {showNewQuote ? "Cancel" : "+ New Quote"}
-              </button>
-            </div>
-
-            {/* New Quote Form */}
-            {showNewQuote && (
-              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-                <h4 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 15, color: "#0f172a" }}>Create Quote</h4>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Customer Name *</label><input value={quoteForm.customer_name} onChange={e => setQuoteForm(p => ({...p, customer_name: e.target.value}))} placeholder="John Doe" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
-                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Customer Email</label><input value={quoteForm.customer_email} onChange={e => setQuoteForm(p => ({...p, customer_email: e.target.value}))} placeholder="john@email.com" type="email" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
-                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Description</label><input value={quoteForm.description} onChange={e => setQuoteForm(p => ({...p, description: e.target.value}))} placeholder="Service or product" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
-                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Amount (USD) *</label><input value={quoteForm.amount} onChange={e => setQuoteForm(p => ({...p, amount: e.target.value}))} placeholder="0.00" type="number" step="0.01" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
-                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Tax</label><input value={quoteForm.tax} onChange={e => setQuoteForm(p => ({...p, tax: e.target.value}))} placeholder="0.00" type="number" step="0.01" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
-                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Validity (days)</label><input value={quoteForm.validity_days} onChange={e => setQuoteForm(p => ({...p, validity_days: e.target.value}))} placeholder="30" type="number" min="1" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
-                </div>
-                <div style={{ marginTop: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Notes</label><textarea value={quoteForm.notes} onChange={e => setQuoteForm(p => ({...p, notes: e.target.value}))} placeholder="Quote terms..." rows={2} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const, resize: "vertical" as const }} /></div>
-                <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, color: "#64748b" }}>Total: <strong style={{ color: "#0f172a", fontSize: 18 }}>{fmt((parseFloat(quoteForm.amount) || 0) + (parseFloat(quoteForm.tax) || 0))}</strong></span>
-                  <button onClick={createQuote} disabled={quoteSaving || !quoteForm.customer_name || !quoteForm.amount} style={{ background: quoteSaving ? "#94a3b8" : `linear-gradient(135deg, ${ZPGREEN}, ${BLUE})`, color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>{quoteSaving ? "Creating..." : "Create Quote"}</button>
-                </div>
-              </div>
-            )}
-
-            {/* Quotes List */}
-            <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-              {zpQuotes.length === 0 ? (
-                <div style={{ textAlign: "center" as const, padding: "40px 20px" }}>
-                  <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-                  <p style={{ margin: "0 0 8px", fontWeight: 700, color: "#374151" }}>No quotes yet</p>
-                  <p style={{ margin: 0, fontSize: 13, color: "#94a3b8" }}>Create professional quotes with your company branding.</p>
-                </div>
-              ) : (
-                <div style={{ overflowX: "auto" as const }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
-                  <thead>
-                    <tr style={{ background: "#f8fafc" }}>
-                      {["Quote #", "Client", "Amount", "Date", "Expires", "Status", ""].map(h => (
-                        <th key={h} style={{ padding: "10px 16px", textAlign: "left" as const, fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {zpQuotes.map(qte => {
-                      const isExpired = qte.expires_at && new Date(qte.expires_at) < new Date() && qte.status !== "accepted";
-                      const displayStatus = isExpired && qte.status === "draft" ? "expired" : qte.status;
-                      return (
-                      <tr key={qte.id} style={{ borderTop: "1px solid #f1f5f9" }}>
-                        <td style={{ padding: "12px 16px", fontSize: 12, fontFamily: "monospace", color: PURPLE, fontWeight: 700 }}>{qte.quote_number || qte.id}</td>
-                        <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 500, color: "#0f172a" }}>{qte.customer_name || "—"}</td>
-                        <td style={{ padding: "12px 16px", fontWeight: 800, color: GREEN }}>{fmt(qte.total)}</td>
-                        <td style={{ padding: "12px 16px", fontSize: 12, color: "#94a3b8" }}>{new Date(qte.created_at).toLocaleDateString("en-CA")}</td>
-                        <td style={{ padding: "12px 16px", fontSize: 12, color: isExpired ? RED : "#94a3b8" }}>{qte.expires_at ? new Date(qte.expires_at).toLocaleDateString("en-CA") : "—"}</td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <span style={{
-                            background: displayStatus === "accepted" ? "#d1fae5" : displayStatus === "sent" ? "#fef3c7" : displayStatus === "expired" ? "#fee2e2" : "#f1f5f9",
-                            color: displayStatus === "accepted" ? "#065f46" : displayStatus === "sent" ? "#92400e" : displayStatus === "expired" ? "#dc2626" : "#64748b",
-                            fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 9999
-                          }}>{displayStatus}</span>
-                        </td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <button onClick={() => setViewQuote(qte)}
-                            style={{ background: `${PURPLE}10`, border: `1px solid ${PURPLE}30`, borderRadius: 8, padding: "6px 14px", fontSize: 11, cursor: "pointer", color: PURPLE, fontWeight: 700 }}>
-                            📋 View
-                          </button>
-                        </td>
-                      </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                </div>
-              )}
-            </div>
+          <div style={{ marginTop: 8 }}>
+            {devisListBlock}
           </div>
         )}
 
