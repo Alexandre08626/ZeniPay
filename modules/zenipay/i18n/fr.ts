@@ -85,6 +85,7 @@ export const fr: Record<string, any> = {
     banking: "Banque",
     payLinks: "Liens de paiement",
     invoices: "Factures",
+    quotes: "Devis",
     financing: "Financement",
     analytics: "Analytique",
     benAI: "Ben IA",

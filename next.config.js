@@ -56,5 +56,16 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      // 🚀 Zeniva Dev Dashboard — internal employee tool
+      // Proxy /zeniva/dev/* to the dashboard server
+      // Update the destination URL when deployed (Railway/VPS)
+      {
+        source: "/zeniva/dev/:path*",
+        destination: `${process.env.DEV_DASHBOARD_URL || "http://localhost:4567"}/:path*`,
+      },
+    ];
+  },
 };
 module.exports = nextConfig;
