@@ -43,7 +43,11 @@ export default function LoginPage() {
         return;
       }
       setLoading(false);
-      setError(data.error || t("login.invalidCredentials"));
+      if (res.status >= 500) {
+        setError(t("login.connectionError"));
+      } else {
+        setError(data.error || t("login.invalidCredentials"));
+      }
     } catch {
       setLoading(false);
       setError(t("login.connectionError"));

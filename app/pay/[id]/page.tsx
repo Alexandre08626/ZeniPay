@@ -17,7 +17,7 @@ const FINIX_ENV = process.env.NEXT_PUBLIC_FINIX_ENV === "live" ? "live" : "sandb
 const FINIX_MERCHANT_ID = process.env.NEXT_PUBLIC_FINIX_MERCHANT_ID || "MUcTenaz57m9JrwwRZwpSfDc";
 
 function PayLinkContent() {
-  const SANDBOX_MODE = false; // Live — Finix.js tokenization active
+  const SANDBOX_MODE = FINIX_ENV === "sandbox";
   const { t } = useT();
 
   const params   = useSearchParams();

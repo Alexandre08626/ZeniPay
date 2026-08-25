@@ -1699,6 +1699,7 @@ const TABS = [
   { id: "wallets", icon: "🏦", label: "Banking" },
   { id: "paylinks", icon: "🔗", label: "Pay Links" },
   { id: "invoices", icon: "📄", label: "Invoices" },
+  { id: "quotes", icon: "📋", label: "Quotes" },
   { id: "payouts", icon: "💸", label: "Payouts" },
   { id: "financing", icon: "🏛️", label: "Financing" },
   { id: "analytics", icon: "📈", label: "Analytics" },
@@ -2150,6 +2151,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     wallets: t("nav.banking"),
     paylinks: t("nav.payLinks"),
     invoices: t("nav.invoices"),
+    quotes: "Quotes",
     payouts: t("nav.payouts"),
     financing: t("nav.financing"),
     analytics: t("nav.analytics"),
@@ -3026,7 +3028,7 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         )}
 
         {/* ════ QUOTES (DEVIS) ════ */}
-        {tab === "invoices" && (
+        {tab === "quotes" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 8 }}>
             {/* Quotes Header */}
             <div style={{ background: `linear-gradient(135deg, ${DARK}, #1a2f6e)`, borderRadius: 16, padding: "20px 24px", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 12 }}>

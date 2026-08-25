@@ -5,6 +5,7 @@ import nodemailer from "nodemailer";
 
 const SMTP_USER = process.env.SMTP_USER || "zenipay@zeniva.ca";
 const SMTP_PASS = process.env.SMTP_PASS || "";
+const SMTP_FROM = process.env.SMTP_FROM || "zenipay@zeniva.ca";
 const DELAY_MS = 5000; // 5 seconds between emails
 
 let _transporter: nodemailer.Transporter | null = null;
@@ -81,7 +82,8 @@ export async function POST(req: NextRequest) {
           .replace(/\{\{WEBSITE\}\}/g, "");
 
         await transporter.sendMail({
-          from: `"ZeniPay" <${SMTP_USER}>`,
+          from: `"ZeniPay" <${SMTP_FROM}>`,
+          replyTo: SMTP_FROM,
           to: r.email,
           subject: subject.replace(/\{\{BUSINESS_NAME\}\}/g, r.name || "there"),
           html: addFooter(personalizedHtml, r.email),
