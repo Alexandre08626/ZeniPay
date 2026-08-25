@@ -3,6 +3,18 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useT } from "../../modules/zenipay/i18n";
 
+// ── Invoice Template types ──────────────────────────────
+interface InvoiceTemplate {
+  logo_url: string;
+  brand_color: string;
+  accent_color: string;
+  footer_text: string;
+  terms_text: string;
+  quote_validity_days: number;
+  show_logo: boolean;
+  show_brand_color: boolean;
+}
+
 // ═══════════════════════════════════════════════════════
 //  ZeniPay — Settings Panel
 //  Fully functional merchant settings with live save
@@ -287,6 +299,19 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
     cardTransactionAlerts: false,
   });
 
+  // Section 4: Invoice/Quote Template
+  const [template, setTemplate] = useState<InvoiceTemplate>({
+    logo_url: "",
+    brand_color: "#15B8C9",
+    accent_color: "#2DBE60",
+    footer_text: "Powered by ZeniPay · zenipay.ca",
+    terms_text: "",
+    quote_validity_days: 30,
+    show_logo: true,
+    show_brand_color: true,
+  });
+  const [templatePreviewUrl, setTemplatePreviewUrl] = useState("");
+
   // Section 6: Delete confirmation
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
@@ -324,7 +349,20 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
         setLoading(false);
       }
     }
-    loadSettings();
+
+    async function loadTemplate() {
+      try {
+        const res = await fetch(`/api/zenipay/merchant-template?merchant_id=${merchantId}`);
+        const json = await res.json();
+        if (json.template) {
+          setTemplate(json.template);
+          if (json.template.logo_url) setTemplatePreviewUrl(json.template.logo_url);
+        }
+      } catch { /* silent */ }
+    }
+
+    void loadSettings();
+    void loadTemplate();
   }, [merchantId, showToast]);
 
   // ── Save helper ─────────────────────────────────────
@@ -350,6 +388,24 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
     },
     [merchantId, showToast]
   );
+
+  const saveTemplate = useCallback(async () => {
+    setSaving("template");
+    try {
+      const res = await fetch(`/api/zenipay/merchant-template?merchant_id=${merchantId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(template),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      showToast("Invoice template saved");
+    } catch {
+      showToast("Failed to save template", "error");
+    } finally {
+      setSaving(null);
+    }
+  }, [merchantId, template, showToast]);
 
   // ── Auto-save notifications on toggle change ───────
 
@@ -984,6 +1040,94 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
               </div>
             </div>
           ))}
+        </div>
+
+        {/* ════════════════════════════════════════════════
+            Section: Invoice & Quote Template
+           ════════════════════════════════════════════════ */}
+        <div className="sp-card" style={styles.card}>
+          <div style={styles.sectionTitle}>📄 Invoice & Quote Template</div>
+          <div style={styles.sectionSub}>
+            Customize how your invoices and quotes look when printed or sent to clients.
+            Each merchant gets their own branding.
+          </div>
+
+          {/* Logo */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={styles.label}>Company Logo URL</label>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <input
+                style={{ ...styles.input, flex: 1 }}
+                value={template.logo_url}
+                onChange={(e) => { setTemplate({ ...template, logo_url: e.target.value }); setTemplatePreviewUrl(e.target.value); }}
+                placeholder="https://yourcompany.com/logo.png"
+              />
+            </div>
+            {templatePreviewUrl && (
+              <div style={{ marginTop: 8, width: 80, height: 48, borderRadius: 8, overflow: "hidden", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <img src={templatePreviewUrl} alt="logo preview" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              </div>
+            )}
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+              <Toggle checked={template.show_logo} onChange={(v) => setTemplate({ ...template, show_logo: v })} />
+              <span style={{ fontSize: 12, color: "#64748b" }}>Show logo on documents</span>
+            </div>
+          </div>
+
+          {/* Colors */}
+          <div className="sp-field-group" style={styles.fieldGroup}>
+            <div>
+              <label style={styles.label}>Brand Color</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="color" value={template.brand_color} onChange={(e) => setTemplate({ ...template, brand_color: e.target.value })} style={{ width: 40, height: 40, borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer", background: "none" }} />
+                <input style={{ ...styles.input, flex: 1, fontFamily: "monospace" }} value={template.brand_color} onChange={(e) => setTemplate({ ...template, brand_color: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label style={styles.label}>Accent Color</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="color" value={template.accent_color} onChange={(e) => setTemplate({ ...template, accent_color: e.target.value })} style={{ width: 40, height: 40, borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer", background: "none" }} />
+                <input style={{ ...styles.input, flex: 1, fontFamily: "monospace" }} value={template.accent_color} onChange={(e) => setTemplate({ ...template, accent_color: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <Toggle checked={template.show_brand_color} onChange={(v) => setTemplate({ ...template, show_brand_color: v })} />
+            <span style={{ fontSize: 12, color: "#64748b" }}>Show brand color on documents</span>
+          </div>
+
+          {/* Footer & Terms */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={styles.label}>Footer Text</label>
+            <input style={styles.input} value={template.footer_text} onChange={(e) => setTemplate({ ...template, footer_text: e.target.value })} placeholder="Powered by ZeniPay · zenipay.ca" />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={styles.label}>Terms & Conditions (appears at bottom of quotes)</label>
+            <textarea value={template.terms_text} onChange={(e) => setTemplate({ ...template, terms_text: e.target.value })} placeholder="Payment terms: 30 days net. Quotes valid for 30 days." rows={3} style={{ ...styles.input, resize: "vertical" as const, fontFamily: "inherit" }} />
+          </div>
+
+          {/* Quote validity */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={styles.label}>Default Quote Validity (days)</label>
+            <input style={{ ...styles.input, maxWidth: 120 }} type="number" min={1} max={365} value={template.quote_validity_days} onChange={(e) => setTemplate({ ...template, quote_validity_days: parseInt(e.target.value) || 30 })} />
+          </div>
+
+          {/* Preview hint */}
+          <div style={{ marginTop: 8, marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 12, color: "#166534", lineHeight: 1.5 }}>
+            These settings will apply to all invoices and quotes generated by <strong>{businessName || "your business"}</strong>. 
+            The PDF preview reflects your brand colors and logo in real-time.
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              style={{ ...styles.gradientBtn, opacity: saving === "template" ? 0.7 : 1 }}
+              disabled={saving === "template"}
+              onClick={saveTemplate}
+            >
+              {saving === "template" ? "Saving..." : "Save Template"}
+            </button>
+          </div>
         </div>
 
         {/* ════════════════════════════════════════════════

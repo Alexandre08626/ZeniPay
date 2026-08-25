@@ -216,3 +216,44 @@ export interface ZeniIdempotencyKey {
   created_at: string;
   expires_at: string;
 }
+
+// ─── Merchant Template (invoice/quote branding) ───────────────────────
+export interface MerchantInvoiceTemplate {
+  merchant_id: string;
+  logo_url: string;
+  brand_color: string;
+  accent_color: string;
+  footer_text: string;
+  terms_text: string;
+  quote_validity_days: number;
+  show_logo: boolean;
+  show_brand_color: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── Quote / Devis ────────────────────────────────────────────────────
+export type QuoteStatus = "draft" | "sent" | "accepted" | "expired" | "converted";
+
+export interface ZeniQuote {
+  id: string;
+  merchant_id: string;
+  quote_number?: string;
+  customer_name: string;
+  customer_email?: string;
+  customer_address?: string;
+  items: Array<{ description: string; qty: number; unit_price: number; total: number }>;
+  subtotal: number;
+  tax: number;
+  total: number;
+  currency: string;
+  status: QuoteStatus;
+  notes?: string;
+  validity_days: number;
+  expires_at?: string;
+  sent_at?: string;
+  accepted_at?: string;
+  converted_to_invoice_id?: string;
+  created_at: string;
+  updated_at: string;
+}
