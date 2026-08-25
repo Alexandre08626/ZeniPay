@@ -278,7 +278,11 @@ function WalletCard({ name, data, icon, color, onOpen }: { name: string; data: {
 }
 
 // ── Invoice Detail Modal ────────────────────────────────────────────────────
-function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string; merchant_name?: string; merchant_email?: string }; onClose: () => void }) {
+function InvoiceModal({ invoice, onClose, template }: {
+  invoice: { id: string; invoice_number?: string; customer_name: string; customer_email: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; payment_id: string; items?: string; notes?: string; created_at: string; merchant_name?: string; merchant_email?: string };
+  onClose: () => void;
+  template?: { logo_url?: string; brand_color?: string; accent_color?: string; footer_text?: string; terms_text?: string; show_logo?: boolean; show_brand_color?: boolean };
+}) {
   const invNum = invoice.invoice_number || invoice.id;
   const cur = invoice.currency || "USD";
   const fmtC = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(n);
@@ -296,6 +300,11 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
   const handlePrint = () => {
     const printWin = window.open("", "_blank");
     if (!printWin) return;
+    const brand = template?.brand_color || "#15B8C9";
+    const accent = template?.accent_color || "#2DBE60";
+    const footer = template?.footer_text || "Powered by ZeniPay · zenipay.ca";
+    const logo = template?.show_logo && template?.logo_url ? `<img src="${template.logo_url}" alt="logo" style="height:40px;margin-bottom:8px" /><br />` : "";
+    const brandStyle = template?.show_brand_color !== false ? `background:linear-gradient(90deg,${brand},${accent});-webkit-background-clip:text;-webkit-text-fill-color:transparent` : `color:#0f172a`;
     printWin.document.write(`<!DOCTYPE html><html><head><title>Invoice ${invNum}</title><style>
       body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:40px;color:#0f172a}
       .header{display:flex;justify-content:space-between;margin-bottom:40px}
@@ -310,7 +319,7 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
       .badge{display:inline-block;background:#d1fae5;color:#065f46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:9999px}
       .footer{margin-top:40px;padding-top:20px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center}
     </style></head><body>
-      <div class="header"><div><div class="brand">${merchantDisplayName}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">${invoice.merchant_email || ""}</div></div><div style="text-align:right"><div class="inv-num">${invNum}</div><div style="font-size:12px;color:#64748b;margin-top:4px">${new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div><div class="badge" style="margin-top:8px">${invoice.status === "paid" ? "PAID" : invoice.status.toUpperCase()}</div></div></div>
+      <div class="header">${logo}<div><div class="brand" style="${brandStyle}">${merchantDisplayName}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">${invoice.merchant_email || ""}</div></div><div style="text-align:right"><div class="inv-num">${invNum}</div><div style="font-size:12px;color:#64748b;margin-top:4px">${new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div><div class="badge" style="margin-top:8px">${invoice.status === "paid" ? "PAID" : invoice.status.toUpperCase()}</div></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
         <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Bill To</div><div style="font-weight:700;font-size:14px">${invoice.customer_name}</div><div style="font-size:12px;color:#64748b">${invoice.customer_email}</div></div>
         <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Payment ID</div><div style="font-family:monospace;font-size:12px;color:#15B8C9">${invoice.payment_id}</div></div>
@@ -318,7 +327,8 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
       <table><thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th style="text-align:right">Total</th></tr></thead><tbody>${parsedItems.length > 0 ? parsedItems.map(it => `<tr><td>${it.description}</td><td>${it.qty}</td><td>${fmtC(it.unit_price)}</td><td style="text-align:right;font-weight:700">${fmtC(it.total)}</td></tr>`).join("") : `<tr><td>Payment</td><td>1</td><td>${fmtC(invoice.total)}</td><td style="text-align:right;font-weight:700">${fmtC(invoice.total)}</td></tr>`}</tbody></table>
       <div class="totals"><div>Subtotal: <strong>${fmtC(subtotal)}</strong></div><div>Tax: <strong>${fmtC(tax)}</strong></div><div class="total-line">Total: ${fmtC(invoice.total)}</div></div>
       ${invoice.notes ? `<div style="margin-top:24px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#64748b">${invoice.notes}</div>` : ""}
-      <div class="footer">Powered by ZeniPay · zenipay.ca</div>
+      ${template?.terms_text ? `<div style="margin-top:24px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:11px;color:#64748b">${template.terms_text}</div>` : ""}
+      <div class="footer">${footer}</div>
     </body></html>`);
     printWin.document.close();
     printWin.focus();
@@ -331,7 +341,8 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
         {/* Header */}
         <div style={{ padding: "24px 28px 0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 900, background: "linear-gradient(90deg, #2DBE60, #15B8C9, #7B4FBF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{merchantDisplayName}</div>
+            {template?.show_logo && template?.logo_url && <img src={template.logo_url} alt="logo" style={{ height: 32, marginBottom: 8, objectFit: "contain" }} />}
+            <div style={{ fontSize: 22, fontWeight: 900, background: template?.show_brand_color !== false ? `linear-gradient(90deg, ${template?.brand_color || "#2DBE60"}, ${template?.accent_color || "#15B8C9"})` : "none", color: template?.show_brand_color !== false ? "transparent" : "#0f172a", WebkitBackgroundClip: template?.show_brand_color !== false ? "text" : "none", WebkitTextFillColor: template?.show_brand_color !== false ? "transparent" : undefined }}>{merchantDisplayName}</div>
             <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{invoice.merchant_email || ""}</div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -395,6 +406,9 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
         {invoice.notes && (
           <div style={{ margin: "0 28px 16px", padding: "10px 14px", background: "#f8fafc", borderRadius: 10, fontSize: 12, color: "#64748b" }}>{invoice.notes}</div>
         )}
+        {template?.terms_text && (
+          <div style={{ margin: "0 28px 16px", padding: "10px 14px", background: "#f8fafc", borderRadius: 10, fontSize: 11, color: "#64748b" }}>{template.terms_text}</div>
+        )}
 
         {/* Actions */}
         <div style={{ padding: "16px 28px 12px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
@@ -403,6 +417,139 @@ function InvoiceModal({ invoice, onClose }: { invoice: { id: string; invoice_num
         </div>
 
         {/* Footer */}
+        <div style={{ padding: "0 28px 20px", textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "#94a3b8" }}>Powered by ZeniPay</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuoteModal({ quote, onClose, businessName, merchantEmail, onStatusUpdate }: {
+  quote: { id: string; quote_number?: string; customer_name: string; customer_email?: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; notes?: string; validity_days?: number; expires_at?: string; created_at: string };
+  onClose: () => void;
+  businessName?: string;
+  merchantEmail?: string;
+  onStatusUpdate?: (id: string, status: string) => void;
+}) {
+  const qteNum = quote.quote_number || quote.id;
+  const cur = quote.currency || "USD";
+  const fmtC = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(n);
+  const subtotal = quote.subtotal ?? quote.total;
+  const tax = quote.tax ?? 0;
+  const isExpired = quote.expires_at && new Date(quote.expires_at) < new Date() && quote.status !== "accepted";
+  const displayStatus = isExpired && quote.status === "draft" ? "expired" : quote.status;
+
+  const handlePrint = () => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>Quote ${qteNum}</title><style>
+      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:40px;color:#0f172a}
+      .header{display:flex;justify-content:space-between;margin-bottom:40px}
+      .brand{font-size:28px;font-weight:900;background:linear-gradient(90deg,#2DBE60,#15B8C9,#7B4FBF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+      .qte-num{font-size:24px;font-weight:800;color:#0f172a}
+      table{width:100%;border-collapse:collapse;margin:24px 0}
+      th{background:#f8fafc;text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0}
+      td{padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px}
+      .totals{text-align:right;margin-top:16px}
+      .totals div{padding:4px 0;font-size:13px}
+      .total-line{font-size:18px;font-weight:900;color:#0f172a;border-top:2px solid #e2e8f0;padding-top:8px;margin-top:8px}
+      .badge{display:inline-block;background:#f1f5f9;color:#64748b;font-size:11px;font-weight:700;padding:3px 10px;border-radius:9999px}
+      .footer{margin-top:40px;padding-top:20px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center}
+    </style></head><body>
+      <div class="header"><div><div class="brand">${businessName || "ZeniPay Merchant"}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">${merchantEmail || ""}</div></div><div style="text-align:right"><div class="qte-num">${qteNum}</div><div style="font-size:12px;color:#64748b;margin-top:4px">${new Date(quote.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div><div class="badge" style="margin-top:8px">${displayStatus === "accepted" ? "ACCEPTED" : displayStatus.toUpperCase()}</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
+        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Quote To</div><div style="font-weight:700;font-size:14px">${quote.customer_name}</div><div style="font-size:12px;color:#64748b">${quote.customer_email || ""}</div></div>
+        <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Valid Until</div><div style="font-weight:700;font-size:14px;color:${isExpired ? "#dc2626" : "#0f172a"}">${quote.expires_at ? new Date(quote.expires_at).toLocaleDateString("en-US") : "—"}</div></div>
+      </div>
+      <table><thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th style="text-align:right">Total</th></tr></thead><tbody>
+        <tr><td>Service / Product</td><td>1</td><td>${fmtC(subtotal)}</td><td style="text-align:right;font-weight:700">${fmtC(subtotal)}</td></tr>
+      </tbody></table>
+      <div class="totals"><div>Subtotal: <strong>${fmtC(subtotal)}</strong></div><div>Tax: <strong>${fmtC(tax)}</strong></div><div class="total-line">Total: ${fmtC(quote.total)}</div></div>
+      ${quote.notes ? `<div style="margin-top:24px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#64748b">${quote.notes}</div>` : ""}
+      <div class="footer">Powered by ZeniPay · zenipay.ca</div>
+    </body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 300);
+  };
+
+  const updateQuoteStatus = async (status: string) => {
+    try {
+      const r = await fetch("/api/zenipay/quotes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: quote.id, status }) });
+      if (r.ok) {
+        if (onStatusUpdate) onStatusUpdate(quote.id, status);
+        onClose();
+      }
+    } catch {}
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 600, maxHeight: "90vh", overflow: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.3)" }}>
+        <div style={{ padding: "24px 28px 0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, background: "linear-gradient(90deg, #2DBE60, #15B8C9, #7B4FBF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{businessName || "ZeniPay Merchant"}</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{merchantEmail || ""}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a" }}>{qteNum}</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{new Date(quote.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
+            <span style={{ display: "inline-block", marginTop: 6, background: displayStatus === "accepted" ? "#d1fae5" : displayStatus === "sent" ? "#fef3c7" : displayStatus === "expired" ? "#fee2e2" : "#f1f5f9", color: displayStatus === "accepted" ? "#065f46" : displayStatus === "sent" ? "#92400e" : displayStatus === "expired" ? "#dc2626" : "#64748b", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 9999 }}>{displayStatus.toUpperCase()}</span>
+          </div>
+        </div>
+
+        <div style={{ padding: "20px 28px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Quote To</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{quote.customer_name}</div>
+            <div style={{ fontSize: 12, color: "#64748b" }}>{quote.customer_email || ""}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Valid Until</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: isExpired ? RED : "#0f172a" }}>{quote.expires_at ? new Date(quote.expires_at).toLocaleDateString("en-US") : "—"}</div>
+          </div>
+        </div>
+
+        <div style={{ padding: "0 28px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr style={{ background: "#f8fafc" }}>
+              {["Description", "Qty", "Unit Price", "Total"].map((h, i) => (
+                <th key={h} style={{ padding: "8px 12px", textAlign: i === 3 ? "right" : "left", fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", borderBottom: "2px solid #e2e8f0" }}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                <td style={{ padding: "10px 12px", fontSize: 13 }}>Service / Product</td>
+                <td style={{ padding: "10px 12px", fontSize: 13 }}>1</td>
+                <td style={{ padding: "10px 12px", fontSize: 13 }}>{fmtC(subtotal)}</td>
+                <td style={{ padding: "10px 12px", fontSize: 13, fontWeight: 700, textAlign: "right" }}>{fmtC(subtotal)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ padding: "16px 28px", textAlign: "right" }}>
+          <div style={{ fontSize: 13, color: "#64748b", padding: "3px 0" }}>Subtotal: <strong style={{ color: "#0f172a" }}>{fmtC(subtotal)}</strong></div>
+          <div style={{ fontSize: 13, color: "#64748b", padding: "3px 0" }}>Tax: <strong style={{ color: "#0f172a" }}>{fmtC(tax)}</strong></div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: "#0f172a", borderTop: "2px solid #e2e8f0", paddingTop: 10, marginTop: 8 }}>Total: {fmtC(quote.total)}</div>
+        </div>
+
+        {quote.notes && (
+          <div style={{ margin: "0 28px 16px", padding: "10px 14px", background: "#f8fafc", borderRadius: 10, fontSize: 12, color: "#64748b" }}>{quote.notes}</div>
+        )}
+
+        <div style={{ padding: "16px 28px 12px", display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" as const }}>
+          {(displayStatus === "draft" || displayStatus === "sent") && (
+            <>
+              <button onClick={() => updateQuoteStatus("sent")} style={{ background: ZP_GRAD, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📤 Mark Sent</button>
+              <button onClick={() => updateQuoteStatus("accepted")} style={{ background: `${ZPGREEN}`, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>✅ Mark Accepted</button>
+            </>
+          )}
+          <button onClick={handlePrint} style={{ background: `linear-gradient(135deg, ${ZPGREEN}, ${BLUE})`, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🖨 Print / PDF</button>
+          <button onClick={onClose} style={{ background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Close</button>
+        </div>
+
         <div style={{ padding: "0 28px 20px", textAlign: "center" }}>
           <div style={{ fontSize: 10, color: "#94a3b8" }}>Powered by ZeniPay</div>
         </div>
@@ -1776,6 +1923,13 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
   const [showNewInv, setShowNewInv] = useState(false);
   const [invForm, setInvForm] = useState({ customer_name: "", customer_email: "", description: "", amount: "", tax: "0", notes: "", status: "draft" });
   const [invSaving, setInvSaving] = useState(false);
+  // Quotes state
+  const [zpQuotes, setZpQuotes] = useState<{ id: string; quote_number?: string; customer_name: string; customer_email?: string; total: number; subtotal?: number; tax?: number; currency?: string; status: string; notes?: string; validity_days?: number; expires_at?: string; created_at: string }[]>([]);
+  const [viewQuote, setViewQuote] = useState<typeof zpQuotes[number] | null>(null);
+  const [showNewQuote, setShowNewQuote] = useState(false);
+  const [quoteForm, setQuoteForm] = useState({ customer_name: "", customer_email: "", description: "", amount: "", tax: "0", notes: "", validity_days: "30" });
+  const [quoteSaving, setQuoteSaving] = useState(false);
+  const [invoiceTemplate, setInvoiceTemplate] = useState<{ logo_url?: string; brand_color?: string; accent_color?: string; footer_text?: string; terms_text?: string; show_logo?: boolean; show_brand_color?: boolean }>({});
   const createInvoice = async () => {
     if (!invForm.customer_name || !invForm.amount) return;
     setInvSaving(true);
@@ -1793,6 +1947,38 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
         setZpInvoices(prev => [{ id: invId, invoice_number: invId, customer_name: invForm.customer_name, customer_email: invForm.customer_email, total, status: invForm.status, payment_id: "", created_at: now }, ...prev]);
       }
     } catch { /* silent */ } finally { setInvSaving(false); }
+  };
+  const createQuote = async () => {
+    if (!quoteForm.customer_name || !quoteForm.amount) return;
+    setQuoteSaving(true);
+    try {
+      const qteId = "QTE-" + Date.now().toString(36).toUpperCase();
+      const amt = parseFloat(quoteForm.amount) || 0;
+      const taxAmt = parseFloat(quoteForm.tax) || 0;
+      const total = amt + taxAmt;
+      const validityDays = parseInt(quoteForm.validity_days) || 30;
+      const payload = {
+        id: qteId,
+        quote_number: qteId,
+        merchant_id: MID,
+        customer_name: quoteForm.customer_name,
+        customer_email: quoteForm.customer_email,
+        items: JSON.stringify([{ description: quoteForm.description || "Service", qty: 1, unit_price: amt, total: amt }]),
+        subtotal: amt,
+        tax: taxAmt,
+        total,
+        currency: "USD",
+        status: "draft",
+        notes: quoteForm.notes,
+        validity_days: validityDays,
+      };
+      const r = await fetch("/api/zenipay/quotes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (r.ok) {
+        setShowNewQuote(false);
+        setQuoteForm({ customer_name: "", customer_email: "", description: "", amount: "", tax: "0", notes: "", validity_days: "30" });
+        setZpQuotes(prev => [{ id: qteId, quote_number: qteId, customer_name: quoteForm.customer_name, customer_email: quoteForm.customer_email, total, status: "draft", created_at: new Date().toISOString() }, ...prev]);
+      }
+    } catch { /* silent */ } finally { setQuoteSaving(false); }
   };
   // Unit.co banking layer
   const [unitAccounts, setUnitAccounts] = useState<{ id: string; type: string; name: string; status: string; balanceCents: number; availableCents: number; routingNumber: string; accountNumber: string; currency: string; createdAt: string }[]>([]);
@@ -1898,15 +2084,37 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
       } catch {}
     }
 
+    async function fetchTemplate() {
+      try {
+        const r = await fetch(`/api/zenipay/merchant-template?merchant_id=${encodeURIComponent(MID)}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.template) setInvoiceTemplate(d.template);
+      } catch {}
+    }
+
+    async function fetchZpQuotes() {
+      try {
+        const r = await fetch(`/api/zenipay/quotes?merchant_id=${encodeURIComponent(MID)}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        if (Array.isArray(d.quotes)) {
+          setZpQuotes(d.quotes);
+        }
+      } catch {}
+    }
+
     void fetchStats();
     void fetchBookings();
     void fetchZpInvoices();
+    void fetchZpQuotes();
+    void fetchTemplate();
     void fetchAccountingSummary();
     void fetchPayLinks();
     // Unit.co disabled — using ZeniPay/Finix wallets only
     setUnitLoading(false);
     // Refresh every 30s
-    const interval = setInterval(() => { void fetchStats(); void fetchBookings(); void fetchZpInvoices(); }, 30_000);
+    const interval = setInterval(() => { void fetchStats(); void fetchBookings(); void fetchZpInvoices(); void fetchZpQuotes(); }, 30_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -2817,6 +3025,93 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
           </div>
         )}
 
+        {/* ════ QUOTES (DEVIS) ════ */}
+        {tab === "invoices" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 8 }}>
+            {/* Quotes Header */}
+            <div style={{ background: `linear-gradient(135deg, ${DARK}, #1a2f6e)`, borderRadius: 16, padding: "20px 24px", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 12 }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 16 }}>📋 Quotes / Devis</h3>
+                <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>{zpQuotes.length} quote{zpQuotes.length !== 1 ? "s" : ""}</p>
+              </div>
+              <button onClick={() => setShowNewQuote(!showNewQuote)} style={{ background: showNewQuote ? "rgba(255,255,255,0.2)" : ZPGREEN, color: "white", border: "none", borderRadius: 9999, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                {showNewQuote ? "Cancel" : "+ New Quote"}
+              </button>
+            </div>
+
+            {/* New Quote Form */}
+            {showNewQuote && (
+              <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+                <h4 style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 15, color: "#0f172a" }}>Create Quote</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Customer Name *</label><input value={quoteForm.customer_name} onChange={e => setQuoteForm(p => ({...p, customer_name: e.target.value}))} placeholder="John Doe" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Customer Email</label><input value={quoteForm.customer_email} onChange={e => setQuoteForm(p => ({...p, customer_email: e.target.value}))} placeholder="john@email.com" type="email" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Description</label><input value={quoteForm.description} onChange={e => setQuoteForm(p => ({...p, description: e.target.value}))} placeholder="Service or product" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Amount (USD) *</label><input value={quoteForm.amount} onChange={e => setQuoteForm(p => ({...p, amount: e.target.value}))} placeholder="0.00" type="number" step="0.01" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Tax</label><input value={quoteForm.tax} onChange={e => setQuoteForm(p => ({...p, tax: e.target.value}))} placeholder="0.00" type="number" step="0.01" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                  <div><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Validity (days)</label><input value={quoteForm.validity_days} onChange={e => setQuoteForm(p => ({...p, validity_days: e.target.value}))} placeholder="30" type="number" min="1" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} /></div>
+                </div>
+                <div style={{ marginTop: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, marginBottom: 6 }}>Notes</label><textarea value={quoteForm.notes} onChange={e => setQuoteForm(p => ({...p, notes: e.target.value}))} placeholder="Quote terms..." rows={2} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const, resize: "vertical" as const }} /></div>
+                <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "#64748b" }}>Total: <strong style={{ color: "#0f172a", fontSize: 18 }}>{fmt((parseFloat(quoteForm.amount) || 0) + (parseFloat(quoteForm.tax) || 0))}</strong></span>
+                  <button onClick={createQuote} disabled={quoteSaving || !quoteForm.customer_name || !quoteForm.amount} style={{ background: quoteSaving ? "#94a3b8" : `linear-gradient(135deg, ${ZPGREEN}, ${BLUE})`, color: "white", border: "none", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>{quoteSaving ? "Creating..." : "Create Quote"}</button>
+                </div>
+              </div>
+            )}
+
+            {/* Quotes List */}
+            <div style={{ background: "white", borderRadius: 16, padding: 24, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+              {zpQuotes.length === 0 ? (
+                <div style={{ textAlign: "center" as const, padding: "40px 20px" }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+                  <p style={{ margin: "0 0 8px", fontWeight: 700, color: "#374151" }}>No quotes yet</p>
+                  <p style={{ margin: 0, fontSize: 13, color: "#94a3b8" }}>Create professional quotes with your company branding.</p>
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" as const }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      {["Quote #", "Client", "Amount", "Date", "Expires", "Status", ""].map(h => (
+                        <th key={h} style={{ padding: "10px 16px", textAlign: "left" as const, fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {zpQuotes.map(qte => {
+                      const isExpired = qte.expires_at && new Date(qte.expires_at) < new Date() && qte.status !== "accepted";
+                      const displayStatus = isExpired && qte.status === "draft" ? "expired" : qte.status;
+                      return (
+                      <tr key={qte.id} style={{ borderTop: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px 16px", fontSize: 12, fontFamily: "monospace", color: PURPLE, fontWeight: 700 }}>{qte.quote_number || qte.id}</td>
+                        <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 500, color: "#0f172a" }}>{qte.customer_name || "—"}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 800, color: GREEN }}>{fmt(qte.total)}</td>
+                        <td style={{ padding: "12px 16px", fontSize: 12, color: "#94a3b8" }}>{new Date(qte.created_at).toLocaleDateString("en-CA")}</td>
+                        <td style={{ padding: "12px 16px", fontSize: 12, color: isExpired ? RED : "#94a3b8" }}>{qte.expires_at ? new Date(qte.expires_at).toLocaleDateString("en-CA") : "—"}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span style={{
+                            background: displayStatus === "accepted" ? "#d1fae5" : displayStatus === "sent" ? "#fef3c7" : displayStatus === "expired" ? "#fee2e2" : "#f1f5f9",
+                            color: displayStatus === "accepted" ? "#065f46" : displayStatus === "sent" ? "#92400e" : displayStatus === "expired" ? "#dc2626" : "#64748b",
+                            fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 9999
+                          }}>{displayStatus}</span>
+                        </td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <button onClick={() => setViewQuote(qte)}
+                            style={{ background: `${PURPLE}10`, border: `1px solid ${PURPLE}30`, borderRadius: 8, padding: "6px 14px", fontSize: 11, cursor: "pointer", color: PURPLE, fontWeight: 700 }}>
+                            📋 View
+                          </button>
+                        </td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ════ PAYOUTS ════ */}
         {tab === "payouts" && (
           <PayoutsPanel agents={AGENTS} platformBalance={platformBalance} merchantId={MID} mode={MMODE} />
@@ -3605,7 +3900,11 @@ export default function ZenivaCompleteApp(props: ZenivaCompleteProps = {}) {
     )}
     {/* Invoice Detail Modal — rendered outside all tabs */}
     {viewInvoice && (
-      <InvoiceModal invoice={viewInvoice} onClose={() => setViewInvoice(null)} />
+      <InvoiceModal invoice={viewInvoice} onClose={() => setViewInvoice(null)} template={invoiceTemplate} />
+    )}
+    {/* Quote Detail Modal */}
+    {viewQuote && (
+      <QuoteModal quote={viewQuote} onClose={() => setViewQuote(null)} businessName={BNAME} merchantEmail={BEMAIL} onStatusUpdate={(id, status) => setZpQuotes(prev => prev.map(q => q.id === id ? { ...q, status } as typeof q : q))} />
     )}
     </>
   );
