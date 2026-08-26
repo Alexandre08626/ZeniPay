@@ -127,7 +127,6 @@ export async function POST(req: NextRequest) {
         await supabase.from("zenipay_payments").upsert({
           id: paymentId,
           merchant_id: bodyMerchantId ?? null,
-          payment_link_id: pay_link_id ?? null,
           amount: amountNum,
           currency: finixCurrency,
           description: finalDescription,
@@ -135,10 +134,13 @@ export async function POST(req: NextRequest) {
           customer_email: customer_email ?? "",
           status: "failed",
           gateway: "finix",
-          gateway_transfer_id: transferId ?? "",
-          gateway_instrument_id: instrument_id ?? "",
-          failure_code: finixCode ?? null,
-          failure_message: finixMsg ?? null,
+          metadata: {
+            payment_link_id: pay_link_id ?? null,
+            gateway_transfer_id: transferId ?? "",
+            gateway_instrument_id: instrument_id ?? "",
+            failure_code: finixCode ?? null,
+            failure_message: finixMsg ?? null,
+          },
         });
       } catch (e) {
         console.error("[DB] failed-payment upsert error:", e);
@@ -159,7 +161,6 @@ export async function POST(req: NextRequest) {
     if (finixResult.state === "PENDING" && finixResult.threeDSRedirectUrl) {
       const { error: payErr3ds } = await supabase.from("zenipay_payments").upsert({
         id: paymentId,
-        payment_link_id: pay_link_id,
         merchant_id: bodyMerchantId || "unknown",
         amount: amountNum,
         currency: finixCurrency,
@@ -168,10 +169,13 @@ export async function POST(req: NextRequest) {
         customer_email: customer_email || "",
         status: "pending_3ds",
         gateway: "finix",
-        gateway_transfer_id: finixResult.transferId || "",
-        gateway_instrument_id: finixResult.instrumentId || "",
-        card_brand: finixResult.brand || "",
-        card_last4: finixResult.last4 || "",
+        metadata: {
+          payment_link_id: pay_link_id,
+          gateway_transfer_id: finixResult.transferId || "",
+          gateway_instrument_id: finixResult.instrumentId || "",
+          card_brand: finixResult.brand || "",
+          card_last4: finixResult.last4 || "",
+        },
         created_at: now,
         updated_at: now,
       }, { onConflict: "id" });
@@ -207,33 +211,32 @@ export async function POST(req: NextRequest) {
     if (link) { merchantId = link.merchant_id; linkUses = link.uses || 0; }
 
     // Fallback to JSONB array scan (for pay links created before the table existed)
+    // Production stores links inside the merchant `config` JSONB (`payLinks`).
     if (!merchantId) {
-      const { data: allMerchants } = await supabase.from("zenipay_merchants").select("id, merchant_data");
+      const { data: allMerchants } = await supabase.from("zenipay_merchants").select("id, config");
       for (const m of (allMerchants || [])) {
-        if ((m.merchant_data?.payLinks || []).some((l: { id: string }) => l.id === pay_link_id)) {
-          merchantId = m.id; break;
+        const cfg = (m.config || {}) as Record<string, unknown>;
+        if (((cfg.payLinks || []) as Array<{ id: string }>).some((l) => l.id === pay_link_id)) {
+          merchantId = m.id as string; break;
         }
       }
     }
     // NEVER fall back to bodyMerchantId — that would let the client choose
     // which merchant gets credited (cross-tenant attack vector).
 
-    // ─── 2b. FETCH MERCHANT DATA ──────────────────────────────────────────
-    let merchantName = "", merchantEmail = "";
-    if (merchantId) {
-      const { data: mRow } = await supabase.from("zenipay_merchants").select("merchant_data").eq("id", merchantId).single();
-      if (mRow?.merchant_data) {
-        merchantName = mRow.merchant_data.businessName || "";
-        merchantEmail = mRow.merchant_data.email || "";
-      }
-    }
+    // ─── (merchant name/email resolved inline where needed; the dashboard
+    // reads balance from zenipay_accounts, not from the merchant profile.) ──
 
     const paymentStatus = finixResult.state === "SUCCEEDED" ? "succeeded" : "pending";
 
     // ─── 3. INSERT PAYMENT ────────────────────────────────────────────────
+    // Production `zenipay_payments` only has a subset of columns
+    // (id, merchant_id, amount, currency, status, payment_method,
+    //  gateway, customer_*, description, metadata, created_at, updated_at).
+    // All Finix-specific fields are flattened into the `metadata` JSONB so
+    // the insert never fails on missing columns.
     const { error: payErr } = await supabase.from("zenipay_payments").upsert({
       id: paymentId,
-      payment_link_id: pay_link_id,
       merchant_id: merchantId || "unknown",
       amount: amountNum,
       currency: finixCurrency,
@@ -241,59 +244,82 @@ export async function POST(req: NextRequest) {
       customer_name: customer_name || "",
       customer_email: customer_email || "",
       status: paymentStatus,
+      payment_method: "card",
       gateway: "finix",
-      gateway_transfer_id: finixResult.transferId || "",
-      gateway_instrument_id: finixResult.instrumentId || "",
-      card_brand: finixResult.brand || "",
-      card_last4: finixResult.last4 || "",
+      metadata: {
+        payment_link_id: pay_link_id,
+        gateway_transfer_id: finixResult.transferId || "",
+        gateway_instrument_id: finixResult.instrumentId || "",
+        card_brand: finixResult.brand || "",
+        card_last4: finixResult.last4 || "",
+        display_amount: displayAmount,
+        display_currency: displayCurrency,
+        fx_rate: fxRateUsed,
+      },
       created_at: now,
       updated_at: now,
     }, { onConflict: "id" });
 
-    if (payErr) console.error("[DB] Payment insert failed");
+    if (payErr) console.error("[DB] Payment insert failed", payErr);
 
     // ─── 4. CREATE INVOICE ────────────────────────────────────────────────
+    // Production `zenipay_invoices` uses `client_name`/`client_email`/`amount`
+    // (not customer_name / subtotal / total / invoice_number).
     if (finixResult.state === "SUCCEEDED") {
-      const { count } = await supabase.from("zenipay_invoices").select("id", { count: "exact", head: true });
-      const seq = String((count || 0) + 1).padStart(3, "0");
-      const invoiceNumber = `INV-${new Date().getFullYear()}-${seq}`;
-      const invoiceId = `INV-${paymentId}`;
-
       const { error: invErr } = await supabase.from("zenipay_invoices").upsert({
-        id: invoiceId,
-        invoice_number: invoiceNumber,
-        payment_id: paymentId,
+        id: `INV-${paymentId}`,
         merchant_id: merchantId || "unknown",
-        booking_id: `BK-${paymentId}`,
-        customer_name: customer_name || "Client",
-        customer_email: customer_email || "",
-        items: JSON.stringify([{ description: finalDescription || pay_link_id, qty: 1, unit_price: amountNum, total: amountNum }]),
-        subtotal: amountNum, tax: 0, total: amountNum, currency: finixCurrency,
-        status: "paid", paid_at: now,
-        merchant_name: merchantName || "", merchant_email: merchantEmail || "",
-        notes: `ZeniPay Payment ${paymentId} | Finix: ${finixResult.transferId}`,
-        created_at: now, updated_at: now,
+        client_name: customer_name || "Client",
+        client_email: customer_email || "",
+        amount: amountNum,
+        currency: finixCurrency,
+        status: "paid",
+        description: finalDescription || pay_link_id,
+        paid_at: now,
+        created_at: now,
+        updated_at: now,
       }, { onConflict: "id" });
 
-      if (invErr) console.error("[DB] Invoice creation failed");
+      if (invErr) console.error("[DB] Invoice creation failed", invErr);
     }
 
-    // ─── 5. UPDATE MERCHANT DATA (JSONB) ────────────────────────────────
-    // Production schema does NOT have balance/volume/tx_count as top-level
-    // columns. Everything lives inside merchant_data JSONB.
+    // ─── 5. CREDIT MERCHANT BALANCE ───────────────────────────────────────
+    // The merchant dashboard reads its balance from `zenipay_accounts.balance`
+    // (primary `is_primary` account). Production `zenipay_merchants` uses
+    // `config` JSONB — there is NO `merchant_data` / `balance` / `volume` /
+    // `tx_count` column. We credit the accounts row (what the UI shows) and
+    // mirror the running totals into `config` JSONB.
     if (merchantId && finixResult.state === "SUCCEEDED") {
       try {
+        const fee = amountNum * 0.029 + 0.30;
+
+        // 5a. Credit the merchant's primary account (the dashboard source of
+        // truth). Direct update — same pattern as banking-ops send_transfer.
+        const { data: pa } = await supabase
+          .from("zenipay_accounts")
+          .select("id, balance")
+          .eq("merchant_id", merchantId)
+          .eq("is_primary", true)
+          .maybeSingle();
+        if (pa) {
+          const prevBalance = Number(pa.balance || 0);
+          const credit = amountNum;
+          await supabase
+            .from("zenipay_accounts")
+            .update({ balance: prevBalance + credit, updated_at: now })
+            .eq("id", pa.id);
+        }
+
+        // 5b. Mirror totals + transaction list into the merchant's `config` JSONB.
         const { data: merchant } = await supabase
           .from("zenipay_merchants")
-          .select("merchant_data")
+          .select("config")
           .eq("id", merchantId).single();
-
-        const md = (merchant?.merchant_data || {}) as Record<string, unknown>;
-        const existingBalance  = Number(md.balance || 0);
-        const existingVolume   = Number(md.volume || 0);
-        const existingTxCount  = Number(md.tx_count || 0);
-        const existingTxs      = (md.transactions || []) as unknown[];
-        const fee = amountNum * 0.029 + 0.30;
+        const cfg = (merchant?.config || {}) as Record<string, unknown>;
+        const existingBalance = Number(cfg.balance || 0);
+        const existingVolume  = Number(cfg.volume || 0);
+        const existingTxCount = Number(cfg.tx_count || 0);
+        const existingTxs     = (cfg.transactions || []) as unknown[];
 
         const txn: Record<string, unknown> = {
           id: paymentId, pay_link_id, amount: amountNum, currency: finixCurrency,
@@ -304,57 +330,33 @@ export async function POST(req: NextRequest) {
           transfer_id: finixResult.transferId, createdAt: now,
         };
 
-        // Try atomic RPC (fails gracefully if migration 20260724000002 not applied)
-        try {
-          await supabase.rpc("zenipay_merchant_add_stats", {
-            p_merchant_id: merchantId,
-            p_balance_delta: amountNum,
-            p_volume_delta: amountNum,
-            p_tx_count_delta: 1,
-          });
-        } catch { /* RPC not available — JSONB update below handles it */ }
-
         await supabase.from("zenipay_merchants").update({
-          merchant_data: {
-            ...md,
-            balance:      existingBalance  + amountNum,
-            volume:       existingVolume   + amountNum,
-            tx_count:     existingTxCount  + 1,
+          config: {
+            ...cfg,
+            balance:  existingBalance  + amountNum,
+            volume:   existingVolume   + amountNum,
+            tx_count: existingTxCount  + 1,
             transactions: [txn, ...existingTxs.slice(0, 99)],
           },
           updated_at: now,
         }).eq("id", merchantId);
 
-        // ─── 5b. Update primary account balance (best-effort) ────────────
-        // RPC may not exist in production — that's OK; balance is already
-        // recorded in merchant_data JSONB above.
-        try {
-          const { data: pa } = await supabase
-            .from("zenipay_accounts")
-            .select("id")
-            .eq("merchant_id", merchantId)
-            .eq("is_primary", true)
-            .maybeSingle();
-          if (pa) await supabase.rpc("zenipay_account_add_balance", { p_account_id: pa.id, p_amount: amountNum - fee });
-        } catch { /* best-effort */ }
-
-        // ─── 5c. Skim platform fee to ZeniPay corporate ──────────────────
+        // 5c. Skim platform fee to ZeniPay corporate.
         if (fee > 0) {
           const ZP_CORP_MERCHANT = "acc_1774740862294";
           try {
             const { data: corpAcct } = await supabase
               .from("zenipay_accounts")
-              .select("id")
+              .select("id, balance")
               .eq("merchant_id", ZP_CORP_MERCHANT)
               .eq("is_primary", true)
               .maybeSingle();
             if (corpAcct) {
-              try {
-                await supabase.rpc("zenipay_account_add_balance", {
-                  p_account_id: corpAcct.id,
-                  p_amount: fee,
-                });
-              } catch { /* RPC not available — fee batch processing will handle */ }
+              const corpPrev = Number(corpAcct.balance || 0);
+              await supabase
+                .from("zenipay_accounts")
+                .update({ balance: corpPrev + fee, updated_at: now })
+                .eq("id", corpAcct.id);
             }
             await supabase.from("zenipay_ledger").insert({
               id: `led_${Date.now()}_fee_${Math.random().toString(36).slice(2, 6)}`,
