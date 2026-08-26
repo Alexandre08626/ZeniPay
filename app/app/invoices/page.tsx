@@ -37,6 +37,25 @@ interface Invoice {
 
 type StatusFilter = "all" | "draft" | "sent" | "paid" | "overdue";
 
+interface Quote {
+  id: string;
+  quote_number?: string;
+  customer_name: string;
+  customer_email?: string;
+  items?: string;
+  subtotal?: number;
+  tax?: number;
+  total: number;
+  currency?: string;
+  status: string;
+  notes?: string;
+  validity_days?: number;
+  expires_at?: string;
+  created_at: string;
+}
+
+type QuoteStatusFilter = "all" | "draft" | "sent" | "accepted" | "expired";
+
 function mid() { return typeof window === "undefined" ? "" : sessionStorage.getItem("zp_client") || ""; }
 function bname() { return typeof window === "undefined" ? "" : sessionStorage.getItem("zp_client_bname") || "My Business"; }
 function bemail() { return typeof window === "undefined" ? "" : sessionStorage.getItem("zp_client_email") || ""; }
@@ -58,6 +77,21 @@ export default function InvoicesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Invoice | null>(null);
 
+  const [devis, setDevis] = useState<Quote[]>([]);
+  const [qFilter, setQFilter] = useState<QuoteStatusFilter>("all");
+  const [createQuoteOpen, setCreateQuoteOpen] = useState(false);
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [quotesLoading, setQuotesLoading] = useState(false);
+
+  const loadQuotes = useCallback(async () => {
+    if (!mid()) return;
+    setQuotesLoading(true);
+    try {
+      const r = await fetch(`/api/zenipay/quotes?merchant_id=${encodeURIComponent(mid())}`).then((x) => x.json());
+      if (Array.isArray(r.quotes)) setDevis(r.quotes);
+    } finally { setQuotesLoading(false); }
+  }, []);
+
   const load = useCallback(async () => {
     if (!mid()) return;
     setLoading(true);
@@ -66,7 +100,7 @@ export default function InvoicesPage() {
       setInvoices((r.recent_invoices ?? []) as Invoice[]);
     } finally { setLoading(false); }
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); void loadQuotes(); }, [load, loadQuotes]);
 
   const stats = useMemo(() => {
     const outstanding = invoices.filter((i) => i.status !== "paid");
@@ -87,6 +121,30 @@ export default function InvoicesPage() {
     if (filter === "all") return invoices;
     return invoices.filter((i) => i.status === filter);
   }, [invoices, filter]);
+
+  const qStats = useMemo(() => {
+    const draft = devis.filter((q) => q.status === "draft");
+    const sent = devis.filter((q) => q.status === "sent");
+    const accepted = devis.filter((q) => q.status === "accepted");
+    const expired = devis.filter((q) => q.expires_at && new Date(q.expires_at) < new Date() && q.status !== "accepted");
+    return {
+      total: devis.length,
+      draftTotal: draft.reduce((s, q) => s + Number(q.total || 0), 0),
+      draftCount: draft.length,
+      sentTotal: sent.reduce((s, q) => s + Number(q.total || 0), 0),
+      sentCount: sent.length,
+      acceptedCount: accepted.length,
+      expiredCount: expired.length,
+    };
+  }, [devis]);
+
+  const isQuoteExpired = (q: Quote) => q.expires_at && new Date(q.expires_at) < new Date() && q.status !== "accepted";
+
+  const qFiltered = useMemo(() => {
+    if (qFilter === "all") return devis;
+    if (qFilter === "expired") return devis.filter(isQuoteExpired);
+    return devis.filter((q) => q.status === qFilter);
+  }, [devis, qFilter]);
 
   return (
     <DashboardShell mode="merchant">
@@ -166,13 +224,100 @@ export default function InvoicesPage() {
         />
       </BankingCard>
 
+      <div style={{ height: 1, background: zp.surface.border, margin: "28px 0 20px" }} />
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h2 style={{ margin: 0, fontFamily: zp.font.display, fontSize: 22, letterSpacing: "-0.03em", fontWeight: zp.weight.semibold, color: zp.text.primary }}>📋 Devis / Quotes</h2>
+          <p style={{ margin: "4px 0 0", color: zp.text.muted, fontSize: 12 }}>
+            {devis.length} devis total
+          </p>
+        </div>
+        <GradientButton variant="primary" size="md" onClick={() => setCreateQuoteOpen(true)} icon={<Plus size={14} />}>
+          + Devis
+        </GradientButton>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
+        <Stat label="Pending" value={zp.fmtCurrency(qStats.sentTotal + qStats.draftTotal)} sub={`${qStats.sentCount + qStats.draftCount} devis`} accent="cyan" />
+        <Stat label="Accepted" value={String(qStats.acceptedCount)} sub="Approved by customer" accent="green" />
+        <Stat label="Expired" value={String(qStats.expiredCount)} sub="Past validity date" accent={qStats.expiredCount > 0 ? "neutral" : "green"} />
+        <Stat label="Total" value={String(qStats.total)} sub={`${qStats.draftCount} drafts · ${qStats.sentCount} sent`} />
+      </div>
+
+      <BankingCard padding={14} style={{ marginBottom: 14 }}>
+        <div style={{ display: "inline-flex", gap: 2, padding: 3, background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`, borderRadius: zp.radius.sm }}>
+          {(["all", "draft", "sent", "accepted", "expired"] as QuoteStatusFilter[]).map((f) => {
+            const active = f === qFilter;
+            const count = f === "all" ? devis.length : f === "expired" ? devis.filter(isQuoteExpired).length : devis.filter((q) => q.status === f).length;
+            return (
+              <button
+                key={f}
+                onClick={() => setQFilter(f)}
+                style={{
+                  padding: "6px 14px", borderRadius: zp.radius.xs, border: "none",
+                  background: active ? zp.surface.bg1 : "transparent",
+                  color: active ? zp.text.primary : zp.text.muted,
+                  fontSize: 12, fontWeight: active ? zp.weight.semibold : zp.weight.medium,
+                  boxShadow: active ? zp.elevation.sm : undefined, cursor: "pointer",
+                  textTransform: "capitalize" as const,
+                }}
+              >
+                {f} · {count}
+              </button>
+            );
+          })}
+        </div>
+      </BankingCard>
+
+      <BankingCard padding="none">
+        <DataTable
+          rows={qFiltered}
+          loading={quotesLoading && devis.length === 0}
+          rowKey={(q) => q.id}
+          onRowClick={(q) => setSelectedQuote(q)}
+          columns={[
+            { key: "num", header: "Quote #", mono: true, width: 140, cell: (q) => (
+              <span style={{ color: zp.brand.violet, fontWeight: zp.weight.semibold }}>{q.quote_number || q.id}</span>
+            ) },
+            { key: "client", header: "Client", cell: (q) => (
+              <div>
+                <div style={{ color: zp.text.primary, fontWeight: zp.weight.semibold }}>{q.customer_name || "—"}</div>
+                {q.customer_email && <div style={{ fontSize: 11, color: zp.text.dim }}>{q.customer_email}</div>}
+              </div>
+            ) },
+            { key: "total", header: "Amount", mono: true, align: "right", width: 150,
+              cell: (q) => zp.fmtCurrency(Number(q.total || 0), q.currency || "CAD") },
+            { key: "status", header: "Status", width: 110, cell: (q) => <QuoteStatusPill quote={q} /> },
+            { key: "expires", header: "Expires", cell: (q) => {
+              const expired = isQuoteExpired(q);
+              return <span style={{ fontSize: 12, fontWeight: zp.weight.medium, color: expired ? zp.semantic.danger : zp.text.muted }}>{q.expires_at ? zp.fmtDate(q.expires_at) : "—"}</span>;
+            }, width: 120 },
+            { key: "date", header: "Created", cell: (q) => zp.fmtDate(q.created_at), width: 120 },
+          ]}
+          empty={
+            <div>
+              <p style={{ margin: "0 0 12px", color: zp.text.primary, fontWeight: zp.weight.semibold }}>No devis yet</p>
+              <GradientButton variant="primary" size="md" onClick={() => setCreateQuoteOpen(true)} icon={<Plus size={14} />}>Create your first devis</GradientButton>
+            </div>
+          }
+        />
+      </BankingCard>
+
       {createOpen && (
         <CreateInvoiceModal
           onClose={() => setCreateOpen(false)}
           onCreated={async () => { setCreateOpen(false); await load(); }}
         />
       )}
+      {createQuoteOpen && (
+        <CreateQuoteModal
+          onClose={() => setCreateQuoteOpen(false)}
+          onCreated={async () => { setCreateQuoteOpen(false); await loadQuotes(); }}
+        />
+      )}
       {selected && <InvoiceDetail invoice={selected} onClose={() => setSelected(null)} />}
+      {selectedQuote && <QuoteDetail quote={selectedQuote} onClose={() => setSelectedQuote(null)} onStatusUpdate={async (id, status) => { await fetch("/api/zenipay/quotes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) }); await loadQuotes(); setSelectedQuote(null); }} />}
     </DashboardShell>
   );
 }
@@ -196,6 +341,30 @@ function StatusPill({ status }: { status: string }) {
       {s.icon === "check" && <CheckCircle2 size={10} />}
       {s.icon === "alert" && <AlertTriangle size={10} />}
       {status || "—"}
+    </span>
+  );
+}
+
+function QuoteStatusPill({ quote }: { quote: Quote }) {
+  const isExpired = quote.expires_at && new Date(quote.expires_at) < new Date() && quote.status !== "accepted";
+  const displayStatus = isExpired && quote.status === "draft" ? "expired" : quote.status;
+  const m: Record<string, { bg: string; fg: string; icon?: "check" | "alert" }> = {
+    accepted: { bg: zp.semantic.successBg, fg: zp.semantic.success, icon: "check" },
+    sent: { bg: zp.surface.bg3, fg: zp.text.muted },
+    draft: { bg: zp.surface.bg3, fg: zp.text.muted },
+    expired: { bg: zp.semantic.dangerBg, fg: zp.semantic.danger, icon: "alert" },
+  };
+  const s = m[displayStatus] ?? { bg: zp.surface.bg3, fg: zp.text.muted };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      fontSize: 10, fontWeight: zp.weight.semibold, padding: "3px 10px",
+      borderRadius: zp.radius.pill, background: s.bg, color: s.fg,
+      letterSpacing: "0.06em", textTransform: "uppercase" as const,
+    }}>
+      {s.icon === "check" && <CheckCircle2 size={10} />}
+      {s.icon === "alert" && <AlertTriangle size={10} />}
+      {displayStatus || "—"}
     </span>
   );
 }
@@ -403,6 +572,214 @@ function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => 
           {invoice.notes && (
             <div style={{ marginTop: 22, padding: 12, background: zp.surface.bg2, borderRadius: zp.radius.sm, fontSize: 12, color: zp.text.muted }}>
               {invoice.notes}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateQuoteModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void | Promise<void> }) {
+  const [form, setForm] = useState({
+    customer_name: "", customer_email: "", description: "",
+    amount: "", tax: "0", notes: "", validity_days: "30",
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  const submit = async () => {
+    if (!form.customer_name.trim() || !form.amount) { setErr("Customer name and amount are required."); return; }
+    setSaving(true); setErr(null);
+    try {
+      const qteId = "QTE-" + Date.now().toString(36).toUpperCase();
+      const amt = parseFloat(form.amount) || 0;
+      const taxAmt = parseFloat(form.tax) || 0;
+      const total = amt + taxAmt;
+      const validityDays = parseInt(form.validity_days) || 30;
+      const payload = {
+        id: qteId,
+        quote_number: qteId,
+        merchant_id: mid(),
+        customer_name: form.customer_name,
+        customer_email: form.customer_email,
+        items: JSON.stringify([{ description: form.description || "Service", qty: 1, unit_price: amt, total: amt }]),
+        subtotal: amt,
+        tax: taxAmt,
+        total,
+        currency: "CAD",
+        status: "draft",
+        notes: form.notes,
+        validity_days: validityDays,
+      };
+      const r = await fetch("/api/zenipay/quotes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error("Devis creation failed");
+      await onCreated();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <ModalShell onClose={onClose} title="Create devis" subtitle="Send a professional quote to your client.">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div>
+          <Label>Customer name *</Label>
+          <Input value={form.customer_name} onChange={(v) => set("customer_name", v)} placeholder="John Doe" />
+        </div>
+        <div>
+          <Label>Customer email</Label>
+          <Input value={form.customer_email} onChange={(v) => set("customer_email", v)} placeholder="john@email.com" type="email" />
+        </div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <Label>Description</Label>
+          <Input value={form.description} onChange={(v) => set("description", v)} placeholder="Service or product" />
+        </div>
+        <div>
+          <Label>Amount (CAD) *</Label>
+          <Input value={form.amount} onChange={(v) => set("amount", v)} placeholder="0.00" type="number" step="0.01" />
+        </div>
+        <div>
+          <Label>Tax</Label>
+          <Input value={form.tax} onChange={(v) => set("tax", v)} placeholder="0.00" type="number" step="0.01" />
+        </div>
+        <div>
+          <Label>Validity (days)</Label>
+          <input value={form.validity_days} onChange={(e) => set("validity_days", e.target.value)} placeholder="30" type="number" min="1" style={inputStyle} />
+        </div>
+        <div>
+          <Label>Total</Label>
+          <div style={{ ...zp.amountStyle.large, fontSize: 22, color: zp.brand.violet, fontWeight: zp.weight.semibold, padding: "10px 0" }}>
+            {zp.fmtCurrency((parseFloat(form.amount) || 0) + (parseFloat(form.tax) || 0))}
+          </div>
+        </div>
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <Label>Notes</Label>
+        <textarea
+          value={form.notes}
+          onChange={(e) => set("notes", e.target.value)}
+          rows={2}
+          placeholder="Quote terms..."
+          style={{ ...inputStyle, resize: "vertical" as const }}
+        />
+      </div>
+      {err && (
+        <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: zp.radius.sm, background: zp.semantic.dangerBg, color: zp.semantic.danger, fontSize: 12, fontWeight: zp.weight.semibold }}>{err}</div>
+      )}
+      <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+        <GradientButton variant="secondary" size="md" onClick={onClose} style={{ flex: 1 }}>Cancel</GradientButton>
+        <GradientButton variant="primary" size="md" onClick={submit} disabled={saving || !form.customer_name || !form.amount} style={{ flex: 1 }}>
+          {saving ? "Creating…" : "Create devis"}
+        </GradientButton>
+      </div>
+    </ModalShell>
+  );
+}
+
+function QuoteDetail({ quote, onClose, onStatusUpdate }: { quote: Quote; onClose: () => void; onStatusUpdate: (id: string, status: string) => Promise<void> }) {
+  const isExpired = quote.expires_at && new Date(quote.expires_at) < new Date() && quote.status !== "accepted";
+  const displayStatus = isExpired && quote.status === "draft" ? "expired" : quote.status;
+
+  let items: Array<{ description: string; qty: number; unit_price: number; total: number }> = [];
+  try {
+    if (quote.items) {
+      const raw = typeof quote.items === "string" ? JSON.parse(quote.items) : quote.items;
+      if (Array.isArray(raw)) items = raw;
+    }
+  } catch {}
+
+  const issuerName  = bname() || "Your business";
+  const issuerEmail = bemail() || "";
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: zp.surface.overlay, backdropFilter: "blur(4px)", zIndex: zp.zIndex.modal, display: "flex", justifyContent: "flex-end" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(520px, 100vw)", height: "100vh", background: zp.surface.bg1, boxShadow: zp.elevation.lg, overflowY: "auto" }}>
+        <div style={{ padding: "22px 24px", borderBottom: `1px solid ${zp.surface.border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div>
+            <QuoteStatusPill quote={quote} />
+            <h2 style={{ margin: "10px 0 2px", fontSize: 22, fontFamily: zp.font.display, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.02em" }}>
+              {quote.quote_number || quote.id}
+            </h2>
+            <p style={{ margin: 0, fontSize: 13, color: zp.text.muted }}>{quote.customer_name}</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" style={{ background: zp.surface.bg3, border: "none", borderRadius: zp.radius.sm, width: 30, height: 30, cursor: "pointer", color: zp.text.primary, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        <div style={{ padding: 24 }}>
+          <div style={{ ...zp.amountStyle.hero, fontSize: 44, marginBottom: 4, color: zp.text.primary }}>
+            {zp.fmtCurrency(Number(quote.total || 0), quote.currency || "CAD")}
+          </div>
+          <div style={{ fontSize: 11, color: zp.text.muted, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: zp.weight.semibold }}>
+            Total
+          </div>
+
+          <div style={{ height: 1, background: zp.surface.border, margin: "18px 0" }} />
+
+          <div style={{ marginBottom: 18, padding: "12px 14px", background: zp.surface.bg2, borderRadius: zp.radius.sm, border: `1px solid ${zp.surface.border}` }}>
+            <div style={{ fontSize: 10, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.12em", textTransform: "uppercase" as const, marginBottom: 4 }}>
+              From
+            </div>
+            <div style={{ fontSize: 14, color: zp.text.primary, fontWeight: zp.weight.semibold }}>
+              {issuerName}
+            </div>
+            {issuerEmail && <div style={{ fontSize: 12, color: zp.text.muted, marginTop: 2 }}>{issuerEmail}</div>}
+          </div>
+
+          <dl style={{ margin: 0 }}>
+            <DRow label="From" value={issuerName} />
+            <DRow label="Client" value={quote.customer_name || "—"} />
+            {quote.customer_email && <DRow label="Email" value={quote.customer_email} />}
+            <DRow label="Issued" value={zp.fmtDateTime(quote.created_at)} />
+            <DRow label="Expires" value={quote.expires_at ? zp.fmtDate(quote.expires_at) : "—"} />
+            {quote.validity_days && <DRow label="Validity" value={`${quote.validity_days} days`} />}
+            <DRow label="Subtotal" value={zp.fmtCurrency(Number(quote.subtotal || quote.total || 0), quote.currency || "CAD")} mono />
+            {quote.tax != null && Number(quote.tax) !== 0 && (
+              <DRow label="Tax" value={zp.fmtCurrency(Number(quote.tax), quote.currency || "CAD")} mono />
+            )}
+            <DRow label="Total" value={zp.fmtCurrency(Number(quote.total), quote.currency || "CAD")} mono bold />
+          </dl>
+
+          {items.length > 0 && (
+            <div style={{ marginTop: 22 }}>
+              <div style={{ fontSize: 11, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+                Line items
+              </div>
+              <div style={{ background: zp.surface.bg2, borderRadius: zp.radius.sm, padding: 12 }}>
+                {items.map((it, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < items.length - 1 ? `1px solid ${zp.surface.border}` : "none", fontSize: 13, color: zp.text.primary }}>
+                    <span>{it.description} × {it.qty}</span>
+                    <span style={{ fontFamily: zp.font.mono }}>{zp.fmtCurrency(Number(it.total ?? (it.qty * it.unit_price)), quote.currency || "CAD")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 22, flexWrap: "wrap" }}>
+            {displayStatus === "draft" && (
+              <GradientButton variant="primary" size="md" icon={<Send size={14} />} onClick={() => onStatusUpdate(quote.id, "sent")}>
+                Send to customer
+              </GradientButton>
+            )}
+            {displayStatus === "sent" && (
+              <GradientButton variant="primary" size="md" icon={<CheckCircle2 size={14} />} onClick={() => onStatusUpdate(quote.id, "accepted")}>
+                Mark accepted
+              </GradientButton>
+            )}
+            <GradientButton variant="secondary" size="md" icon={<Download size={14} />} onClick={() => window.print()}>
+              Download PDF
+            </GradientButton>
+          </div>
+
+          {quote.notes && (
+            <div style={{ marginTop: 22, padding: 12, background: zp.surface.bg2, borderRadius: zp.radius.sm, fontSize: 12, color: zp.text.muted }}>
+              {quote.notes}
             </div>
           )}
         </div>
