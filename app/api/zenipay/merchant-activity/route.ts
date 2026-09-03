@@ -63,6 +63,7 @@ function ledgerLabel(eventType: string, note?: string | null): string {
     return note;
   }
   switch (eventType) {
+    case "customer_payment":   return "Payment received";
     case "fund_agent_treasury": return "Fund agent treasury";
     case "transfer_to_agent":   return "Transfer to agent";
     case "refund":              return "Refund";
@@ -87,6 +88,7 @@ function ledgerCounterparty(eventType: string, note?: string | null): string {
 }
 
 function ledgerKind(eventType: string, direction: "debit" | "credit"): ActivityKind {
+  if (eventType === "customer_payment")   return "payment_in";
   if (eventType === "fund_agent_treasury") return "agent_treasury_fund";
   if (eventType === "transfer_to_agent")   return "transfer_to_agent";
   if (eventType === "refund")              return "refund";
@@ -134,7 +136,7 @@ export async function GET(req: NextRequest) {
     pgrest(`zenipay_transfers?select=*&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
       .then((data) => ({ data, error: null }))
       .catch((error) => ({ data: [], error })),
-    pgrest(`zenipay_ledger?select=id,payment_id,event_type,direction,amount,currency,note,reference,created_at&merchant_id=eq.${enc(mid)}&event_type=neq.customer_payment&order=created_at.desc&limit=${limit}`)
+    pgrest(`zenipay_ledger?select=id,payment_id,event_type,direction,amount,currency,note,reference,created_at&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
       .then((data) => ({ data, error: null }))
       .catch((error) => ({ data: [], error })),
     pgrest(`zenipay_payouts?select=*&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
