@@ -97,7 +97,15 @@ export default function InvoicesPage() {
     setLoading(true);
     try {
       const r = await fetch(`/api/zenipay/stats?merchant_id=${encodeURIComponent(mid())}`).then((x) => x.json());
-      setInvoices((r.recent_invoices ?? []) as Invoice[]);
+      // Normalize both the legacy (client_name/amount) and rich
+      // (customer_name/subtotal/tax/total) invoice schemas into one shape.
+      setInvoices(((r.recent_invoices ?? []) as Array<Record<string, any>>).map((i) => ({
+        ...i,
+        customer_name: i.customer_name || i.client_name || "—",
+        customer_email: i.customer_email || i.client_email || "",
+        total: i.total ?? i.amount ?? 0,
+        invoice_number: i.invoice_number || i.id,
+      })) as Invoice[]);
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); void loadQuotes(); }, [load, loadQuotes]);

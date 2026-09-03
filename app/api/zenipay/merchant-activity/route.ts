@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
   // some Vercel lambda reuse conditions. pgrest() is the ground truth.
   const enc = encodeURIComponent;
   const [payments, transfers, ledger, legacyPayouts, payoutRequests] = await Promise.all([
-    pgrest(`zenipay_payments?select=id,amount,status,created_at,customer_name,currency,description,card_brand,card_last4&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
+    pgrest(`zenipay_payments?select=id,amount,status,created_at,customer_name,currency,description,metadata&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
       .then((data) => ({ data, error: null }))
       .catch((error) => ({ data: [], error })),
     pgrest(`zenipay_transfers?select=*&merchant_id=eq.${enc(mid)}&order=created_at.desc&limit=${limit}`)
@@ -153,9 +153,10 @@ export async function GET(req: NextRequest) {
   for (const p of (payments.data ?? []) as Array<{
     id: string; amount: number | string; status: string; created_at: string;
     customer_name: string | null; currency: string | null; description: string | null;
-    card_brand: string | null; card_last4: string | null;
+    metadata?: Record<string, unknown> | null;
   }>) {
     if (accountIdFilter && !isPrimaryAccount) continue;
+    const md = (p.metadata || {}) as Record<string, unknown>;
     rows.push({
       id: `pay_${p.id}`,
       source: "payment",
@@ -168,7 +169,7 @@ export async function GET(req: NextRequest) {
       counterparty: p.customer_name || "—",
       status: p.status || "succeeded",
       account_id: null,
-      metadata: { payment_id: p.id, card_brand: p.card_brand, card_last4: p.card_last4 },
+      metadata: { payment_id: p.id, card_brand: md.card_brand, card_last4: md.card_last4, gateway_transfer_id: md.gateway_transfer_id },
     });
   }
 

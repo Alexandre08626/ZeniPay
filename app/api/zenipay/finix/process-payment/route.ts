@@ -262,25 +262,98 @@ export async function POST(req: NextRequest) {
 
     if (payErr) console.error("[DB] Payment insert failed", payErr);
 
-    // ─── 4. CREATE INVOICE ────────────────────────────────────────────────
-    // Production `zenipay_invoices` uses `client_name`/`client_email`/`amount`
-    // (not customer_name / subtotal / total / invoice_number).
+    // ─── 4. CREATE INVOICE (automated on money-in) ────────────────────────
+    // Every successful payment auto-generates a paid invoice with a
+    // sequential number, tax breakdown (tax-inclusive, see DEFAULT_TAX_RATE)
+    // and line items. Production `zenipay_invoices` still uses the legacy
+    // columns (client_name/client_email/amount) — we write the rich shape
+    // first and fall back to the legacy columns when the rich ones are
+    // missing (pre-migration).
     if (finixResult.state === "SUCCEEDED") {
-      const { error: invErr } = await supabase.from("zenipay_invoices").upsert({
-        id: `INV-${paymentId}`,
+      const DEFAULT_TAX_RATE = 5; // % GST default, overridable via config.tax_rate
+      let taxRatePct = DEFAULT_TAX_RATE;
+      let merchantName = "";
+      let merchantEmail = "";
+      try {
+        const { data: mRow } = await supabase
+          .from("zenipay_merchants")
+          .select("name, company, email, config")
+          .eq("id", merchantId)
+          .maybeSingle();
+        if (mRow) {
+          const cfg = (mRow.config || {}) as Record<string, unknown>;
+          if (typeof cfg.tax_rate === "number" && cfg.tax_rate >= 0) taxRatePct = cfg.tax_rate;
+          merchantName = (mRow.name || mRow.company || cfg.businessName || "") as string;
+          merchantEmail = (mRow.email || cfg.email || "") as string;
+        }
+      } catch { /* keep defaults */ }
+
+      // Tax-inclusive reverse calc on the settled CAD amount.
+      const total = amountNum;
+      const rate = taxRatePct / 100;
+      const subtotal = Math.round((total / (1 + rate)) * 100) / 100;
+      const tax = Math.round((total - subtotal) * 100) / 100;
+
+      // Sequential invoice number (count-based, zero-padded).
+      let invoiceNumber = `INV-${paymentId}`;
+      try {
+        const { count } = await supabase
+          .from("zenipay_invoices")
+          .select("id", { count: "exact", head: true });
+        const seq = String((count || 0) + 1).padStart(4, "0");
+        invoiceNumber = `INV-${new Date().getFullYear()}-${seq}`;
+      } catch { /* fall back to payment id */ }
+
+      const lineItem = {
+        description: finalDescription || `Payment link ${pay_link_id}`,
+        qty: 1,
+        unit_price: subtotal,
+        total: subtotal,
+      };
+
+      const richInvoice = {
+        id: invoiceNumber,
+        invoice_number: invoiceNumber,
         merchant_id: merchantId || "unknown",
+        customer_name: customer_name || "Client",
+        customer_email: customer_email || "",
         client_name: customer_name || "Client",
         client_email: customer_email || "",
-        amount: amountNum,
+        items: JSON.stringify([lineItem]),
+        subtotal,
+        tax,
+        total,
+        amount: total,
         currency: finixCurrency,
+        description: lineItem.description,
         status: "paid",
-        description: finalDescription || pay_link_id,
+        payment_id: paymentId,
+        merchant_name: merchantName,
+        merchant_email: merchantEmail,
+        notes: `Auto-generated from ZeniPay payment ${paymentId} | Finix: ${finixResult.transferId}`,
         paid_at: now,
         created_at: now,
         updated_at: now,
-      }, { onConflict: "id" });
+      };
+      const { error: richErr } = await supabase.from("zenipay_invoices").upsert(richInvoice, { onConflict: "id" });
 
-      if (invErr) console.error("[DB] Invoice creation failed", invErr);
+      if (richErr) {
+        const legacyInvoice = {
+          id: invoiceNumber,
+          merchant_id: merchantId || "unknown",
+          client_name: customer_name || "Client",
+          client_email: customer_email || "",
+          amount: total,
+          currency: finixCurrency,
+          status: "paid",
+          description: lineItem.description,
+          paid_at: now,
+          created_at: now,
+          updated_at: now,
+        };
+        const { error: legacyErr } = await supabase.from("zenipay_invoices").upsert(legacyInvoice, { onConflict: "id" });
+        if (legacyErr) console.error("[DB] Invoice creation failed", legacyErr);
+      }
     }
 
     // ─── 5. CREDIT MERCHANT BALANCE ───────────────────────────────────────

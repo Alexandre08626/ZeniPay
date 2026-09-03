@@ -22,12 +22,13 @@ export async function GET(req: NextRequest) {
     try {
       const { data: mRow } = await supabase
         .from("zenipay_merchants")
-        .select("merchant_data")
+        .select("config")
         .eq("id", merchant_id)
         .maybeSingle();
-      if (mRow?.merchant_data) {
-        merchantBalance = Number((mRow.merchant_data as Record<string, unknown>).balance || 0);
-        merchantTxCount = Number((mRow.merchant_data as Record<string, unknown>).tx_count || 0);
+      const cfg = (mRow?.config || {}) as Record<string, unknown>;
+      if (cfg) {
+        merchantBalance = Number(cfg.balance || 0);
+        merchantTxCount = Number(cfg.tx_count || 0);
       }
     } catch { /* best-effort */ }
 
@@ -36,7 +37,8 @@ export async function GET(req: NextRequest) {
       id: string; amount: number; status: string; created_at: string;
       merchant_id: string; customer_name?: string; customer_email?: string;
       currency?: string; description?: string;
-      card_brand?: string; card_last4?: string; gateway?: string; payment_link_id?: string;
+      gateway?: string; payment_link_id?: string;
+      metadata?: Record<string, unknown> | null;
     }
     let payments: PayRow[] = [];
     let allPaymentsCount = 0;
@@ -76,13 +78,16 @@ export async function GET(req: NextRequest) {
     };
 
     // ─── 4. Recent transactions ─────────────────────────────────────────
-    const recentTransactions = myPayments.slice(0, 50).map(p => ({
-      id: p.id, customer: p.customer_name || "—", amount: Number(p.amount || 0),
-      currency: p.currency || "CAD", status: p.status || "",
-      description: p.description || "", date: p.created_at || "",
-      gateway: p.gateway || "ZeniPay",
-      card_brand: p.card_brand || "", card_last4: p.card_last4 || "",
-    }));
+    const recentTransactions = myPayments.slice(0, 50).map(p => {
+      const md = (p.metadata || {}) as Record<string, unknown>;
+      return {
+        id: p.id, customer: p.customer_name || "—", amount: Number(p.amount || 0),
+        currency: p.currency || "CAD", status: p.status || "",
+        description: p.description || "", date: p.created_at || "",
+        gateway: p.gateway || "ZeniPay",
+        card_brand: (md.card_brand as string) || "", card_last4: (md.card_last4 as string) || "",
+      };
+    });
 
     // ─── 5. Payouts (best-effort) ───────────────────────────────────────
     let recentPayouts: unknown[] = [];
