@@ -64,6 +64,7 @@ function ledgerLabel(eventType: string, note?: string | null): string {
   }
   switch (eventType) {
     case "customer_payment":   return "Payment received";
+    case "settlement_to_bank": return "Sent to bank account";
     case "fund_agent_treasury": return "Fund agent treasury";
     case "transfer_to_agent":   return "Transfer to agent";
     case "refund":              return "Refund";
@@ -82,13 +83,16 @@ function ledgerCounterparty(eventType: string, note?: string | null): string {
     case "fund_agent_treasury":
     case "transfer_to_agent":
       return "Agent treasury";
+    case "settlement_to_bank":
+      return "Bank account";
     default:
       return "—";
   }
 }
 
 function ledgerKind(eventType: string, direction: "debit" | "credit"): ActivityKind {
-  if (eventType === "customer_payment")   return "payment_in";
+  if (eventType === "customer_payment")    return "payment_in";
+  if (eventType === "settlement_to_bank")  return "payout_out";
   if (eventType === "fund_agent_treasury") return "agent_treasury_fund";
   if (eventType === "transfer_to_agent")   return "transfer_to_agent";
   if (eventType === "refund")              return "refund";

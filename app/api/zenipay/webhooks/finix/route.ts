@@ -254,37 +254,19 @@ export async function POST(request: Request) {
 
       case "settlement.created":
       case "SETTLEMENT.CREATED": {
-        await supabase.from("zenipay_webhook_events").insert({
-          id: `whe_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          event_type: eventType,
-          entity_id: (data.id as string) || "",
-          payload: data,
-          created_at: now,
-        });
+        await handleSettlement(supabase, data, state, now);
         break;
       }
 
       case "settlement.updated":
       case "SETTLEMENT.UPDATED": {
-        await supabase.from("zenipay_webhook_events").insert({
-          id: `whe_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          event_type: eventType,
-          entity_id: (data.id as string) || "",
-          payload: data,
-          created_at: now,
-        });
+        await handleSettlement(supabase, data, state, now);
         break;
       }
 
       case "settlement.failed":
       case "SETTLEMENT.FAILED": {
-        await supabase.from("zenipay_webhook_events").insert({
-          id: `whe_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          event_type: eventType,
-          entity_id: (data.id as string) || "",
-          payload: data,
-          created_at: now,
-        });
+        await handleSettlement(supabase, data, state, now);
         // Update relevant payout status if settlement ID is tracked
         const settlementId = data.id as string;
         if (settlementId) {
@@ -346,6 +328,88 @@ export async function POST(request: Request) {
     console.error("[Webhook] Processing error:", err);
     return Response.json({ received: true, error: "Processing error logged" });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Settlement → bank. ZeniPay is not a bank: Finix sweeps collected funds to
+// the owner's deposit account (e.g. Desjardins) via a Settlement. We record
+// that as a `settlement_to_bank` ledger debit so it shows up in the merchant
+// transactions feed — the Stripe-analog "paid out to bank" event.
+//
+// Idempotent: the ledger row id is derived from the settlement id, so webhook
+// redeliveries are no-ops.
+
+async function handleSettlement(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  data: Record<string, unknown>,
+  state: string,
+  now: string,
+): Promise<void> {
+  const settlementId = (data.id as string) || "";
+  if (!settlementId) return;
+
+  // Finix reports amounts in cents; the ledger stores dollars.
+  const rawAmount = Number(data.total_amount ?? data.amount ?? 0);
+  const amount = Math.round(rawAmount) / 100;
+  const currency = (data.currency as string) || "CAD";
+
+  // Only record a "sent to bank" transaction once money actually leaves
+  // (terminal success states). created/updated PENDING just noise.
+  const isSent = state === "SUCCEEDED" || state === "APPROVED";
+  if (!isSent) return;
+
+  // Resolve the internal merchant from the Finix merchant/identity reference.
+  let merchantId: string | null = null;
+  const merchantRef = (data.merchant_identity && typeof data.merchant_identity === "object"
+    ? (data.merchant_identity as Record<string, unknown>).id
+    : null)
+    ?? (typeof data.merchant_identity === "string" ? data.merchant_identity : null)
+    ?? (data.merchant_id as string)
+    ?? null;
+
+  const finixMerchantId = String(merchantRef || "").trim();
+  if (finixMerchantId) {
+    const { data: rows } = await supabase
+      .from("zenipay_merchants")
+      .select("id")
+      .eq("finix_merchant_id", finixMerchantId)
+      .limit(1);
+    if (rows && rows.length) merchantId = rows[0].id as string;
+  }
+
+  if (!merchantId && process.env.FINIX_MERCHANT_ID) {
+    const { data: rows } = await supabase
+      .from("zenipay_merchants")
+      .select("id")
+      .eq("finix_merchant_id", process.env.FINIX_MERCHANT_ID)
+      .limit(1);
+    if (rows && rows.length) merchantId = rows[0].id as string;
+  }
+
+  if (!merchantId && process.env.FINIX_MERCHANT_IDENTITY_ID) {
+    const { data: rows } = await supabase
+      .from("zenipay_merchants")
+      .select("id")
+      .eq("finix_identity_id", process.env.FINIX_MERCHANT_IDENTITY_ID)
+      .limit(1);
+    if (rows && rows.length) merchantId = rows[0].id as string;
+  }
+
+  if (!merchantId || amount <= 0) return;
+
+  await supabase.from("zenipay_ledger").upsert({
+    id: `led_settle_${settlementId}`,
+    payment_id: null,
+    merchant_id: merchantId,
+    event_type: "settlement_to_bank",
+    wallet_type: "platform",
+    direction: "debit",
+    amount,
+    currency,
+    reference: settlementId,
+    note: `Settlement sent to bank account (Finix ${settlementId})`,
+    created_at: now,
+  }, { onConflict: "id" });
 }
 
 // ---------------------------------------------------------------------------
