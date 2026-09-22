@@ -38,7 +38,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const eventType = (payload.type as string) || (payload.event_type as string) || "unknown";
+  // Real Finix envelopes look like { type: "updated", entity: "settlement",
+  // _embedded: { settlements: [ {...} ] } }. Normalize that to the dotted
+  // "settlement.updated" form + the embedded resource so the switch below
+  // sees the same shape as the flat/replay payloads.
+  const { eventType, resource } = normalizeFinixEvent(payload);
   const supabase = getSupabaseAdmin();
 
   // Log webhook event
@@ -53,9 +57,10 @@ export async function POST(request: Request) {
   });
 
   try {
-    const data = (payload.data || payload) as Record<string, unknown>;
+    const data = resource;
     const transferId = data.id as string;
-    const state = ((data.state as string) || "").toUpperCase();
+    // Transfers expose `state`; settlements expose `status` (v2) or `state`.
+    const state = ((data.state as string) || (data.status as string) || "").toUpperCase();
     const now = new Date().toISOString();
 
     switch (eventType) {
@@ -298,7 +303,7 @@ export async function POST(request: Request) {
       case "merchant.created":
       case "merchant.underwritten":
       case "merchant.updated": {
-        const merchantData = (payload.data || payload) as Record<string, unknown>;
+        const merchantData = data;
         const finixMerchantId = merchantData.id as string;
         const onboardingState = merchantData.onboarding_state as string;
 
@@ -336,8 +341,15 @@ export async function POST(request: Request) {
 // that as a `settlement_to_bank` ledger debit so it shows up in the merchant
 // transactions feed — the Stripe-analog "paid out to bank" event.
 //
+// Once the sweep succeeds, the funds are no longer "in ZeniPay": the merchant
+// balance (zenipay_merchants.balance) and the primary account balance
+// (zenipay_accounts.balance) are debited by the settled amount, floored at 0,
+// so the dashboard's Total balance drops back to $0 after Finix pays out.
+// Payments collected after the settlement cutoff stay in the balance.
+//
 // Idempotent: the ledger row id is derived from the settlement id, so webhook
-// redeliveries are no-ops.
+// redeliveries are no-ops (we bail out before touching balances if the row
+// already exists).
 
 async function handleSettlement(
   supabase: ReturnType<typeof getSupabaseAdmin>,
@@ -365,6 +377,7 @@ async function handleSettlement(
     : null)
     ?? (typeof data.merchant_identity === "string" ? data.merchant_identity : null)
     ?? (data.merchant_id as string)
+    ?? (data.merchant as string)
     ?? null;
 
   const finixMerchantId = String(merchantRef || "").trim();
@@ -373,6 +386,17 @@ async function handleSettlement(
       .from("zenipay_merchants")
       .select("id")
       .eq("finix_merchant_id", finixMerchantId)
+      .limit(1);
+    if (rows && rows.length) merchantId = rows[0].id as string;
+  }
+
+  // Finix settlements carry the owning identity as `identity` (ID...).
+  const finixIdentityId = String((data.identity as string) || "").trim();
+  if (!merchantId && finixIdentityId) {
+    const { data: rows } = await supabase
+      .from("zenipay_merchants")
+      .select("id")
+      .eq("finix_identity_id", finixIdentityId)
       .limit(1);
     if (rows && rows.length) merchantId = rows[0].id as string;
   }
@@ -397,8 +421,18 @@ async function handleSettlement(
 
   if (!merchantId || amount <= 0) return;
 
+  // Already processed this settlement (Finix redelivery / created+updated
+  // both terminal) — don't debit the balances twice.
+  const ledgerId = `led_settle_${settlementId}`;
+  const { data: existing } = await supabase
+    .from("zenipay_ledger")
+    .select("id")
+    .eq("id", ledgerId)
+    .maybeSingle();
+  if (existing) return;
+
   await supabase.from("zenipay_ledger").upsert({
-    id: `led_settle_${settlementId}`,
+    id: ledgerId,
     payment_id: null,
     merchant_id: merchantId,
     event_type: "settlement_to_bank",
@@ -410,6 +444,83 @@ async function handleSettlement(
     note: `Settlement sent to bank account (Finix ${settlementId})`,
     created_at: now,
   }, { onConflict: "id" });
+
+  // ── Reset balances: the money is now in the bank, not in ZeniPay ──────
+  // Merchant balance (gross, what the overview shows as Total balance).
+  const { data: mRow } = await supabase
+    .from("zenipay_merchants")
+    .select("balance")
+    .eq("id", merchantId)
+    .maybeSingle();
+  const merchantBal = Number(mRow?.balance || 0);
+  const merchantDebit = Math.min(merchantBal, amount);
+  if (merchantDebit > 0) {
+    const { error } = await supabase.rpc("zenipay_merchant_add_stats", {
+      p_merchant_id: merchantId,
+      p_balance_delta: -merchantDebit,
+      p_volume_delta: 0,
+      p_tx_count_delta: 0,
+    });
+    if (error) console.error("[webhook] settlement merchant balance debit failed:", error.message);
+  }
+
+  // Primary account (net of fees). The settlement is gross, so this floors
+  // at 0 rather than going negative.
+  const { data: primaryAcct } = await supabase
+    .from("zenipay_accounts")
+    .select("id, balance")
+    .eq("merchant_id", merchantId)
+    .eq("is_primary", true)
+    .maybeSingle();
+  if (primaryAcct) {
+    const acctBal = Number(primaryAcct.balance || 0);
+    const acctDebit = Math.min(acctBal, amount);
+    if (acctDebit > 0) {
+      const { error } = await supabase.rpc("zenipay_account_add_balance", {
+        p_account_id: primaryAcct.id,
+        p_amount: -acctDebit,
+      });
+      if (error) console.error("[webhook] settlement account balance debit failed:", error.message);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Finix envelope normalization.
+//
+// Finix delivers { id, type: "created"|"updated", entity: "transfer"|
+// "settlement"|"merchant"|..., _embedded: { <entity>s: [resource] } }.
+// Internal replay tools and older tests send { type: "settlement.updated",
+// data: {...} }. Both end up as { eventType: "settlement.updated", resource }.
+
+function normalizeFinixEvent(payload: Record<string, unknown>): {
+  eventType: string;
+  resource: Record<string, unknown>;
+} {
+  const rawType = (payload.type as string) || (payload.event_type as string) || "unknown";
+  const entity = typeof payload.entity === "string" ? (payload.entity as string).toLowerCase() : "";
+  const embedded = (payload._embedded && typeof payload._embedded === "object")
+    ? (payload._embedded as Record<string, unknown>)
+    : null;
+
+  let resource: Record<string, unknown> | null = null;
+  if (embedded) {
+    const firstList = Object.values(embedded).find((v) => Array.isArray(v) && v.length > 0) as
+      | Array<Record<string, unknown>>
+      | undefined;
+    if (firstList) resource = firstList[0];
+  }
+  if (!resource) {
+    resource = (payload.data && typeof payload.data === "object")
+      ? (payload.data as Record<string, unknown>)
+      : payload;
+  }
+
+  // Already dotted ("transfer.succeeded") → keep as-is.
+  if (rawType.includes(".") || rawType.includes("_") || !entity) {
+    return { eventType: rawType, resource };
+  }
+  return { eventType: `${entity}.${rawType.toLowerCase()}`, resource };
 }
 
 // ---------------------------------------------------------------------------

@@ -108,7 +108,7 @@ export default function OverviewPage() {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
-  const [merchantRevenue, setMerchantRevenue] = useState(0);
+  const [merchantBalance, setMerchantBalance] = useState(0);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -139,7 +139,8 @@ export default function OverviewPage() {
       setPayments(stats.recent_transactions ?? []);
       setPayouts(stats.recent_payouts ?? []);
       setInvoices(stats.recent_invoices ?? []);
-      setMerchantRevenue(Number(stats.merchant_balance ?? stats.stats?.total_revenue ?? 0));
+      // Held balance (drops to 0 once Finix settles to the bank) — not lifetime revenue.
+      setMerchantBalance(Number(stats.merchant_balance ?? 0));
       setActivityFeed((activity.activity ?? []) as ActivityRow[]);
     } finally {
       setLoading(false);
@@ -153,9 +154,9 @@ export default function OverviewPage() {
   const totalBalance = useMemo(
     () => Math.max(
       accounts.reduce((s, a) => s + Number(a.balance || 0), 0),
-      merchantRevenue,
+      merchantBalance,
     ),
-    [accounts, merchantRevenue],
+    [accounts, merchantBalance],
   );
   const primaryCurrency = accounts[0]?.currency || "CAD";
   const openInvoices = useMemo(() => invoices.filter((i) => i.status !== "paid"), [invoices]);

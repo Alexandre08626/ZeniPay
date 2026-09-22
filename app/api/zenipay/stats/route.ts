@@ -19,10 +19,14 @@ export async function GET(req: NextRequest) {
     // ─── 1. Merchant JSONB data ──────────────────────────────────────────
     let merchantBalance = 0;
     let merchantTxCount = 0;
+    // Live balance = zenipay_merchants.balance column. Credited on each
+    // payment (record-payment / Finix webhook), debited when Finix settles
+    // to the bank (settlement_to_bank) — so it drops back to 0 after payout.
+    let liveBalance: number | null = null;
     try {
       const { data: mRow } = await supabase
         .from("zenipay_merchants")
-        .select("config")
+        .select("config, balance")
         .eq("id", merchant_id)
         .maybeSingle();
       const cfg = (mRow?.config || {}) as Record<string, unknown>;
@@ -30,6 +34,7 @@ export async function GET(req: NextRequest) {
         merchantBalance = Number(cfg.balance || 0);
         merchantTxCount = Number(cfg.tx_count || 0);
       }
+      if (mRow && mRow.balance != null) liveBalance = Math.max(0, Number(mRow.balance) || 0);
     } catch { /* best-effort */ }
 
     // ─── 2. Payments ─────────────────────────────────────────────────────
@@ -119,9 +124,13 @@ export async function GET(req: NextRequest) {
       }
     } catch { /* table may not exist */ }
 
+    // What's actually still held (not lifetime revenue). Fallback to the
+    // ledger-derived platform wallet, which also nets out settlement debits.
+    const heldBalance = liveBalance ?? Math.max(0, Number(wallets.platform?.available || 0));
+
     return NextResponse.json({
       wallets, stats,
-      merchant_balance: totalRevenue,
+      merchant_balance: heldBalance,
       recent_transactions: recentTransactions,
       recent_payouts: recentPayouts,
       recent_invoices: recentInvoices,
