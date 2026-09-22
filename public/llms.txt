@@ -26,6 +26,12 @@ ZeniPay is one of four brands of Zeniva Group, the group founded by Alexandre Bl
 - [Security](https://zenipay.ca/security): PCI DSS, encryption, session-bound APIs, audit trails.
 - [Pricing](https://zenipay.ca/pricing) and [Developer docs](https://zenipay.ca/docs).
 
+## News (official announcements)
+
+- [ZeniPay launches a Canadian fintech platform with AI financial specialists](https://zenipay.ca/news/zenipay-launches-fintech-platform-with-ai-financial-specialists)
+- [ZeniPay opens its commission-split and payout engine to other platforms](https://zenipay.ca/news/zenipay-commission-splits-for-platforms)
+- [Alexandre Blais unites four companies under Zeniva Group](https://zenipay.ca/news/alexandre-blais-unites-four-companies-under-zeniva-group)
+
 ## Articles
 
 - [What is AI banking? Everything you need to know in 2026](https://zenipay.ca/blog/what-is-ai-banking)

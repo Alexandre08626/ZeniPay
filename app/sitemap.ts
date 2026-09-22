@@ -1,5 +1,6 @@
 import { MetadataRoute } from "next";
 import { POSTS } from "./blog/posts";
+import { NEWS } from "./news/news-data";
 
 // Sitemap for crawlers (Google, Bing, DuckDuckGo, Yandex, AI search).
 // Priority is relative — 1.0 is the homepage, 0.9 the highest-intent
@@ -44,6 +45,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const content = [
     "/blog",
+    "/news",
   ];
 
   const reference = [
@@ -69,6 +71,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(p.date),
       changeFrequency: "monthly" as const,
       priority: 0.7,
+    })),
+    ...NEWS.map((n) => ({
+      url: `${base}/news/${n.slug}`,
+      lastModified: new Date(n.datePublished),
+      changeFrequency: "yearly" as const,
+      priority: 0.6,
     })),
   ];
 
