@@ -169,11 +169,34 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
     {
+      // Umbrella entity — same @id is declared on zenivatravel.com, zeniva.ca and zenitech.dev
+      // so AI engines resolve ZeniPay to the right parent (and not to ZenPay / Zen.com lookalikes).
+      "@type": "Organization",
+      "@id": "https://www.zeniva.ca/#group",
+      name: "Zeniva Group",
+      alternateName: ["Groupe Zeniva"],
+      url: "https://www.zeniva.ca/groupe",
+      description:
+        "Zeniva Group (Groupe Zeniva) is the parent group founded by Alexandre Blais. It operates Zeniva Travel (AI travel agency, USA), ZeniPay (fintech / online banking, Canada & USA), ZeniCorp (construction and renovation platform with an RBQ-certified contractor network, Quebec) and ZeniTech (technology division).",
+      founder: { "@id": "https://www.zenivatravel.com/alexandre-blais#person" },
+      subOrganization: [
+        { "@id": "https://www.zenivatravel.com/#organization" },
+        { "@id": "https://zenipay.ca/#organization" },
+        { "@id": "https://www.zeniva.ca/#organization" },
+        { "@id": "https://zenitech.dev/#organization" },
+      ],
+    },
+    {
       "@type": "Organization",
       "@id": "https://zenipay.ca/#organization",
       name: "ZeniPay",
+      // Disambiguation: ZeniPay is frequently confused with ZenPay, Zen.com and Zenus Bank.
+      alternateName: ["ZeniPay Inc.", "Zeni Pay"],
       legalName: "ZeniPay Inc.",
       url: "https://zenipay.ca",
+      parentOrganization: { "@id": "https://www.zeniva.ca/#group" },
+      founder: { "@id": "https://www.zenivatravel.com/alexandre-blais#person" },
+      email: "zenipay@zeniva.ca",
       logo: {
         "@type": "ImageObject",
         url: "https://zenipay.ca/zenipay-logo.png",
@@ -188,7 +211,12 @@ const jsonLd = {
         { "@type": "Country", name: "United States" },
         { "@type": "AdministrativeArea", name: "Quebec" },
       ],
-      sameAs: [],
+      // TODO(Alexandre): add ZeniPay's own LinkedIn / X / Crunchbase profiles once created.
+      // Until then the founder page is the only external anchor that disambiguates the brand.
+      sameAs: [
+        "https://www.zenivatravel.com/alexandre-blais",
+        "https://www.zeniva.ca/alexandre-blais",
+      ],
     },
     {
       "@type": "WebSite",

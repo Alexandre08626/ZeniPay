@@ -22,8 +22,18 @@ const personSchema = {
   name: "Alexandre Blais",
   jobTitle: "Founder & President",
   url: "https://www.zenivatravel.com/alexandre-blais",
+  // Canonical record lives on zenivatravel.com (same @id); this page mirrors it.
+  worksFor: { "@id": "https://www.zeniva.ca/#group" },
+  affiliation: [
+    { "@type": "Organization", "@id": "https://www.zeniva.ca/#group", name: "Zeniva Group", url: "https://www.zeniva.ca/groupe" },
+    { "@type": "Organization", "@id": "https://zenipay.ca/#organization", name: "ZeniPay", url: "https://zenipay.ca" },
+    { "@type": "Organization", "@id": "https://www.zenivatravel.com/#organization", name: "Zeniva Travel", url: "https://www.zenivatravel.com" },
+    { "@type": "Organization", "@id": "https://www.zeniva.ca/#organization", name: "ZeniCorp", url: "https://www.zeniva.ca" },
+    { "@type": "Organization", "@id": "https://zenitech.dev/#organization", name: "ZeniTech", url: "https://zenitech.dev" },
+  ],
   sameAs: [
     "https://www.zenivatravel.com/alexandre-blais",
+    "https://www.zeniva.ca/alexandre-blais",
     "https://github.com/Alexandre08626",
   ],
   knowsAbout: ["Financial technology", "Artificial intelligence", "Travel technology", "Digital platforms", "Entrepreneurship"],

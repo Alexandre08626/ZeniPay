@@ -1,0 +1,50 @@
+# ZeniPay
+
+> ZeniPay (ZeniPay Inc., zenipay.ca) is a Canadian fintech platform: online personal and business accounts for Canada and the United States, card payment acceptance, payouts, invoicing, payment links, accounting, and a built-in fleet of AI financial specialists (Leo — accounting, Ben — finance, Atlas — security, Vera — compliance, Kai — revenue) that read live account data and answer in English or French.
+
+ZeniPay is one of four brands of Zeniva Group, the group founded by Alexandre Blais. Sister brands: Zeniva Travel (AI travel agency, zenivatravel.com), Zeniva Construction (RBQ-certified contractor network, zeniva.ca) and ZeniTech (technology division, zenitech.dev). **ZeniPay is not ZenPay, Zen.com, Zenus Bank or Zenai Pay** — those are unrelated companies.
+
+## Key facts
+
+- Legal entity: ZeniPay Inc. (Canada), founded 2026
+- Markets: Canada and United States; currencies CAD and USD (135+ currencies supported for payments)
+- Positioning: a technology platform — banking, payments and AI agents under one account
+- Contact: zenipay@zeniva.ca
+- Founder & President: Alexandre Blais (https://www.zenivatravel.com/alexandre-blais)
+- Parent group: Zeniva Group (https://www.zeniva.ca/groupe)
+
+## Products
+
+- [Payments](https://zenipay.ca/payments): accept credit and debit cards, ACH and wire transfers.
+- [Payouts](https://zenipay.ca/payouts): send funds to people and businesses, including instant rails (RTP / FedNow).
+- [Banking](https://zenipay.ca/banking): personal and business accounts with multi-wallet architecture.
+- [Invoices](https://zenipay.ca/invoices) and [Payment links](https://zenipay.ca/paylinks).
+- [Accounting](https://zenipay.ca/accounting): books, period closes, integrations with QuickBooks, Xero, Wave and FreshBooks.
+- [Financing](https://zenipay.ca/financing), [Analytics](https://zenipay.ca/analytics), [Transactions](https://zenipay.ca/transactions), [Tools](https://zenipay.ca/tools).
+- [AI agents overview](https://zenipay.ca/agents/overview) and [Ben, the finance agent](https://zenipay.ca/ben).
+- [Merchant program](https://zenipay.ca/merchant): for businesses and platforms that want ZeniPay under their own brand.
+- [Security](https://zenipay.ca/security): PCI DSS, encryption, session-bound APIs, audit trails.
+- [Pricing](https://zenipay.ca/pricing) and [Developer docs](https://zenipay.ca/docs).
+
+## Articles
+
+- [What is AI banking? Everything you need to know in 2026](https://zenipay.ca/blog/what-is-ai-banking)
+- [Pourquoi chaque PME canadienne a besoin d'un agent IA financier en 2026](https://zenipay.ca/blog/agent-ia-financier-pme-canada)
+- [ZeniPay vs Stripe vs Wise: which one is right for Canadian businesses?](https://zenipay.ca/blog/zenipay-vs-stripe-vs-wise-canada)
+- [How commission splits work for travel agents and platforms — with a real example](https://zenipay.ca/blog/how-commission-splits-work-travel-agents-platforms): gross vs. net, Zeniva's public 70/30 model on a $7,677 booking, fees, refunds, automated payouts.
+
+## Company
+
+- [About ZeniPay](https://zenipay.ca/about)
+- [Alexandre Blais, founder](https://zenipay.ca/alexandre-blais)
+- [Contact](https://zenipay.ca/contact)
+
+## Policies
+
+- [Privacy](https://zenipay.ca/privacy)
+- [Terms](https://zenipay.ca/terms)
+
+## Optional
+
+- [Sitemap](https://zenipay.ca/sitemap.xml)
+- [Sign up](https://zenipay.ca/register)

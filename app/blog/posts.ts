@@ -136,6 +136,42 @@ export const POSTS: BlogPost[] = [
       "Open a ZeniPay business account at zenipay.ca/register. Three steps. Routing number, both Test and Live API keys, and your AI fleet, ready before the end of the day.",
     ],
   },
+  {
+    slug: "how-commission-splits-work-travel-agents-platforms",
+    title: "How commission splits work for travel agents and platforms — with a real example.",
+    description:
+      "A plain-language walkthrough of how a travel booking turns into commission, how a platform splits net profit with an independent agent (Zeniva's public 70/30 model), what \"net\" actually means, and how ZeniPay automates the split, the payout and the accounting.",
+    date: "2026-09-21",
+    readingMinutes: 6,
+    language: "en",
+    tags: ["commission splits", "travel agent commission", "payouts platform", "sub-merchant onboarding", "fintech for travel"],
+    excerpt:
+      "Most travel agents can tell you their split. Very few can tell you exactly how the number on their payout was computed — gross vs. net, supplier cost, processing fees, timing. Here is the full arithmetic on one real-size booking, and how a platform automates it.",
+    body: [
+      "Most travel agents can tell you their split — \"I'm on 70%.\" Very few can tell you exactly how the number on their payout was computed: gross or net, before or after supplier cost, before or after card fees, paid when. That ambiguity is where most agent–agency disputes come from. Here is the full arithmetic on one real-size booking, then how a platform automates it so nobody has to argue.",
+      { h: "Gross booking, supplier cost, net profit" },
+      "A client books a 7-night all-inclusive for a family of four. The gross booking is $7,677. The supplier — the resort, the consolidator, the tour operator — is owed $5,078 for the rooms, flights and transfers. The difference, $2,599, is the net profit on the booking. That is the number a split applies to. Not the $7,677.",
+      "This is the first thing to check in any agent agreement: is the split on gross revenue or on net profit? A \"50% of gross\" deal and a \"70% of net\" deal can pay the agent almost the same amount, or wildly different amounts, depending on supplier margins.",
+      { h: "Applying the split: Zeniva's public 70/30 model" },
+      "Zeniva Travel publishes its model: an independent agent working with Lina, Zeniva's AI concierge, keeps 70% of net profit on their bookings; Zeniva keeps 30% and provides the technology, the AI, the supplier contracts and the payment infrastructure. On the booking above: agent share $1,819.30, platform share $779.70.",
+      "If an influencer or referral partner brought the client, Zeniva's model moves 5 points from the platform side to the referrer — the agent's 70% is untouched. Bookings the platform closes directly, or through its AI alone, follow different splits. The principle is the same: the split is a rule applied to net profit, published in advance, not negotiated after the fact.",
+      { h: "What \"net\" has to include" },
+      "Net profit should be computed after the supplier cost and after payment processing fees, because those fees are real money that leaves before anyone is paid. On a $7,677 card payment, processing at 2.7% + 30¢ is roughly $207.58. Whether that fee is deducted before the split or absorbed by the platform must be written down. On ZeniPay it is a setting on the split rule, visible to both sides.",
+      "Chargebacks and refunds follow the same logic: if a booking is refunded, the split reverses proportionally. A platform that cannot reverse a split automatically ends up chasing agents for money — which is how relationships end.",
+      { h: "How a platform automates this" },
+      "Manually, this is a spreadsheet, a monthly reconciliation and a batch of e-transfers. Automated, it is four steps that happen at payment time:",
+      "1. The client pays the platform (card, ACH or payment link). The platform is the merchant of record.",
+      "2. The platform records the supplier cost against the booking and computes net profit.",
+      "3. The split rule fires: agent 70%, platform 30%, referrer 5 points if tagged. Each party's share is posted to their own wallet or sub-merchant account, with the booking ID, so every dollar is traceable.",
+      "4. Payouts run on the schedule each party chose — instant, daily or weekly — and the ledger entries flow to accounting (QuickBooks, Xero, Wave or FreshBooks) without re-keying.",
+      "This is what ZeniPay is built for: sub-merchant onboarding for agents, split rules on net profit, automatic payouts, and an audit trail per booking. Zeniva Travel runs on it; other platforms with agents, contractors or partners can run on the same rails under their own brand.",
+      { h: "The five questions to ask before signing any split" },
+      "Is the split on gross or on net? Who absorbs processing fees? When is the payout — at booking, at travel date, or on a monthly cycle? What happens on a refund or chargeback? Can I see the computation for every booking, not just the total?",
+      "If the answer to the last one is \"trust us,\" the platform is not ready for agents.",
+      { h: "For platforms" },
+      "If you run a marketplace, an agency network or a contractor network and you are still splitting commissions in a spreadsheet, see zenipay.ca/merchant. Splits on net profit, payouts and accounting are one configuration, not a monthly project.",
+    ],
+  },
 ];
 
 export function findPost(slug: string): BlogPost | null {

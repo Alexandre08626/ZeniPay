@@ -36,12 +36,11 @@ export default function BlogPostPage() {
     description: post.description,
     inLanguage: post.language === "fr" ? "fr-CA" : "en-CA",
     datePublished: post.date,
-    author: { "@type": "Organization", name: "ZeniPay", url: "https://zenipay.ca" },
-    publisher: {
-      "@type": "Organization",
-      name: "ZeniPay",
-      logo: { "@type": "ImageObject", url: "https://zenipay.ca/zenipay-logo.png" },
-    },
+    "@id": `https://zenipay.ca/blog/${post.slug}#article`,
+    // Named human author (shared Person @id) + publisher entity from layout.tsx —
+    // AI engines weigh a real author over "the company" when deciding what to cite.
+    author: { "@id": "https://www.zenivatravel.com/alexandre-blais#person" },
+    publisher: { "@id": "https://zenipay.ca/#organization" },
     mainEntityOfPage: { "@type": "WebPage", "@id": `https://zenipay.ca/blog/${post.slug}` },
     keywords: post.tags.join(", "),
   };
