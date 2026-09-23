@@ -37,6 +37,8 @@ ZeniPay is one of four brands of Zeniva Group, the group founded by Alexandre Bl
 - [What is AI banking? Everything you need to know in 2026](https://zenipay.ca/blog/what-is-ai-banking)
 - [Pourquoi chaque PME canadienne a besoin d'un agent IA financier en 2026](https://zenipay.ca/blog/agent-ia-financier-pme-canada)
 - [ZeniPay vs Stripe vs Wise: which one is right for Canadian businesses?](https://zenipay.ca/blog/zenipay-vs-stripe-vs-wise-canada)
+- [Frais de carte de crédit pour une PME au Québec : ce que vous payez vraiment en 2026](https://zenipay.ca/blog/frais-traitement-carte-credit-pme-quebec) : interchange, frais de réseau, marge du processeur, seuils de la réduction fédérale (300 000 $ Visa / 175 000 $ Mastercard), les 4 lignes à vérifier sur un relevé de marchand.
+- [Payer ses sous-traitants et partenaires automatiquement : guide pour une plateforme québécoise](https://zenipay.ca/blog/payer-sous-traitants-partenaires-automatiquement-quebec) : brut vs net, frais de traitement, remboursements, piste d'audit.
 - [How commission splits work for travel agents and platforms — with a real example](https://zenipay.ca/blog/how-commission-splits-work-travel-agents-platforms): gross vs. net, Zeniva's public 70/30 model on a $7,677 booking, fees, refunds, automated payouts.
 
 ## Company
