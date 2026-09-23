@@ -1,34 +1,37 @@
 export const dynamic = "force-dynamic";
 
-import { createHmac } from "crypto";
+import { verifyFinixSignature } from "@/lib/finix/webhook-signature";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 import { FundingClient } from "@/lib/zenicore/funding-client";
 import type { Currency } from "@/lib/zenicore/types";
 
-function verifySignature(body: string, signature: string, secret: string): boolean {
-  if (!secret || !signature) return false;
-  const expected = createHmac("sha256", secret).update(body).digest("hex");
-  if (expected.length !== signature.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) {
-    diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
-  }
-  return diff === 0;
-}
+const verifySignature = verifyFinixSignature;
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("finix-signature") || request.headers.get("x-finix-signature") || "";
   const webhookSecret = process.env.FINIX_WEBHOOK_SECRET || "";
 
-  // Verify signature — mandatory in production
+  // Unverified deliveries are acknowledged with 200 but NOT processed.
+  //
+  // Finix probes the URL when a webhook is created and refuses to create it
+  // unless the endpoint answers 2xx — and that probe cannot be signed,
+  // because the signing key only exists once the webhook is created. A 401
+  // here made webhook creation impossible (chicken-and-egg). The security
+  // property that matters is that unsigned payloads never reach the
+  // handlers below; the status code returned to an unauthenticated caller
+  // does not change that.
   const isProduction = process.env.FINIX_ENV === "production";
-  if (!webhookSecret && isProduction) {
-    return Response.json({ error: "Webhook secret not configured" }, { status: 500 });
-  }
-  if (webhookSecret && !verifySignature(rawBody, signature, webhookSecret)) {
-    console.warn("[Webhook] Invalid Finix signature — rejected");
-    return Response.json({ error: "Invalid signature" }, { status: 401 });
+  const ack = (reason: string) => {
+    console.error(`[Webhook] Finix delivery NOT processed (${reason}) — check FINIX_WEBHOOK_SECRET`);
+    return Response.json({ received: true, processed: false, reason }, { status: 200 });
+  };
+  if (!webhookSecret) {
+    // Sandbox/local without a secret keeps the old permissive behaviour so
+    // replay tooling still works; production never processes unsigned.
+    if (isProduction) return ack("secret_not_configured");
+  } else if (!verifySignature(rawBody, signature, webhookSecret)) {
+    return ack(signature ? "signature_invalid" : "signature_missing");
   }
 
   let payload: Record<string, unknown>;
