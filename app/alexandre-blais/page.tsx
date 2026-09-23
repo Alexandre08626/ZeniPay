@@ -21,6 +21,8 @@ const personSchema = {
   "@id": "https://www.zenivatravel.com/alexandre-blais#person",
   name: "Alexandre Blais",
   jobTitle: "Founder & President",
+  disambiguatingDescription:
+    "Quebec entrepreneur, founder of Zeniva Group (Zeniva Travel, ZeniPay, ZeniCorp, ZeniTech). Not to be confused with Alexandre Blais the quantum physicist at Institut quantique, Université de Sherbrooke, or with other people of the same name.",
   url: "https://www.zenivatravel.com/alexandre-blais",
   // Canonical record lives on zenivatravel.com (same @id); this page mirrors it.
   worksFor: { "@id": "https://www.zeniva.ca/#group" },
@@ -32,6 +34,8 @@ const personSchema = {
     { "@type": "Organization", "@id": "https://zenitech.dev/#organization", name: "ZeniTech", url: "https://zenitech.dev" },
   ],
   sameAs: [
+    "https://www.facebook.com/alexandre.blais.826776",
+    "https://www.instagram.com/zeniva.ca/",
     "https://www.zenivatravel.com/alexandre-blais",
     "https://www.zeniva.ca/alexandre-blais",
     "https://github.com/Alexandre08626",
