@@ -11,8 +11,14 @@ coût réel pour l'employeur, avec les retenues des deux ordres de gouvernement.
 | `rates/index.ts` | Choisit le barème d'une année ; **lève** si l'année est inconnue |
 | `types.ts` | Types d'entrée et de sortie du moteur |
 | `calculate.ts` | Le moteur : `calculatePay(input) → result` |
-| `__tests__/calculate.test.ts` | 32 tests : plafonds, exemptions, assiettes, arrondis |
+| `remittance.ts` | Calendrier et montants des remises à Revenu Québec et à l'ARC |
+| `pay-run.ts` | Exécution d'un cycle : calcul de tous les bulletins, puis persistance |
+| `access.ts` | Contrôle d'accès — obligatoire, le client contourne la RLS |
+| `supabase-client.ts` | Client service_role du schéma `payroll` |
+| `__tests__/` | 60 tests : plafonds, exemptions, assiettes, échéances, cycles |
 | `../../app/api/v1/payroll/calculate/route.ts` | API de calcul (ne persiste rien) |
+| `../../app/api/v1/payroll/runs/route.ts` | Liste et création des cycles de paie |
+| `../../app/api/v1/payroll/runs/[id]/approve/route.ts` | Approbation (point de non-retour) |
 | `../../app/payroll/page.tsx` | Calculateur dans le tableau de bord |
 | `../../supabase/migrations/20260923000001_payroll_quebec.sql` | Schéma `payroll` |
 
@@ -70,10 +76,31 @@ Puis comparer une dizaine de cas au calculateur **WebRAS** de Revenu Québec et 
 **CDR** de l'ARC. Quand les montants concordent au cent près, inscrire la date dans
 `verifiedOn` : l'avertissement disparaît alors de chaque calcul.
 
+## Cycle de vie d'une paie
+
+1. **Brouillon** — `POST /api/v1/payroll/runs` calcule tous les bulletins et les
+   enregistre. Le cumulatif annuel ne bouge pas : on peut recalculer autant de
+   fois qu'on veut sans fausser les plafonds.
+2. **Approuvé** — `POST /api/v1/payroll/runs/[id]/approve` fige le cycle et fait
+   avancer `payroll.ytd`. Réservé aux rôles admin et propriétaire : celui qui
+   prépare la paie ne devrait pas être celui qui l'approuve. Un déclencheur en
+   base empêche un cycle approuvé de revenir en brouillon.
+3. **Payé** — versement du net (pas encore branché).
+
+## Remises
+
+`remittance.ts` calcule la période et l'échéance selon la fréquence attribuée à
+l'employeur, et sépare ce qui va à **Revenu Québec** (impôt du Québec, RRQ et
+RQAP des deux parts, FSS) de ce qui va à l'**ARC** (impôt fédéral, AE des deux
+parts). La CNESST n'y figure pas : elle se paie séparément.
+
+C'est la date de **versement** au salarié qui détermine la période, pas la fin
+de la période de travail. Une paie de mars versée le 2 avril se remet en avril.
+
 ## Ce qui n'est pas encore fait
 
 - Versement du net par dépôt direct (à brancher sur le module bancaire existant)
-- Remises à Revenu Québec et à l'ARC (la table `payroll.remittances` est prête)
+- Génération automatique des lignes de `payroll.remittances` à l'approbation
 - Relevé 1 et T4 de fin d'année
 - Relevé d'emploi (RE) lors d'une cessation
 - Heures supplémentaires, primes, avantages imposables, saisies de salaire
