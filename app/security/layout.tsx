@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Banking-grade security — SOC 2, PCI DSS, signed audit",
+  title: "Security — PCI DSS Level 1 processing, signed audit trail",
   description:
-    "Every dollar at ZeniPay is protected by SOC 2-grade controls: PCI DSS Level 1 processing, encrypted-at-rest data, HMAC-signed sessions, Ed25519-signed agent payloads, RLS-isolated tenants, and an immutable signed audit chain.",
+    "ZeniPay's security: card processing through a PCI DSS Level 1 processor, encrypted-at-rest data, HMAC-signed sessions, Ed25519-signed agent payloads, RLS-isolated tenants, and an immutable signed audit chain.",
   keywords: [
     "banking security Canada",
     "SOC 2 fintech Canada",
@@ -22,9 +22,9 @@ export const metadata: Metadata = {
     "ZeniPay security",
   ],
   openGraph: {
-    title: "Banking-grade security — SOC 2, PCI DSS, signed audit | ZeniPay",
+    title: "Security — PCI DSS Level 1 processing, signed audit trail | ZeniPay",
     description:
-      "PCI DSS Level 1, SOC 2 controls, encrypted at rest, HMAC sessions, Ed25519 agent signatures, immutable audit.",
+      "PCI DSS Level 1 processor, encrypted at rest, HMAC sessions, Ed25519 agent signatures, immutable audit.",
     url: "https://zenipay.ca/security",
     images: [{ url: "/zenipay-logo.png", width: 1200, height: 1200, alt: "ZeniPay Security" }],
   },

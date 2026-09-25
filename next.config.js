@@ -3,6 +3,12 @@ const nextConfig = {
   reactStrictMode: true,
   async redirects() {
     return [
+      // Communiqué retiré : il annonçait une répartition automatique des commissions pas encore construite.
+      {
+        source: "/news/zenipay-commission-splits-for-platforms",
+        destination: "/news",
+        permanent: true,
+      },
       // /app root → overview (matches PR 13 neobank IA).
       {
         source: "/app",

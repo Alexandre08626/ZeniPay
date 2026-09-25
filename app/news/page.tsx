@@ -9,7 +9,7 @@ const BASE_URL = "https://zenipay.ca";
 export const metadata: Metadata = {
   title: "News — official ZeniPay announcements",
   description:
-    "Official announcements from ZeniPay: the fintech platform launch, the commission-split and payout engine for platforms, and Zeniva Group — the companies founded by Alexandre Blais.",
+    "Official announcements from ZeniPay: the fintech platform launch and Zeniva Group — the companies founded by Alexandre Blais.",
   alternates: { canonical: `${BASE_URL}/news` },
   openGraph: { title: "News — ZeniPay", description: "Official ZeniPay announcements.", url: `${BASE_URL}/news`, siteName: "ZeniPay", type: "website" },
 };

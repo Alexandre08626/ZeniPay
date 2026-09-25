@@ -149,7 +149,7 @@ function EnterpriseCard() {
           "ACH, wire & Interac (Canada) payouts",
           "Custom approval workflows",
           "Full API access",
-          "SOC2 audit trail + tamper-evident ledger",
+          "Signed audit trail + tamper-evident ledger",
           "White-label options",
           "Priority support · 24h SLA",
           "Dedicated account manager",
@@ -198,7 +198,7 @@ function FaqSection() {
   const faqs = [
     { q: "Is there a setup fee?", a: "No. You can open your first account and issue your first agent card for free." },
     { q: "Can I upgrade later?", a: "Yes — anytime. Starter → Enterprise takes minutes, no data migration." },
-    { q: "Is my money safe?", a: "Funds are held with our banking partner Finix (PCI DSS Level 1). Every ledger entry is hash-chained and independently verifiable." },
+    { q: "Is my money safe?", a: "Card payments are processed by Finix, a PCI DSS Level 1 processor. The ledger is append-only and the audit trail can be verified independently." },
     { q: "What currencies are supported?", a: "CAD and USD today. EUR and GBP are on the roadmap." },
     { q: "Do agents need a card to spend?", a: "Every AI agent wallet supports virtual cards + direct API spends. Cards are optional." },
     { q: "How do I get support?", a: "Email info@zeniva.ca. Enterprise customers get a 24-hour SLA and a dedicated account manager." },

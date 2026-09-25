@@ -69,7 +69,7 @@ function Hero() {
         </div>
 
         <div style={{ display: "flex", justifyContent: "center", gap: 22, marginTop: 28, flexWrap: "wrap", fontSize: 12, color: zp.text.dim }}>
-          <Trust>PCI DSS Level 1</Trust>
+          <Trust>PCI DSS Level 1 processor</Trust>
           <Trust>FINTRAC + FinCEN aligned</Trust>
           <Trust>Encrypted at rest</Trust>
         </div>
@@ -112,7 +112,7 @@ function FeatureGrid() {
     {
       Icon: ShieldCheck,
       title: "Banking-grade security",
-      body: "PCI DSS Level 1, SOC 2 controls, encrypted at rest, HMAC-signed sessions, Ed25519-signed agent payloads, immutable audit chain.",
+      body: "Card processing through a PCI DSS Level 1 processor, encrypted at rest, HMAC-signed sessions, Ed25519-signed agent payloads, immutable audit chain.",
     },
   ];
   return (

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Accept Payments Online — Credit Card, Debit, ACH",
   description:
-    "Accept credit card, debit card, and ACH payments online with ZeniPay. 99.99% uptime, under 200ms processing, 135+ currencies. The best payment gateway for Canadian and American businesses. PCI DSS Level 1 compliant.",
+    "Accept credit card, debit card and ACH payments online with ZeniPay, for Canadian and American businesses. Card processing through Finix, a PCI DSS Level 1 processor.",
   keywords: [
     "accept credit card payments Canada",
     "payment gateway Canada",

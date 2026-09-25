@@ -211,7 +211,7 @@ function SectionA() {
               { Icon: CreditCard, title: "Virtual cards for every department" },
               { Icon: FileText,   title: "Automatic invoicing & payment links" },
               { Icon: BarChart2,  title: "GL categorization & QuickBooks export" },
-              { Icon: Lock,       title: "SOC2-ready audit trail" },
+              { Icon: Lock,       title: "Tamper-evident audit trail" },
             ]}
           />
         </div>
@@ -459,7 +459,7 @@ function ForEveryone() {
               { Icon: Building2, label: "Business treasury & accounts" },
               { Icon: Bot, label: "AI agent wallets" },
               { Icon: Users, label: "Payment links & invoicing" },
-              { Icon: ShieldCheck, label: "SOC2 compliance" },
+              { Icon: ShieldCheck, label: "Signed audit trail" },
             ]}
             cta={{ label: "Open business account", href: "/register?type=business" }}
           />
@@ -562,7 +562,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "Is my money safe with ZeniPay?",
-    a: "Yes. ZeniPay is PCI DSS Level 1 compliant, encrypts data in transit and at rest, enforces SOC 2-grade signed audit trails, and uses HMAC-signed sessions plus Supabase Auth for account access. Every API endpoint is session-bound — no merchant can read another tenant's data, ever. AI agents only read data scoped to your own account, never anyone else's.",
+    a: "Yes. Card payments are processed by Finix, a PCI DSS Level 1 processor, through tokenized card fields. ZeniPay encrypts data in transit and at rest, keeps signed, tamper-evident audit trails, and uses HMAC-signed sessions plus Supabase Auth for account access. Every API endpoint is session-bound — no merchant can read another tenant's data, ever. AI agents only read data scoped to your own account, never anyone else's.",
   },
   {
     q: "How do I open a personal account?",

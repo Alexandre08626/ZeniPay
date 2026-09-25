@@ -110,7 +110,7 @@ function Beliefs() {
     {
       Icon: ShieldCheck,
       title: "Banking-grade or nothing",
-      body: "PCI DSS Level 1 processing, SOC 2 controls, encrypted at rest, HMAC-signed sessions, immutable audit chain. The boring infrastructure that keeps your money where it belongs.",
+      body: "Card processing through a PCI DSS Level 1 processor, encrypted at rest, HMAC-signed sessions, immutable audit chain. The boring infrastructure that keeps your money where it belongs.",
     },
     {
       Icon: Globe,

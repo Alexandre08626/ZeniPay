@@ -316,7 +316,7 @@ function Hero() {
           color: T.textSubtle,
         }}
       >
-        Live in production · PCI DSS Level 1 · Finix-powered processor
+        Finix-powered processor · PCI DSS Level 1
       </p>
     </section>
   );
@@ -328,7 +328,7 @@ function Stats() {
     { num: "<200ms", label: "Processing latency" },
     { num: "135+",   label: "Currencies supported" },
     { num: "0 days", label: "Hold period on payouts" },
-    { num: "PCI L1", label: "Compliance" },
+    { num: "PCI L1", label: "Processor (Finix)" },
   ];
   return (
     <section

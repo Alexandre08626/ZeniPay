@@ -107,7 +107,7 @@ export default function PaymentsPage() {
         <div className="zp-pay-features" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
             { icon: "💳", color: ZP_GREEN, title: "All major cards", desc: "Visa, Mastercard, Amex, Discover, UnionPay, JCB. Debit and credit. Prepaid and corporate." },
-            { icon: "🔒", color: ZP_CYAN, title: "PCI DSS Level 1", desc: "The highest level of PCI compliance. Card data fully tokenized — your servers stay out of scope." },
+            { icon: "🔒", color: ZP_CYAN, title: "PCI DSS Level 1 processor", desc: "Cards are processed by Finix, certified at the highest PCI level. Card data is tokenized — your servers stay out of scope." },
             { icon: "🛡️", color: ZP_BLUE, title: "3DS2 & SCA", desc: "Strong Customer Authentication built-in. Meets EU PSD2 requirements. Reduce fraud by 80%." },
             { icon: "🔄", color: ZP_PURPLE, title: "Smart retry logic", desc: "Automatically retries soft declines with optimal timing. Recovers up to 30% of failed charges." },
             { icon: "🌍", color: ZP_GREEN, title: "135+ currencies", desc: "Charge in the customer's local currency. Dynamic currency conversion at checkout." },

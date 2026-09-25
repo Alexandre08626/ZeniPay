@@ -34,42 +34,18 @@ export const NEWS: NewsItem[] = [
     brand: "ZeniPay",
     paragraphs: [
       "ZeniPay Inc. today announced ZeniPay, a fintech platform for personal and business customers in Canada and the United States. Each account combines payments (card acceptance, ACH and wire), payouts, invoicing, payment links and accounting with a team of AI specialists — Leo (accounting), Ben (finance), Atlas (security), Vera (compliance) and Kai (revenue) — that read the account's live data and answer questions in plain English or French.",
-      "ZeniPay was built to run Zeniva Travel, the group's AI travel agency: it onboards independent agents as sub-merchants, applies commission-split rules on net profit, pays each party automatically and pushes the ledger to QuickBooks, Xero, Wave or FreshBooks. The same rails are now available to other platforms, agencies and contractor networks under their own brand.",
+      "ZeniPay was built to run Zeniva Travel, the group's AI travel agency. Its core is an append-only ledger with idempotency keys and a signed audit trail, and independent agents can be onboarded as sub-merchants. Automated commission splits and payouts are the next step; today the distribution is done manually, and the payment processor connections are completing their move from test to production. The same rails will be offered to other platforms, agencies and contractor networks under their own brand.",
       "The AI specialists are scoped to a single account. They read that account's own data through audited tool calls — never another tenant's — and the conversation persists, so a business does not re-explain itself at every login.",
       "ZeniPay is not affiliated with ZenPay, Zen.com, Zenus Bank or Zenai Pay.",
     ],
     quote:
-      "Most platforms still split commissions in a spreadsheet at the end of the month. We made that a rule that fires at payment time, with an audit trail per booking. Then we gave every account an accountant, a security analyst and a compliance officer that never sleep.",
+      "Most platforms still split commissions in a spreadsheet at the end of the month. We started with the part that has to be right before anything else: a ledger nobody can rewrite. Then we gave every account an accountant, a security analyst and a compliance officer that never sleep.",
     boilerplate: ZENIPAY_BOILERPLATE,
     links: [
       { label: "ZeniPay platform", href: "/" },
       { label: "For platforms and marketplaces", href: "/merchant" },
       { label: "How commission splits work for travel agents and platforms", href: "/blog/how-commission-splits-work-travel-agents-platforms" },
       { label: "Alexandre Blais, founder", href: "/alexandre-blais" },
-    ],
-  },
-  {
-    slug: "zenipay-commission-splits-for-platforms",
-    title: "ZeniPay opens its commission-split and payout engine to other platforms",
-    summary:
-      "The engine that pays Zeniva Travel's independent agents — sub-merchant onboarding, split rules computed on net profit, automatic payouts and an audit trail per transaction — is now available to marketplaces, agency networks and contractor networks under their own brand.",
-    datePublished: "2026-09-22",
-    dateline: "Québec City, QC",
-    aboutId: "https://zenipay.ca/#organization",
-    brand: "ZeniPay",
-    paragraphs: [
-      "ZeniPay today announced that its commission-split and payout engine is available to third-party platforms. Any marketplace, agency network or contractor network that pays a share of each sale to an independent party can onboard those parties as sub-merchants, define split rules, and have every payment divided and paid out automatically.",
-      "Splits are computed on net profit — gross sale minus supplier cost minus processing fees — rather than on gross revenue, which is the source of most disputes between platforms and their independent partners. Whether processing fees are absorbed by the platform or deducted before the split is a setting on the rule, visible to both sides. Refunds and chargebacks reverse the split proportionally and automatically.",
-      "Each party's share posts to its own wallet with the originating transaction ID, so every dollar is traceable, and payouts run on the schedule each party chose — instant, daily or weekly. Ledger entries flow to QuickBooks, Xero, Wave or FreshBooks without re-keying.",
-      "The engine runs Zeniva Travel, where independent agents keep 70% of net profit on their bookings, and ZeniCorp, the group's construction platform, where contractors keep 70% of each contract.",
-    ],
-    quote:
-      "If a platform cannot show its partners the computation behind every payout, it will lose them. We built the arithmetic into the payment itself so nobody has to trust anybody.",
-    boilerplate: ZENIPAY_BOILERPLATE,
-    links: [
-      { label: "For platforms and marketplaces", href: "/merchant" },
-      { label: "Payouts", href: "/payouts" },
-      { label: "How commission splits work — full worked example", href: "/blog/how-commission-splits-work-travel-agents-platforms" },
     ],
   },
   {

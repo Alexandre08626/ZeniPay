@@ -276,7 +276,7 @@ const jsonLd = {
         "Multi-wallet architecture",
         "Real-time activity feed",
         "QuickBooks / Xero / Wave / FreshBooks integration",
-        "PCI DSS Level 1 compliant",
+        "Card processing through a PCI DSS Level 1 processor (Finix)",
         "135+ currencies supported",
       ],
       provider: { "@id": "https://zenipay.ca/#organization" },
@@ -329,7 +329,7 @@ const jsonLd = {
           name: "Is my money safe with ZeniPay?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. ZeniPay is PCI DSS Level 1 compliant, encrypts data in transit and at rest, enforces SOC2-grade signed audit trails, and uses HMAC-signed sessions plus Supabase Auth for account access. Every API endpoint is session-bound — no merchant can read another tenant's data, ever. AI agents only read data scoped to your own account, never anyone else's.",
+            text: "Yes. Card payments are processed by Finix, a PCI DSS Level 1 processor, through tokenized card fields. ZeniPay encrypts data in transit and at rest, keeps signed, tamper-evident audit trails, and uses HMAC-signed sessions plus Supabase Auth for account access. Every API endpoint is session-bound — no merchant can read another tenant's data, ever. AI agents only read data scoped to your own account, never anyone else's.",
           },
         },
         {
