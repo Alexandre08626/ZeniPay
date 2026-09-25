@@ -325,8 +325,8 @@ function Hero() {
 function Stats() {
   const stats = [
     { num: "99.99%", label: "Uptime target" },
-    { num: "<200ms", label: "Processing latency" },
-    { num: "135+",   label: "Currencies supported" },
+    { num: "Signed", label: "Audit trail" },
+    { num: "CAD · USD", label: "Currencies" },
     { num: "0 days", label: "Hold period on payouts" },
     { num: "PCI L1", label: "Processor (Finix)" },
   ];

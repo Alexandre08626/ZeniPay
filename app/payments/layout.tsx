@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Accept Payments Online — Credit Card, Debit, ACH | ZeniPay",
     description:
-      "Accept credit card, debit, and ACH payments with 99.99% uptime. The modern payment gateway for Canadian & American businesses.",
+      "Accept credit card, debit and ACH payments. The payment gateway for Canadian & American businesses.",
     url: "https://zenipay.ca/payments",
     images: [{ url: "/zenipay-logo.png", width: 1200, height: 1200, alt: "ZeniPay Payments" }],
   },

@@ -111,7 +111,7 @@ export const POSTS: BlogPost[] = [
       "Card payments (cards 2.7% + 30¢ on ZeniPay, similar on Stripe) — Stripe: yes. Wise: no. ZeniPay: yes.",
       "Instant payouts (RTP / FedNow) — Stripe: extra fee. Wise: international focus. ZeniPay: included.",
       "Invoicing — Stripe: yes (extra fee at scale). Wise: limited. ZeniPay: yes (no extra fee).",
-      "Multi-currency wallets — Stripe: limited. Wise: yes (50+ currencies). ZeniPay: CAD + USD core, 135+ for processing.",
+      "Multi-currency wallets — Stripe: limited. Wise: yes (50+ currencies). ZeniPay: CAD and USD.",
       "AI agents reading live account data — Stripe: no. Wise: no. ZeniPay: yes (5 personal, up to 9 business).",
       "Bilingual EN/FR interface — Stripe: partial. Wise: partial. ZeniPay: native.",
       "FINTRAC / FinCEN compliance built in — Stripe: yes. Wise: yes. ZeniPay: yes.",

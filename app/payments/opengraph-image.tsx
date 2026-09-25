@@ -14,7 +14,7 @@ export default async function Image() {
       <img src={logo} width={280} height={420} style={{ objectFit: "contain", marginRight: 40 }} />
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div style={{ fontSize: 52, fontWeight: 900, color: "#fff", marginBottom: 12 }}>Accept Every Payment</div>
-        <div style={{ fontSize: 24, color: "rgba(255,255,255,0.6)", marginBottom: 24 }}>Visa · Mastercard · Amex · 135+ currencies</div>
+        <div style={{ fontSize: 24, color: "rgba(255,255,255,0.6)", marginBottom: 24 }}>Visa · Mastercard · Amex · CAD & USD</div>
         <div style={{ fontSize: 18, color: "#2DBE60", fontWeight: 700 }}>zenipay.ca/payments</div>
       </div>
     </div>), { ...size }

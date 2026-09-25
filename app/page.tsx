@@ -542,7 +542,7 @@ function SignupCard({ Icon, accent, title, body, badge, features, cta }: {
 const FAQS: Array<{ q: string; a: string }> = [
   {
     q: "What is ZeniPay?",
-    a: "ZeniPay is the first online bank with AI-intelligent wallets. Every personal and business account ships with a fleet of specialized AI agents — accountant, finance, security, compliance, revenue — that read your live account data and answer your questions in plain language. ZeniPay also handles full banking operations: payments, payouts, ACH, wire transfers, invoicing, and 135+ currencies for Canadian and American customers.",
+    a: "ZeniPay is the first online bank with AI-intelligent wallets. Every personal and business account ships with a fleet of specialized AI agents — accountant, finance, security, compliance, revenue — that read your live account data and answer your questions in plain language. ZeniPay also handles full banking operations: payments, payouts, ACH, wire transfers, invoicing in CAD and USD for Canadian and American customers.",
   },
   {
     q: "What makes ZeniPay different from a regular online bank?",

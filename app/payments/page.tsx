@@ -64,9 +64,9 @@ export default function PaymentsPage() {
       {/* Stats */}
       <section className="zp-pay-stats" style={{ background: "rgba(255,255,255,0.03)", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "36px 5%", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 24, textAlign: "center" }}>
         {[
-          { num: "135+", label: "Currencies accepted" },
-          { num: "<200ms", label: "Authorization time" },
-          { num: "99.99%", label: "Uptime SLA" },
+          { num: "CAD · USD", label: "Currencies accepted" },
+          { num: "PCI L1", label: "Processor (Finix)" },
+          { num: "99.99%", label: "Uptime target" },
           { num: "2.9% + $0.30", label: "Standard rate" },
           { num: "0", label: "Monthly fees" },
         ].map(s => (
@@ -110,7 +110,7 @@ export default function PaymentsPage() {
             { icon: "🔒", color: ZP_CYAN, title: "PCI DSS Level 1 processor", desc: "Cards are processed by Finix, certified at the highest PCI level. Card data is tokenized — your servers stay out of scope." },
             { icon: "🛡️", color: ZP_BLUE, title: "3DS2 & SCA", desc: "Strong Customer Authentication built-in. Meets EU PSD2 requirements. Reduce fraud by 80%." },
             { icon: "🔄", color: ZP_PURPLE, title: "Smart retry logic", desc: "Automatically retries soft declines with optimal timing. Recovers up to 30% of failed charges." },
-            { icon: "🌍", color: ZP_GREEN, title: "135+ currencies", desc: "Charge in the customer's local currency. Dynamic currency conversion at checkout." },
+            { icon: "🌍", color: ZP_GREEN, title: "CAD & USD", desc: "Charge Canadian and American customers in their own currency. EUR and GBP are on the roadmap." },
             { icon: "📡", color: ZP_CYAN, title: "Signed webhooks", desc: "HMAC-SHA256 signed webhook events. Idempotency keys to prevent double-processing." },
             { icon: "🧾", color: ZP_BLUE, title: "Receipts & invoices", desc: "Auto-generated email receipts. Branded PDF invoices. Tax-compliant across jurisdictions." },
             { icon: "📊", color: ZP_PURPLE, title: "Real-time reporting", desc: "Live transaction feeds, revenue charts, decline analysis, and chargeback tracking." },
@@ -147,7 +147,7 @@ export default function PaymentsPage() {
             <div style={{ paddingLeft: 24 }}><span style={{ color: "#79c0ff" }}>idempotency_key</span>: <span style={{ color: "#a5d6ff" }}>&quot;order-789&quot;</span>,</div>
             <div style={{ paddingLeft: 24 }}><span style={{ color: "#79c0ff" }}>description</span>: <span style={{ color: "#a5d6ff" }}>&quot;Premium subscription&quot;</span>,</div>
             <div>{"});"}</div>
-            <div style={{ marginTop: 16, color: "#8b949e" }}>// ✅ Response in &lt;200ms</div>
+            <div style={{ marginTop: 16, color: "#8b949e" }}>// ✅ Response</div>
             <div style={{ color: "#a5d6ff" }}>{`// { id: "pay_3xK9m", status: "succeeded", amount: 4999 }`}</div>
           </div>
         </div>

@@ -7,7 +7,7 @@ ZeniPay is one of four brands of Zeniva Group, the group founded by Alexandre Bl
 ## Key facts
 
 - Legal entity: ZeniPay Inc. (Canada), founded 2026
-- Markets: Canada and United States; currencies CAD and USD (135+ currencies supported for payments)
+- Markets: Canada and United States; currencies CAD and USD
 - Positioning: a technology platform — banking, payments and AI agents under one account
 - Contact: zenipay@zeniva.ca
 - Founder & President: Alexandre Blais (https://www.zenivatravel.com/alexandre-blais)
