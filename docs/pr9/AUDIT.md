@@ -27,7 +27,7 @@ Mostly real. Two important gaps:
 
 | Var | Where | Required for | Sandbox set? | Notes |
 |---|---|---|---|---|
-| `FINIX_API_USERNAME` | `lib/finix/config.ts` | All Finix calls | YES (`USb5pXpQU83DTBeECeHzwfnZ`) | |
+| `FINIX_API_USERNAME` | `lib/finix/config.ts` | All Finix calls | YES (voir Vercel) | |
 | `FINIX_API_PASSWORD` | `lib/finix/config.ts` | All Finix calls | YES | |
 | `FINIX_ENV` | `lib/finix/config.ts` | Picks sandbox vs live URL | YES (`sandbox`) | Set to `production` for live |
 | `FINIX_APPLICATION_ID` | `lib/finix/config.ts` | Not used by PR 9 routes (only checkout) | YES | |

@@ -7,12 +7,12 @@ These exist in Vercel today (sandbox values per `.env.production.local`); they n
 | Var | Current (sandbox) | Required for prod |
 |---|---|---|
 | `FINIX_ENV` | `sandbox` | `production` |
-| `FINIX_API_USERNAME` | `USb5pXpQU83DTBeECeHzwfnZ` | (prod username from Riaz) |
-| `FINIX_API_PASSWORD` | `2465471f-0d60-473f-847f-61f46141e346` | (prod password from Riaz) |
+| `FINIX_API_USERNAME` | `USxxxxxxxxxxxxxxxxxxxxxx` (in Vercel) | (prod username from Riaz) |
+| `FINIX_API_PASSWORD` | (in Vercel) | (prod password from Riaz) |
 | `FINIX_MERCHANT_ID` | `MUcTenaz57m9JrwwRZwpSfDc` | `MUk4zVL1MevHw3VkieE6nq81` |
 | `FINIX_MERCHANT_IDENTITY_ID` | `IDoCxHhKh8e1M1MjeW3RDoKD` | `IDS2xyDx1hn8PiGcYaWkjE6A` |
 | `FINIX_APPLICATION_ID` | `APtwKWGqFSEfsecvWcphUgbR\n` (note trailing `\n`!) | `APhu13fXtZxMVSCL3F4iSDTZ` |
-| `FINIX_WEBHOOK_SECRET` | `Zeniva2605220729!` | (likely a different prod secret) |
+| `FINIX_WEBHOOK_SECRET` | (in Vercel) | (likely a different prod secret) |
 
 **Note:** `FINIX_APPLICATION_ID` currently has a trailing `\n` literal in `.env.production.local` line 10. That's a bug from the Vercel CLI import — should be cleaned up when the prod value is set.
 
