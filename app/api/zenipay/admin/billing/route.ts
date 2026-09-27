@@ -2,9 +2,12 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
 /* ── GET — list all billing invoices ── */
 export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
@@ -26,6 +29,8 @@ export async function GET(req: NextRequest) {
 
 /* ── POST — generate a new billing invoice ── */
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const body = await req.json();
     const { merchant_id, merchant_name, period_start, period_end } = body;
@@ -136,6 +141,8 @@ export async function POST(req: NextRequest) {
 
 /* ── PATCH — update billing invoice status ── */
 export async function PATCH(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const { id, status } = await req.json();
     if (!id || !status) {

@@ -8,8 +8,11 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getWalletBalances } from "../../../../modules/zenipay/services/ledger";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     // Require admin or merchant auth
     const adminEmail = (req.headers.get("x-admin-email") || "").trim().toLowerCase();
@@ -68,6 +71,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   const { entity_type, entity_id, bank_name, account_number_last4, routing_number, account_holder_name, payout_method } = await req.json();
 
   const walletId = `WAL-${(entity_type || "GEN").slice(0, 3).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;

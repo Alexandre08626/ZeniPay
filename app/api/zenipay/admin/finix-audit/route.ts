@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
 const FINIX_BASE = process.env.FINIX_ENV === "production"
   ? "https://finix.live-payments-api.com"
@@ -24,6 +25,8 @@ async function finixGet(path: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const merchantId = process.env.FINIX_MERCHANT_ID;
     if (!merchantId) {

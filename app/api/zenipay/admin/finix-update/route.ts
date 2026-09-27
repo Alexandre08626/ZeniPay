@@ -1,8 +1,11 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/zp-session";
 const FINIX_BASE = process.env.FINIX_ENV === "production" ? "https://finix.live-payments-api.com" : "https://finix.sandbox-payments-api.com";
 function finixAuth() { return "Basic " + Buffer.from((process.env.FINIX_API_USERNAME||"")+":"+(process.env.FINIX_API_PASSWORD||"")).toString("base64"); }
 export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   const identityId = process.env.FINIX_MERCHANT_IDENTITY_ID;
   if (!identityId) {
     return NextResponse.json({ error: "FINIX_MERCHANT_IDENTITY_ID not configured" }, { status: 500 });

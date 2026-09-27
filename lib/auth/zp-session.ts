@@ -34,6 +34,7 @@ export interface ZpSession {
   merchant_id: string;
   mode: string;       // "test" | "live"
   auth_user_id?: string;
+  email?: string;     // verified Supabase Auth email, when available
 }
 
 // ─── Supabase Auth path ────────────────────────────────────────────────
@@ -77,6 +78,7 @@ async function tryReadSupabaseAuth(req: NextRequest): Promise<ZpSession | null> 
         merchant_id: merchant.id as string,
         mode: merchant.status === "active" ? "live" : "test",
         auth_user_id: data.user.id,
+        email: userEmail,
       };
     }
   }
@@ -94,6 +96,7 @@ async function tryReadSupabaseAuth(req: NextRequest): Promise<ZpSession | null> 
         merchant_id: merchant.id as string,
         mode: merchant.status === "active" ? "live" : "test",
         auth_user_id: data.user.id,
+        email: userEmail,
       };
     }
   }
@@ -197,8 +200,37 @@ export const ADMIN_EMAIL_ALLOWLIST: ReadonlySet<string> = new Set([
   "alexandreblais26@gmail.com",
 ]);
 
+/**
+ * True only for a VERIFIED operator: a valid session whose account email
+ * (Supabase Auth email, else the merchant row's email) is allowlisted.
+ * The `x-admin-email` header alone proves nothing — anyone can send it —
+ * so every admin gate must go through this.
+ */
+export async function isAdminSession(req: NextRequest): Promise<boolean> {
+  const s = await getZpSession(req);
+  if (!s) return false;
+  if (s.email && ADMIN_EMAIL_ALLOWLIST.has(s.email)) return true;
+  try {
+    const { data } = await getSupabaseAdmin()
+      .from("zenipay_merchants").select("*").eq("id", s.merchant_id).maybeSingle();
+    const cfg = ((data?.config || {}) as Record<string, unknown>);
+    const email = String(data?.email || cfg.email || "").trim().toLowerCase();
+    return !!email && ADMIN_EMAIL_ALLOWLIST.has(email);
+  } catch {
+    return false;
+  }
+}
+
+/** 401/403 response unless the caller is a verified operator (see isAdminSession). */
+export async function requireAdmin(req: NextRequest): Promise<NextResponse | null> {
+  const s = await getZpSession(req);
+  if (!s) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  return (await isAdminSession(req)) ? null : NextResponse.json({ error: "forbidden" }, { status: 403 });
+}
+
 /** True if the request carries an `x-admin-email` header matching the
- *  allowlist. Used to bypass the cross-tenant guard for /admin/* pages
+ *  allowlist. NOT an authentication check on its own — callers must also
+ *  verify isAdminSession(). Used to bypass the cross-tenant guard for /admin/* pages
  *  that legitimately need to read other merchants' data (e.g. the
  *  ZeniPay corporate wallet view from an operator's session). */
 export function isAdminRequest(req: NextRequest): boolean {
@@ -225,12 +257,29 @@ export function resolveMerchantId(
 ): string | NextResponse {
   const claimed = claimedFromRequest?.trim() || "";
   if (claimed && claimed !== session.merchant_id) {
-    if (req && isAdminRequest(req)) {
+    // Header opt-in AND a session email on the allowlist. The session
+    // email is only known for Supabase Auth sessions; routes that need
+    // admin override for HMAC sessions must use resolveMerchantIdAsync.
+    if (req && isAdminRequest(req) && !!session.email && ADMIN_EMAIL_ALLOWLIST.has(session.email)) {
       // Admin override — return the claimed merchant_id, not the
       // session's. This is what makes /admin/wallet work from an
       // operator session signed in as a different merchant.
       return claimed;
     }
+    return NextResponse.json({ error: "forbidden_cross_tenant" }, { status: 403 });
+  }
+  return session.merchant_id;
+}
+
+/** Like resolveMerchantId, but verifies admin overrides against the DB. */
+export async function resolveMerchantIdAsync(
+  session: ZpSession,
+  claimedFromRequest: string | null | undefined,
+  req: NextRequest,
+): Promise<string | NextResponse> {
+  const claimed = claimedFromRequest?.trim() || "";
+  if (claimed && claimed !== session.merchant_id) {
+    if (await isAdminSession(req)) return claimed;
     return NextResponse.json({ error: "forbidden_cross_tenant" }, { status: 403 });
   }
   return session.merchant_id;

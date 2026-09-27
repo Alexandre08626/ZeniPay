@@ -1,9 +1,12 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, pgrest, pgrestInsert } from "../../../../../modules/zenipay/services/supabase";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
 // GET — load existing leads with full details (pgrest = no cache)
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const data = await pgrest("zenipay_leads?order=created_at.desc&limit=200");
     return NextResponse.json({ leads: data || [] });
@@ -14,6 +17,8 @@ export async function GET() {
 
 // POST — scrape new leads OR manually add a lead
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const body = await req.json();
     const supabase = getSupabaseAdmin();

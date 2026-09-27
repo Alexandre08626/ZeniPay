@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
-import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
+import { requireZpSession, resolveMerchantId, resolveMerchantIdAsync } from "@/lib/auth/zp-session";
 
 const FEES: Record<string, number> = { ach: 0, wire_domestic: 15, wire_international: 30, physical_card: 10, card_replacement: 5, returned: 25, conversion: 0.005 };
 
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   // Admin override via x-admin-email — see lib/auth/zp-session.ts.
   // Lets /admin/wallet read ZeniPay corporate's data from an
   // operator session signed in as a different merchant.
-  const r = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"), req);
+  const r = await resolveMerchantIdAsync(session, req.nextUrl.searchParams.get("merchant_id"), req);
   if (r instanceof NextResponse) return r;
   const mid = r;
   const s = getSupabaseAdmin();

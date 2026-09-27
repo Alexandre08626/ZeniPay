@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
 const FINIX_BASE = process.env.FINIX_ENV === "production"
   ? "https://finix.live-payments-api.com"
@@ -12,6 +13,8 @@ function finixAuth() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const webhookId = "WHovuxGUDVmyanagrRxnD3FF";
     const res = await fetch(`${FINIX_BASE}/webhooks/${webhookId}`, {

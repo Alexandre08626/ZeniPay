@@ -9,16 +9,16 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { isAdminSession } from "@/lib/auth/zp-session";
 
-const ADMIN_EMAILS = new Set(["zenipay@zeniva.ca", "info@zeniva.ca", "alexandreblais26@gmail.com"]);
 
-function authorized(req: NextRequest): boolean {
-  const email = (req.headers.get("x-admin-email") ?? "").trim().toLowerCase();
-  return !!email && ADMIN_EMAILS.has(email);
+// Verified operator session — the x-admin-email header alone proves nothing.
+async function authorized(req: NextRequest): Promise<boolean> {
+  return isAdminSession(req);
 }
 
 export async function GET(req: NextRequest) {
-  if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!(await authorized(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const db = getSupabaseAdmin();
 
   const headers: Record<string, string> = { Prefer: "count=exact" };

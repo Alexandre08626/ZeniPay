@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, pgrest } from "@/modules/zenipay/services/supabase";
-import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
+import { requireZpSession, resolveMerchantId, resolveMerchantIdAsync } from "@/lib/auth/zp-session";
 
 export type ActivityKind =
   | "payment_in"
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
   // Pass req so admin emails (x-admin-email) can read cross-tenant
   // — required for /admin/wallet and /admin/treasury surfaces that
   // need to view ZeniPay corporate's data from an operator's session.
-  const merchantIdResult = resolveMerchantId(session, req.nextUrl.searchParams.get("merchant_id"), req);
+  const merchantIdResult = await resolveMerchantIdAsync(session, req.nextUrl.searchParams.get("merchant_id"), req);
   if (merchantIdResult instanceof NextResponse) return merchantIdResult;
   const mid = merchantIdResult;
   const accountIdFilter = (req.nextUrl.searchParams.get("account_id") ?? "").trim() || null;

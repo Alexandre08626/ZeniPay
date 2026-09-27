@@ -8,18 +8,18 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
+import { isAdminSession } from "@/lib/auth/zp-session";
 
-const ADMIN_EMAILS = new Set(["zenipay@zeniva.ca", "info@zeniva.ca", "alexandreblais26@gmail.com"]);
 
 interface RouteContext { params: Promise<{ id: string }> | { id: string }; }
 
-function authorized(req: NextRequest): boolean {
-  const email = (req.headers.get("x-admin-email") ?? "").trim().toLowerCase();
-  return !!email && ADMIN_EMAILS.has(email);
+// Verified operator session — the x-admin-email header alone proves nothing.
+async function authorized(req: NextRequest): Promise<boolean> {
+  return isAdminSession(req);
 }
 
 export async function GET(req: NextRequest, ctx: RouteContext) {
-  if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!(await authorized(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await Promise.resolve(ctx.params);
   const db = getSupabaseAdmin();
   const { data: merchant } = await db.from("zenipay_merchants").select("*").eq("id", id).maybeSingle();
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteContext) {
-  if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!(await authorized(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await Promise.resolve(ctx.params);
   const body = await req.json().catch(() => ({})) as { action?: string; reason?: string };
   const action = String(body.action ?? "").trim();

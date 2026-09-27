@@ -2,8 +2,11 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     // Require admin or merchant auth
     const adminEmail = (req.headers.get("x-admin-email") || "").trim().toLowerCase();

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 import nodemailer from "nodemailer";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
 const SMTP_USER = process.env.SMTP_USER || "zenipay@zeniva.ca";
 const SMTP_PASS = process.env.SMTP_PASS || "";
@@ -36,6 +37,8 @@ function addFooter(html: string, email: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const { audience, subject, html_body, to } = await req.json();
     if (!subject || !html_body) return NextResponse.json({ error: "subject and html_body required" }, { status: 400 });
