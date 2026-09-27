@@ -4,6 +4,7 @@ import { verifyFinixSignature } from "@/lib/finix/webhook-signature";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 import { FundingClient } from "@/lib/zenicore/funding-client";
 import type { Currency } from "@/lib/zenicore/types";
+import { createPaidInvoice, emailInvoice } from "@/lib/zenipay/auto-invoice";
 
 const verifySignature = verifyFinixSignature;
 
@@ -85,19 +86,26 @@ export async function POST(request: Request) {
         });
         if (treasuryFundResult === "handled") break;
 
-        if (transferId) {
-          // Update payment status
-          await supabase
-            .from("zenipay_payments")
-            .update({ status: "succeeded", updated_at: now })
-            .eq("gateway_transfer_id", transferId);
-
-          // Check if invoice already exists
-          const { data: payment } = await supabase
-            .from("zenipay_payments")
-            .select("id, customer_name, customer_email, description, amount, currency, merchant_id, payment_method")
-            .eq("gateway_transfer_id", transferId)
-            .single();
+        // transfer.updated also fires for PENDING/FAILED transitions.
+        if (transferId && (!isUpdatedEvent || state === "SUCCEEDED")) {
+          // Card payments keep the transfer id in metadata (the column may
+          // not exist in prod); EFT writes the column. Look up both.
+          const cols = "id, status, customer_name, customer_email, description, amount, currency, merchant_id, payment_method, metadata";
+          let { data: payment } = await supabase
+            .from("zenipay_payments").select(cols)
+            .eq("gateway_transfer_id", transferId).maybeSingle();
+          if (!payment) {
+            ({ data: payment } = await supabase
+              .from("zenipay_payments").select(cols)
+              .eq("metadata->>gateway_transfer_id", transferId).maybeSingle());
+          }
+          const alreadySucceeded = payment?.status === "succeeded";
+          if (payment && !alreadySucceeded) {
+            await supabase
+              .from("zenipay_payments")
+              .update({ status: "succeeded", updated_at: now })
+              .eq("id", payment.id);
+          }
 
           if (payment) {
             // ── LEDGER ENTRY (missing for EFT / webhook-completed payments) ──
@@ -106,7 +114,10 @@ export async function POST(request: Request) {
               .select("id")
               .eq("payment_id", payment.id)
               .limit(1);
-            if (!existingLedger || existingLedger.length === 0) {
+            // Card payments are credited by process-payment (status already
+            // "succeeded"), and Finix redelivers events — never credit twice.
+            const firstCompletion = !alreadySucceeded && (!existingLedger || existingLedger.length === 0);
+            if (firstCompletion) {
               await supabase.from("zenipay_ledger").insert({
                 id: `led_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
                 payment_id: payment.id,
@@ -123,7 +134,7 @@ export async function POST(request: Request) {
             }
 
             // ── MERCHANT BALANCE UPDATE (atomic, missing for EFT) ────────────
-            if (payment.merchant_id && payment.amount > 0) {
+            if (firstCompletion && payment.merchant_id && payment.amount > 0) {
               const amt = Number(payment.amount);
               const fee = amt * 0.029 + 0.30;
               const netDeposit = amt - fee;
@@ -153,62 +164,20 @@ export async function POST(request: Request) {
               }
             }
 
-            // ── INVOICE CREATION ────────────────────────────────────────────
-            const { data: existingInv } = await supabase
-              .from("zenipay_invoices")
-              .select("id")
-              .eq("payment_id", payment.id)
-              .single();
-
-            if (!existingInv) {
-              const year = new Date().getFullYear();
-              const { count } = await supabase
-                .from("zenipay_invoices")
-                .select("id", { count: "exact", head: true });
-              const seq = String((count || 0) + 1).padStart(3, "0");
-
-              // Lookup merchant info for invoice branding
-              let merchantName = "";
-              let merchantEmail = "";
-              let merchantLogo = "";
-              if (payment.merchant_id) {
-                const { data: merchant } = await supabase
-                  .from("zenipay_merchants")
-                  .select("business_name, email")
-                  .eq("id", payment.merchant_id)
-                  .single();
-                if (merchant) {
-                  merchantName = merchant.business_name || "";
-                  merchantEmail = merchant.email || "";
-                }
-              }
-
-              await supabase.from("zenipay_invoices").insert({
-                id: `INV-${payment.id}`,
-                invoice_number: `INV-${year}-${seq}`,
-                payment_id: payment.id,
-                merchant_id: payment.merchant_id || null,
-                merchant_name: merchantName,
-                merchant_email: merchantEmail,
-                merchant_logo: merchantLogo,
-                customer_name: payment.customer_name || "Client",
-                customer_email: payment.customer_email || "",
-                items: JSON.stringify([{
-                  description: payment.description || "Payment",
-                  qty: 1,
-                  unit_price: payment.amount,
-                  total: payment.amount,
-                }]),
-                subtotal: payment.amount,
-                tax: 0,
-                total: payment.amount,
-                currency: payment.currency || "USD",
-                status: "paid",
-                paid_at: now,
-                created_at: now,
-                updated_at: now,
-              });
-            }
+            // ── INVOICE CREATION + EMAIL (idempotent on payment_id) ─────────
+            const meta = (payment.metadata || {}) as Record<string, unknown>;
+            const invoice = await createPaidInvoice(supabase, {
+              merchantId: payment.merchant_id || null,
+              paymentId: payment.id,
+              paymentRef: String(meta.reference || payment.id),
+              customerName: payment.customer_name || "Client",
+              customerEmail: payment.customer_email || "",
+              description: payment.description || "Payment",
+              total: Number(payment.amount) || 0,
+              currency: payment.currency || "CAD",
+              taxInclusive: true,
+            });
+            if (invoice) await emailInvoice(invoice);
           }
         }
         break;

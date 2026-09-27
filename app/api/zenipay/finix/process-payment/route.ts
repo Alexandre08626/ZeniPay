@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { processFinixPaymentWithInstrument } from "@/modules/zenipay/gateways/finix";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 import { getActiveRate, type Currency } from "@/modules/zenipay/services/fx";
+import { newRowId, createPaidInvoice, emailInvoice } from "@/lib/zenipay/auto-invoice";
 
 // Finix is currently only configured for CAD settlement. Any non-CAD
 // pay link gets its amount converted to CAD via agents.fx_rates before
@@ -45,7 +46,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(cached.result);
     }
     const now = new Date().toISOString();
-    const paymentId = `ZNV-${Date.now().toString(36).toUpperCase()}`;
+    // `id` columns are UUID in production — the ZNV reference is display-only.
+    const paymentId = newRowId();
+    const paymentRef = `ZNV-${Date.now().toString(36).toUpperCase()}`;
     const displayAmount = parseFloat(String(amount));
     const displayCurrency = String(currency).toUpperCase() as Currency;
     if (!SUPPORTED_CURRENCIES.has(displayCurrency)) {
@@ -81,7 +84,7 @@ export async function POST(req: NextRequest) {
     const fxNote = fxRateUsed
       ? `Original ${displayCurrency} ${displayAmount.toFixed(2)} · charged CAD ${chargeAmount.toFixed(2)} @ ${fxRateUsed.toFixed(4)}`
       : "";
-    const finalDescription = [description || `Payment ${paymentId}`, fxNote].filter(Boolean).join(" | ");
+    const finalDescription = [description || `Payment ${paymentRef}`, fxNote].filter(Boolean).join(" | ");
 
     // ─── 1. PROCESS PAYMENT THROUGH FINIX ────────────────────────────────
     // PCI-compliant flow: client tokenizes via Finix.js, server only touches tokens.
@@ -92,13 +95,13 @@ export async function POST(req: NextRequest) {
         amount: chargeAmount,
         currency: finixCurrency,
         description: finalDescription,
-        paymentId,
+        paymentId: paymentRef,
         fraudSessionId: fraud_session_id,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[Finix] Payment processing failed:", msg, {
-        paymentId,
+        paymentRef,
         instrumentPrefix: instrument_id ? String(instrument_id).slice(0, 6) : null,
         env: process.env.FINIX_ENV || "sandbox",
         hasMerchantId: !!process.env.FINIX_MERCHANT_ID,
@@ -106,7 +109,7 @@ export async function POST(req: NextRequest) {
         hasApiPass: !!process.env.FINIX_API_PASSWORD,
       });
       return NextResponse.json(
-        { error: "Payment processing failed", message: msg, paymentId },
+        { error: "Payment processing failed", message: msg, paymentId: paymentRef },
         { status: 402 }
       );
     }
@@ -135,6 +138,7 @@ export async function POST(req: NextRequest) {
           status: "failed",
           gateway: "finix",
           metadata: {
+            reference: paymentRef,
             payment_link_id: pay_link_id ?? null,
             gateway_transfer_id: transferId ?? "",
             gateway_instrument_id: instrument_id ?? "",
@@ -151,7 +155,7 @@ export async function POST(req: NextRequest) {
         message: finixMsg || "Payment declined by the processor.",
         state: finixResult.state,
         failure_code: finixCode ?? null,
-        paymentId,
+        paymentId: paymentRef,
       }, { status: 402 });
     }
 
@@ -170,6 +174,7 @@ export async function POST(req: NextRequest) {
         status: "pending_3ds",
         gateway: "finix",
         metadata: {
+          reference: paymentRef,
           payment_link_id: pay_link_id,
           gateway_transfer_id: finixResult.transferId || "",
           gateway_instrument_id: finixResult.instrumentId || "",
@@ -186,7 +191,8 @@ export async function POST(req: NextRequest) {
         success: true,
         requires_3ds: true,
         redirect_url: finixResult.threeDSRedirectUrl,
-        paymentId,
+        paymentId: paymentRef,
+        payment_id: paymentId,
         transferId: finixResult.transferId,
         state: finixResult.state,
         amount: amountNum,
@@ -247,6 +253,7 @@ export async function POST(req: NextRequest) {
       payment_method: "card",
       gateway: "finix",
       metadata: {
+        reference: paymentRef,
         payment_link_id: pay_link_id,
         gateway_transfer_id: finixResult.transferId || "",
         gateway_instrument_id: finixResult.instrumentId || "",
@@ -262,98 +269,24 @@ export async function POST(req: NextRequest) {
 
     if (payErr) console.error("[DB] Payment insert failed", payErr);
 
-    // ─── 4. CREATE INVOICE (automated on money-in) ────────────────────────
-    // Every successful payment auto-generates a paid invoice with a
-    // sequential number, tax breakdown (tax-inclusive, see DEFAULT_TAX_RATE)
-    // and line items. Production `zenipay_invoices` still uses the legacy
-    // columns (client_name/client_email/amount) — we write the rich shape
-    // first and fall back to the legacy columns when the rich ones are
-    // missing (pre-migration).
+    // ─── 4. CREATE + EMAIL INVOICE (automated on money-in) ────────────────
+    // Every successful payment creates a paid invoice (tax-inclusive,
+    // merchant config.tax_rate, default 5 %) and emails it to the payer with
+    // the merchant in BCC. Awaited so the serverless function isn't frozen
+    // before the email leaves.
     if (finixResult.state === "SUCCEEDED") {
-      const DEFAULT_TAX_RATE = 5; // % GST default, overridable via config.tax_rate
-      let taxRatePct = DEFAULT_TAX_RATE;
-      let merchantName = "";
-      let merchantEmail = "";
-      try {
-        const { data: mRow } = await supabase
-          .from("zenipay_merchants")
-          .select("name, company, email, config")
-          .eq("id", merchantId)
-          .maybeSingle();
-        if (mRow) {
-          const cfg = (mRow.config || {}) as Record<string, unknown>;
-          if (typeof cfg.tax_rate === "number" && cfg.tax_rate >= 0) taxRatePct = cfg.tax_rate;
-          merchantName = (mRow.name || mRow.company || cfg.businessName || "") as string;
-          merchantEmail = (mRow.email || cfg.email || "") as string;
-        }
-      } catch { /* keep defaults */ }
-
-      // Tax-inclusive reverse calc on the settled CAD amount.
-      const total = amountNum;
-      const rate = taxRatePct / 100;
-      const subtotal = Math.round((total / (1 + rate)) * 100) / 100;
-      const tax = Math.round((total - subtotal) * 100) / 100;
-
-      // Sequential invoice number (count-based, zero-padded).
-      let invoiceNumber = `INV-${paymentId}`;
-      try {
-        const { count } = await supabase
-          .from("zenipay_invoices")
-          .select("id", { count: "exact", head: true });
-        const seq = String((count || 0) + 1).padStart(4, "0");
-        invoiceNumber = `INV-${new Date().getFullYear()}-${seq}`;
-      } catch { /* fall back to payment id */ }
-
-      const lineItem = {
-        description: finalDescription || `Payment link ${pay_link_id}`,
-        qty: 1,
-        unit_price: subtotal,
-        total: subtotal,
-      };
-
-      const richInvoice = {
-        id: invoiceNumber,
-        invoice_number: invoiceNumber,
-        merchant_id: merchantId || "unknown",
-        customer_name: customer_name || "Client",
-        customer_email: customer_email || "",
-        client_name: customer_name || "Client",
-        client_email: customer_email || "",
-        items: JSON.stringify([lineItem]),
-        subtotal,
-        tax,
-        total,
-        amount: total,
+      const invoice = await createPaidInvoice(supabase, {
+        merchantId,
+        paymentId,
+        paymentRef,
+        customerName: customer_name || "Client",
+        customerEmail: customer_email || "",
+        description: description || `Payment link ${pay_link_id}`,
+        total: amountNum,
         currency: finixCurrency,
-        description: lineItem.description,
-        status: "paid",
-        payment_id: paymentId,
-        merchant_name: merchantName,
-        merchant_email: merchantEmail,
-        notes: `Auto-generated from ZeniPay payment ${paymentId} | Finix: ${finixResult.transferId}`,
-        paid_at: now,
-        created_at: now,
-        updated_at: now,
-      };
-      const { error: richErr } = await supabase.from("zenipay_invoices").upsert(richInvoice, { onConflict: "id" });
-
-      if (richErr) {
-        const legacyInvoice = {
-          id: invoiceNumber,
-          merchant_id: merchantId || "unknown",
-          client_name: customer_name || "Client",
-          client_email: customer_email || "",
-          amount: total,
-          currency: finixCurrency,
-          status: "paid",
-          description: lineItem.description,
-          paid_at: now,
-          created_at: now,
-          updated_at: now,
-        };
-        const { error: legacyErr } = await supabase.from("zenipay_invoices").upsert(legacyInvoice, { onConflict: "id" });
-        if (legacyErr) console.error("[DB] Invoice creation failed", legacyErr);
-      }
+        taxInclusive: true,
+      });
+      if (invoice) await emailInvoice(invoice);
     }
 
     // ─── 5. CREDIT MERCHANT BALANCE ───────────────────────────────────────
@@ -395,9 +328,9 @@ export async function POST(req: NextRequest) {
         const existingTxs     = (cfg.transactions || []) as unknown[];
 
         const txn: Record<string, unknown> = {
-          id: paymentId, pay_link_id, amount: amountNum, currency: finixCurrency,
+          id: paymentRef, payment_id: paymentId, pay_link_id, amount: amountNum, currency: finixCurrency,
           display_amount: displayAmount, display_currency: displayCurrency, fx_rate: fxRateUsed,
-          description: finalDescription, customer_name: customer_name || "",
+          description: finalDescription, customer_name: customer_name || "", customer_email: customer_email || "",
           card_last4: finixResult.last4, card_brand: finixResult.brand,
           status: "succeeded", gateway: "finix", fee,
           transfer_id: finixResult.transferId, createdAt: now,
@@ -440,8 +373,8 @@ export async function POST(req: NextRequest) {
               direction: "credit",
               amount: fee,
               currency: finixCurrency,
-              reference: paymentId,
-              note: `Platform fee from ${merchantId} on payment ${paymentId}`,
+              reference: paymentRef,
+              note: `Platform fee from ${merchantId} on payment ${paymentRef}`,
               created_at: now,
             });
           } catch (feeErr) {
@@ -464,7 +397,7 @@ export async function POST(req: NextRequest) {
         direction: "credit",
         amount: amountNum,
         currency: finixCurrency,
-        reference: paymentId,
+        reference: paymentRef,
         note: `Finix payment: ${finalDescription || pay_link_id}`,
         created_at: now,
       });
@@ -476,7 +409,7 @@ export async function POST(req: NextRequest) {
 
     // ─── 8. RETURN SUCCESS ────────────────────────────────────────────────
     const responsePayload = {
-      success: true, paymentId,
+      success: true, paymentId: paymentRef, payment_id: paymentId,
       transferId: finixResult.transferId,
       state: finixResult.state,
       amount: amountNum, currency: finixCurrency,

@@ -28,6 +28,7 @@ export type SendEmailOptions = {
   from?: string;
   fromName?: string;
   replyTo?: string;
+  bcc?: string | string[];
 };
 
 export async function sendEmail(opts: SendEmailOptions) {
@@ -40,5 +41,6 @@ export async function sendEmail(opts: SendEmailOptions) {
     subject: opts.subject,
     html: opts.html,
     replyTo: opts.replyTo || FROM_EMAIL,
+    ...(opts.bcc ? { bcc: Array.isArray(opts.bcc) ? opts.bcc.join(", ") : opts.bcc } : {}),
   });
 }

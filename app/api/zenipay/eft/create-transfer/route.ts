@@ -26,6 +26,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { createBankAccountInstrument, createACHDebit } from "@/lib/finix/ach-client";
+import { newRowId } from "@/lib/zenipay/auto-invoice";
 
 const MAX_EFT_AMOUNT = 2500;        // dollars
 const MIN_EFT_AMOUNT = 1;           // $1 floor — Finix minimum
@@ -156,8 +157,9 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 3. Persist ──────────────────────────────────────────────────────
-  // ZeniPay payment-id pattern matches the card flow (ZNV-XXXXXXXX).
-  const paymentId = `ZNV-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+  // `id` is a UUID column in prod; ZNV-XXXXXXXX is the display reference.
+  const paymentId = newRowId();
+  const paymentRef = `ZNV-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
   const eftStatus = transferState === "SUCCEEDED" ? "succeeded"
                   : transferState === "FAILED"    ? "failed"
                   :                                  "pending";
@@ -183,6 +185,7 @@ export async function POST(req: NextRequest) {
     bank_last4:            last4,
     eft_status:            eftStatus,
     idempotency_key:       idempotencyKey,
+    metadata:              { reference: paymentRef, gateway_transfer_id: transferId, payment_link_id: payLinkId },
     created_at:            now,
     updated_at:            now,
   });
@@ -193,7 +196,8 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
-    paymentId,
+    paymentId: paymentRef,
+    payment_id: paymentId,
     transferId,
     state: status,
     eftStatus,

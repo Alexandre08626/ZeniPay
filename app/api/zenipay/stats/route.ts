@@ -115,13 +115,10 @@ export async function GET(req: NextRequest) {
       const { data } = await supabase
         .from("zenipay_invoices")
         .select("*")
+        .eq("merchant_id", merchant_id)
         .order("created_at", { ascending: false })
-        .limit(100);
-      if (data) {
-        recentInvoices = merchant_id
-          ? data.filter((inv: Record<string, unknown>) => inv.merchant_id === merchant_id).slice(0, 20)
-          : data.slice(0, 20);
-      }
+        .limit(50);
+      if (data) recentInvoices = data;
     } catch { /* table may not exist */ }
 
     // What's actually still held (not lifetime revenue). Fallback to the

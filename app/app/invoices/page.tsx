@@ -324,7 +324,7 @@ export default function InvoicesPage() {
           onCreated={async () => { setCreateQuoteOpen(false); await loadQuotes(); }}
         />
       )}
-      {selected && <InvoiceDetail invoice={selected} onClose={() => setSelected(null)} />}
+      {selected && <InvoiceDetail key={selected.id} invoice={selected} onClose={() => setSelected(null)} />}
       {selectedQuote && <QuoteDetail quote={selectedQuote} onClose={() => setSelectedQuote(null)} onStatusUpdate={async (id, status) => { await fetch("/api/zenipay/quotes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) }); await loadQuotes(); setSelectedQuote(null); }} />}
     </DashboardShell>
   );
@@ -488,6 +488,30 @@ function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => 
   const issuerName  = invoice.merchant_name  || bname() || "Your business";
   const issuerEmail = invoice.merchant_email || bemail() || "";
 
+  const [to, setTo] = useState(invoice.customer_email || "");
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const send = async () => {
+    setSending(true); setSendMsg(null);
+    try {
+      const r = await fetch(`/api/zenipay/invoices/send?merchant_id=${encodeURIComponent(mid())}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id: invoice.id, to: to.trim() || undefined }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const text = j.error === "NO_CUSTOMER_EMAIL" ? "Enter the customer's email first."
+          : j.error === "EMAIL_FAILED" ? "Email could not be sent. Try again."
+          : j.error || "Send failed.";
+        setSendMsg({ ok: false, text });
+      } else {
+        setSendMsg({ ok: true, text: `Invoice emailed to ${j.sent_to}` });
+      }
+    } catch (e) {
+      setSendMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally { setSending(false); }
+  };
+
   return (
     <div
       onClick={onClose}
@@ -563,9 +587,18 @@ function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => 
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 8, marginTop: 22, flexWrap: "wrap" }}>
-            <GradientButton variant="primary" size="md" icon={<Send size={14} />} onClick={() => alert("Send-invoice flow stays in /app/banking for now.")}>
-              Send to customer
+          <div style={{ marginTop: 22 }}>
+            <Label>Customer email</Label>
+            <Input value={to} onChange={setTo} placeholder="client@email.com" type="email" />
+          </div>
+          {sendMsg && (
+            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: sendMsg.ok ? zp.semantic.success : zp.semantic.danger }}>
+              {sendMsg.ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />} {sendMsg.text}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            <GradientButton variant="primary" size="md" icon={<Send size={14} />} onClick={send} disabled={sending || !to.trim()}>
+              {sending ? "Sending…" : "Send to customer"}
             </GradientButton>
             <GradientButton variant="secondary" size="md" icon={<Download size={14} />} onClick={() => window.print()}>
               Download PDF

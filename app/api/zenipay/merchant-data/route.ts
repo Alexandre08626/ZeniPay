@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
  * PUT  ?merchant_id=xxx  — save paylinks/invoices/payouts/bankCfg to Supabase
  */
 
+import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, pgrest } from "../../../../modules/zenipay/services/supabase";
 import { hashPassword } from "../../../../modules/zenipay/services/auth";
@@ -56,6 +57,11 @@ export async function PUT(req: NextRequest) {
   // Direct invoice creation
   if (body._direct_invoice) {
     const inv = body._direct_invoice;
+    // `id` is a UUID column in prod; the client's INV-… value is the number.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!inv.invoice_number) inv.invoice_number = inv.id;
+    if (!UUID_RE.test(String(inv.id || ""))) inv.id = crypto.randomUUID();
+    inv.merchant_id = merchant_id; // session-resolved, never client-chosen
 
     // Production `zenipay_invoices` uses the legacy schema
     // (client_name / client_email / amount) and does NOT yet have
