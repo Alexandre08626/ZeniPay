@@ -47,7 +47,7 @@ export function MarketingNav() {
         <nav className="mk-nav-links" style={{ display: "flex", gap: 26, marginLeft: 24 }}>
           <Link href="/#features" style={linkStyle}>Features</Link>
           <Link href="/#pricing" style={linkStyle}>Pricing</Link>
-          <Link href="/agents/overview" style={linkStyle}>Agents</Link>
+          <Link href="/#orvel" style={linkStyle}>Orvel</Link>
         </nav>
 
         <div style={{ flex: 1 }} />
@@ -107,7 +107,7 @@ export function MarketingNav() {
             {[
               { href: "/#features", label: "Features" },
               { href: "/#pricing", label: "Pricing" },
-              { href: "/agents/overview", label: "Agents" },
+              { href: "/#orvel", label: "Orvel" },
               { href: "/login", label: "Sign in" },
             ].map((l) => (
               <Link
@@ -186,7 +186,7 @@ export function MarketingFooter() {
           ]} />
 
           <FooterCol title="Product" links={[
-            { label: "AI Agents",     href: "/agents/overview" },
+            { label: "Orvel AI",      href: "/#orvel" },
             { label: "Pricing",       href: "/pricing" },
             { label: "Security",      href: "/security" },
             { label: "Docs",          href: "/docs" },

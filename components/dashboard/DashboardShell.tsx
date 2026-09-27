@@ -12,6 +12,7 @@ import { Menu } from "lucide-react";
 import { TopBar, type DashboardMode } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import zp from "@/lib/design-system/zenipay-brand";
+import { OrvelChat } from "@/components/orvel/OrvelChat";
 
 interface Session {
   email: string;
@@ -276,6 +277,7 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
 
           <style>{mainCss}</style>
         </main>
+        {mode === "merchant" && bootstrapped && <OrvelChat />}
       </div>
     </div>
   );

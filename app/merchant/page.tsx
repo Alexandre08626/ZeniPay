@@ -130,7 +130,7 @@ function TopBar() {
 
         <nav className="merchant-nav-links" style={{ display: "none", alignItems: "center", gap: 24 }}>
           <Link href="/merchant" style={{ ...navLinkStyle, color: T.textHeading, fontWeight: 600 }}>Merchant</Link>
-          <Link href="/agents/overview" style={navLinkStyle}>AI Agents</Link>
+          <Link href="/#orvel" style={navLinkStyle}>Orvel AI</Link>
           <Link href="/pricing" style={navLinkStyle}>Pricing</Link>
           <Link href="/security" style={navLinkStyle}>Security</Link>
         </nav>
@@ -931,7 +931,7 @@ function FooterBar() {
         </Link>
         <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
           <Link href="/" style={footerLink}>Overview</Link>
-          <Link href="/agents/overview" style={footerLink}>AI Agents</Link>
+          <Link href="/#orvel" style={footerLink}>Orvel AI</Link>
           <Link href="/pricing" style={footerLink}>Pricing</Link>
           <Link href="/security" style={footerLink}>Security</Link>
           <Link href="/contact" style={footerLink}>Contact</Link>

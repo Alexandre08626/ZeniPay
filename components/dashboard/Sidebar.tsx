@@ -20,6 +20,7 @@ import {
   Link as LinkIcon,
   Settings as SettingsIcon,
   Bot,
+  Sparkles,
   Building2,
   Shield,
   ShieldCheck,
@@ -52,6 +53,7 @@ const MERCHANT_NAV: NavItem[] = [
   { href: "/app/cards",        label: "Cards",         Icon: CreditCard,      group: "primary" },
   { href: "/app/wallets",      label: "Send & Receive", Icon: SendHorizontal, group: "primary" },
 
+  { href: "/app/orvel",        label: "Orvel",         Icon: Sparkles,        group: "tools" },
   { href: "/app/invoices",     label: "Invoices",      Icon: FileText,        group: "tools" },
   { href: "/app/contacts",     label: "Contacts",      Icon: Users,           group: "tools" },
   { href: "/app/payouts",      label: "Payouts",       Icon: SendHorizontal,  group: "tools" },
@@ -69,7 +71,6 @@ const ADMIN_NAV: NavItem[] = [
   // ── Platform Admin — back-office for all clients ─────────────────
   { href: "/admin/overview",     label: "Overview",     Icon: Home,           group: "tools" },
   { href: "/admin/merchants",    label: "Merchants",    Icon: Building2,      group: "tools" },
-  { href: "/admin/agents",       label: "Agents",       Icon: Bot,            group: "tools" },
   { href: "/admin/treasury",     label: "Treasury",     Icon: TrendingUp,     group: "tools" },
   { href: "/admin/transactions", label: "Transactions", Icon: ArrowLeftRight, group: "tools" },
   { href: "/admin/cards",        label: "Cards",        Icon: CreditCard,     group: "tools" },

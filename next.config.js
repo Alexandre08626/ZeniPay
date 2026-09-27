@@ -9,6 +9,10 @@ const nextConfig = {
         destination: "/news",
         permanent: true,
       },
+      // Agents retired 2026-09-27 — Orvel replaces it.
+      { source: "/agents", destination: "/app/orvel", permanent: false },
+      // Pages only — /agents/*.png avatars in public/ must keep loading.
+      { source: "/agents/:path((?!.*\\.(?:png|jpe?g|svg|webp|gif)$).*)", destination: "/app/orvel", permanent: false },
       // /app root → overview (matches PR 13 neobank IA).
       {
         source: "/app",

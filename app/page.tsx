@@ -1,16 +1,14 @@
 // Root / — ZeniPay marketing homepage.
 //
-// One page, two halves: Corporate Banking (cyan accent) and AI Agent
-// Wallets (violet accent), bridged by the ZeniCore treasury narrative.
-// Uses the shared zenipay-brand tokens + DiceBear avatars fetched into
-// /public/agents/* at build time.
+// Business accounts & payments (cyan accent) and Orvel, the built-in AI
+// operator (violet accent). Uses the shared zenipay-brand tokens.
 
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import {
   CreditCard, FileText, BarChart2, Lock,
-  Bot, Zap, Shield, BookOpen,
+  Zap, Shield, BookOpen, Sparkles,
   UserPlus, ArrowDownLeft, Play,
   User, Building2, Wallet, Target, PieChart, Users, ShieldCheck, Check,
   type LucideIcon,
@@ -19,13 +17,13 @@ import { MarketingNav, MarketingFooter } from "@/app/components/marketing/Market
 import zp from "@/lib/design-system/zenipay-brand";
 
 export const metadata: Metadata = {
-  title: "ZeniPay — The first online bank with AI-intelligent wallets",
+  title: "ZeniPay — Payments, invoicing and Orvel, your AI operator",
   description:
-    "Personal and business banking in Canada and the US, with a built-in fleet of AI specialists for accounting, finance, security, compliance, and revenue. Move money, run your books, get answers — instantly.",
+    "Business accounts, payment links and invoices in Canada and the US — with Orvel, an AI operator that creates invoices, splits them into deposits, sends payment links and follows up for you.",
   openGraph: {
-    title: "ZeniPay — The first online bank with AI-intelligent wallets",
+    title: "ZeniPay — Payments, invoicing and Orvel, your AI operator",
     description:
-      "Banking that thinks. Personal and business accounts with a fleet of AI specialists built in — accounting, finance, security, compliance, revenue.",
+      "Tell Orvel what to do: invoices in full or in deposits, payment links, reminders — done for you.",
     url: "https://zenipay.ca",
     siteName: "ZeniPay",
   },
@@ -39,7 +37,6 @@ export default function LandingPage() {
       <PartnerStrip />
       <SectionA />
       <SectionB />
-      <BridgeSection />
       <HowItWorks />
       <StatsRow />
       <ForEveryone />
@@ -163,9 +160,9 @@ function HeroMockup() {
             <div style={{ fontSize: 11, opacity: 0.75 }}>2 accounts · CAD</div>
           </div>
           <div style={{ padding: "20px 22px", background: zp.gradient.heroAgents, color: zp.text.inverse, minHeight: 180, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.8, fontWeight: zp.weight.semibold }}>Agents · Treasury</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.8, fontWeight: zp.weight.semibold }}>Orvel · Receivables</div>
             <div style={{ ...zp.amountStyle.hero, fontSize: 42, color: "#fff" }}>$12,400.00</div>
-            <div style={{ fontSize: 11, opacity: 0.75 }}>11 agents · ZeniCore verified</div>
+            <div style={{ fontSize: 11, opacity: 0.75 }}>6 invoices · deposits sent automatically</div>
           </div>
         </div>
       </div>
@@ -263,28 +260,29 @@ function VisualMerchant() {
 
 function SectionB() {
   return (
-    <section style={{ padding: "96px 24px", background: zp.surface.bg2, borderTop: `1px solid ${zp.surface.border}`, borderBottom: `1px solid ${zp.surface.border}` }}>
+    <section id="orvel" style={{ padding: "96px 24px", background: zp.surface.bg2, borderTop: `1px solid ${zp.surface.border}`, borderBottom: `1px solid ${zp.surface.border}` }}>
       <div style={{ maxWidth: 1160, margin: "0 auto", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 60, alignItems: "center" }} className="mk-twocol">
-        <VisualAgents />
+        <VisualOrvel />
         <div>
-          <Eyebrow color={zp.brand.violet}>AI Agent Wallets</Eyebrow>
-          <H2>Give your AI agents their own wallets.</H2>
+          <Eyebrow color={zp.brand.violet}>Orvel AI</Eyebrow>
+          <H2>Tell Orvel what to do. It does it.</H2>
           <p style={bodyStyle}>
-            Stop hard-coding API keys and credit cards into your AI agents. Give
-            each agent a real wallet, a spending limit, and a full audit trail —
-            with one API call.
+            Orvel is the AI operator built into your ZeniPay dashboard. Ask in plain
+            words and it creates the invoice, splits it into deposits, emails the
+            payment links, follows up late payers and answers questions about your
+            numbers. You decide what it is allowed to do, one switch per capability.
           </p>
           <FeatureList
             accent={zp.brand.violet}
             items={[
-              { Icon: Bot,      title: "Autonomous wallet per agent" },
-              { Icon: Zap,      title: "Instant distribution from treasury" },
-              { Icon: Shield,   title: "Real-time approval & fraud detection" },
-              { Icon: BookOpen, title: "Immutable ZeniCore ledger" },
+              { Icon: FileText, title: "Invoices in full or in deposits, sent automatically" },
+              { Icon: Zap,      title: "Payment links and reminders on the due date" },
+              { Icon: Shield,   title: "Permissions you control, per capability" },
+              { Icon: BookOpen, title: "Every action logged, with undo when reversible" },
             ]}
           />
-          <Link href="/agents/overview" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 24, fontSize: 13, fontWeight: zp.weight.semibold, color: zp.brand.violet, textDecoration: "none" }}>
-            Explore the Agent Wallet platform →
+          <Link href="/register" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 24, fontSize: 13, fontWeight: zp.weight.semibold, color: zp.brand.violet, textDecoration: "none" }}>
+            Open an account and try Orvel →
           </Link>
         </div>
       </div>
@@ -292,11 +290,11 @@ function SectionB() {
   );
 }
 
-function VisualAgents() {
-  const AGENTS = [
-    { name: "Atlas", role: "Security Agent", bal: "$3,100.00", status: "active" },
-    { name: "Ben",   role: "Finance Agent",  bal: "$4,200.00", status: "active" },
-  ];
+function VisualOrvel() {
+  const bubble = (mine: boolean): React.CSSProperties => ({
+    alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "86%", padding: "9px 12px", borderRadius: zp.radius.md,
+    fontSize: 12.5, lineHeight: 1.45, background: mine ? zp.brand.cyan : zp.surface.bg2, color: mine ? "#04111d" : zp.text.primary,
+  });
   return (
     <div style={{
       padding: 16, borderRadius: zp.radius.xl,
@@ -304,76 +302,18 @@ function VisualAgents() {
       boxShadow: "0 20px 48px rgba(15,23,42,0.08), 0 0 0 1px rgba(15,23,42,0.06)",
     }}>
       <div style={{ background: "#fff", borderRadius: zp.radius.lg, border: `1px solid ${zp.surface.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${zp.surface.border}`, background: zp.surface.bg2 }}>
-          <span style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Your Agent Fleet</span>
-          <span style={{ fontSize: 10, fontWeight: zp.weight.semibold, padding: "3px 10px", borderRadius: 999, background: "rgba(123,79,191,0.12)", color: zp.brand.violet, letterSpacing: "0.06em", textTransform: "uppercase" }}>Live</span>
+        <div style={{ padding: "12px 16px", borderBottom: `1px solid ${zp.surface.border}`, background: zp.surface.bg2, fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>
+          Orvel
         </div>
-        {AGENTS.map((a) => (
-          <AgentRow key={a.name} name={a.name} role={a.role} bal={a.bal} status={a.status} />
-        ))}
-        <div style={{ padding: "14px 18px", borderTop: `2px solid ${zp.surface.border}`, background: zp.surface.bg2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.1em", textTransform: "uppercase" }}>Total fleet balance</span>
-          <span style={{ ...zp.amountStyle.large, fontSize: 18, color: zp.brand.cyan }}>$7,300.00 USD</span>
+        <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={bubble(true)}>Invoice Jean Tremblay $2,000 + tax, in 3 payments: 30% today, 30% next month, balance in two months.</div>
+          <div style={bubble(false)}>Done — INV-2026-0014, $2,299.50. Deposit 1 ($689.85) was just emailed to Jean with its payment link; the next two go out on their due dates.</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: zp.semantic.success }}>
+            <Check size={12} /> Invoice INV-2026-0014 — 3 installments
+          </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function AgentRow({ name, role, bal, status }: { name: string; role: string; bal: string; status: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderTop: `1px solid ${zp.surface.border}` }}>
-      <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden", background: zp.surface.bg2, flexShrink: 0, boxShadow: `0 0 0 2px rgba(123,79,191,0.20)` }}>
-        <Image src={`/agents/${name.toLowerCase()}.png`} alt={`${name} avatar`} width={36} height={36} style={{ width: 36, height: 36, objectFit: "cover" }} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{name}</div>
-        <div style={{ fontSize: 11, color: zp.text.muted }}>{role}</div>
-      </div>
-      <div style={{ ...zp.amountStyle.base, fontFamily: zp.font.mono, fontSize: 13, color: zp.brand.violet, fontWeight: zp.weight.semibold }}>{bal}</div>
-      <span style={{ width: 8, height: 8, borderRadius: "50%", background: status === "active" ? zp.semantic.success : zp.surface.bg3, flexShrink: 0 }} />
-    </div>
-  );
-}
-
-function BridgeSection() {
-  return (
-    <section style={{ padding: "96px 24px" }}>
-      <div style={{ maxWidth: 1040, margin: "0 auto", textAlign: "center" }}>
-        <H2>One unified treasury.</H2>
-        <p style={{ ...bodyStyle, margin: "16px auto 0", maxWidth: 640 }}>
-          Fund your corporate account once. Distribute to your entire AI fleet
-          instantly. ZeniCore processes every transfer internally — zero Visa,
-          zero wire fees, zero delay.
-        </p>
-        <div style={{ marginTop: 52 }}>
-          <div style={{ display: "inline-block", padding: "24px 28px", borderRadius: zp.radius.lg, background: zp.gradient.heroMerchant, color: zp.text.inverse, boxShadow: zp.elevation.heroInk }}>
-            <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.8 }}>Merchant Treasury</div>
-            <div style={{ ...zp.amountStyle.large, fontSize: 28, color: "#fff", marginTop: 6 }}>$12,400.00</div>
-          </div>
-          <div style={{ margin: "18px auto", width: 2, height: 40, background: `linear-gradient(180deg, ${zp.brand.cyan} 0%, ${zp.brand.violet} 100%)` }} />
-          <div style={{ display: "inline-block", padding: "4px 14px", borderRadius: zp.radius.pill, background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`, fontSize: 11, fontWeight: zp.weight.semibold, letterSpacing: "0.08em", textTransform: "uppercase", color: zp.text.muted }}>
-            ZeniCore bridge · &lt; 1s
-          </div>
-          <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, maxWidth: 840, marginLeft: "auto", marginRight: "auto" }}>
-            {[
-              { name: "Atlas", bal: "$3,100" },
-              { name: "Ben",   bal: "$4,200" },
-            ].map((a) => (
-              <div key={a.name} style={{ padding: "14px 16px", borderRadius: zp.radius.md, background: "#fff", border: `1px solid ${zp.surface.border}`, borderLeft: `3px solid ${zp.brand.violet}`, display: "flex", alignItems: "center", gap: 10, boxShadow: zp.elevation.sm }}>
-                <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", background: zp.surface.bg2, flexShrink: 0 }}>
-                  <Image src={`/agents/${a.name.toLowerCase()}.png`} alt="" width={30} height={30} />
-                </div>
-                <div style={{ textAlign: "left" as const, flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{a.name}</div>
-                  <div style={{ fontSize: 11, color: zp.brand.violet, fontFamily: zp.font.mono, fontWeight: zp.weight.semibold }}>{a.bal}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -386,7 +326,7 @@ function HowItWorks() {
           {[
             { Icon: UserPlus,      title: "Open your account",   body: "Sign up in under 5 minutes. No branch, no paperwork." },
             { Icon: ArrowDownLeft, title: "Fund your treasury",  body: "Add funds via card, ACH, or wire. Instantly available." },
-            { Icon: Bot,           title: "Deploy to your agents", body: "Distribute to your AI fleet with one click." },
+            { Icon: Sparkles,      title: "Let Orvel run it",      body: "Invoices, deposits and reminders — just ask Orvel." },
           ].map((s, i) => (
             <div key={s.title} style={{ padding: "24px 22px", borderRadius: zp.radius.lg, background: "#fff", border: `1px solid ${zp.surface.border}`, textAlign: "left" as const }}>
               <div style={{ width: 44, height: 44, borderRadius: zp.radius.md, background: zp.gradient.main, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
@@ -410,10 +350,10 @@ function StatsRow() {
     <section id="pricing" style={{ padding: "72px 24px", background: zp.surface.heroInk, color: zp.text.inverse }}>
       <div style={{ maxWidth: 1160, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 32 }}>
         {[
-          { v: "$0",       l: "Processing fees between agents" },
+          { v: "$0",       l: "Fees on transfers between your accounts" },
           { v: "< 1s",     l: "Internal transfer time" },
           { v: "SHA-256",  l: "Chain hash on every transaction" },
-          { v: "11",       l: "AI agents ready to deploy" },
+          { v: "2–12",     l: "Installments per invoice, sent automatically" },
         ].map((s) => (
           <div key={s.l}>
             <div style={{ ...zp.amountStyle.hero, fontFamily: zp.font.mono, fontSize: 40, color: "#fff", fontWeight: zp.weight.semibold, lineHeight: 1.05 }}>{s.v}</div>
@@ -432,7 +372,7 @@ function ForEveryone() {
       <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
         <H2>ZeniPay for everyone.</H2>
         <p style={{ ...bodyStyle, margin: "16px auto 48px", maxWidth: 640 }}>
-          Personal banking that just works · Business banking with AI agent wallets baked in.
+          Personal banking that just works · Business banking with Orvel, your AI operator, built in.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, textAlign: "left" as const }}>
           <SignupCard
@@ -453,11 +393,11 @@ function ForEveryone() {
             Icon={Building2}
             accent={zp.brand.cyan}
             title="Business Banking"
-            body="Everything your company needs — plus AI agent wallets built right in."
+            body="Everything your company needs — plus Orvel, your AI operator, built right in."
             badge="Free to start"
             features={[
               { Icon: Building2, label: "Business treasury & accounts" },
-              { Icon: Bot, label: "AI agent wallets" },
+              { Icon: Sparkles, label: "Orvel AI operator" },
               { Icon: Users, label: "Payment links & invoicing" },
               { Icon: ShieldCheck, label: "Signed audit trail" },
             ]}

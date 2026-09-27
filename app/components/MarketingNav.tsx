@@ -105,7 +105,7 @@ export default function MarketingNav({ active = null }: MarketingNavProps) {
 
         <div style={{ display: "flex", alignItems: "center", gap: spacing[2] }}>
           <Link
-            href="/agents/login"
+            href="/login"
             style={{
               fontFamily: font.sans,
               fontSize: fontSize.sm.size,

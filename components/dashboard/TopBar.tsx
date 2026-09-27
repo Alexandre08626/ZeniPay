@@ -10,7 +10,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
-import { Bell, Search, ChevronDown, LogOut, Settings as SettingsIcon, User, Building2, Bot } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, Settings as SettingsIcon, User, Building2 } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
 
 export type DashboardMode = "merchant" | "agents" | "personal" | "admin";
@@ -340,7 +340,7 @@ function ModeSwitcher({ mode, onSwitch, hideBusiness }: ModeSwitcherProps) {
   const items: Array<{ key: DashboardMode; Icon: typeof User }> = [
     { key: "personal", Icon: User },
     ...(hideBusiness ? [] : [{ key: "merchant" as DashboardMode, Icon: Building2 }]),
-    { key: "agents",   Icon: Bot },
+    // Agents retired 2026-09-27 — Orvel (in the Business dashboard) replaces it.
   ];
   return (
     <div

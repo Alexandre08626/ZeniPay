@@ -271,8 +271,8 @@ function SendPanel({ accounts, contacts, loading, onSent, showExternal, onToggle
 
         <div style={{ display: "inline-flex", gap: 2, padding: 3, background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`, borderRadius: zp.radius.sm, flexWrap: "wrap" }}>
           {((showExternal
-              ? ["internal", "agent_treasury", "ach", "wire", "bill_pay"]
-              : ["internal", "agent_treasury"]) as TransferType[]).map((t) => {
+              ? ["internal", "ach", "wire", "bill_pay"]
+              : ["internal"]) as TransferType[]).map((t) => {
             const active = t === transferType;
             const isAgent = t === "agent_treasury";
             return (

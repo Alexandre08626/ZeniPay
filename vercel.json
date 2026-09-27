@@ -14,6 +14,7 @@
   "functions": {
     "app/api/cron/ben-auto-reply/route.ts": { "maxDuration": 30 },
     "app/api/cron/installments-tick/route.ts": { "maxDuration": 60 },
+    "app/api/orvel/chat/route.ts": { "maxDuration": 60 },
     "app/api/v1/agents/_internal/compute-anomaly-signals-tick/route.ts": { "maxDuration": 60 },
     "app/api/v1/agents/audit/export/route.ts": { "maxDuration": 60 }
   }
