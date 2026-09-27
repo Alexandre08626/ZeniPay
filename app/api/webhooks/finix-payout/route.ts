@@ -15,16 +15,18 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.FINIX_WEBHOOK_SECRET;
-  if (!secret) return true; // Dev mode: allow unsigned posts until the secret is configured.
+  if (!secret) return false; // Never accept unsigned payout events — they move balances.
   const headerValue = req.headers.get("x-finix-webhook-secret") ??
                       req.headers.get("finix-webhook-secret") ??
                       req.headers.get("x-webhook-secret");
-  return !!headerValue && headerValue === secret;
+  if (!headerValue || headerValue.length !== secret.length) return false;
+  return timingSafeEqual(Buffer.from(headerValue), Buffer.from(secret));
 }
 
 export async function POST(req: NextRequest) {

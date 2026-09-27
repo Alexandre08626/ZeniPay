@@ -5,8 +5,12 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { listSettlements } from "@/lib/finix/settlement-client";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
+  // Platform-level data (ZeniPay's own Finix account) — operators only.
+  const denied = await requireAdmin(req as NextRequest);
+  if (denied) return denied;
   const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit") ?? "50") || 50, 1), 200);
   try {
     const r = await listSettlements(limit);

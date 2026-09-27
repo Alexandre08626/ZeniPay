@@ -6,10 +6,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { getACHDebit } from "@/lib/finix/ach-client";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
 interface Ctx { params: Promise<{ id: string }> | { id: string }; }
 
 export async function GET(req: NextRequest, ctx: Ctx) {
+  // Platform-level data (ZeniPay's own Finix account) — operators only.
+  const denied = await requireAdmin(req as NextRequest);
+  if (denied) return denied;
   const { id } = await Promise.resolve(ctx.params);
   const db = getSupabaseAdmin();
 

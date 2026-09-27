@@ -210,11 +210,16 @@ export async function isAdminSession(req: NextRequest): Promise<boolean> {
   const s = await getZpSession(req);
   if (!s) return false;
   if (s.email && ADMIN_EMAIL_ALLOWLIST.has(s.email)) return true;
+  // Legacy HMAC sessions carry no email. The merchant row's `email` column
+  // is merchant-editable, so it proves nothing; only the linked Supabase
+  // Auth user's email (verified at sign-up) counts.
   try {
-    const { data } = await getSupabaseAdmin()
-      .from("zenipay_merchants").select("*").eq("id", s.merchant_id).maybeSingle();
-    const cfg = ((data?.config || {}) as Record<string, unknown>);
-    const email = String(data?.email || cfg.email || "").trim().toLowerCase();
+    const admin = getSupabaseAdmin();
+    const { data } = await admin.from("zenipay_merchants").select("*").eq("id", s.merchant_id).maybeSingle();
+    const authId = String(data?.auth_user_id || "");
+    if (!authId) return false;
+    const { data: u } = await admin.auth.admin.getUserById(authId);
+    const email = String(u?.user?.email || "").trim().toLowerCase();
     return !!email && ADMIN_EMAIL_ALLOWLIST.has(email);
   } catch {
     return false;

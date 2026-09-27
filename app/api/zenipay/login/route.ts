@@ -162,7 +162,10 @@ export async function POST(req: NextRequest) {
     const cfg = getConfig(found);
     const md = cfg.merchant_data as Record<string, unknown> | undefined;
     const storedPwd: string = String(cfg.password || md?.password || "");
-    if (storedPwd && !(await verifyPassword(password, storedPwd))) {
+    // No legacy password on file = this account signs in through Supabase
+    // Auth only (path 1 above already rejected the password). Accepting
+    // here let ANY password open accounts created by /api/auth/register.
+    if (!storedPwd || !(await verifyPassword(password, storedPwd))) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
     const payload = buildMerchantPayload(found, cfg, email);

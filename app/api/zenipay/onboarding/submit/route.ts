@@ -1,12 +1,16 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
+import { requireZpSession } from "@/lib/auth/zp-session";
 const FINIX_BASE = process.env.FINIX_ENV === "production" ? "https://finix.live-payments-api.com" : "https://finix.sandbox-payments-api.com";
 function finixAuth() { return "Basic " + Buffer.from((process.env.FINIX_API_USERNAME||"")+":"+(process.env.FINIX_API_PASSWORD||"")).toString("base64"); }
 async function finixPost(path: string, body: object) { const r = await fetch(FINIX_BASE+path, { method: "POST", headers: { Authorization: finixAuth(), "Content-Type": "application/json", "Finix-Version": "2022-02-01" }, body: JSON.stringify(body) }); return { status: r.status, data: await r.json() }; }
 export async function POST(req: NextRequest) {
   try {
-    const { business, owner, bank, merchant_id } = await req.json();
+    const session = await requireZpSession(req);
+    if (session instanceof NextResponse) return session;
+    const { business, owner, bank } = await req.json();
+    const merchant_id = session.merchant_id;
     if (!business?.business_name || !owner?.first_name || !merchant_id) return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
 
     const missing: string[] = [];

@@ -2,10 +2,13 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { requireZpSession } from "@/lib/auth/zp-session";
 
 export async function GET(req: NextRequest) {
   try {
-    const merchant_id = req.nextUrl.searchParams.get("merchant_id");
+    const session = await requireZpSession(req);
+    if (session instanceof NextResponse) return session;
+    const merchant_id = session.merchant_id;
     if (!merchant_id) return NextResponse.json({ error: "merchant_id required" }, { status: 400 });
 
     const supabase = getSupabaseAdmin();
@@ -25,8 +28,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireZpSession(req);
+    if (session instanceof NextResponse) return session;
     const body = await req.json();
-    const { merchant_id, ...quote } = body;
+    const { merchant_id: _claimed, ...quote } = body;
+    const merchant_id = session.merchant_id;
 
     if (!merchant_id) return NextResponse.json({ error: "merchant_id required" }, { status: 400 });
     if (!quote.customer_name) return NextResponse.json({ error: "customer_name required" }, { status: 400 });
@@ -69,15 +75,17 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const session = await requireZpSession(req);
+    if (session instanceof NextResponse) return session;
     const body = await req.json();
-    const { id, ...fields } = body;
+    const { id, merchant_id: _m, ...fields } = body;
 
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
     const supabase = getSupabaseAdmin();
     const updates = { ...fields, updated_at: new Date().toISOString() };
 
-    const { error } = await supabase.from("zenipay_quotes").update(updates).eq("id", id);
+    const { error } = await supabase.from("zenipay_quotes").update(updates).eq("id", id).eq("merchant_id", session.merchant_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ success: true });
@@ -89,11 +97,13 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const session = await requireZpSession(req);
+    if (session instanceof NextResponse) return session;
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("zenipay_quotes").delete().eq("id", id);
+    const { error } = await supabase.from("zenipay_quotes").delete().eq("id", id).eq("merchant_id", session.merchant_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ success: true });

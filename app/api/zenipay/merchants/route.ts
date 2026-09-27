@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
       sandboxKey, sandboxSecret, liveKey, password,
     } = body;
 
+    void status; void plan; void liveKey;
     if (!id || !email || !businessName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -127,11 +128,13 @@ export async function POST(req: NextRequest) {
       business_type:  businessType || null,
       country:        country      || null,
       monthly_volume: monthlyVolume || null,
-      status:         status       || "sandbox",
-      plan:           plan         || "Standard",
+      // Status, plan and live key are NEVER taken from the signup request
+      // (a caller could self-approve with status:"active" and skip KYB).
+      status:         "sandbox",
+      plan:           "Standard",
       sandbox_key:    sandboxKey   || null,
       sandbox_secret: sandboxSecret || null,
-      live_key:       liveKey      || null,
+      live_key:       null,
       volume:   0,
       tx_count: 0,
       balance:  0,
@@ -147,8 +150,8 @@ export async function POST(req: NextRequest) {
         businessType: businessType || "",
         country: country || "",
         monthlyVolume: monthlyVolume || "",
-        plan: plan || "Standard",
-        status: status || "sandbox",
+        plan: "Standard",
+        status: "sandbox",
         ...(hashedPassword ? { password: hashedPassword } : {}),
       },
     };

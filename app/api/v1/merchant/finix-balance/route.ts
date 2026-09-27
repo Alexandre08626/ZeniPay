@@ -8,10 +8,14 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { getMerchantBalance } from "@/lib/finix/settlement-client";
+import { requireAdmin } from "@/lib/auth/zp-session";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Platform-level data (ZeniPay's own Finix account) — operators only.
+  const denied = await requireAdmin(req as NextRequest);
+  if (denied) return denied;
   const r = await getMerchantBalance();
   if (!r.data) {
     return NextResponse.json({ error: "finix_unreachable", status: r.status }, { status: 502 });

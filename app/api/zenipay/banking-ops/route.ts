@@ -54,6 +54,24 @@ export async function POST(req: NextRequest) {
   if (r instanceof NextResponse) return r;
   const merchant_id = r;
   const s = getSupabaseAdmin();
+
+  // Every account / card id in the request must belong to this merchant —
+  // otherwise one merchant could debit, credit or freeze another's account.
+  for (const key of ["from_account_id", "to_account_id", "account_id"] as const) {
+    const id = body[key];
+    if (id == null || id === "") continue;
+    const { data: own } = await s.from("zenipay_accounts").select("id").eq("id", id).eq("merchant_id", merchant_id).maybeSingle();
+    if (!own) return NextResponse.json({ error: "Account not found" }, { status: 404 });
+  }
+  if (body.card_id != null && body.card_id !== "") {
+    const { data: own } = await s.from("zenipay_cards").select("id").eq("id", body.card_id).eq("merchant_id", merchant_id).maybeSingle();
+    if (!own) return NextResponse.json({ error: "Card not found" }, { status: 404 });
+  }
+  // A transfer must come out of one of the merchant's accounts; an internal
+  // transfer with no source used to credit the destination out of nothing.
+  if (action === "send_transfer" && !body.from_account_id) {
+    return NextResponse.json({ error: "from_account_id required" }, { status: 400 });
+  }
   const now = new Date().toISOString();
 
   if (action === "create_account") {
