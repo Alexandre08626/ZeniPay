@@ -5,8 +5,9 @@
 // listed under its reply, with an undo button when reversible.
 
 import React, { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Send, Undo2, CheckCircle2, AlertTriangle, Ban } from "lucide-react";
+import { X, Send, Undo2, CheckCircle2, AlertTriangle, Ban } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
+import { OrvelMark } from "./OrvelMark";
 
 interface Action { id?: string; tool: string; status: "done" | "failed" | "denied"; summary: string; undoable: boolean }
 interface Msg { role: "user" | "assistant"; content: string; actions?: Action[]; error?: boolean }
@@ -63,14 +64,15 @@ export function OrvelChat() {
 
   const fab: React.CSSProperties = {
     position: "fixed", right: 20, bottom: 20, zIndex: zp.zIndex.modal, width: 56, height: 56, borderRadius: "50%",
-    border: "none", cursor: "pointer", background: zp.gradient.main, color: "#fff",
-    boxShadow: zp.elevation.lg, display: "flex", alignItems: "center", justifyContent: "center",
+    border: "none", cursor: "pointer", background: "#000", padding: 0, overflow: "hidden",
+    boxShadow: "0 10px 30px rgba(99,102,241,0.45), 0 0 0 2px rgba(255,255,255,0.08)",
+    display: "flex", alignItems: "center", justifyContent: "center",
   };
 
   if (!open) {
     return (
       <button type="button" aria-label="Ouvrir Orvel" onClick={() => setOpen(true)} style={fab}>
-        <Sparkles size={24} />
+        <OrvelMark size={56} />
       </button>
     );
   }
@@ -83,9 +85,7 @@ export function OrvelChat() {
       boxShadow: zp.elevation.lg, display: "flex", flexDirection: "column", overflow: "hidden",
     }}>
       <div style={{ padding: "14px 16px", borderBottom: `1px solid ${zp.surface.border}`, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: zp.gradient.main, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-          <Sparkles size={16} />
-        </div>
+        <OrvelMark size={32} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Orvel</div>
           <div style={{ fontSize: 11, color: zp.text.muted }}>Agit seul selon vos <a href="/app/orvel" style={{ color: zp.brand.cyan }}>permissions</a></div>

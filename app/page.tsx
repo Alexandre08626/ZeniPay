@@ -301,8 +301,16 @@ function VisualOrvel() {
       background: `linear-gradient(180deg, rgba(123,79,191,0.07) 0%, rgba(123,79,191,0) 100%)`,
       boxShadow: "0 20px 48px rgba(15,23,42,0.08), 0 0 0 1px rgba(15,23,42,0.06)",
     }}>
+      <Image
+        src="/orvel/orvel-logo-600.webp"
+        alt="Orvel AI — Intelligence sans limites"
+        width={600}
+        height={600}
+        style={{ width: "100%", height: "auto", maxWidth: 360, display: "block", margin: "0 auto 14px", borderRadius: zp.radius.lg }}
+      />
       <div style={{ background: "#fff", borderRadius: zp.radius.lg, border: `1px solid ${zp.surface.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "12px 16px", borderBottom: `1px solid ${zp.surface.border}`, background: zp.surface.bg2, fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>
+        <div style={{ padding: "10px 16px", borderBottom: `1px solid ${zp.surface.border}`, background: zp.surface.bg2, fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary, display: "flex", alignItems: "center", gap: 8 }}>
+          <Image src="/orvel/orvel-mark-64.webp" alt="" width={24} height={24} style={{ borderRadius: "50%", background: "#000" }} />
           Orvel
         </div>
         <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>

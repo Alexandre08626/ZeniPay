@@ -4,10 +4,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Sparkles, CheckCircle2, AlertTriangle, Ban, Undo2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Ban, Undo2 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BankingCard } from "@/components/dashboard/BankingCard";
 import zp from "@/lib/design-system/zenipay-brand";
+import { OrvelMark } from "@/components/orvel/OrvelMark";
 
 interface PermissionDef { key: string; label: string; description: string; money: boolean }
 interface Settings { enabled: boolean; permissions: Record<string, boolean>; persisted: boolean; catalog: PermissionDef[] }
@@ -62,9 +63,7 @@ export default function OrvelPage() {
   return (
     <DashboardShell>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
-        <div style={{ width: 40, height: 40, borderRadius: "50%", background: zp.gradient.main, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-          <Sparkles size={20} />
-        </div>
+        <OrvelMark size={56} />
         <div>
           <h1 style={{ margin: 0, fontFamily: zp.font.display, fontSize: 26, fontWeight: zp.weight.semibold, color: zp.text.primary, letterSpacing: "-0.02em" }}>Orvel</h1>
           <p style={{ margin: 0, fontSize: 13, color: zp.text.muted }}>Votre opérateur financier IA. Il agit seul sur tout ce que vous activez ici — ouvrez-le avec le bouton en bas à droite.</p>

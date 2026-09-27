@@ -20,7 +20,6 @@ import {
   Link as LinkIcon,
   Settings as SettingsIcon,
   Bot,
-  Sparkles,
   Building2,
   Shield,
   ShieldCheck,
@@ -38,6 +37,7 @@ import {
 } from "lucide-react";
 import type { DashboardMode } from "./TopBar";
 import zp from "@/lib/design-system/zenipay-brand";
+import { OrvelNavIcon } from "@/components/orvel/OrvelMark";
 
 export interface NavItem {
   href: string;
@@ -53,7 +53,7 @@ const MERCHANT_NAV: NavItem[] = [
   { href: "/app/cards",        label: "Cards",         Icon: CreditCard,      group: "primary" },
   { href: "/app/wallets",      label: "Send & Receive", Icon: SendHorizontal, group: "primary" },
 
-  { href: "/app/orvel",        label: "Orvel",         Icon: Sparkles,        group: "tools" },
+  { href: "/app/orvel",        label: "Orvel",         Icon: OrvelNavIcon,    group: "tools" },
   { href: "/app/invoices",     label: "Invoices",      Icon: FileText,        group: "tools" },
   { href: "/app/contacts",     label: "Contacts",      Icon: Users,           group: "tools" },
   { href: "/app/payouts",      label: "Payouts",       Icon: SendHorizontal,  group: "tools" },
