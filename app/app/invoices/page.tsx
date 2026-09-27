@@ -30,12 +30,14 @@ interface Invoice {
   notes?: string;
   created_at: string;
   paid_at?: string;
+  amount_paid?: number;
+  has_installments?: boolean;
   merchant_id?: string;
   merchant_name?: string;
   merchant_email?: string;
 }
 
-type StatusFilter = "all" | "draft" | "sent" | "paid" | "overdue";
+type StatusFilter = "all" | "draft" | "sent" | "partial" | "paid" | "overdue";
 
 interface Quote {
   id: string;
@@ -116,9 +118,10 @@ export default function InvoicesPage() {
     const draft = invoices.filter((i) => i.status === "draft");
     const paid = invoices.filter((i) => i.status === "paid");
     return {
-      outstandingTotal: outstanding.reduce((s, i) => s + Number(i.total || 0), 0),
+      outstandingTotal: outstanding.reduce((s, i) => s + Math.max(0, Number(i.total || 0) - Number(i.amount_paid || 0)), 0),
       outstandingCount: outstanding.length,
-      paidTotal: paid.reduce((s, i) => s + Number(i.total || 0), 0),
+      paidTotal: paid.reduce((s, i) => s + Number(i.total || 0), 0)
+        + invoices.filter((i) => i.status === "partial").reduce((s, i) => s + Number(i.amount_paid || 0), 0),
       paidCount: paid.length,
       overdueCount: overdue.length,
       draftCount: draft.length,
@@ -177,7 +180,7 @@ export default function InvoicesPage() {
 
       <BankingCard padding={14} style={{ marginBottom: 14 }}>
         <div style={{ display: "inline-flex", gap: 2, padding: 3, background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`, borderRadius: zp.radius.sm }}>
-          {(["all", "draft", "sent", "paid", "overdue"] as StatusFilter[]).map((f) => {
+          {(["all", "draft", "sent", "partial", "paid", "overdue"] as StatusFilter[]).map((f) => {
             const active = f === filter;
             const count =
               f === "all" ? invoices.length :
@@ -335,6 +338,7 @@ function StatusPill({ status }: { status: string }) {
   const m: Record<string, { bg: string; fg: string; icon?: "check" | "alert" }> = {
     paid: { bg: zp.semantic.successBg, fg: zp.semantic.success, icon: "check" },
     sent: { bg: zp.surface.bg3, fg: zp.text.muted },
+    partial: { bg: zp.surface.bg3, fg: zp.brand.cyan },
     draft: { bg: zp.surface.bg3, fg: zp.text.muted },
     overdue: { bg: zp.semantic.dangerBg, fg: zp.semantic.danger, icon: "alert" },
   };
@@ -377,51 +381,123 @@ function QuoteStatusPill({ quote }: { quote: Quote }) {
   );
 }
 
+type PlanRow = { label: string; mode: "percent" | "amount"; value: string; due_date: string };
+
+function ymd(offsetDays: number) {
+  const d = new Date(); d.setDate(d.getDate() + offsetDays);
+  return d.toLocaleDateString("en-CA");
+}
+function presetPlan(kind: "2" | "3"): PlanRow[] {
+  return kind === "2"
+    ? [
+        { label: "Deposit", mode: "percent", value: "50", due_date: ymd(0) },
+        { label: "Balance", mode: "percent", value: "", due_date: ymd(30) },
+      ]
+    : [
+        { label: "Deposit 1", mode: "percent", value: "30", due_date: ymd(0) },
+        { label: "Deposit 2", mode: "percent", value: "30", due_date: ymd(30) },
+        { label: "Balance", mode: "percent", value: "", due_date: ymd(60) },
+      ];
+}
+// Same rule as the server (lib/zenipay/installments.ts resolvePlan): the
+// last line is the balance and absorbs rounding.
+function previewPlan(total: number, rows: PlanRow[]): number[] {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const amts = rows.map((r) => {
+    const v = parseFloat(r.value) || 0;
+    return r.mode === "percent" ? r2((total * v) / 100) : r2(v);
+  });
+  if (amts.length) amts[amts.length - 1] = r2(total - amts.slice(0, -1).reduce((s, a) => s + a, 0));
+  return amts;
+}
+function withExtraRow(p: PlanRow[]): PlanRow[] {
+  const last = p[p.length - 1];
+  return [...p.slice(0, -1), { label: `Deposit ${p.length}`, mode: "percent", value: "10", due_date: last?.due_date || ymd(0) }, last];
+}
+
 function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void | Promise<void> }) {
   const [form, setForm] = useState({
     customer_name: "", customer_email: "", description: "",
-    amount: "", tax: "0", notes: "", status: "draft",
+    amount: "", tax: "0", notes: "", status: "sent",
   });
+  const [split, setSplit] = useState(false);
+  const [plan, setPlan] = useState<PlanRow[]>(() => presetPlan("3"));
+  const [sendNow, setSendNow] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
   const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
+  const setRow = (i: number, patch: Partial<PlanRow>) => setPlan((p) => p.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  const total = (parseFloat(form.amount) || 0) + (parseFloat(form.tax) || 0);
+  const amounts = previewPlan(total, plan);
+  const planError = split && total > 0 && amounts.some((a) => !(a > 0))
+    ? "Each installment must be more than $0 (deposits exceed the total?)."
+    : null;
 
   const submit = async () => {
     if (!form.customer_name.trim() || !form.amount) { setErr("Customer name and amount are required."); return; }
+    if (split && !form.customer_email.trim()) { setErr("Customer email is required for installments — each payment link is emailed."); return; }
+    if (planError) { setErr(planError); return; }
     setSaving(true); setErr(null);
     try {
-      const invId = "INV-" + Date.now().toString(36).toUpperCase();
-      const now = new Date().toISOString();
-      const amt = parseFloat(form.amount) || 0;
-      const taxAmt = parseFloat(form.tax) || 0;
-      const total = amt + taxAmt;
-      const invoiceData = {
-        id: invId, invoice_number: invId, merchant_id: mid(),
-        customer_name: form.customer_name, customer_email: form.customer_email,
-        items: JSON.stringify([{ description: form.description || "Service", qty: 1, unit_price: amt, total: amt }]),
-        subtotal: amt, tax: taxAmt, total, currency: "CAD", status: form.status,
-        notes: form.notes, merchant_name: bname(), merchant_email: bemail(),
-        created_at: now, updated_at: now,
+      const body: Record<string, unknown> = {
+        customer_name: form.customer_name.trim(),
+        customer_email: form.customer_email.trim(),
+        description: form.description.trim() || "Service",
+        amount: parseFloat(form.amount) || 0,
+        tax: parseFloat(form.tax) || 0,
+        currency: "CAD",
+        notes: form.notes,
+        status: form.status,
+        send_now: sendNow,
       };
-      const r = await fetch(`/api/zenipay/merchant-data?merchant_id=${encodeURIComponent(mid())}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _direct_invoice: invoiceData }),
+      if (split) {
+        body.installments = plan.map((r, i) => ({
+          label: r.label.trim() || (i === plan.length - 1 ? "Balance" : `Deposit ${i + 1}`),
+          due_date: r.due_date,
+          ...(i === plan.length - 1 ? {} : r.mode === "percent" ? { percent: parseFloat(r.value) || 0 } : { amount: parseFloat(r.value) || 0 }),
+        }));
+      }
+      const res = await fetch(`/api/zenipay/invoices?merchant_id=${encodeURIComponent(mid())}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
-      if (!r.ok) throw new Error("Invoice creation failed");
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || "Invoice creation failed");
+      const emailed: string[] = j.emailed || [];
+      const num = j.invoice?.invoice_number || "";
+      setDone(emailed.length ? `Invoice ${num} created — emailed: ${emailed.join(", ")}.` : `Invoice ${num} created.`);
       await onCreated();
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setSaving(false); }
   };
 
+  if (done) {
+    return (
+      <ModalShell onClose={onClose} title="Invoice created">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: zp.semantic.success, fontSize: 14, fontWeight: zp.weight.semibold }}>
+          <CheckCircle2 size={18} /> {done}
+        </div>
+        {split && <p style={{ fontSize: 12, color: zp.text.muted, marginTop: 10 }}>Future installments are emailed automatically on their due date, with reminders 3 and 7 days later if unpaid.</p>}
+        <div style={{ marginTop: 18 }}><GradientButton variant="primary" size="md" onClick={onClose}>Close</GradientButton></div>
+      </ModalShell>
+    );
+  }
+
+  const chip = (active: boolean): React.CSSProperties => ({
+    padding: "7px 12px", borderRadius: zp.radius.sm, fontSize: 12, fontWeight: zp.weight.semibold, cursor: "pointer",
+    border: `1px solid ${active ? zp.brand.cyan : zp.surface.border}`, background: active ? zp.surface.bg3 : "transparent", color: zp.text.primary,
+  });
+
   return (
-    <ModalShell onClose={onClose} title="Create invoice" subtitle="Invoice your client in one click. Auto-linked to a payment link.">
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+    <ModalShell onClose={onClose} title="Create invoice" subtitle="Bill in full or split into deposits — each payment link is emailed automatically.">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         <div>
           <Label>Customer name *</Label>
           <Input value={form.customer_name} onChange={(v) => set("customer_name", v)} placeholder="John Doe" />
         </div>
         <div>
-          <Label>Customer email</Label>
+          <Label>Customer email{split ? " *" : ""}</Label>
           <Input value={form.customer_email} onChange={(v) => set("customer_email", v)} placeholder="john@email.com" type="email" />
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
@@ -436,22 +512,79 @@ function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCre
           <Label>Tax</Label>
           <Input value={form.tax} onChange={(v) => set("tax", v)} placeholder="0.00" type="number" step="0.01" />
         </div>
-        <div>
-          <Label>Status</Label>
-          <select value={form.status} onChange={(e) => set("status", e.target.value)} style={inputStyle}>
-            <option value="draft">Draft</option>
-            <option value="sent">Sent</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
-          </select>
-        </div>
+        {!split && (
+          <div>
+            <Label>Status</Label>
+            <select value={form.status} onChange={(e) => set("status", e.target.value)} style={inputStyle}>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+        )}
         <div>
           <Label>Total</Label>
           <div style={{ ...zp.amountStyle.large, fontSize: 22, color: zp.brand.cyan, fontWeight: zp.weight.semibold, padding: "10px 0" }}>
-            {zp.fmtCurrency((parseFloat(form.amount) || 0) + (parseFloat(form.tax) || 0))}
+            {zp.fmtCurrency(total)}
           </div>
         </div>
       </div>
+
+      <div style={{ marginTop: 18 }}>
+        <Label>Payment</Label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" style={chip(!split)} onClick={() => setSplit(false)}>Pay in full</button>
+          <button type="button" style={chip(split && plan.length === 2)} onClick={() => { setSplit(true); setPlan(presetPlan("2")); }}>2 payments</button>
+          <button type="button" style={chip(split && plan.length === 3)} onClick={() => { setSplit(true); setPlan(presetPlan("3")); }}>3 payments</button>
+          <button type="button" style={chip(split && plan.length > 3)} onClick={() => { setSplit(true); setPlan((p) => (p.length > 3 ? p : withExtraRow(p))); }}>Custom</button>
+        </div>
+      </div>
+
+      {split && (
+        <div style={{ marginTop: 12, background: zp.surface.bg2, border: `1px solid ${zp.surface.border}`, borderRadius: zp.radius.sm, padding: 12 }}>
+          {plan.map((r, i) => {
+            const last = i === plan.length - 1;
+            return (
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "minmax(90px,1.2fr) minmax(110px,1fr) minmax(120px,1fr) auto", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                <input value={r.label} onChange={(e) => setRow(i, { label: e.target.value })} style={inputStyle} aria-label="Label" />
+                {last ? (
+                  <div style={{ fontSize: 12, color: zp.text.muted, padding: "0 4px" }}>Remaining balance</div>
+                ) : (
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <input value={r.value} onChange={(e) => setRow(i, { value: e.target.value })} type="number" step="0.01" style={{ ...inputStyle, minWidth: 0 }} aria-label="Value" />
+                    <select value={r.mode} onChange={(e) => setRow(i, { mode: e.target.value as PlanRow["mode"] })} style={{ ...inputStyle, width: 58, padding: "0 4px" }} aria-label="Unit">
+                      <option value="percent">%</option>
+                      <option value="amount">$</option>
+                    </select>
+                  </div>
+                )}
+                <input type="date" value={r.due_date} onChange={(e) => setRow(i, { due_date: e.target.value })} style={inputStyle} aria-label="Due date" />
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontFamily: zp.font.mono, fontSize: 13, color: amounts[i] > 0 ? zp.text.primary : zp.semantic.danger, minWidth: 80, textAlign: "right" }}>{zp.fmtCurrency(amounts[i] || 0)}</span>
+                  {!last && plan.length > 2 ? (
+                    <button type="button" aria-label="Remove" onClick={() => setPlan((p) => p.filter((_, j) => j !== i))} style={{ background: "transparent", border: "none", color: zp.text.muted, cursor: "pointer" }}><X size={14} /></button>
+                  ) : <span style={{ width: 20 }} />}
+                </div>
+              </div>
+            );
+          })}
+          {plan.length < 12 && (
+            <button type="button" onClick={() => setPlan(withExtraRow)}
+              style={{ background: "transparent", border: "none", color: zp.brand.cyan, fontSize: 12, fontWeight: zp.weight.semibold, cursor: "pointer", padding: 0 }}>
+              + Add installment
+            </button>
+          )}
+          {planError && <div style={{ marginTop: 8, fontSize: 12, color: zp.semantic.danger }}>{planError}</div>}
+          <p style={{ fontSize: 11, color: zp.text.muted, margin: "8px 0 0" }}>Installments due today are emailed on creation; the others go out automatically on their date. The customer gets a receipt with the remaining balance after each payment.</p>
+        </div>
+      )}
+
+      {!split && (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 13, color: zp.text.primary, cursor: "pointer" }}>
+          <input type="checkbox" checked={sendNow} onChange={(e) => setSendNow(e.target.checked)} /> Email the invoice to the customer now
+        </label>
+      )}
+
       <div style={{ marginTop: 14 }}>
         <Label>Notes</Label>
         <textarea
@@ -467,13 +600,80 @@ function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCre
       )}
       <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
         <GradientButton variant="secondary" size="md" onClick={onClose} style={{ flex: 1 }}>Cancel</GradientButton>
-        <GradientButton variant="primary" size="md" onClick={submit} disabled={saving || !form.customer_name || !form.amount} style={{ flex: 1 }}>
-          {saving ? "Creating…" : "Create invoice"}
+        <GradientButton variant="primary" size="md" onClick={submit} disabled={saving || !form.customer_name || !form.amount || !!planError} style={{ flex: 1 }}>
+          {saving ? "Creating…" : split ? `Create & send ${plan.length} payment links` : "Create invoice"}
         </GradientButton>
       </div>
     </ModalShell>
   );
 }
+
+interface InstallmentRow {
+  id: string; seq: number; label: string; amount: number; currency: string;
+  due_date: string; status: string; pay_url: string; paid_at: string | null; sent_at: string | null; payment_ref: string | null;
+}
+
+function InstallmentsPanel({ invoice }: { invoice: Invoice }) {
+  const [rows, setRows] = useState<InstallmentRow[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const url = `/api/zenipay/invoices/${encodeURIComponent(invoice.id)}/installments?merchant_id=${encodeURIComponent(mid())}`;
+  const load = useCallback(async () => {
+    const j = await fetch(url).then((r) => r.json()).catch(() => ({}));
+    setRows(Array.isArray(j.installments) ? j.installments : []);
+  }, [url]);
+  useEffect(() => { void load(); }, [load]);
+
+  const act = async (row: InstallmentRow, action: "send" | "cancel") => {
+    setBusy(row.id + action); setMsg(null);
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, installment_id: row.id }) });
+    const j = await r.json().catch(() => ({}));
+    setMsg(r.ok ? (action === "send" ? `Payment link for ${row.label} emailed.` : `${row.label} cancelled.`) : j.error || "Failed.");
+    setBusy(null);
+    void load();
+  };
+
+  return (
+    <div style={{ marginTop: 22 }}>
+      <div style={{ fontSize: 11, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+        Installments
+      </div>
+      <div style={{ background: zp.surface.bg2, borderRadius: zp.radius.sm, padding: 12 }}>
+        {rows === null && <div style={{ fontSize: 12, color: zp.text.muted }}>Loading…</div>}
+        {rows?.length === 0 && <div style={{ fontSize: 12, color: zp.text.muted }}>No installments found.</div>}
+        {rows?.map((r, i) => (
+          <div key={r.id} style={{ padding: "8px 0", borderBottom: i < rows.length - 1 ? `1px solid ${zp.surface.border}` : "none" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 13, color: zp.text.primary, fontWeight: zp.weight.semibold }}>{r.label}</div>
+                <div style={{ fontSize: 11, color: zp.text.muted }}>
+                  {r.status === "paid" && r.paid_at ? `Paid ${zp.fmtDateTime(r.paid_at)}` : `Due ${r.due_date}`}
+                  {r.status !== "paid" && r.sent_at ? " · link sent" : ""}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontFamily: zp.font.mono, fontSize: 13, color: zp.text.primary }}>{zp.fmtCurrency(Number(r.amount), r.currency || "CAD")}</span>
+                <StatusPill status={r.status} />
+              </div>
+            </div>
+            {r.status !== "paid" && r.status !== "cancelled" && (
+              <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+                <button type="button" onClick={() => act(r, "send")} disabled={!!busy} style={linkBtn}>
+                  {busy === r.id + "send" ? "Sending…" : r.sent_at ? "Send reminder" : "Send link now"}
+                </button>
+                <button type="button" onClick={() => { if (navigator.clipboard) void navigator.clipboard.writeText(r.pay_url); setMsg("Link copied."); }} style={linkBtn}>Copy link</button>
+                <button type="button" onClick={() => act(r, "cancel")} disabled={!!busy} style={{ ...linkBtn, color: zp.text.muted }}>Cancel</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {msg && <div style={{ fontSize: 12, color: zp.text.muted, marginTop: 8 }}>{msg}</div>}
+      </div>
+    </div>
+  );
+}
+
+const linkBtn: React.CSSProperties = { background: "transparent", border: "none", padding: 0, color: zp.brand.cyan, fontSize: 12, fontWeight: zp.weight.semibold, cursor: "pointer" };
 
 function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
   const items: Array<{ description: string; qty: number; unit_price: number; total: number }> =
@@ -539,7 +739,9 @@ function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => 
             {zp.fmtCurrency(Number(invoice.total || 0), invoice.currency || "CAD")}
           </div>
           <div style={{ fontSize: 11, color: zp.text.muted, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: zp.weight.semibold }}>
-            Total due
+            {invoice.status === "partial"
+              ? `Total · ${zp.fmtCurrency(Number(invoice.amount_paid || 0), invoice.currency || "CAD")} paid · ${zp.fmtCurrency(Math.max(0, Number(invoice.total || 0) - Number(invoice.amount_paid || 0)), invoice.currency || "CAD")} left`
+              : "Total due"}
           </div>
 
           <div style={{ height: 1, background: zp.surface.border, margin: "18px 0" }} />
@@ -609,6 +811,8 @@ function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => 
               Copy JSON
             </GradientButton>
           </div>
+
+          {invoice.has_installments && <InstallmentsPanel invoice={invoice} />}
 
           {invoice.notes && (
             <div style={{ marginTop: 22, padding: 12, background: zp.surface.bg2, borderRadius: zp.radius.sm, fontSize: 12, color: zp.text.muted }}>

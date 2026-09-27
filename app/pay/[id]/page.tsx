@@ -38,6 +38,7 @@ function PayLinkContent() {
   const [focused, setFocused] = useState<"name" | "email" | "routing" | "account" | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [linkClosed, setLinkClosed] = useState<"" | "paid" | "inactive">("");
   const [error,   setError]   = useState("");
   const [finixReady, setFinixReady] = useState(false);
   const [fraudSessionId, setFraudSessionId] = useState<string>("");
@@ -78,6 +79,9 @@ function PayLinkContent() {
         if (d.currency) setCurrency(String(d.currency).toUpperCase());
         if (d.amount != null) setAmount(Number(d.amount));
         if (d.description) setDesc(String(d.description));
+        const st = String(d.status || "").toLowerCase();
+        if (st === "paid") setLinkClosed("paid");
+        else if (["cancelled", "expired", "inactive", "disabled"].includes(st)) setLinkClosed("inactive");
         if (d.merchant && typeof d.merchant.name === "string") {
           setMerchantBrand({
             name: d.merchant.name,
@@ -338,6 +342,22 @@ function PayLinkContent() {
       setLoading(false);
     }
   };
+
+  if (linkClosed && !success) {
+    return (
+      <div style={{ minHeight: "100vh", background: ZP_DARK, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div style={{ textAlign: "center", color: "#fff", padding: 32, maxWidth: 480 }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>{linkClosed === "paid" ? "✅" : "🔒"}</div>
+          <h1 style={{ fontSize: 26, fontWeight: 900, margin: "0 0 8px" }}>
+            {linkClosed === "paid" ? "Déjà payé · Already paid" : "Lien inactif · Link inactive"}
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, margin: 0 }}>
+            {desc ? `${desc} — ` : ""}{linkClosed === "paid" ? "Ce versement a déjà été reçu. Merci !" : "Ce lien de paiement n'est plus actif. Contactez le marchand."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     const pr = paymentResult;

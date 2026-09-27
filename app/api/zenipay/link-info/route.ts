@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { pgrest, getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
+import { findInstallmentByToken } from "@/lib/zenipay/installments";
+import { resolvePayTarget } from "@/lib/zenipay/pay-target";
 
 interface MerchantBrandRow {
   id: string;
@@ -31,8 +33,20 @@ export async function GET(req: NextRequest) {
     // Try zenipay_pay_links first (payment links), then fall back to
     // zenipay_invoices (billed invoices). Both use the same ID format.
 
-    let rows = await tryFetchLink(id, "zenipay_pay_links");
-    let row = rows[0];
+    // Invoice installment (INS-…): amount/label/status from the schedule.
+    let row: LinkRow | undefined;
+    let rows: LinkRow[] = [];
+    if (id.startsWith("INS-")) {
+      const inst = await findInstallmentByToken(getSupabaseAdmin(), id);
+      if (!inst) return NextResponse.json({ merchant_id: null });
+      const t = await resolvePayTarget(getSupabaseAdmin(), id);
+      row = { merchant_id: inst.merchant_id, amount: inst.amount, currency: inst.currency, description: t?.description || inst.label, status: t?.status || "active" };
+    }
+
+    if (!row) {
+      rows = await tryFetchLink(id, "zenipay_pay_links");
+      row = rows[0];
+    }
 
     if (!row) {
       rows = await tryFetchLink(id, "zenipay_invoices");

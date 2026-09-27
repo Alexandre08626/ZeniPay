@@ -27,6 +27,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { createBankAccountInstrument, createACHDebit } from "@/lib/finix/ach-client";
 import { newRowId } from "@/lib/zenipay/auto-invoice";
+import { resolvePayTarget, chargeableAmount } from "@/lib/zenipay/pay-target";
 
 const MAX_EFT_AMOUNT = 2500;        // dollars
 const MIN_EFT_AMOUNT = 1;           // $1 floor — Finix minimum
@@ -59,16 +60,25 @@ export async function POST(req: NextRequest) {
   catch { return err("bad_request", "invalid_json", 400); }
 
   const payLinkId      = String(body.pay_link_id ?? "").trim();
-  const merchantId     = String(body.merchant_id ?? "").trim();
-  const amountStr      = String(body.amount ?? "").trim();
-  const currency       = String(body.currency ?? "CAD").toUpperCase();
+  if (!payLinkId) return err("bad_request", "pay_link_id_required", 400);
+
+  // Merchant, amount and currency come from the link / installment record —
+  // never from the request body.
+  const target = await resolvePayTarget(getSupabaseAdmin(), payLinkId);
+  if (!target) return err("not_found", "pay_link_not_found", 404);
+  if (["paid", "cancelled", "expired", "inactive", "disabled"].includes(String(target.status).toLowerCase())) {
+    return err("conflict", target.status === "paid" ? "already_paid" : "link_inactive", 409);
+  }
+  const merchantId     = target.merchantId;
+  const amountStr      = String(chargeableAmount(target, body.amount) ?? "");
+  const currency       = String(target.currency || "CAD").toUpperCase();
   const customerName   = String(body.customer_name ?? "").trim();
   const customerEmail  = String(body.customer_email ?? "").trim().toLowerCase();
   const accountHolder  = String(body.account_holder ?? customerName).trim();
   const routingNumber  = String(body.routing_number ?? "").replace(/\D/g, "");
   const accountNumber  = String(body.account_number ?? "").replace(/\D/g, "");
   const accountType    = (body.account_type === "savings" ? "SAVINGS" : "CHECKING") as "CHECKING" | "SAVINGS";
-  const description    = String(body.description ?? "").trim();
+  const description    = target.description || String(body.description ?? "").trim();
   const idempotencyKey = String(body.idempotency_key ?? "").trim() || `eft_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
   // ── Input validation ────────────────────────────────────────────────
@@ -84,7 +94,6 @@ export async function POST(req: NextRequest) {
     );
   }
   if (!ALLOWED_CURRENCIES.has(currency)) return err("bad_request", "currency_unsupported", 400);
-  if (!payLinkId) return err("bad_request", "pay_link_id_required", 400);
   if (!merchantId) return err("bad_request", "merchant_id_required", 400);
   if (accountHolder.length < 2) return err("bad_request", "account_holder_required", 400);
   if (routingNumber.length < 8 || routingNumber.length > 9) {
@@ -185,7 +194,7 @@ export async function POST(req: NextRequest) {
     bank_last4:            last4,
     eft_status:            eftStatus,
     idempotency_key:       idempotencyKey,
-    metadata:              { reference: paymentRef, gateway_transfer_id: transferId, payment_link_id: payLinkId },
+    metadata:              { reference: paymentRef, gateway_transfer_id: transferId, payment_link_id: payLinkId, installment_id: target.installment?.id ?? null },
     created_at:            now,
     updated_at:            now,
   });

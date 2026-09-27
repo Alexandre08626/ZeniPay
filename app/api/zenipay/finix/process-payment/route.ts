@@ -5,6 +5,8 @@ import { processFinixPaymentWithInstrument } from "@/modules/zenipay/gateways/fi
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 import { getActiveRate, type Currency } from "@/modules/zenipay/services/fx";
 import { newRowId, createPaidInvoice, emailInvoice } from "@/lib/zenipay/auto-invoice";
+import { resolvePayTarget, chargeableAmount } from "@/lib/zenipay/pay-target";
+import { markInstallmentPaid } from "@/lib/zenipay/installments";
 
 // Finix is currently only configured for CAD settlement. Any non-CAD
 // pay link gets its amount converted to CAD via agents.fx_rates before
@@ -21,13 +23,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      pay_link_id, amount, currency = "CAD", description,
+      pay_link_id, amount: clientAmount, description: clientDescription,
       customer_name, customer_email, instrument_id,
       fraud_session_id,
-      merchant_id: bodyMerchantId,
     } = body;
 
-    if (!pay_link_id || !amount || !customer_name) {
+    if (!pay_link_id || !customer_name) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
     if (!instrument_id) {
@@ -38,6 +39,27 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    // ─── 0. WHAT IS BEING PAID (server-side truth) ────────────────────────
+    // Merchant, amount and currency come from the pay link / installment
+    // record, NEVER from the request body (tampered amount or merchant).
+    const target = await resolvePayTarget(supabase, String(pay_link_id));
+    if (!target) {
+      return NextResponse.json({ error: "Payment link not found" }, { status: 404 });
+    }
+    if (["paid", "cancelled", "expired", "inactive", "disabled"].includes(String(target.status).toLowerCase())) {
+      return NextResponse.json(
+        { error: target.status === "paid" ? "ALREADY_PAID" : "LINK_INACTIVE", message: target.status === "paid" ? "Ce versement est déjà payé." : "Ce lien de paiement n'est plus actif." },
+        { status: 409 },
+      );
+    }
+    const amount = chargeableAmount(target, clientAmount);
+    if (amount == null) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
+    const currency = target.currency || "CAD";
+    const description = target.description || clientDescription;
+    const merchantId: string = target.merchantId;
 
     // ─── IDEMPOTENCY CHECK ───────────────────────────────────────────────
     const idempotencyKey = body.idempotency_key || "pay_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
@@ -129,7 +151,7 @@ export async function POST(req: NextRequest) {
       try {
         await supabase.from("zenipay_payments").upsert({
           id: paymentId,
-          merchant_id: bodyMerchantId ?? null,
+          merchant_id: merchantId,
           amount: amountNum,
           currency: finixCurrency,
           description: finalDescription,
@@ -165,7 +187,7 @@ export async function POST(req: NextRequest) {
     if (finixResult.state === "PENDING" && finixResult.threeDSRedirectUrl) {
       const { error: payErr3ds } = await supabase.from("zenipay_payments").upsert({
         id: paymentId,
-        merchant_id: bodyMerchantId || "unknown",
+        merchant_id: merchantId,
         amount: amountNum,
         currency: finixCurrency,
         description: finalDescription,
@@ -176,6 +198,7 @@ export async function POST(req: NextRequest) {
         metadata: {
           reference: paymentRef,
           payment_link_id: pay_link_id,
+          installment_id: target.installment?.id ?? null,
           gateway_transfer_id: finixResult.transferId || "",
           gateway_instrument_id: finixResult.instrumentId || "",
           card_brand: finixResult.brand || "",
@@ -204,34 +227,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ─── 2. FIND MERCHANT ─────────────────────────────────────────────────
-    // CRITICAL: merchant_id is resolved ONLY from the pay_link record, NEVER
-    // from the client-provided body. This prevents a payment from being
-    // credited to the wrong merchant (CWE-602 / cross-tenant forgery).
-    let merchantId: string | null = null;
-    let linkUses = 0;
-
-    // Try the canonical pay_links table first
-    const { data: link } = await supabase
-      .from("zenipay_pay_links").select("merchant_id, uses").eq("id", pay_link_id).maybeSingle();
-    if (link) { merchantId = link.merchant_id; linkUses = link.uses || 0; }
-
-    // Fallback to JSONB array scan (for pay links created before the table existed)
-    // Production stores links inside the merchant `config` JSONB (`payLinks`).
-    if (!merchantId) {
-      const { data: allMerchants } = await supabase.from("zenipay_merchants").select("id, config");
-      for (const m of (allMerchants || [])) {
-        const cfg = (m.config || {}) as Record<string, unknown>;
-        if (((cfg.payLinks || []) as Array<{ id: string }>).some((l) => l.id === pay_link_id)) {
-          merchantId = m.id as string; break;
-        }
-      }
-    }
-    // NEVER fall back to bodyMerchantId — that would let the client choose
-    // which merchant gets credited (cross-tenant attack vector).
-
-    // ─── (merchant name/email resolved inline where needed; the dashboard
-    // reads balance from zenipay_accounts, not from the merchant profile.) ──
+    // ─── 2. MERCHANT ─ resolved in step 0 from the link/installment record.
 
     const paymentStatus = finixResult.state === "SUCCEEDED" ? "succeeded" : "pending";
 
@@ -255,6 +251,7 @@ export async function POST(req: NextRequest) {
       metadata: {
         reference: paymentRef,
         payment_link_id: pay_link_id,
+        installment_id: target.installment?.id ?? null,
         gateway_transfer_id: finixResult.transferId || "",
         gateway_instrument_id: finixResult.instrumentId || "",
         card_brand: finixResult.brand || "",
@@ -274,7 +271,15 @@ export async function POST(req: NextRequest) {
     // merchant config.tax_rate, default 5 %) and emails it to the payer with
     // the merchant in BCC. Awaited so the serverless function isn't frozen
     // before the email leaves.
-    if (finixResult.state === "SUCCEEDED") {
+    if (finixResult.state === "SUCCEEDED" && target.installment) {
+      // Installment of an existing invoice: mark it paid, move the invoice
+      // to partial/paid and email a receipt with the remaining balance.
+      try {
+        await markInstallmentPaid(supabase, target.installment, { paymentId, paymentRef });
+      } catch (e) {
+        console.error("[installments] mark paid failed", e instanceof Error ? e.message : String(e));
+      }
+    } else if (finixResult.state === "SUCCEEDED") {
       const invoice = await createPaidInvoice(supabase, {
         merchantId,
         paymentId,
@@ -404,8 +409,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── 7. UPDATE PAY LINK USAGE ─────────────────────────────────────────
-    await supabase.from("zenipay_pay_links")
-      .update({ uses: linkUses + 1, updated_at: now }).eq("id", pay_link_id);
+    if (target.kind === "link") {
+      await supabase.from("zenipay_pay_links")
+        .update({ uses: target.uses + 1, updated_at: now }).eq("id", pay_link_id);
+    }
 
     // ─── 8. RETURN SUCCESS ────────────────────────────────────────────────
     const responsePayload = {

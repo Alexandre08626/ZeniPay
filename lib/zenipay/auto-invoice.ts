@@ -46,7 +46,7 @@ export interface CreatedInvoice {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-async function loadMerchant(supabase: SupabaseClient, merchantId: string | null) {
+export async function loadMerchant(supabase: SupabaseClient, merchantId: string | null) {
   const out = { name: "", email: "", taxRate: 5 };
   if (!merchantId) return out;
   try {
@@ -65,7 +65,7 @@ async function loadMerchant(supabase: SupabaseClient, merchantId: string | null)
   return out;
 }
 
-async function nextInvoiceNumber(supabase: SupabaseClient, merchantId: string | null, offset: number) {
+export async function nextInvoiceNumber(supabase: SupabaseClient, merchantId: string | null, offset: number) {
   const year = new Date().getFullYear();
   let count = 0;
   try {
