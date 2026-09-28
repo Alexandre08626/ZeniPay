@@ -177,7 +177,24 @@ export async function getZpSession(req: NextRequest): Promise<ZpSession | null> 
   const sb = await tryReadSupabaseAuth(req);
   if (sb) return sb;
   const hmac = tryReadHmac(req);
+  if (hmac && (await isDeletedMerchant(hmac.merchant_id))) return null;
   return hmac;
+}
+
+// A signed HMAC cookie stays valid for 7 days, so a closed account must be
+// rejected here too. Fails open on DB errors so an outage doesn't log
+// everyone out; the Supabase path is already cut by deleting the auth user.
+async function isDeletedMerchant(merchantId: string): Promise<boolean> {
+  try {
+    const { data } = await getSupabaseAdmin()
+      .from("zenipay_merchants")
+      .select("status")
+      .eq("id", merchantId)
+      .maybeSingle();
+    return data?.status === "deleted";
+  } catch {
+    return false;
+  }
 }
 
 /**

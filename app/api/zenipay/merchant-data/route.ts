@@ -128,6 +128,11 @@ export async function PUT(req: NextRequest) {
     .eq("id", merchant_id)
     .single();
 
+  // Account state is server-owned: a merchant must not be able to approve,
+  // upgrade or un-delete itself through its own settings blob.
+  for (const k of ["status", "plan", "approved", "kyb_status", "zp_deleted_at", "zp_deleted_email_sha256", "zp_orvel", "zp_orvel_actions", "zp_orvel_confirmed"]) {
+    delete (body as Record<string, unknown>)[k];
+  }
   const merged = { ...(fresh?.config || existing?.config || {}), ...body };
 
   const { error } = await supabase

@@ -1254,16 +1254,16 @@ export default function SettingsPanel({ merchantId, merchantEmail, businessName,
                 disabled={deleteInput !== "DELETE"}
                 onClick={async () => {
                   try {
-                    const res = await fetch(`/api/zenipay/merchant-data?merchant_id=${merchantId}`, {
-                      method: "PUT",
+                    const res = await fetch("/api/zenipay/account/delete", {
+                      method: "POST",
+                      credentials: "include",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ status: "deleted", deleted_at: new Date().toISOString() }),
+                      body: JSON.stringify({ confirm: "DELETE" }),
                     });
                     const json = await res.json();
-                    if (json.error) throw new Error(json.error);
-                    showToast("Account scheduled for deletion");
-                    setDeleteConfirmOpen(false);
-                    setDeleteInput("");
+                    if (!res.ok || json.error) throw new Error(json.error);
+                    try { sessionStorage.clear(); localStorage.clear(); } catch {}
+                    window.location.href = "/login?deleted=1";
                   } catch {
                     showToast("Failed to delete account", "error");
                   }

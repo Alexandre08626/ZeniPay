@@ -242,6 +242,7 @@ export default function SettingsPage() {
                   Sign out everywhere
                 </GradientButton>
               </div>
+              <DeleteAccountSection />
             </BankingCard>
           )}
         </div>
@@ -254,6 +255,82 @@ export default function SettingsPage() {
       `}</style>
       {loading && <style>{`.zp-loading{}`}</style>}
     </DashboardShell>
+  );
+}
+
+// Self-service account deletion (App Store guideline 5.1.1(v)).
+function DeleteAccountSection() {
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const ready = ["SUPPRIMER", "DELETE"].includes(confirm.trim().toUpperCase());
+
+  async function onDelete() {
+    setBusy(true); setError("");
+    try {
+      const res = await fetch("/api/zenipay/account/delete", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: confirm.trim() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        setError(json.error === "admin_account_cannot_be_deleted"
+          ? "The platform owner account cannot be deleted."
+          : "Deletion failed. Please try again or contact info@zeniva.ca.");
+        setBusy(false);
+        return;
+      }
+      try { sessionStorage.clear(); localStorage.clear(); } catch {}
+      window.location.href = "/login?deleted=1";
+    } catch {
+      setError("Network error. Please try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1px solid #fee2e2" }}>
+      <div style={{ fontWeight: 700, color: "#DC2626", marginBottom: 6 }}>Delete account</div>
+      <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, margin: "0 0 12px" }}>
+        Permanently closes your ZeniPay account: you are signed out, your login and API keys stop working,
+        and your profile and business details are erased. Past payment records are kept only as long as
+        the law requires.
+      </p>
+      {!open ? (
+        <GradientButton variant="danger" size="md" onClick={() => setOpen(true)}>
+          Delete my account
+        </GradientButton>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 380 }}>
+          <label style={{ fontSize: 13, color: "#475569" }}>
+            Type <strong style={{ color: "#DC2626" }}>DELETE</strong> to confirm
+          </label>
+          <input
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoCapitalize="characters"
+            autoComplete="off"
+            style={{ fontSize: 16, padding: "10px 12px", borderRadius: 10, border: "1px solid #fecaca" }}
+          />
+          {error && <div style={{ fontSize: 13, color: "#DC2626" }}>{error}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <GradientButton variant="danger" size="md" disabled={!ready || busy} onClick={onDelete}>
+              {busy ? "Deleting…" : "Delete permanently"}
+            </GradientButton>
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setConfirm(""); setError(""); }}
+              style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14 }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
