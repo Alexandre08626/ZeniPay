@@ -23,6 +23,7 @@ import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { setSupabaseSessionCookies } from "@/lib/auth/zp-session";
 import { rateLimit } from "@/modules/zenipay/services/rate-limit";
 import { provisionPersonalFleet } from "@/lib/agents/provision-fleet";
+import { notifyAccountCreated } from "@/lib/notify/account-created";
 
 const COUNTRY_TO_CURRENCY: Record<string, string> = { CA: "CAD", US: "USD" };
 const COUNTRY_TO_ROUTING:  Record<string, string> = { CA: "ZPCA0001", US: "ZPUS0001" };
@@ -271,6 +272,16 @@ export async function POST(req: NextRequest) {
       ip_address:    ip,
       user_agent:    req.headers.get("user-agent") ?? null,
       new_value:     { country },
+    });
+  } catch { /* non-fatal */ }
+
+  // ─── 7. Confirmation email + SMS (best-effort, 6 s max, never throws) ─
+  try {
+    await notifyAccountCreated({
+      name:         ownerName,
+      email,
+      phone,
+      accountLabel: "votre compte ZeniPay",
     });
   } catch { /* non-fatal */ }
 

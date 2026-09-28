@@ -26,6 +26,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { setSupabaseSessionCookies } from "@/lib/auth/zp-session";
 import { rateLimit } from "@/modules/zenipay/services/rate-limit";
+import { notifyAccountCreated } from "@/lib/notify/account-created";
 
 const COUNTRY_TO_CURRENCY: Record<string, string> = {
   CA: "CAD",
@@ -333,6 +334,16 @@ export async function POST(req: NextRequest) {
       new_value: { country, industry, monthly_volume: monthlyVolume },
     });
   } catch { /* table may not exist on all environments */ }
+
+  // ─── 7. Confirmation email + SMS (best-effort, 6 s max, never throws) ─
+  try {
+    await notifyAccountCreated({
+      name: ownerName || businessName,
+      email,
+      phone,
+      accountLabel: "votre compte ZeniPay Entreprise",
+    });
+  } catch { /* non-fatal */ }
 
   const res = NextResponse.json({
     success:     true,

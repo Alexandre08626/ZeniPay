@@ -11,6 +11,7 @@ import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { hashPassword } from "@/modules/zenipay/services/auth";
 import { generateApiKey, generateApiSecret } from "@/modules/zenipay/services/keys";
 import { rateLimit } from "@/modules/zenipay/services/rate-limit";
+import { notifyAccountCreated } from "@/lib/notify/account-created";
 import { z } from "zod";
 
 const RegisterSchema = z.object({
@@ -201,6 +202,16 @@ export async function POST(req: NextRequest) {
       source: "registration",
       message: `Merchant registered: ${businessName} (${plan} plan)`,
     });
+
+    // Confirmation email + SMS (best-effort, 6 s max, never throws)
+    try {
+      await notifyAccountCreated({
+        name: ownerName,
+        email: email.toLowerCase(),
+        phone: phone || null,
+        accountLabel: "votre compte ZeniPay Entreprise",
+      });
+    } catch { /* non-fatal */ }
 
     return NextResponse.json({
       success: true,

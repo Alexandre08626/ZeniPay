@@ -11,6 +11,7 @@ import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase"
 import { hashPassword } from "../../../../modules/zenipay/services/auth";
 import { rateLimit } from "../../../../modules/zenipay/services/rate-limit";
 import { requireZpSession } from "@/lib/auth/zp-session";
+import { notifyAccountCreated } from "@/lib/notify/account-created";
 
 export async function GET(req: NextRequest) {
   try {
@@ -160,6 +161,16 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabase.from("zenipay_merchants").insert(merchant);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Confirmation email + SMS (best-effort, 6 s max, never throws)
+    try {
+      await notifyAccountCreated({
+        name: ownerName || businessName,
+        email,
+        phone: phone || null,
+        accountLabel: "votre compte ZeniPay Entreprise",
+      });
+    } catch { /* non-fatal */ }
 
     return NextResponse.json({ success: true, id });
   } catch (err) {
