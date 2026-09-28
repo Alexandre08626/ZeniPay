@@ -21,7 +21,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 import { verifyPassword } from "../../../../modules/zenipay/services/auth";
 import { rateLimit } from "../../../../modules/zenipay/services/rate-limit";
-import { setZpSessionCookie, setSupabaseSessionCookies } from "@/lib/auth/zp-session";
+import { setZpSessionCookie, setSupabaseSessionCookies, rememberAccount } from "@/lib/auth/zp-session";
 
 interface MerchantPayload {
   id: string;
@@ -133,6 +133,7 @@ export async function POST(req: NextRequest) {
           // Also set the legacy HMAC cookie so API routes that haven't
           // been migrated to auth_user_id work too (e.g. create-link).
           setZpSessionCookie(res, merchant.id, merchant.status === "active" ? "live" : "test");
+          rememberAccount(req, res, merchant.id, merchant.status === "active" ? "live" : "test");
           return res;
         }
       }
@@ -173,6 +174,7 @@ export async function POST(req: NextRequest) {
     // Legacy session — HMAC cookie. Mode reflects the merchant's
     // current state so the FE can render Test/Live labels.
     setZpSessionCookie(res, found.id, found.status === "active" ? "live" : "test");
+    rememberAccount(req, res, found.id, found.status === "active" ? "live" : "test");
     return res;
   } catch (err) {
     console.error("[Login API]", err);

@@ -28,6 +28,10 @@ import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 const COOKIE_HMAC = "zp_session";
 const COOKIE_SUPABASE = "sb-access-token";
 const COOKIE_REFRESH = "sb-refresh-token";
+// Accounts signed in on this browser (account switcher): signed HMAC
+// tokens, one per merchant, httpOnly. Cleared on logout.
+const COOKIE_ACCOUNTS = "zp_accounts";
+const MAX_REMEMBERED = 6;
 const TTL_SECONDS = 7 * 24 * 60 * 60; // HMAC TTL
 
 export interface ZpSession {
@@ -343,7 +347,7 @@ export function setSupabaseSessionCookies(
 }
 
 export function clearAllSessionCookies(res: NextResponse): void {
-  for (const name of [COOKIE_HMAC, COOKIE_SUPABASE, COOKIE_REFRESH]) {
+  for (const name of [COOKIE_HMAC, COOKIE_SUPABASE, COOKIE_REFRESH, COOKIE_ACCOUNTS]) {
     res.cookies.set({
       name,
       value: "",
@@ -393,4 +397,60 @@ export function signZpSession(merchantId: string, mode: string = "test"): string
   if (!secret) throw new Error("ZP_SESSION_SECRET missing");
   const now = Math.floor(Date.now() / 1000);
   return signHmac({ mid: merchantId, mode, iat: now, exp: now + TTL_SECONDS }, secret);
+}
+
+// ─── Account switcher ──────────────────────────────────────────────────
+//
+// Each successful login adds a signed token for that merchant to the
+// httpOnly `zp_accounts` cookie. Switching is only possible between
+// accounts that were each signed into with their own password on this
+// browser; tokens expire like normal sessions (TTL_SECONDS).
+
+export interface RememberedAccount { merchant_id: string; mode: string }
+
+function readAccountTokens(req: NextRequest): string[] {
+  const raw = req.cookies.get(COOKIE_ACCOUNTS)?.value || "";
+  return raw ? raw.split("~").filter(Boolean).slice(0, MAX_REMEMBERED) : [];
+}
+
+export function readRememberedAccounts(req: NextRequest): RememberedAccount[] {
+  const secret = getHmacSecret();
+  if (!secret) return [];
+  const out: RememberedAccount[] = [];
+  for (const t of readAccountTokens(req)) {
+    const p = verifyHmac(t, secret);
+    if (p && !out.some((a) => a.merchant_id === p.mid)) out.push({ merchant_id: p.mid, mode: p.mode || "test" });
+  }
+  return out;
+}
+
+/** Add (or refresh) `merchantId` in the remembered-accounts cookie. */
+export function rememberAccount(req: NextRequest, res: NextResponse, merchantId: string, mode: string = "test"): void {
+  const secret = getHmacSecret();
+  if (!secret) return;
+  const now = Math.floor(Date.now() / 1000);
+  const fresh = signHmac({ mid: merchantId, mode, iat: now, exp: now + TTL_SECONDS }, secret);
+  const kept = readAccountTokens(req).filter((t) => {
+    const p = verifyHmac(t, secret);
+    return p && p.mid !== merchantId;
+  });
+  res.cookies.set({
+    name: COOKIE_ACCOUNTS,
+    value: [fresh, ...kept].slice(0, MAX_REMEMBERED).join("~"),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: TTL_SECONDS,
+  });
+}
+
+/** Make `merchantId` the active session (only called for remembered accounts). */
+export function activateAccount(res: NextResponse, merchantId: string, mode: string): void {
+  // The Supabase cookies belong to the previous account and take priority
+  // in getZpSession — drop them so the HMAC session for the target wins.
+  for (const name of [COOKIE_SUPABASE, COOKIE_REFRESH]) {
+    res.cookies.set({ name, value: "", httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
+  }
+  setZpSessionCookie(res, merchantId, mode);
 }

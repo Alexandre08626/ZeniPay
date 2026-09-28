@@ -12,6 +12,7 @@ import { useRouter, usePathname } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { Bell, Search, ChevronDown, LogOut, Settings as SettingsIcon, User, Building2 } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
+import { AccountSwitcher } from "./AccountSwitcher";
 
 export type DashboardMode = "merchant" | "agents" | "personal" | "admin";
 
@@ -272,6 +273,7 @@ export function TopBar({ mode, userLabel, userEmail, onSignOut, personalOnly }: 
                 <div style={{ fontSize: 11, color: zp.text.muted, marginTop: 2 }}>{userEmail}</div>
               )}
             </div>
+            {mode === "merchant" && <AccountSwitcher />}
             <Link
               href={
                 mode === "personal" ? "/personal/settings" :
