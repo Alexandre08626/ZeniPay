@@ -23,6 +23,7 @@ export function getAgentsDb(): AnyClient {
   }
   _client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) }, // never serve cached reads
     // Tables live in the public schema (no separate agents schema required).
     // Remove the `db.schema` line to default to public.
   });

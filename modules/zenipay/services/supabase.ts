@@ -26,6 +26,11 @@ export function getSupabaseAdmin(): SupabaseClient {
     const key = requireServiceRoleKey();
     _client = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
+      // Next.js patches fetch() and can serve cached GET responses: reads
+      // came back stale in production (a merchant email change and a reset
+      // token were invisible to the next request). Money and auth data must
+      // always be read fresh.
+      global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
     });
   }
   return _client;
