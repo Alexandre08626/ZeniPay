@@ -37,5 +37,19 @@ export async function GET(req: NextRequest) {
   }
   // Column types that matter (uuid vs text ids), inferred from a sample row.
   const { data: inv } = await db.from("zenipay_invoices").select("id, status").limit(5);
-  return NextResponse.json({ columns: out, sample_invoice_statuses: (inv || []).map((r: any) => r.status) });
+  // Merchant accounts overview: identity + which config keys exist (never
+  // values of secrets like password/keys).
+  const { data: ms } = await db.from("zenipay_merchants").select("*").order("created_at", { ascending: true });
+  const SECRET = /pass|secret|key|token|hash|pin/i;
+  const merchants = (ms || []).map((m: any) => {
+    const cfg = (m.config || {}) as Record<string, unknown>;
+    return {
+      id: m.id, email: m.email, status: m.status, created_at: m.created_at,
+      name: cfg.businessName || cfg.business_name || m.name || m.company || null,
+      columns: Object.keys(m).filter((k) => !SECRET.test(k)),
+      config_keys: Object.keys(cfg).filter((k) => !SECRET.test(k)),
+      config_public: Object.fromEntries(Object.entries(cfg).filter(([k, v]) => !SECRET.test(k) && (typeof v !== "object" || v === null))),
+    };
+  });
+  return NextResponse.json({ columns: out, sample_invoice_statuses: (inv || []).map((r: any) => r.status), merchants });
 }
