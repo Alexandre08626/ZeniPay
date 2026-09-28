@@ -178,6 +178,31 @@ export function DashboardShell({ mode: modeProp, children }: DashboardShellProps
     setDrawerOpen(false);
   }, [pathname]);
 
+  // The session cookie is the source of truth for WHICH merchant is signed
+  // in. After logging into another account, sessionStorage still held the
+  // previous merchant's id, every API call was refused as cross-tenant
+  // (403) and the pages showed empty. Re-align and reload once.
+  useEffect(() => {
+    if (mode !== "merchant") return;
+    let cancelled = false;
+    fetch("/api/zenipay/session", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => {
+        if (cancelled || !s?.merchant_id) return;
+        let current = "";
+        try { current = sessionStorage.getItem("zp_client") || ""; } catch { /* ignore */ }
+        if (current === s.merchant_id) return;
+        try {
+          sessionStorage.setItem("zp_client", s.merchant_id);
+          if (s.email) sessionStorage.setItem("zp_client_email", s.email);
+          if (s.business_name) sessionStorage.setItem("zp_client_bname", s.business_name);
+        } catch { /* ignore */ }
+        window.location.reload();
+      })
+      .catch(() => { /* offline — keep going */ });
+    return () => { cancelled = true; };
+  }, [mode]);
+
   // Resolve merchant status (personal_only vs everything else). Drives
   // the Business + Agents tab visibility and the redirect below. We
   // seed from sessionStorage for instant first paint, then ALWAYS
