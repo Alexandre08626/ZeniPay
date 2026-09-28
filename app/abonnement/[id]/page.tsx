@@ -1,5 +1,5 @@
 "use client";
-// Page de paiement d'un abonnement Orvel (forfait mensuel) — habillage ZeniPay, marchand payé : Zenitech : carte saisie dans le formulaire sécurisé de Finix,
+// Page de paiement d'un abonnement Orvel (forfait mensuel) — habillage ZeniPay : carte saisie dans le formulaire sécurisé de Finix,
 // consentement explicite au prélèvement mensuel, puis retour vers Orvel.
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -79,7 +79,7 @@ export default function AbonnementPage() {
   }
 
   // ── Rendu : même habillage que la page de paiement ZeniPay (/pay/…) ──
-  // Produit = Orvel AI ; marchand payé = Zenitech ; processeur = ZeniPay.
+  // Produit = Orvel AI ; processeur = ZeniPay (le marchand n’est pas affiché).
   const shell = (children: React.ReactNode) => (
     <main style={{ minHeight: "100vh", background: ZP_DARK, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div style={{ width: "100%", maxWidth: 440 }}>
@@ -110,17 +110,6 @@ export default function AbonnementPage() {
   const line: React.CSSProperties = { display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0", color: "rgba(255,255,255,0.75)" };
 
   return shell(<>
-    {/* Qui est payé */}
-    <div style={{ ...glass, display: "flex", alignItems: "center", gap: 14 }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/merchants/zenitech-112.webp" alt="Zenitech" width={52} height={52} style={{ borderRadius: 14, background: "#000", flexShrink: 0 }} />
-      <div style={{ minWidth: 0 }}>
-        <div style={label}>Payer à</div>
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>Zenitech</div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>Technologie · zenitech.dev</div>
-      </div>
-    </div>
-
     {/* Pour quoi */}
     <div style={{ ...glass, display: "flex", alignItems: "center", gap: 12 }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -159,7 +148,7 @@ export default function AbonnementPage() {
         <div id="finix-form" style={{ minHeight: 150 }} />
         <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 12.5, color: "#475569", lineHeight: 1.5, marginTop: 8 }}>
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 3 }} />
-          <span>J’autorise <b>Zenitech</b> à prélever, par ZeniPay, <b>{money(info.total)}</b> sur cette carte aujourd’hui, puis chaque mois à la même date, pour mon forfait Orvel {info.plan_nom}, jusqu’à ce que j’annule (dans Orvel : Mon profil → Mon forfait). Annulation en tout temps, sans frais ; le forfait reste actif jusqu’à la fin du mois payé.</span>
+          <span>J’autorise ZeniPay à prélever <b>{money(info.total)}</b> sur cette carte aujourd’hui, puis chaque mois à la même date, pour mon forfait Orvel {info.plan_nom}, jusqu’à ce que j’annule (dans Orvel : Mon profil → Mon forfait). Annulation en tout temps, sans frais ; le forfait reste actif jusqu’à la fin du mois payé.</span>
         </label>
         {err && <p style={{ color: "#DC2626", fontSize: 14 }}>{err}</p>}
         <button onClick={pay} disabled={!ready || busy} style={{
@@ -169,7 +158,7 @@ export default function AbonnementPage() {
           {busy ? "Paiement en cours…" : !ready ? "Chargement du paiement sécurisé…" : `Payer ${money(info.total)} et m’abonner`}
         </button>
         <p style={{ fontSize: 11.5, color: "#94A3B8", textAlign: "center", margin: "12px 0 0" }}>
-          🔒 Carte saisie directement chez Finix, le processeur de ZeniPay. Ni Orvel, ni Zenitech, ni ZeniPay ne voient ton numéro de carte.
+          🔒 Carte saisie directement chez Finix, le processeur de ZeniPay. Ni Orvel ni ZeniPay ne voient ton numéro de carte.
         </p>
       </>)}
     </div>
