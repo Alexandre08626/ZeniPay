@@ -42,6 +42,16 @@ function authorized(req: NextRequest): boolean {
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  // Disabled 2026-09-28. This copied the ONE platform Finix balance into
+  // EVERY merchant's primary account — wrong as soon as several merchants
+  // share the Finix merchant (ZeniCorp's money would show on Zeniva Travel
+  // and vice versa). Balances now move with payments, refunds and
+  // per-merchant settlement allocation (lib/zenipay/settlement-allocation).
+  return NextResponse.json({ synced: 0, disabled: "per-merchant balances are ledger-driven" });
+}
+
+async function _legacySync(req: NextRequest) {
+  void req;
   const db = getSupabaseAdmin();
   const { data: rows, error } = await db
     .from("zenipay_accounts")

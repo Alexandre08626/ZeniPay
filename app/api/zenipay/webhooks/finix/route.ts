@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supaba
 import { FundingClient } from "@/lib/zenicore/funding-client";
 import type { Currency } from "@/lib/zenicore/types";
 import { createPaidInvoice, emailInvoice } from "@/lib/zenipay/auto-invoice";
+import { applySettlement } from "@/lib/zenipay/settlement-allocation";
 import { markInstallmentPaid, findInstallmentById } from "@/lib/zenipay/installments";
 
 const verifySignature = verifyFinixSignature;
@@ -327,15 +328,9 @@ export async function POST(request: Request) {
 // that as a `settlement_to_bank` ledger debit so it shows up in the merchant
 // transactions feed — the Stripe-analog "paid out to bank" event.
 //
-// Once the sweep succeeds, the funds are no longer "in ZeniPay": the merchant
-// balance (zenipay_merchants.balance) and the primary account balance
-// (zenipay_accounts.balance) are debited by the settled amount, floored at 0,
-// so the dashboard's Total balance drops back to $0 after Finix pays out.
-// Payments collected after the settlement cutoff stay in the balance.
-//
-// Idempotent: the ledger row id is derived from the settlement id, so webhook
-// redeliveries are no-ops (we bail out before touching balances if the row
-// already exists).
+// Once the sweep succeeds, the funds are no longer "in ZeniPay": each
+// merchant's primary account is debited by ITS share of the settlement
+// (floored at 0), so its balance drops back after Finix pays out.
 
 async function handleSettlement(
   supabase: ReturnType<typeof getSupabaseAdmin>,
@@ -356,119 +351,12 @@ async function handleSettlement(
   const isSent = state === "SUCCEEDED" || state === "APPROVED";
   if (!isSent) return;
 
-  // Resolve the internal merchant from the Finix merchant/identity reference.
-  let merchantId: string | null = null;
-  const merchantRef = (data.merchant_identity && typeof data.merchant_identity === "object"
-    ? (data.merchant_identity as Record<string, unknown>).id
-    : null)
-    ?? (typeof data.merchant_identity === "string" ? data.merchant_identity : null)
-    ?? (data.merchant_id as string)
-    ?? (data.merchant as string)
-    ?? null;
-
-  const finixMerchantId = String(merchantRef || "").trim();
-  if (finixMerchantId) {
-    const { data: rows } = await supabase
-      .from("zenipay_merchants")
-      .select("id")
-      .eq("finix_merchant_id", finixMerchantId)
-      .limit(1);
-    if (rows && rows.length) merchantId = rows[0].id as string;
-  }
-
-  // Finix settlements carry the owning identity as `identity` (ID...).
-  const finixIdentityId = String((data.identity as string) || "").trim();
-  if (!merchantId && finixIdentityId) {
-    const { data: rows } = await supabase
-      .from("zenipay_merchants")
-      .select("id")
-      .eq("finix_identity_id", finixIdentityId)
-      .limit(1);
-    if (rows && rows.length) merchantId = rows[0].id as string;
-  }
-
-  if (!merchantId && process.env.FINIX_MERCHANT_ID) {
-    const { data: rows } = await supabase
-      .from("zenipay_merchants")
-      .select("id")
-      .eq("finix_merchant_id", process.env.FINIX_MERCHANT_ID)
-      .limit(1);
-    if (rows && rows.length) merchantId = rows[0].id as string;
-  }
-
-  if (!merchantId && process.env.FINIX_MERCHANT_IDENTITY_ID) {
-    const { data: rows } = await supabase
-      .from("zenipay_merchants")
-      .select("id")
-      .eq("finix_identity_id", process.env.FINIX_MERCHANT_IDENTITY_ID)
-      .limit(1);
-    if (rows && rows.length) merchantId = rows[0].id as string;
-  }
-
-  if (!merchantId || amount <= 0) return;
-
-  // Already processed this settlement (Finix redelivery / created+updated
-  // both terminal) — don't debit the balances twice.
-  const ledgerId = `led_settle_${settlementId}`;
-  const { data: existing } = await supabase
-    .from("zenipay_ledger")
-    .select("id")
-    .eq("id", ledgerId)
-    .maybeSingle();
-  if (existing) return;
-
-  await supabase.from("zenipay_ledger").upsert({
-    id: ledgerId,
-    payment_id: null,
-    merchant_id: merchantId,
-    event_type: "settlement_to_bank",
-    wallet_type: "platform",
-    direction: "debit",
-    amount,
-    currency,
-    reference: settlementId,
-    note: `Settlement sent to bank account (Finix ${settlementId})`,
-    created_at: now,
-  }, { onConflict: "id" });
-
-  // ── Reset balances: the money is now in the bank, not in ZeniPay ──────
-  // Merchant balance (gross, what the overview shows as Total balance).
-  const { data: mRow } = await supabase
-    .from("zenipay_merchants")
-    .select("balance")
-    .eq("id", merchantId)
-    .maybeSingle();
-  const merchantBal = Number(mRow?.balance || 0);
-  const merchantDebit = Math.min(merchantBal, amount);
-  if (merchantDebit > 0) {
-    const { error } = await supabase.rpc("zenipay_merchant_add_stats", {
-      p_merchant_id: merchantId,
-      p_balance_delta: -merchantDebit,
-      p_volume_delta: 0,
-      p_tx_count_delta: 0,
-    });
-    if (error) console.error("[webhook] settlement merchant balance debit failed:", error.message);
-  }
-
-  // Primary account (net of fees). The settlement is gross, so this floors
-  // at 0 rather than going negative.
-  const { data: primaryAcct } = await supabase
-    .from("zenipay_accounts")
-    .select("id, balance")
-    .eq("merchant_id", merchantId)
-    .eq("is_primary", true)
-    .maybeSingle();
-  if (primaryAcct) {
-    const acctBal = Number(primaryAcct.balance || 0);
-    const acctDebit = Math.min(acctBal, amount);
-    if (acctDebit > 0) {
-      const { error } = await supabase.rpc("zenipay_account_add_balance", {
-        p_account_id: primaryAcct.id,
-        p_amount: -acctDebit,
-      });
-      if (error) console.error("[webhook] settlement account balance debit failed:", error.message);
-    }
-  }
+  if (amount <= 0) return;
+  // One shared Finix merchant serves every ZeniPay merchant: split the
+  // settlement per merchant from its transfers (lib/zenipay/settlement-allocation).
+  // Idempotent per settlement+merchant, so redeliveries are no-ops.
+  const booked = await applySettlement(supabase, { id: settlementId, total_amount: rawAmount, currency }, now);
+  if (booked.length) console.log("[webhook] settlement booked", settlementId, booked);
 }
 
 // ---------------------------------------------------------------------------
