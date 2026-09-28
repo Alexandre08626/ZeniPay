@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getWalletBalances } from "../../../../modules/zenipay/services/ledger";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
+import { listMerchantInstallments, invoiceNumberOf, invoiceDescriptionOf } from "@/lib/zenipay/installments";
 
 export async function GET(req: NextRequest) {
   try {
@@ -112,13 +113,36 @@ export async function GET(req: NextRequest) {
     // ─── 6. Invoices (best-effort) ──────────────────────────────────────
     let recentInvoices: unknown[] = [];
     try {
-      const { data } = await supabase
+      let { data, error } = await supabase
         .from("zenipay_invoices")
         .select("*")
         .eq("merchant_id", merchant_id)
         .order("created_at", { ascending: false })
         .limit(50);
-      if (data) recentInvoices = data;
+      if (error) {
+        // Older schemas: filter client-side.
+        const r = await supabase.from("zenipay_invoices").select("*").limit(500);
+        data = (r.data || []).filter((inv: Record<string, unknown>) => inv.merchant_id === merchant_id)
+          .sort((a: any, b: any) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, 50);
+      }
+      // Normalize legacy rows (number in the description) and attach the
+      // installment schedule summary (paid so far, "partial").
+      const inst = await listMerchantInstallments(supabase, merchant_id);
+      recentInvoices = (data || []).map((inv: Record<string, any>) => {
+        const mine = inst.filter((i) => i.invoice_id === inv.id && i.status !== "cancelled");
+        const paid = mine.filter((i) => i.status === "paid").reduce((s, i) => s + i.amount, 0);
+        const out: Record<string, unknown> = {
+          ...inv,
+          invoice_number: invoiceNumberOf(inv),
+          description: invoiceDescriptionOf(inv),
+        };
+        if (mine.length) {
+          out.has_installments = true;
+          out.amount_paid = Math.round(paid * 100) / 100;
+          if (inv.status !== "paid" && paid > 0) out.status = "partial";
+        }
+        return out;
+      });
     } catch { /* table may not exist */ }
 
     // What's actually still held (not lifetime revenue). Fallback to the

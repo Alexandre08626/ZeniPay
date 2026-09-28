@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { newRowId, loadMerchant, nextInvoiceNumber, emailInvoice } from "./auto-invoice";
+import { insertTolerant, updateTolerant } from "./db-tolerant";
 import {
   resolvePlan, createInstallments, sendInstallmentRequest, todayMontreal,
   type PlanLine, type Installment,
@@ -71,37 +72,27 @@ export async function createMerchantInvoice(
   for (let attempt = 0; attempt < 5 && !invoice; attempt++) {
     const id = newRowId();
     const invoiceNumber = await nextInvoiceNumber(supabase, merchantId, attempt);
-    const rich: Record<string, unknown> = {
+    // Full row; columns production doesn't have are dropped by insertTolerant.
+    // The invoice number is also kept at the start of `description` because
+    // the legacy table has no invoice_number column.
+    const row: Record<string, unknown> = {
       id, invoice_number: invoiceNumber, merchant_id: merchantId,
       customer_name: name, customer_email: email, client_name: name, client_email: email,
       items: JSON.stringify([{ description, qty: 1, unit_price: amount, total: amount }]),
-      subtotal: amount, tax, total, amount: total, currency, description,
+      subtotal: amount, tax, total, amount: total, currency,
+      description: `${invoiceNumber} — ${description}`,
       status, notes: input.notes || null,
       merchant_name: merchant.name, merchant_email: merchant.email,
       paid_at: status === "paid" ? now : null,
       created_at: now, updated_at: now,
     };
-    if (input.due_date) rich.due_date = input.due_date;
-    if (hasPlan) { rich.has_installments = true; rich.amount_paid = 0; rich.due_date = lines[lines.length - 1].due_date; }
+    if (input.due_date) row.due_date = input.due_date;
+    if (hasPlan) { row.has_installments = true; row.amount_paid = 0; row.due_date = lines[lines.length - 1].due_date; }
 
-    const { error } = await supabase.from("zenipay_invoices").insert(rich);
-    if (!error) { invoice = rich; break; }
+    const { error } = await insertTolerant(supabase, "zenipay_invoices", row);
+    if (!error) { invoice = { ...row, description }; break; }
     lastErr = error;
     if (error.code === "23505") continue;
-    if (hasPlan) {
-      // Installment columns missing → the SQL migration hasn't been run.
-      if (error.code === "42703" || error.code === "PGRST204") throw new InvoiceError("MIGRATION_REQUIRED", 503);
-      throw new InvoiceError(error.message, 500);
-    }
-    const legacy = {
-      id, merchant_id: merchantId, client_name: name, client_email: email,
-      amount: total, currency, status, description: `${invoiceNumber} — ${description}`,
-      due_date: input.due_date ?? null, paid_at: status === "paid" ? now : null,
-      created_at: now, updated_at: now,
-    };
-    const { error: legacyErr } = await supabase.from("zenipay_invoices").insert(legacy);
-    if (!legacyErr) { invoice = { ...legacy, invoice_number: invoiceNumber, customer_name: name, customer_email: email, subtotal: amount, tax, total }; break; }
-    lastErr = legacyErr;
     break;
   }
   if (!invoice) throw new InvoiceError(lastErr?.message || "Création de la facture impossible.", 500);
@@ -132,7 +123,7 @@ export async function createMerchantInvoice(
     });
     if (ok) {
       emailed.push("invoice");
-      if (status === "draft") await supabase.from("zenipay_invoices").update({ status: "sent", updated_at: now }).eq("id", invoice.id);
+      if (status === "draft") await updateTolerant(supabase, "zenipay_invoices", { status: "sent", updated_at: now }, (q) => q.eq("id", invoice!.id));
     }
   }
   return { invoice, installments, emailed };

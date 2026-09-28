@@ -10,6 +10,7 @@
 import crypto from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email/send";
+import { insertTolerant } from "./db-tolerant";
 
 export const newRowId = () => crypto.randomUUID();
 
@@ -86,10 +87,12 @@ export async function createPaidInvoice(
   p: PaidInvoiceInput,
 ): Promise<CreatedInvoice | null> {
   try {
-    const { data: existing } = await supabase
+    const { data: pay } = await supabase.from("zenipay_payments").select("metadata").eq("id", p.paymentId).maybeSingle();
+    if ((pay?.metadata as Record<string, unknown> | undefined)?.invoice_id) return null;
+    const { data: existing, error } = await supabase
       .from("zenipay_invoices").select("id").eq("payment_id", p.paymentId).limit(1);
-    if (existing && existing.length > 0) return null;
-  } catch { /* payment_id column missing — continue */ }
+    if (!error && existing && existing.length > 0) return null;
+  } catch { /* continue */ }
 
   const merchant = await loadMerchant(supabase, p.merchantId);
   const total = round2(p.total);
@@ -104,7 +107,9 @@ export async function createPaidInvoice(
   for (let attempt = 0; attempt < 5; attempt++) {
     const id = newRowId();
     const invoiceNumber = await nextInvoiceNumber(supabase, p.merchantId, attempt);
-    const rich = {
+    // Full row; columns production lacks are dropped by insertTolerant. The
+    // number also leads the description (legacy table has no invoice_number).
+    const row = {
       id,
       invoice_number: invoiceNumber,
       merchant_id: p.merchantId,
@@ -118,7 +123,7 @@ export async function createPaidInvoice(
       total,
       amount: total,
       currency: p.currency,
-      description,
+      description: `${invoiceNumber} — ${description}`,
       status: "paid",
       payment_id: p.paymentId,
       merchant_name: merchant.name,
@@ -128,44 +133,24 @@ export async function createPaidInvoice(
       created_at: now,
       updated_at: now,
     };
-    const { error: richErr } = await supabase.from("zenipay_invoices").insert(rich);
-    if (!richErr) {
+    const { error } = await insertTolerant(supabase, "zenipay_invoices", row);
+    if (!error) {
+      // Idempotency marker on the payment (prod has no invoices.payment_id).
+      try {
+        const { data: pay } = await supabase.from("zenipay_payments").select("metadata").eq("id", p.paymentId).maybeSingle();
+        if (pay) await supabase.from("zenipay_payments").update({ metadata: { ...(pay.metadata || {}), invoice_id: id, invoice_number: invoiceNumber } }).eq("id", p.paymentId);
+      } catch { /* best effort */ }
       return {
         id, invoice_number: invoiceNumber, merchant_id: p.merchantId,
         merchant_name: merchant.name, merchant_email: merchant.email,
-        customer_name: rich.customer_name, customer_email: rich.customer_email,
+        customer_name: row.customer_name, customer_email: row.customer_email,
         description, subtotal, tax, tax_rate: rate * 100, total, currency: p.currency,
         payment_ref: p.paymentRef, paid_at: now,
       };
     }
-    if (richErr.code === "23505") { lastErr = richErr; continue; }
-
-    // Legacy schema (client_name / client_email / amount only).
-    const legacy = {
-      id,
-      merchant_id: p.merchantId,
-      client_name: p.customerName || "Client",
-      client_email: p.customerEmail || "",
-      amount: total,
-      currency: p.currency,
-      status: "paid",
-      description: `${invoiceNumber} — ${description}`,
-      paid_at: now,
-      created_at: now,
-      updated_at: now,
-    };
-    const { error: legacyErr } = await supabase.from("zenipay_invoices").insert(legacy);
-    if (!legacyErr) {
-      return {
-        id, invoice_number: invoiceNumber, merchant_id: p.merchantId,
-        merchant_name: merchant.name, merchant_email: merchant.email,
-        customer_name: legacy.client_name, customer_email: legacy.client_email,
-        description, subtotal, tax, tax_rate: rate * 100, total, currency: p.currency,
-        payment_ref: p.paymentRef, paid_at: now,
-      };
-    }
-    console.error("[auto-invoice] insert failed", { rich: richErr, legacy: legacyErr });
-    lastErr = legacyErr;
+    lastErr = error;
+    if (error.code === "23505") continue;
+    console.error("[auto-invoice] insert failed", error);
     break;
   }
   console.error("[auto-invoice] giving up", lastErr);

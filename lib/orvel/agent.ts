@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { TOOLS, toolByName, type OrvelTool } from "./tools";
 import { getOrvelSettings, PERMISSIONS, type OrvelSettings } from "./permissions";
 import { todayMontreal } from "@/lib/zenipay/installments";
+import { recordAction } from "./journal";
 
 export interface ChatTurn { role: "user" | "assistant"; content: string }
 
@@ -124,11 +125,11 @@ export function parseTextToolCall(text: string): { name: string; args: Record<st
   return null;
 }
 
-async function journal(supabase: SupabaseClient, row: Record<string, unknown>): Promise<string | undefined> {
-  try {
-    const { data } = await supabase.from("zenipay_orvel_actions").insert(row).select("id").single();
-    return data?.id as string | undefined;
-  } catch { return undefined; }
+async function journal(supabase: SupabaseClient, row: Record<string, any>): Promise<string | undefined> {
+  return recordAction(supabase, {
+    merchant_id: row.merchant_id, tool: row.tool, args: row.args || {}, status: row.status,
+    result: row.result ?? null, undo: row.undo ?? null, prompt: row.prompt ?? null,
+  });
 }
 
 export async function runOrvel(

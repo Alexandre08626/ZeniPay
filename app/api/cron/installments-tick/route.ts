@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
-import { sendInstallmentRequest, todayMontreal, type Installment } from "@/lib/zenipay/installments";
+import { sendInstallmentRequest, todayMontreal, listDueInstallments, type Installment } from "@/lib/zenipay/installments";
 
 const REMINDER_AFTER_DAYS = [3, 7];
 
@@ -26,20 +26,11 @@ export async function GET(req: Request) {
   const today = todayMontreal();
   let sent = 0, reminded = 0, failed = 0;
 
-  const { data, error } = await supabase
-    .from("zenipay_invoice_installments")
-    .select("*")
-    .in("status", ["pending", "sent"])
-    .lte("due_date", today)
-    .order("due_date", { ascending: true })
-    .limit(200);
-  if (error) {
-    if (error.code === "42P01") return NextResponse.json({ ok: true, skipped: "migration not applied" });
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  let due: Installment[];
+  try { due = await listDueInstallments(supabase, today); }
+  catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 }); }
 
-  for (const raw of data || []) {
-    const inst = { ...raw, amount: Number(raw.amount) } as Installment;
+  for (const inst of due) {
     if (!inst.sent_at) {
       (await sendInstallmentRequest(supabase, inst, "request")) ? sent++ : failed++;
       continue;

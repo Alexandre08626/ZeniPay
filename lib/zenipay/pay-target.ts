@@ -5,7 +5,7 @@
 // another merchant.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { findInstallmentByToken, type Installment } from "./installments";
+import { findInstallmentByToken, invoiceNumberOf, type Installment } from "./installments";
 
 export interface PayTarget {
   kind: "installment" | "link";
@@ -27,7 +27,7 @@ export async function resolvePayTarget(supabase: SupabaseClient, id: string): Pr
     let invoiceNumber = "";
     try {
       const { data: inv } = await supabase.from("zenipay_invoices").select("*").eq("id", inst.invoice_id).maybeSingle();
-      invoiceNumber = inv?.invoice_number || "";
+      invoiceNumber = inv ? invoiceNumberOf(inv) : "";
     } catch { /* ignore */ }
     return {
       kind: "installment",

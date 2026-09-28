@@ -3,6 +3,9 @@
 // confirmation step; merchant's choice). Every action is journaled.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isMissingTable, readConfigKey, updateConfigKey } from "@/lib/zenipay/merchant-store";
+
+const CFG_KEY = "zp_orvel";
 
 export type OrvelPermission =
   | "read_data"
@@ -42,9 +45,11 @@ export function defaultPermissions(): Record<OrvelPermission, boolean> {
 export async function getOrvelSettings(supabase: SupabaseClient, merchantId: string): Promise<OrvelSettings> {
   const base = defaultPermissions();
   try {
-    const { data, error } = await supabase
-      .from("zenipay_orvel_settings").select("*").eq("merchant_id", merchantId).maybeSingle();
-    if (error) return { enabled: true, permissions: base, persisted: false };
+    let data: { enabled?: boolean; permissions?: Record<string, unknown> } | null = null;
+    const res = await supabase.from("zenipay_orvel_settings").select("*").eq("merchant_id", merchantId).maybeSingle();
+    if (!res.error) data = res.data;
+    else if (isMissingTable(res.error)) data = await readConfigKey(supabase, merchantId, CFG_KEY, null);
+    else return { enabled: true, permissions: base, persisted: false };
     const saved = (data?.permissions || {}) as Record<string, unknown>;
     for (const p of PERMISSIONS) if (typeof saved[p.key] === "boolean") base[p.key] = saved[p.key] as boolean;
     return { enabled: data ? data.enabled !== false : true, permissions: base, persisted: true };
@@ -65,9 +70,13 @@ export async function saveOrvelSettings(
     if (typeof v === "boolean") permissions[p.key] = v;
   }
   const enabled = typeof patch.enabled === "boolean" ? patch.enabled : current.enabled;
+  const updated_at = new Date().toISOString();
   const { error } = await supabase.from("zenipay_orvel_settings").upsert({
-    merchant_id: merchantId, enabled, permissions, updated_at: new Date().toISOString(),
+    merchant_id: merchantId, enabled, permissions, updated_at,
   }, { onConflict: "merchant_id" });
-  if (error) throw new Error(error.code === "42P01" ? "MIGRATION_REQUIRED" : error.message);
+  if (error) {
+    if (!isMissingTable(error)) throw new Error(error.message);
+    await updateConfigKey<Record<string, unknown>>(supabase, merchantId, CFG_KEY, {}, () => ({ enabled, permissions, updated_at }));
+  }
   return { enabled, permissions, persisted: true };
 }

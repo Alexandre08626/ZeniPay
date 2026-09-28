@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 import { emailInvoice, type CreatedInvoice } from "@/lib/zenipay/auto-invoice";
+import { invoiceNumberOf, invoiceDescriptionOf } from "@/lib/zenipay/installments";
+import { updateTolerant } from "@/lib/zenipay/db-tolerant";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
     merchantEmail ||= String(m?.email || cfg.email || "");
   }
 
-  let description = row.description || "";
+  let description = invoiceDescriptionOf(row);
   try {
     const items = typeof row.items === "string" ? JSON.parse(row.items) : row.items;
     if (!description && Array.isArray(items) && items[0]?.description) description = items[0].description;
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
   const subtotal = Number(row.subtotal ?? total - tax);
   const invoice: CreatedInvoice = {
     id: row.id,
-    invoice_number: row.invoice_number || row.id,
+    invoice_number: invoiceNumberOf(row),
     merchant_id: merchantId,
     merchant_name: merchantName,
     merchant_email: merchantEmail,
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
     tax_rate: subtotal > 0 ? Math.round((tax / subtotal) * 10000) / 100 : 0,
     total,
     currency: row.currency || "CAD",
-    payment_ref: row.payment_id || row.invoice_number || row.id,
+    payment_ref: row.payment_id || invoiceNumberOf(row),
     paid_at: row.paid_at || row.created_at || new Date().toISOString(),
     status: row.status || "sent",
   };
@@ -84,11 +86,7 @@ export async function POST(req: NextRequest) {
   if (override) { patch.customer_email = override; patch.client_email = override; }
   if (row.status === "draft") patch.status = "sent";
   if (Object.keys(patch).length > 1) {
-    const { error: upErr } = await supabase.from("zenipay_invoices").update(patch).eq("id", row.id);
-    if (upErr && override) {
-      // Rich columns missing — retry with the legacy email column only.
-      await supabase.from("zenipay_invoices").update({ client_email: override, updated_at: patch.updated_at }).eq("id", row.id);
-    }
+    await updateTolerant(supabase, "zenipay_invoices", patch, (q) => q.eq("id", row.id));
   }
   return NextResponse.json({ success: true, sent_to: to });
 }

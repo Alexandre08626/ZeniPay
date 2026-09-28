@@ -10,6 +10,7 @@
 import crypto from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email/send";
+import { isMissingTable, readConfigKey, updateConfigKey, scanConfigKey } from "./merchant-store";
 
 export interface PlanLine {
   label: string;
@@ -34,6 +35,9 @@ export interface Installment {
   paid_at: string | null;
   sent_at: string | null;
   reminder_count: number;
+  last_reminder_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export const MAX_INSTALLMENTS = 12;
@@ -75,12 +79,21 @@ export function resolvePlan(total: number, plan: PlanLine[]): Array<{ label: str
   return out;
 }
 
+// ── Storage: table zenipay_invoice_installments when it exists, otherwise
+//    the merchant's config JSONB (key CFG_KEY). See merchant-store.ts. ──────
+
+const TABLE = "zenipay_invoice_installments";
+const CFG_KEY = "zp_installments";
+
+const norm = (i: any): Installment => ({ ...i, amount: Number(i.amount), reminder_count: Number(i.reminder_count || 0) });
+
 export async function createInstallments(
   supabase: SupabaseClient,
   args: { invoiceId: string; merchantId: string; currency: string; lines: Array<{ label: string; amount: number; due_date: string }> },
 ): Promise<Installment[]> {
   const now = new Date().toISOString();
-  const rows = args.lines.map((l, i) => ({
+  const rows: Installment[] = args.lines.map((l, i) => ({
+    id: crypto.randomUUID(),
     invoice_id: args.invoiceId,
     merchant_id: args.merchantId,
     seq: i + 1,
@@ -90,34 +103,102 @@ export async function createInstallments(
     due_date: l.due_date,
     status: "pending",
     pay_token: newPayToken(),
-    created_at: now,
-    updated_at: now,
-  }));
-  const { data, error } = await supabase.from("zenipay_invoice_installments").insert(rows).select("*");
-  if (error) {
-    if (error.code === "42P01") throw new Error("MIGRATION_REQUIRED");
-    throw new Error(error.message);
-  }
-  return (data || []) as Installment[];
+    payment_id: null, payment_ref: null, paid_at: null, sent_at: null, reminder_count: 0,
+    created_at: now, updated_at: now,
+  } as Installment));
+  const { error } = await supabase.from(TABLE).insert(rows);
+  if (!error) return rows;
+  if (!isMissingTable(error)) throw new Error(error.message);
+  await updateConfigKey<Installment[]>(supabase, args.merchantId, CFG_KEY, [], (cur) => [...cur, ...rows]);
+  return rows;
 }
 
-export async function listInstallments(supabase: SupabaseClient, invoiceId: string): Promise<Installment[]> {
-  const { data } = await supabase
-    .from("zenipay_invoice_installments").select("*")
-    .eq("invoice_id", invoiceId).order("seq", { ascending: true });
-  return ((data || []) as Installment[]).map((i) => ({ ...i, amount: Number(i.amount) }));
+async function allFallback(supabase: SupabaseClient, merchantId?: string): Promise<Installment[]> {
+  if (merchantId) return (await readConfigKey<Installment[]>(supabase, merchantId, CFG_KEY, [])).map(norm);
+  return (await scanConfigKey<Installment[]>(supabase, CFG_KEY)).flatMap((r) => (r.value || []).map(norm));
+}
+
+export async function listInstallments(supabase: SupabaseClient, invoiceId: string, merchantId?: string): Promise<Installment[]> {
+  const { data, error } = await supabase.from(TABLE).select("*").eq("invoice_id", invoiceId).order("seq", { ascending: true });
+  if (!error) return (data || []).map(norm);
+  if (!isMissingTable(error)) return [];
+  return (await allFallback(supabase, merchantId)).filter((i) => i.invoice_id === invoiceId).sort((a, b) => a.seq - b.seq);
+}
+
+/** Every installment of one merchant (for annotating the invoice list). */
+export async function listMerchantInstallments(supabase: SupabaseClient, merchantId: string): Promise<Installment[]> {
+  const { data, error } = await supabase.from(TABLE).select("*").eq("merchant_id", merchantId);
+  if (!error) return (data || []).map(norm);
+  if (!isMissingTable(error)) return [];
+  return allFallback(supabase, merchantId);
 }
 
 export async function findInstallmentByToken(supabase: SupabaseClient, token: string): Promise<Installment | null> {
   if (!/^INS-[A-Z0-9]{8,32}$/.test(token)) return null;
-  try {
-    const { data } = await supabase
-      .from("zenipay_invoice_installments").select("*").eq("pay_token", token).maybeSingle();
-    return data ? ({ ...data, amount: Number(data.amount) } as Installment) : null;
-  } catch { return null; }
+  const { data, error } = await supabase.from(TABLE).select("*").eq("pay_token", token).maybeSingle();
+  if (!error) return data ? norm(data) : null;
+  if (!isMissingTable(error)) return null;
+  return (await allFallback(supabase)).find((i) => i.pay_token === token) || null;
+}
+
+export async function findInstallmentById(supabase: SupabaseClient, id: string): Promise<Installment | null> {
+  const { data, error } = await supabase.from(TABLE).select("*").eq("id", id).maybeSingle();
+  if (!error) return data ? norm(data) : null;
+  if (!isMissingTable(error)) return null;
+  return (await allFallback(supabase)).find((i) => i.id === id) || null;
+}
+
+/** Unpaid, not cancelled, due on or before `today` — all merchants (cron). */
+export async function listDueInstallments(supabase: SupabaseClient, today: string): Promise<Installment[]> {
+  const { data, error } = await supabase.from(TABLE).select("*")
+    .in("status", ["pending", "sent"]).lte("due_date", today).order("due_date", { ascending: true }).limit(200);
+  if (!error) return (data || []).map(norm);
+  if (!isMissingTable(error)) throw new Error(error.message);
+  return (await allFallback(supabase))
+    .filter((i) => (i.status === "pending" || i.status === "sent") && i.due_date <= today)
+    .sort((a, b) => a.due_date.localeCompare(b.due_date));
+}
+
+/**
+ * Patch one installment. With `unlessPaid`, the write only happens if the
+ * installment isn't already paid (returns false otherwise) — this is what
+ * keeps a duplicated webhook from processing a payment twice.
+ */
+export async function updateInstallment(
+  supabase: SupabaseClient,
+  inst: Installment,
+  patch: Partial<Installment> & Record<string, unknown>,
+  opts: { unlessPaid?: boolean } = {},
+): Promise<boolean> {
+  const row = { ...patch, updated_at: new Date().toISOString() };
+  let q = supabase.from(TABLE).update(row).eq("id", inst.id);
+  if (opts.unlessPaid) q = q.neq("status", "paid");
+  const { data, error } = await q.select("id");
+  if (!error) return !!data && data.length > 0;
+  if (!isMissingTable(error)) return false;
+  let changed = false;
+  await updateConfigKey<Installment[]>(supabase, inst.merchant_id, CFG_KEY, [], (cur) => {
+    const idx = cur.findIndex((i) => i.id === inst.id);
+    if (idx < 0) return undefined;
+    if (opts.unlessPaid && cur[idx].status === "paid") return undefined;
+    changed = true;
+    const next = [...cur];
+    next[idx] = { ...cur[idx], ...row } as Installment;
+    return next;
+  });
+  return changed;
+}
+
+export async function cancelInvoiceInstallments(supabase: SupabaseClient, invoiceId: string, merchantId: string): Promise<void> {
+  for (const i of await listInstallments(supabase, invoiceId, merchantId)) {
+    if (i.status !== "paid" && i.status !== "cancelled") await updateInstallment(supabase, i, { status: "cancelled" });
+  }
 }
 
 // ── Invoice context (for emails) ────────────────────────────────────────
+// Production zenipay_invoices only has the legacy columns (client_name,
+// client_email, amount, description…); the invoice number lives at the
+// start of the description ("INV-2026-0003 — …") when the column is absent.
 
 interface InvoiceCtx {
   id: string;
@@ -131,6 +212,16 @@ interface InvoiceCtx {
   description: string;
 }
 
+export function invoiceNumberOf(row: Record<string, any>): string {
+  if (row.invoice_number) return String(row.invoice_number);
+  const m = String(row.description || "").match(/^(INV-\d{4}-\d{3,})/);
+  return m ? m[1] : String(row.id || "");
+}
+
+export function invoiceDescriptionOf(row: Record<string, any>): string {
+  return String(row.description || "").replace(/^INV-\d{4}-\d{3,}\s*—\s*/, "");
+}
+
 async function loadInvoiceCtx(supabase: SupabaseClient, invoiceId: string): Promise<InvoiceCtx | null> {
   const { data: row } = await supabase.from("zenipay_invoices").select("*").eq("id", invoiceId).maybeSingle();
   if (!row) return null;
@@ -142,14 +233,14 @@ async function loadInvoiceCtx(supabase: SupabaseClient, invoiceId: string): Prom
     merchantName ||= String(m?.business_name || cfg.business_name || cfg.businessName || m?.company || m?.name || "");
     merchantEmail ||= String(m?.email || cfg.email || "");
   }
-  let description = row.description || "";
+  let description = invoiceDescriptionOf(row);
   try {
     const items = typeof row.items === "string" ? JSON.parse(row.items) : row.items;
     if (!description && Array.isArray(items) && items[0]?.description) description = items[0].description;
   } catch { /* keep */ }
   return {
     id: row.id,
-    invoice_number: row.invoice_number || row.id,
+    invoice_number: invoiceNumberOf(row),
     customer_name: row.customer_name || row.client_name || "Client",
     customer_email: row.customer_email || row.client_email || "",
     merchant_name: merchantName,
@@ -170,28 +261,24 @@ export async function markInstallmentPaid(
   payment: { paymentId: string; paymentRef: string },
 ): Promise<boolean> {
   const now = new Date().toISOString();
-  const { data: updated } = await supabase
-    .from("zenipay_invoice_installments")
-    .update({ status: "paid", paid_at: now, payment_id: payment.paymentId, payment_ref: payment.paymentRef, updated_at: now })
-    .eq("id", inst.id)
-    .neq("status", "paid")
-    .select("id");
-  if (!updated || updated.length === 0) return false;
+  const won = await updateInstallment(supabase, inst,
+    { status: "paid", paid_at: now, payment_id: payment.paymentId, payment_ref: payment.paymentRef },
+    { unlessPaid: true });
+  if (!won) return false;
 
-  const all = await listInstallments(supabase, inst.invoice_id);
+  const all = await listInstallments(supabase, inst.invoice_id, inst.merchant_id);
   const live = all.filter((i) => i.status !== "cancelled");
   const paid = round2(live.filter((i) => i.status === "paid").reduce((s, i) => s + i.amount, 0));
   const due = round2(live.reduce((s, i) => s + i.amount, 0));
   const fullyPaid = paid >= due - 0.005;
 
-  const patch: Record<string, unknown> = { amount_paid: paid, status: fullyPaid ? "paid" : "partial", updated_at: now };
-  if (fullyPaid) patch.paid_at = now;
-  const { error } = await supabase.from("zenipay_invoices").update(patch).eq("id", inst.invoice_id);
-  if (error) {
-    // Pre-migration table: no amount_paid / "partial" — keep what works.
-    await supabase.from("zenipay_invoices")
-      .update(fullyPaid ? { status: "paid", paid_at: now, updated_at: now } : { status: "sent", updated_at: now })
-      .eq("id", inst.invoice_id);
+  // Richest patch first; older schemas lack amount_paid and/or "partial".
+  const attempts: Array<Record<string, unknown>> = fullyPaid
+    ? [{ status: "paid", paid_at: now, amount_paid: paid, updated_at: now }, { status: "paid", paid_at: now, updated_at: now }, { status: "paid", paid_at: now }]
+    : [{ status: "partial", amount_paid: paid, updated_at: now }, { status: "partial", updated_at: now }, { status: "partial" }, { status: "sent" }];
+  for (const patch of attempts) {
+    const { error } = await supabase.from("zenipay_invoices").update(patch).eq("id", inst.invoice_id);
+    if (!error) break;
   }
 
   const ctx = await loadInvoiceCtx(supabase, inst.invoice_id);
@@ -312,10 +399,10 @@ export async function sendInstallmentRequest(
   const ok = await sendInstallmentEmail(ctx, inst, kind);
   if (ok) {
     const now = new Date().toISOString();
-    const patch: Record<string, unknown> = { updated_at: now };
+    const patch: Record<string, unknown> = {};
     if (kind === "request") { patch.sent_at = now; if (inst.status === "pending") patch.status = "sent"; }
     else { patch.reminder_count = (inst.reminder_count || 0) + 1; patch.last_reminder_at = now; }
-    await supabase.from("zenipay_invoice_installments").update(patch).eq("id", inst.id);
+    await updateInstallment(supabase, inst, patch);
   }
   return ok;
 }

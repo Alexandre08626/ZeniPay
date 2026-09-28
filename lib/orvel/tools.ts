@@ -6,7 +6,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createMerchantInvoice, InvoiceError } from "@/lib/zenipay/invoices";
 import { emailInvoice } from "@/lib/zenipay/auto-invoice";
-import { listInstallments, sendInstallmentRequest, payUrl, type PlanLine } from "@/lib/zenipay/installments";
+import { listInstallments, sendInstallmentRequest, payUrl, invoiceNumberOf, invoiceDescriptionOf, type PlanLine } from "@/lib/zenipay/installments";
+import { updateTolerant } from "@/lib/zenipay/db-tolerant";
 import { refundPayment, RefundError } from "@/lib/zenipay/refund";
 import type { OrvelPermission } from "./permissions";
 
@@ -39,9 +40,15 @@ const money = (n: number, cur = "CAD") => new Intl.NumberFormat("fr-CA", { style
 async function findInvoice(ctx: ToolCtx, numberOrId: string) {
   const key = str(numberOrId, 80);
   if (!key) return null;
-  const { data: byNum } = await ctx.supabase.from("zenipay_invoices").select("*")
+  const { data: byNum, error } = await ctx.supabase.from("zenipay_invoices").select("*")
     .eq("merchant_id", ctx.merchantId).eq("invoice_number", key).maybeSingle();
   if (byNum) return byNum;
+  if (error && /^INV-\d{4}-\d{3,}$/i.test(key)) {
+    // Legacy table: the number leads the description.
+    const { data } = await ctx.supabase.from("zenipay_invoices").select("*")
+      .eq("merchant_id", ctx.merchantId).ilike("description", `${key.toUpperCase()} —%`).limit(1);
+    if (data && data[0]) return data[0];
+  }
   if (/^[0-9a-f-]{36}$/i.test(key)) {
     const { data } = await ctx.supabase.from("zenipay_invoices").select("*")
       .eq("merchant_id", ctx.merchantId).eq("id", key).maybeSingle();
@@ -52,7 +59,7 @@ async function findInvoice(ctx: ToolCtx, numberOrId: string) {
 
 function slimInvoice(i: Record<string, any>) {
   return {
-    invoice_number: i.invoice_number || i.id,
+    invoice_number: invoiceNumberOf(i),
     customer: i.customer_name || i.client_name,
     email: i.customer_email || i.client_email || "",
     total: Number(i.total ?? i.amount ?? 0),
@@ -120,12 +127,12 @@ export const TOOLS: OrvelTool[] = [
     async run(ctx, a) {
       const inv = await findInvoice(ctx, str(a.invoice_number));
       if (!inv) return { ok: false, error: "Facture introuvable." };
-      const inst = inv.has_installments ? await listInstallments(ctx.supabase, inv.id) : [];
+      const inst = await listInstallments(ctx.supabase, inv.id, ctx.merchantId);
       return {
         ok: true,
         data: {
           ...slimInvoice(inv),
-          description: inv.description || "",
+          description: invoiceDescriptionOf(inv),
           installments: inst.map((i) => ({ seq: i.seq, label: i.label, amount: i.amount, due_date: i.due_date, status: i.status, pay_url: i.status === "paid" ? undefined : payUrl(i.pay_token) })),
         },
       };
@@ -228,18 +235,18 @@ export const TOOLS: OrvelTool[] = [
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { ok: false, error: "Aucun courriel valide pour ce client — demandez-le." };
       const total = Number(inv.total ?? inv.amount ?? 0), tax = Number(inv.tax || 0), subtotal = Number(inv.subtotal ?? total - tax);
       const ok = await emailInvoice({
-        id: inv.id, invoice_number: inv.invoice_number || inv.id, merchant_id: ctx.merchantId,
+        id: inv.id, invoice_number: invoiceNumberOf(inv), merchant_id: ctx.merchantId,
         merchant_name: inv.merchant_name || "", merchant_email: inv.merchant_email || "",
         customer_name: inv.customer_name || inv.client_name || "Client", customer_email: to,
-        description: inv.description || "Service", subtotal, tax, tax_rate: subtotal > 0 ? round2((tax / subtotal) * 100) : 0,
-        total, currency: inv.currency || "CAD", payment_ref: inv.invoice_number || inv.id,
+        description: invoiceDescriptionOf(inv) || "Service", subtotal, tax, tax_rate: subtotal > 0 ? round2((tax / subtotal) * 100) : 0,
+        total, currency: inv.currency || "CAD", payment_ref: invoiceNumberOf(inv),
         paid_at: inv.paid_at || inv.created_at, status: inv.status,
       });
       if (!ok) return { ok: false, error: "L'envoi du courriel a échoué." };
       if (to !== (inv.customer_email || inv.client_email)) {
-        await ctx.supabase.from("zenipay_invoices").update({ customer_email: to, client_email: to }).eq("id", inv.id);
+        await updateTolerant(ctx.supabase, "zenipay_invoices", { customer_email: to, client_email: to }, (q) => q.eq("id", inv.id));
       }
-      return { ok: true, summary: `Facture ${inv.invoice_number} envoyée à ${to}`, data: { sent_to: to } };
+      return { ok: true, summary: `Facture ${invoiceNumberOf(inv)} envoyée à ${to}`, data: { sent_to: to } };
     },
   },
 
@@ -252,14 +259,14 @@ export const TOOLS: OrvelTool[] = [
     async run(ctx, a) {
       const inv = await findInvoice(ctx, str(a.invoice_number));
       if (!inv) return { ok: false, error: "Facture introuvable." };
-      const list = await listInstallments(ctx.supabase, inv.id);
+      const list = await listInstallments(ctx.supabase, inv.id, ctx.merchantId);
       const target = Number.isFinite(num(a.seq)) ? list.find((i) => i.seq === num(a.seq)) : list.find((i) => i.status === "pending" || i.status === "sent");
       if (!target) return { ok: false, error: "Aucun versement à relancer sur cette facture." };
       if (target.status === "paid") return { ok: false, error: `${target.label} est déjà payé.` };
       if (target.status === "cancelled") return { ok: false, error: `${target.label} est annulé.` };
       const ok = await sendInstallmentRequest(ctx.supabase, target, target.sent_at ? "reminder" : "request");
       if (!ok) return { ok: false, error: "Envoi impossible (courriel du client manquant ?)." };
-      return { ok: true, summary: `${target.sent_at ? "Rappel" : "Lien"} ${target.label} (${inv.invoice_number}) envoyé`, data: { label: target.label, amount: target.amount, pay_url: payUrl(target.pay_token) } };
+      return { ok: true, summary: `${target.sent_at ? "Rappel" : "Lien"} ${target.label} (${invoiceNumberOf(inv)}) envoyé`, data: { label: target.label, amount: target.amount, pay_url: payUrl(target.pay_token) } };
     },
   },
 

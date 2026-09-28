@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supaba
 import { FundingClient } from "@/lib/zenicore/funding-client";
 import type { Currency } from "@/lib/zenicore/types";
 import { createPaidInvoice, emailInvoice } from "@/lib/zenipay/auto-invoice";
-import { markInstallmentPaid, type Installment } from "@/lib/zenipay/installments";
+import { markInstallmentPaid, findInstallmentById } from "@/lib/zenipay/installments";
 
 const verifySignature = verifyFinixSignature;
 
@@ -167,12 +167,13 @@ export async function POST(request: Request) {
 
             // ── INVOICE CREATION + EMAIL (idempotent on payment_id) ─────────
             const meta = (payment.metadata || {}) as Record<string, unknown>;
+            // Card payments were already invoiced by process-payment; only the
+            // first completion (EFT, 3-D Secure) creates the invoice here.
+            if (!firstCompletion) break;
             if (meta.installment_id) {
-              const { data: inst } = await supabase
-                .from("zenipay_invoice_installments").select("*")
-                .eq("id", String(meta.installment_id)).maybeSingle();
+              const inst = await findInstallmentById(supabase, String(meta.installment_id));
               if (inst) {
-                await markInstallmentPaid(supabase, { ...inst, amount: Number(inst.amount) } as Installment, {
+                await markInstallmentPaid(supabase, inst, {
                   paymentId: payment.id,
                   paymentRef: String(meta.reference || payment.id),
                 });
