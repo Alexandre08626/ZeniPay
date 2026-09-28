@@ -1,16 +1,19 @@
 "use client";
 
-// Orvel — floating chat on every Business dashboard page. Orvel acts on its
-// own within the permissions set in /app/orvel; every action it takes is
-// listed under its reply, with an undo button when reversible.
+// Orvel — floating chat on every Business dashboard page. Orvel reads and
+// prepares within the permissions set in /app/orvel; anything that leaves
+// ZeniPay (emails, refunds, transfers) is shown as a preview and only runs
+// when the merchant clicks « Confirmer ». Actions are listed under the reply,
+// with an undo button when reversible.
 
 import React, { useEffect, useRef, useState } from "react";
-import { X, Send, Undo2, CheckCircle2, AlertTriangle, Ban } from "lucide-react";
+import { X, Send, Undo2, CheckCircle2, AlertTriangle, Ban, ShieldCheck } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
 import { OrvelMark } from "./OrvelMark";
 
 interface Action { id?: string; tool: string; status: "done" | "failed" | "denied"; summary: string; undoable: boolean }
-interface Msg { role: "user" | "assistant"; content: string; actions?: Action[]; error?: boolean }
+interface Pending { tool: string; token: string; preview: { title: string; lines: string[]; danger?: boolean }; state?: "busy" | "done" | "cancelled" | "error"; result?: Action; error?: string }
+interface Msg { role: "user" | "assistant"; content: string; actions?: Action[]; pending?: Pending[]; error?: boolean }
 
 const STORE_KEY = "zp_orvel_chat";
 const SUGGESTIONS = [
@@ -47,11 +50,26 @@ export function OrvelChat() {
       });
       const j = await r.json().catch(() => ({}));
       setMsgs([...next, r.ok
-        ? { role: "assistant", content: j.reply || "", actions: j.actions || [] }
+        ? { role: "assistant", content: j.reply || "", actions: j.actions || [], pending: j.pending || [] }
         : { role: "assistant", content: j.error || "Orvel n'a pas pu répondre.", error: true }]);
     } catch {
       setMsgs([...next, { role: "assistant", content: "Connexion impossible avec Orvel.", error: true }]);
     } finally { setBusy(false); }
+  };
+
+  // Met à jour une carte d'aperçu (message i, carte k).
+  const setPending = (i: number, k: number, patch: Partial<Pending>) =>
+    setMsgs((cur) => cur.map((m, mi) => mi !== i || !m.pending ? m : { ...m, pending: m.pending.map((p, pk) => (pk === k ? { ...p, ...patch } : p)) }));
+
+  const confirmAction = async (i: number, k: number, p: Pending) => {
+    if (p.state) return;
+    setPending(i, k, { state: "busy" });
+    try {
+      const r = await fetch("/api/orvel/actions/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: p.token }) });
+      const j = await r.json().catch(() => ({}));
+      if (j.action) setPending(i, k, { state: j.action.status === "done" ? "done" : "error", result: j.action, error: j.action.status === "done" ? undefined : j.action.summary });
+      else setPending(i, k, { state: "error", error: j.error || "Action impossible." });
+    } catch { setPending(i, k, { state: "error", error: "Connexion impossible." }); }
   };
 
   const undo = async (a: Action) => {
@@ -88,7 +106,7 @@ export function OrvelChat() {
         <OrvelMark size={32} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: zp.weight.semibold, color: zp.text.primary }}>Orvel</div>
-          <div style={{ fontSize: 11, color: zp.text.muted }}>Agit seul selon vos <a href="/app/orvel" style={{ color: zp.brand.cyan }}>permissions</a></div>
+          <div style={{ fontSize: 11, color: zp.text.muted }}>Prépare, vous confirmez les envois · <a href="/app/orvel" style={{ color: zp.brand.cyan }}>permissions</a></div>
         </div>
         {msgs.length > 0 && (
           <button type="button" onClick={() => { setMsgs([]); setUndone({}); }} style={{ background: "transparent", border: "none", color: zp.text.muted, fontSize: 11, cursor: "pointer" }}>Effacer</button>
@@ -116,6 +134,43 @@ export function OrvelChat() {
               background: m.role === "user" ? zp.brand.cyan : m.error ? zp.semantic.dangerBg : zp.surface.bg2,
               color: m.role === "user" ? "#04111d" : m.error ? zp.semantic.danger : zp.text.primary,
             }}>{m.content}</div>
+            {m.pending && m.pending.map((p, k) => (
+              <div key={p.token} style={{
+                marginTop: 8, padding: "10px 12px", borderRadius: zp.radius.md, fontSize: 12,
+                background: zp.surface.bg2, border: `1px solid ${p.preview.danger ? zp.semantic.danger : zp.brand.cyan}`,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: zp.weight.semibold, color: p.preview.danger ? zp.semantic.danger : zp.text.primary, marginBottom: 6 }}>
+                  <ShieldCheck size={14} /> {p.preview.title}
+                </div>
+                {p.preview.lines.map((l, li) => <div key={li} style={{ color: zp.text.primary, lineHeight: 1.5 }}>{l}</div>)}
+                {!p.state && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button type="button" onClick={() => void confirmAction(i, k, p)} style={{
+                      flex: 1, padding: "7px 10px", borderRadius: zp.radius.sm, border: "none", cursor: "pointer", fontWeight: zp.weight.semibold,
+                      background: p.preview.danger ? zp.semantic.danger : zp.gradient.main, color: "#fff", fontSize: 12,
+                    }}>Confirmer</button>
+                    <button type="button" onClick={() => setPending(i, k, { state: "cancelled" })} style={{
+                      padding: "7px 12px", borderRadius: zp.radius.sm, border: `1px solid ${zp.surface.border}`, background: "transparent",
+                      color: zp.text.muted, cursor: "pointer", fontSize: 12,
+                    }}>Annuler</button>
+                  </div>
+                )}
+                {p.state === "busy" && <div style={{ marginTop: 8, color: zp.text.muted }}>En cours…</div>}
+                {p.state === "cancelled" && <div style={{ marginTop: 8, color: zp.text.muted }}>Annulé — rien n'a été envoyé.</div>}
+                {p.state === "error" && <div style={{ marginTop: 8, color: zp.semantic.danger, display: "flex", gap: 5, alignItems: "center" }}><AlertTriangle size={12} /> {p.error}</div>}
+                {p.state === "done" && p.result && (
+                  <div style={{ marginTop: 8, color: zp.semantic.success, display: "flex", gap: 6, alignItems: "center" }}>
+                    <CheckCircle2 size={12} /> <span style={{ flex: 1 }}>{p.result.summary}</span>
+                    {p.result.undoable && p.result.id && !undone[p.result.id] && (
+                      <button type="button" onClick={() => undo(p.result!)} style={{ background: "transparent", border: "none", color: zp.brand.cyan, fontSize: 11, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <Undo2 size={11} /> Annuler l'action
+                      </button>
+                    )}
+                    {p.result.id && undone[p.result.id] && <span style={{ color: zp.text.muted }}>{undone[p.result.id]}</span>}
+                  </div>
+                )}
+              </div>
+            ))}
             {m.actions && m.actions.length > 0 && (
               <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
                 {m.actions.map((a, j) => (

@@ -10,6 +10,7 @@ import { listInstallments, sendInstallmentRequest, payUrl, invoiceNumberOf, invo
 import { updateTolerant } from "@/lib/zenipay/db-tolerant";
 import { refundPayment, RefundError } from "@/lib/zenipay/refund";
 import type { OrvelPermission } from "./permissions";
+import type { Preview } from "./confirm";
 
 export interface ToolCtx {
   supabase: SupabaseClient;
@@ -30,6 +31,9 @@ export interface OrvelTool {
   description: string;
   parameters: Record<string, unknown>;   // JSON Schema
   run: (ctx: ToolCtx, args: Record<string, unknown>) => Promise<ToolOutcome>;
+  /** Actions that leave ZeniPay (emails, money): build the preview shown before the merchant confirms.
+   *  Validation errors are caught here, before anything is sent. */
+  confirm?: (ctx: ToolCtx, args: Record<string, unknown>) => Promise<{ ok: true; preview: Preview } | { ok: false; error: string }>;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -69,6 +73,36 @@ function slimInvoice(i: Record<string, any>) {
     installments: !!i.has_installments,
     created: String(i.created_at || "").slice(0, 10),
   };
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function installmentTarget(ctx: ToolCtx, a: Record<string, unknown>) {
+  const inv = await findInvoice(ctx, str(a.invoice_number));
+  if (!inv) return { error: "Facture introuvable." } as const;
+  const list = await listInstallments(ctx.supabase, inv.id, ctx.merchantId);
+  const target = Number.isFinite(num(a.seq)) ? list.find((i) => i.seq === num(a.seq)) : list.find((i) => i.status === "pending" || i.status === "sent");
+  if (!target) return { error: "Aucun versement à relancer sur cette facture." } as const;
+  if (target.status === "paid") return { error: `${target.label} est déjà payé.` } as const;
+  if (target.status === "cancelled") return { error: `${target.label} est annulé.` } as const;
+  return { inv, target } as const;
+}
+
+async function pickAccounts(ctx: ToolCtx, a: Record<string, unknown>) {
+  const amount = round2(num(a.amount));
+  if (!(amount > 0)) return { error: "Montant invalide." } as const;
+  const { data: accounts } = await ctx.supabase.from("zenipay_accounts").select("*").eq("merchant_id", ctx.merchantId);
+  const pick = (q: string) => {
+    const k = q.toLowerCase().trim();
+    const hits = (accounts || []).filter((x: any) => String(x.account_number || "").endsWith(k) || String(x.account_name || "").toLowerCase() === k);
+    const loose = hits.length ? hits : (accounts || []).filter((x: any) => String(x.account_name || "").toLowerCase().includes(k));
+    return loose.length === 1 ? loose[0] : null;
+  };
+  const from = pick(str(a.from_account, 60)), to = pick(str(a.to_account, 60));
+  if (!from || !to) return { error: "Compte introuvable ou ambigu — précisez le nom exact ou les 4 derniers chiffres." } as const;
+  if (from.id === to.id) return { error: "Les deux comptes sont identiques." } as const;
+  if (Number(from.balance || 0) < amount) return { error: `Solde insuffisant (${money(Number(from.balance || 0), from.currency)}).` } as const;
+  return { from, to, amount } as const;
 }
 
 export const TOOLS: OrvelTool[] = [
@@ -165,7 +199,7 @@ export const TOOLS: OrvelTool[] = [
     name: "create_invoice",
     permission: "invoices",
     description:
-      "Crée une facture et l'envoie au client. Pour un paiement en plusieurs fois, fournir `installments` (2 à 12 lignes) : chaque ligne a un libellé, un pourcentage OU un montant, et une date AAAA-MM-JJ ; la dernière ligne est le solde (sans montant). Les versements dus aujourd'hui partent tout de suite par courriel, les autres automatiquement à leur date.",
+      "Prépare une facture (et son envoi au client). Rien n'est créé ni envoyé avant la confirmation du marchand. Pour un paiement en plusieurs fois, fournir `installments` (2 à 12 lignes) : chaque ligne a un libellé, un pourcentage OU un montant, et une date AAAA-MM-JJ ; la dernière ligne est le solde (sans montant). Les versements dus aujourd'hui partent tout de suite par courriel, les autres automatiquement à leur date.",
     parameters: {
       type: "object",
       properties: {
@@ -183,10 +217,29 @@ export const TOOLS: OrvelTool[] = [
             required: ["label", "due_date"],
           },
         },
-        send_now: { type: "boolean", description: "Envoyer la facture par courriel maintenant (défaut : oui)" },
+        send_now: { type: "boolean", description: "Envoyer la facture par courriel dès la confirmation (défaut : oui si un courriel est fourni)" },
       },
       required: ["customer_name", "amount"],
       additionalProperties: false,
+    },
+    async confirm(_ctx, a) {
+      const name = str(a.customer_name, 120), email = str(a.customer_email, 200);
+      const amount = num(a.amount), tax = Number.isFinite(num(a.tax)) ? num(a.tax) : 0, cur = str(a.currency) === "USD" ? "USD" : "CAD";
+      if (!name) return { ok: false, error: "Nom du client manquant." };
+      if (!(amount > 0)) return { ok: false, error: "Montant invalide." };
+      if (email && !EMAIL_RE.test(email)) return { ok: false, error: `Courriel invalide : ${email}` };
+      const plan = Array.isArray(a.installments) ? (a.installments as PlanLine[]) : [];
+      const sends = a.send_now !== false && !!email;
+      const lines = [
+        `Client : ${name}${email ? ` <${email}>` : " (aucun courriel)"}`,
+        `Description : ${str(a.description) || "Service"}`,
+        `Montant avant taxes : ${money(amount, cur)}`,
+        `Taxes : ${money(tax, cur)}`,
+        `Total : ${money(round2(amount + tax), cur)}`,
+        ...plan.map((l, i) => `Versement ${i + 1} — ${str(l.label, 80) || "Versement"} : ${l.amount != null ? money(Number(l.amount), cur) : l.percent != null ? `${Number(l.percent)} %` : "solde"} le ${str(l.due_date, 10)}`),
+        sends ? `Envoi : par courriel à ${email} dès la confirmation${plan.length ? " (les versements dus plus tard partiront à leur date)" : ""}` : "Envoi : aucun (facture créée sans courriel)",
+      ];
+      return { ok: true, preview: { title: sends ? "Créer la facture et l'envoyer" : "Créer la facture", lines } };
     },
     async run(ctx, a) {
       try {
@@ -228,6 +281,17 @@ export const TOOLS: OrvelTool[] = [
     permission: "invoices",
     description: "Envoie (ou renvoie) une facture existante par courriel au client. `email` optionnel pour corriger/ajouter l'adresse.",
     parameters: { type: "object", properties: { invoice_number: { type: "string" }, email: { type: "string" } }, required: ["invoice_number"], additionalProperties: false },
+    async confirm(ctx, a) {
+      const inv = await findInvoice(ctx, str(a.invoice_number));
+      if (!inv) return { ok: false, error: `Facture introuvable : ${str(a.invoice_number) || "(numéro manquant)"}` };
+      const to = str(a.email, 200) || inv.customer_email || inv.client_email || "";
+      if (!EMAIL_RE.test(to)) return { ok: false, error: "Aucun courriel valide pour ce client — demandez-le." };
+      const s = slimInvoice(inv);
+      return { ok: true, preview: { title: "Envoyer la facture par courriel", lines: [
+        `Facture : ${s.invoice_number}`, `Client : ${s.customer || "—"}`, `Destinataire : ${to}`,
+        `Montant : ${money(s.total, s.currency)} (statut : ${s.status})`, `Description : ${invoiceDescriptionOf(inv) || "Service"}`,
+      ] } };
+    },
     async run(ctx, a) {
       const inv = await findInvoice(ctx, str(a.invoice_number));
       if (!inv) return { ok: false, error: "Facture introuvable." };
@@ -256,14 +320,21 @@ export const TOOLS: OrvelTool[] = [
     permission: "reminders",
     description: "Envoie au client le lien de paiement (ou un rappel) d'un versement non payé d'une facture. `seq` = numéro du versement (1, 2, 3…) ; sans `seq`, le prochain versement non payé.",
     parameters: { type: "object", properties: { invoice_number: { type: "string" }, seq: { type: "number" } }, required: ["invoice_number"], additionalProperties: false },
+    async confirm(ctx, a) {
+      const r = await installmentTarget(ctx, a);
+      if ("error" in r) return { ok: false, error: r.error as string };
+      const to = r.inv.customer_email || r.inv.client_email || "";
+      if (!EMAIL_RE.test(to)) return { ok: false, error: "Aucun courriel valide pour ce client — ajoutez-le à la facture." };
+      return { ok: true, preview: { title: r.target.sent_at ? "Envoyer un rappel de paiement" : "Envoyer le lien de paiement", lines: [
+        `Facture : ${invoiceNumberOf(r.inv)} — ${r.inv.customer_name || r.inv.client_name || "Client"}`,
+        `Versement : ${r.target.label} — ${money(Number(r.target.amount), r.inv.currency || "CAD")}, dû le ${String(r.target.due_date || "").slice(0, 10)}`,
+        `Destinataire : ${to}`,
+      ] } };
+    },
     async run(ctx, a) {
-      const inv = await findInvoice(ctx, str(a.invoice_number));
-      if (!inv) return { ok: false, error: "Facture introuvable." };
-      const list = await listInstallments(ctx.supabase, inv.id, ctx.merchantId);
-      const target = Number.isFinite(num(a.seq)) ? list.find((i) => i.seq === num(a.seq)) : list.find((i) => i.status === "pending" || i.status === "sent");
-      if (!target) return { ok: false, error: "Aucun versement à relancer sur cette facture." };
-      if (target.status === "paid") return { ok: false, error: `${target.label} est déjà payé.` };
-      if (target.status === "cancelled") return { ok: false, error: `${target.label} est annulé.` };
+      const found = await installmentTarget(ctx, a);
+      if ("error" in found) return { ok: false, error: found.error as string };
+      const { inv, target } = found;
       const ok = await sendInstallmentRequest(ctx.supabase, target, target.sent_at ? "reminder" : "request");
       if (!ok) return { ok: false, error: "Envoi impossible (courriel du client manquant ?)." };
       return { ok: true, summary: `${target.sent_at ? "Rappel" : "Lien"} ${target.label} (${invoiceNumberOf(inv)}) envoyé`, data: { label: target.label, amount: target.amount, pay_url: payUrl(target.pay_token) } };
@@ -299,6 +370,15 @@ export const TOOLS: OrvelTool[] = [
     permission: "refunds",
     description: "Rembourse un paiement (argent réel, par Finix, sur la carte du client). `payment_ref` = référence ZNV-… du paiement. `amount` optionnel pour un remboursement partiel.",
     parameters: { type: "object", properties: { payment_ref: { type: "string" }, amount: { type: "number" }, reason: { type: "string" } }, required: ["payment_ref"], additionalProperties: false },
+    async confirm(_ctx, a) {
+      const ref = str(a.payment_ref, 80);
+      if (!ref) return { ok: false, error: "Référence du paiement manquante (ZNV-…)." };
+      const amt = num(a.amount);
+      return { ok: true, preview: { title: "Rembourser un paiement (argent réel)", danger: true, lines: [
+        `Paiement : ${ref}`, `Montant : ${Number.isFinite(amt) ? money(amt) : "remboursement complet"}`,
+        `Raison : ${str(a.reason, 200) || "Remboursement par Orvel"}`, "L'argent retourne sur la carte du client (Finix).",
+      ] } };
+    },
     async run(ctx, a) {
       try {
         const r = await refundPayment(ctx.supabase, ctx.merchantId, str(a.payment_ref, 80), {
@@ -318,20 +398,18 @@ export const TOOLS: OrvelTool[] = [
     permission: "internal_transfers",
     description: "Déplace de l'argent entre deux comptes ZeniPay du marchand. Désigner chaque compte par son nom ou ses 4 derniers chiffres (voir get_summary).",
     parameters: { type: "object", properties: { from_account: { type: "string" }, to_account: { type: "string" }, amount: { type: "number" }, memo: { type: "string" } }, required: ["from_account", "to_account", "amount"], additionalProperties: false },
+    async confirm(ctx, a) {
+      const r = await pickAccounts(ctx, a);
+      if ("error" in r) return { ok: false, error: r.error as string };
+      return { ok: true, preview: { title: "Virement entre vos comptes", danger: true, lines: [
+        `De : ${r.from.account_name} (solde ${money(Number(r.from.balance || 0), r.from.currency)})`,
+        `Vers : ${r.to.account_name}`, `Montant : ${money(r.amount, r.from.currency)}`, `Mémo : ${str(a.memo, 140) || "Virement par Orvel"}`,
+      ] } };
+    },
     async run(ctx, a) {
-      const amount = round2(num(a.amount));
-      if (!(amount > 0)) return { ok: false, error: "Montant invalide." };
-      const { data: accounts } = await ctx.supabase.from("zenipay_accounts").select("*").eq("merchant_id", ctx.merchantId);
-      const pick = (q: string) => {
-        const k = q.toLowerCase().trim();
-        const hits = (accounts || []).filter((x: any) => String(x.account_number || "").endsWith(k) || String(x.account_name || "").toLowerCase() === k);
-        const loose = hits.length ? hits : (accounts || []).filter((x: any) => String(x.account_name || "").toLowerCase().includes(k));
-        return loose.length === 1 ? loose[0] : null;
-      };
-      const from = pick(str(a.from_account, 60)), to = pick(str(a.to_account, 60));
-      if (!from || !to) return { ok: false, error: "Compte introuvable ou ambigu — précisez le nom exact ou les 4 derniers chiffres." };
-      if (from.id === to.id) return { ok: false, error: "Les deux comptes sont identiques." };
-      if (Number(from.balance || 0) < amount) return { ok: false, error: `Solde insuffisant (${money(Number(from.balance || 0), from.currency)}).` };
+      const r = await pickAccounts(ctx, a);
+      if ("error" in r) return { ok: false, error: r.error as string };
+      const { from, to, amount } = r;
       const t = await moveBetweenAccounts(ctx, from.id, to.id, amount, str(a.memo, 140) || "Virement par Orvel");
       if (!t.ok) return t;
       return {
