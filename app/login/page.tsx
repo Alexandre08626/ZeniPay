@@ -170,7 +170,7 @@ export default function LoginPage() {
                 <label style={{ fontSize: 11, color: "#64748B", fontWeight: 700, letterSpacing: "0.06em" }}>
                   {t("login.passwordLabel")}
                 </label>
-                <a href="mailto:zenipay@zeniva.ca" style={{ fontSize: 11, color: "#15B8C9", textDecoration: "none", fontWeight: 600 }}>
+                <a href="/forgot-password" style={{ fontSize: 11, color: "#15B8C9", textDecoration: "none", fontWeight: 600 }}>
                   {t("login.forgotPassword")}
                 </a>
               </div>
