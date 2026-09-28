@@ -84,7 +84,7 @@ export default function AbonnementPage() {
     <main style={{ minHeight: "100vh", background: ZP_DARK, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div style={{ width: "100%", maxWidth: 440 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-          <ZeniPayLogo size={140} showWordmark />
+          <ZeniPayLogo size={38} showWordmark />
           <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.06em" }}>🔒 PAIEMENT SÉCURISÉ</span>
         </div>
         {children}
