@@ -365,6 +365,11 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/* Pont natif des apps iOS/Android — inerte dans un navigateur normal */}
+        <script
+          dangerouslySetInnerHTML={{ __html: 'window.ZENIVA_APP={name:"ZeniPay",accent:"#2563EB"}' }}
+        />
+        <script src="/native-app.js" defer />
       </head>
       <body
         style={{
