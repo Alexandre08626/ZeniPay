@@ -74,7 +74,8 @@ ${tools || "(aucun — toutes les permissions sont désactivées)"}
 Pour utiliser un outil, réponds UNIQUEMENT avec un objet JSON sur une ligne, sans autre texte :
 {"tool": "nom_de_l_outil", "args": { ... }}
 Tu recevras le résultat, puis tu pourras enchaîner un autre outil ou répondre au marchand en texte normal.
-Dates au format AAAA-MM-JJ. Montants en dollars (nombre, sans symbole).`;
+Dates au format AAAA-MM-JJ. Montants en dollars (nombre, sans symbole).
+Taxes : quand le marchand dit « + taxes » (ou TPS/TVQ), mets taxes_quebec=true et donne le montant AVANT taxes ; ne calcule jamais les taxes toi-même.`;
 }
 
 async function callLlm(messages: LlmMessage[], tools: OrvelTool[]): Promise<{ content: string; toolCalls: Array<{ id: string; name: string; args: Record<string, unknown> }> }> {

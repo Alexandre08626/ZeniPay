@@ -52,6 +52,26 @@ describe("Orvel — actions à confirmer", () => {
     expect(text).toContain("jean@exemple.com dès la confirmation");
   });
 
+  it("« + taxes » : TPS et TVQ calculées par le code, pas par le modèle", async () => {
+    const tool = TOOLS.find((t) => t.name === "create_invoice")!;
+    const r = await tool.confirm!({ supabase: {} as never, merchantId: "m1" }, { customer_name: "Jean Tremblay", amount: 2000, taxes_quebec: true, tax: 14.975 });
+    const text = r.ok ? r.preview.lines.join("\n") : "";
+    expect(text).toMatch(/TPS 5 %\s+100,00\s?\$/);
+    expect(text).toMatch(/TVQ 9,975 %\s+199,50\s?\$/);
+    expect(text).toMatch(/Total : 2\s?299,50\s?\$/); // la taxe erronée du modèle (14,975) est ignorée
+  });
+
+  it("versement donné en % et en $ : le % gagne, calculé sur le total avec taxes", async () => {
+    const tool = TOOLS.find((t) => t.name === "create_invoice")!;
+    const r = await tool.confirm!({ supabase: {} as never, merchantId: "m1" }, {
+      customer_name: "Jean Tremblay", amount: 2000, taxes_quebec: true,
+      installments: [{ label: "Dépôt", percent: 30, amount: 600, due_date: "2026-09-27" }, { label: "Solde", due_date: "2026-11-27" }],
+    });
+    const text = r.ok ? r.preview.lines.join("\n") : "";
+    expect(text).toMatch(/Dépôt : 30 % \(689,85\s?\$\)/); // 30 % de 2 299,50 $, pas les 600 $ avant taxes du modèle
+    expect(text).toContain("Solde : solde");
+  });
+
   it("l'aperçu refuse un courriel invalide avant tout envoi", async () => {
     const tool = TOOLS.find((t) => t.name === "create_invoice")!;
     const r = await tool.confirm!({ supabase: {} as never, merchantId: "m1" }, { customer_name: "X", customer_email: "pas-un-courriel", amount: 10 });

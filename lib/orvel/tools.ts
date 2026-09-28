@@ -37,6 +37,27 @@ export interface OrvelTool {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+// Taxes du Québec calculées ici (jamais par le modèle) : TPS 5 % + TVQ 9,975 %.
+const TPS = 0.05, TVQ = 0.09975;
+// Un versement se donne en % OU en $. Si le modèle fournit les deux, le % gagne : c'est ce que le marchand a dit,
+// et le montant en $ du modèle est souvent calculé avant taxes.
+const hasNum = (v: unknown) => v != null && v !== "" && Number.isFinite(Number(v));
+function planLine(l: PlanLine) {
+  const pct = hasNum(l.percent);
+  return {
+    label: str(l.label, 80), due_date: str(l.due_date, 10),
+    ...(pct ? { percent: Number(l.percent) } : {}),
+    ...(!pct && hasNum(l.amount) ? { amount: Number(l.amount) } : {}),
+  };
+}
+function invoiceTax(a: Record<string, unknown>, amount: number): { tax: number; tps: number; tvq: number; qc: boolean } {
+  if (a.taxes_quebec === true) {
+    const tps = round2(amount * TPS), tvq = round2(amount * TVQ);
+    return { tax: round2(tps + tvq), tps, tvq, qc: true };
+  }
+  const t = Number(a.tax);
+  return { tax: Number.isFinite(t) && t > 0 ? round2(t) : 0, tps: 0, tvq: 0, qc: false };
+}
 const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : NaN; };
 const money = (n: number, cur = "CAD") => new Intl.NumberFormat("fr-CA", { style: "currency", currency: cur }).format(n);
@@ -207,7 +228,8 @@ export const TOOLS: OrvelTool[] = [
         customer_email: { type: "string" },
         description: { type: "string" },
         amount: { type: "number", description: "Montant avant taxes, en dollars" },
-        tax: { type: "number", description: "Taxes en dollars (0 si incluses ou aucune)" },
+        taxes_quebec: { type: "boolean", description: "true si le marchand dit « + taxes » (ou TPS/TVQ) : la TPS 5 % et la TVQ 9,975 % sont calculées automatiquement. Ne calcule JAMAIS les taxes toi-même." },
+        tax: { type: "number", description: "Seulement si le marchand donne lui-même un montant de taxes en dollars. Sinon, utilise taxes_quebec." },
         currency: { type: "string", enum: ["CAD", "USD"] },
         installments: {
           type: "array",
@@ -224,36 +246,33 @@ export const TOOLS: OrvelTool[] = [
     },
     async confirm(_ctx, a) {
       const name = str(a.customer_name, 120), email = str(a.customer_email, 200);
-      const amount = num(a.amount), tax = Number.isFinite(num(a.tax)) ? num(a.tax) : 0, cur = str(a.currency) === "USD" ? "USD" : "CAD";
+      const amount = num(a.amount), cur = str(a.currency) === "USD" ? "USD" : "CAD";
+      const tx = invoiceTax(a, amount), tax = tx.tax;
       if (!name) return { ok: false, error: "Nom du client manquant." };
       if (!(amount > 0)) return { ok: false, error: "Montant invalide." };
       if (email && !EMAIL_RE.test(email)) return { ok: false, error: `Courriel invalide : ${email}` };
-      const plan = Array.isArray(a.installments) ? (a.installments as PlanLine[]) : [];
+      const plan = Array.isArray(a.installments) ? (a.installments as PlanLine[]).map(planLine) : [];
       const sends = a.send_now !== false && !!email;
       const lines = [
         `Client : ${name}${email ? ` <${email}>` : " (aucun courriel)"}`,
         `Description : ${str(a.description) || "Service"}`,
         `Montant avant taxes : ${money(amount, cur)}`,
-        `Taxes : ${money(tax, cur)}`,
+        tx.qc ? `Taxes : TPS 5 % ${money(tx.tps, cur)} + TVQ 9,975 % ${money(tx.tvq, cur)} = ${money(tax, cur)}` : `Taxes : ${money(tax, cur)}`,
         `Total : ${money(round2(amount + tax), cur)}`,
-        ...plan.map((l, i) => `Versement ${i + 1} — ${str(l.label, 80) || "Versement"} : ${l.amount != null ? money(Number(l.amount), cur) : l.percent != null ? `${Number(l.percent)} %` : "solde"} le ${str(l.due_date, 10)}`),
+        ...plan.map((l, i) => `Versement ${i + 1} — ${str(l.label, 80) || "Versement"} : ${"percent" in l ? `${l.percent} % (${money(round2(round2(amount + tax) * Number(l.percent) / 100), cur)})` : "amount" in l ? money(Number(l.amount), cur) : "solde"} le ${str(l.due_date, 10)}`),
         sends ? `Envoi : par courriel à ${email} dès la confirmation${plan.length ? " (les versements dus plus tard partiront à leur date)" : ""}` : "Envoi : aucun (facture créée sans courriel)",
       ];
       return { ok: true, preview: { title: sends ? "Créer la facture et l'envoyer" : "Créer la facture", lines } };
     },
     async run(ctx, a) {
       try {
-        const plan = Array.isArray(a.installments) ? (a.installments as PlanLine[]).map((l) => ({
-          label: str(l.label, 80), due_date: str(l.due_date, 10),
-          ...(Number.isFinite(Number(l.percent)) && l.percent != null ? { percent: Number(l.percent) } : {}),
-          ...(Number.isFinite(Number(l.amount)) && l.amount != null ? { amount: Number(l.amount) } : {}),
-        })) : undefined;
+        const plan = Array.isArray(a.installments) ? (a.installments as PlanLine[]).map(planLine) : undefined;
         const r = await createMerchantInvoice(ctx.supabase, ctx.merchantId, {
           customer_name: str(a.customer_name, 120),
           customer_email: str(a.customer_email, 200),
           description: str(a.description) || "Service",
           amount: num(a.amount),
-          tax: Number.isFinite(num(a.tax)) ? num(a.tax) : 0,
+          tax: invoiceTax(a, num(a.amount)).tax,
           currency: str(a.currency) || "CAD",
           status: "sent",
           installments: plan && plan.length ? plan : undefined,
