@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
 
     // ─── 1. Merchant JSONB data ──────────────────────────────────────────
     let merchantBalance = 0;
+    let cfgTransactions: Array<Record<string, any>> = [];
     let merchantTxCount = 0;
     // Live balance = zenipay_merchants.balance column. Credited on each
     // payment (record-payment / Finix webhook), debited when Finix settles
@@ -34,6 +35,7 @@ export async function GET(req: NextRequest) {
       if (cfg) {
         merchantBalance = Number(cfg.balance || 0);
         merchantTxCount = Number(cfg.tx_count || 0);
+        if (Array.isArray(cfg.transactions)) cfgTransactions = cfg.transactions as Array<Record<string, any>>;
       }
       if (mRow && mRow.balance != null) liveBalance = Math.max(0, Number(mRow.balance) || 0);
     } catch { /* best-effort */ }
@@ -84,7 +86,19 @@ export async function GET(req: NextRequest) {
     };
 
     // ─── 4. Recent transactions ─────────────────────────────────────────
-    const recentTransactions = myPayments.slice(0, 50).map(p => {
+    // Payments whose zenipay_payments insert failed (UUID bug before
+    // 2026-09-27) only exist in the merchant's config.transactions — show
+    // them too so the history isn't empty.
+    const seen = new Set(myPayments.map((p) => String((p.metadata as any)?.reference || p.id)));
+    const fromConfig = cfgTransactions
+      .filter((t) => !seen.has(String(t.id)))
+      .map((t) => ({
+        id: String(t.id), customer: t.customer_name || "—", amount: Number(t.amount || 0),
+        currency: t.currency || "CAD", status: t.status || "succeeded",
+        description: t.description || "", date: t.createdAt || t.created_at || "",
+        gateway: t.gateway || "finix", card_brand: t.card_brand || "", card_last4: t.card_last4 || "",
+      }));
+    const recentTransactions = [...myPayments.slice(0, 50).map(p => {
       const md = (p.metadata || {}) as Record<string, unknown>;
       return {
         id: p.id, customer: p.customer_name || "—", amount: Number(p.amount || 0),
@@ -93,7 +107,7 @@ export async function GET(req: NextRequest) {
         gateway: p.gateway || "ZeniPay",
         card_brand: (md.card_brand as string) || "", card_last4: (md.card_last4 as string) || "",
       };
-    });
+    }), ...fromConfig].sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 50);
 
     // ─── 5. Payouts (best-effort) ───────────────────────────────────────
     let recentPayouts: unknown[] = [];
