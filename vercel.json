@@ -2,6 +2,7 @@
   "crons": [
     { "path": "/api/cron/ben-auto-reply", "schedule": "*/5 * * * *" },
     { "path": "/api/cron/installments-tick", "schedule": "0 13 * * *" },
+    { "path": "/api/cron/subscriptions-tick", "schedule": "0 14 * * *" },
     { "path": "/api/v1/agents/_internal/approvals-expire-tick", "schedule": "0 * * * *" },
     { "path": "/api/v1/agents/_internal/expire-approvals", "schedule": "0 * * * *" },
     { "path": "/api/v1/agents/_internal/auto-categorize-settled-tick", "schedule": "*/15 * * * *" },
@@ -14,6 +15,7 @@
   "functions": {
     "app/api/cron/ben-auto-reply/route.ts": { "maxDuration": 30 },
     "app/api/cron/installments-tick/route.ts": { "maxDuration": 60 },
+    "app/api/cron/subscriptions-tick/route.ts": { "maxDuration": 300 },
     "app/api/orvel/chat/route.ts": { "maxDuration": 180 },
     "app/api/v1/agents/_internal/compute-anomaly-signals-tick/route.ts": { "maxDuration": 60 },
     "app/api/v1/agents/audit/export/route.ts": { "maxDuration": 60 }
