@@ -35,7 +35,7 @@ type LlmMessage =
   | { role: "tool"; content: string; tool_call_id: string };
 
 const MAX_STEPS = 6;
-const LLM_TIMEOUT_MS = 45_000;
+const LLM_TIMEOUT_MS = 120_000; // le gros modèle d'Orvel réfléchit avant les actions (jusqu'à ~45 s)
 
 export function orvelConfig() {
   return {

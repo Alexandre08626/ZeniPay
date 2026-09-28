@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 // POST /api/orvel/chat  { messages: [{ role: "user"|"assistant", content }] }
 // Only plain user/assistant text is accepted from the browser — tool calls
