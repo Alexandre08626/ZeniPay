@@ -47,6 +47,21 @@ export function orvelPrice(plan: "plus" | "pro") {
 }
 
 /** Même jour le mois suivant (31 janv. → 28/29 févr.). */
+/** Vendeur inscrit aux taxes (nom légal sur les reçus). */
+export const orvelSellerName = () => process.env.ORVEL_LEGAL_NAME || "International Luxury Management";
+
+/**
+ * Un abonnement jamais payé (« incomplete ») prend le prix en vigueur —
+ * p. ex. quand les numéros TPS/TVQ viennent d'être configurés. Un
+ * abonnement déjà payé garde le prix convenu.
+ */
+export async function withCurrentPrice(supabase: SupabaseClient, sub: Subscription): Promise<Subscription> {
+  if (sub.status !== "incomplete") return sub;
+  const p = orvelPrice(sub.plan);
+  if (p.total === sub.total && p.tps === sub.tps && p.tvq === sub.tvq) return sub;
+  return (await updateSub(supabase, sub.id, { amount: p.amount, tps: p.tps, tvq: p.tvq, total: p.total })) || sub;
+}
+
 export function addMonth(iso: string): string {
   const d = new Date(iso);
   const day = d.getUTCDate();
@@ -196,7 +211,7 @@ const money = (n: number) => n.toLocaleString("fr-CA", { style: "currency", curr
 const dateFr = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("fr-CA", { timeZone: "America/Toronto", day: "numeric", month: "long", year: "numeric" }) : "");
 const esc = (s: string) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 function wrap(inner: string) {
-  return `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#1a1a2e;max-width:540px">${inner}<p style="color:#888;font-size:12px;margin-top:28px">Paiement traité par ZeniPay pour Orvel AI (Zenitech). Pour annuler : Orvel → Mon profil → Mon forfait.</p></div>`;
+  return `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#1a1a2e;max-width:540px">${inner}<p style="color:#888;font-size:12px;margin-top:28px">Orvel AI — vendu par ${esc(orvelSellerName())}${process.env.ORVEL_TPS_NO ? ` · TPS ${esc(process.env.ORVEL_TPS_NO)} · TVQ ${esc(process.env.ORVEL_TVQ_NO || "")}` : ""}. Paiement traité par ZeniPay. Pour annuler : Orvel → Mon profil → Mon forfait.</p></div>`;
 }
 
 export async function emailReceipt(sub: Subscription, ref: string) {

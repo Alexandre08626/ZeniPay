@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
-import { getSub, ORVEL_PLANS } from "@/lib/zenipay/subscriptions";
+import { getSub, ORVEL_PLANS, withCurrentPrice } from "@/lib/zenipay/subscriptions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,8 +9,9 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const id = new URL(req.url).searchParams.get("id") || "";
   if (!/^SUB-[0-9a-f-]{36}$/.test(id)) return NextResponse.json({ error: "Abonnement introuvable" }, { status: 404 });
-  const sub = await getSub(getSupabaseAdmin(), id);
-  if (!sub) return NextResponse.json({ error: "Abonnement introuvable" }, { status: 404 });
+  const found = await getSub(getSupabaseAdmin(), id);
+  if (!found) return NextResponse.json({ error: "Abonnement introuvable" }, { status: 404 });
+  const sub = await withCurrentPrice(getSupabaseAdmin(), found);
   const [u, d] = sub.customer_email.split("@");
   return NextResponse.json({
     id: sub.id, plan: sub.plan, plan_nom: ORVEL_PLANS[sub.plan].nom, status: sub.status,
