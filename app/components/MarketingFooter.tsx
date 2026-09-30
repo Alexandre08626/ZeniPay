@@ -233,6 +233,17 @@ export default function MarketingFooter() {
         >
           Built in Québec.
         </p>
+        <a
+          href="https://zenitech.dev/"
+          style={{
+            fontFamily: font.sans,
+            fontSize: fontSize.xs.size,
+            color: color.textSubtle,
+            textDecoration: "none",
+          }}
+        >
+          Website by Zenitech — web &amp; AI agency
+        </a>
       </div>
 
       <style>{`

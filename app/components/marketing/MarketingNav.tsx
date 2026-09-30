@@ -213,6 +213,7 @@ export function MarketingFooter() {
         }}>
           <span>© {year} International Luxury Management Inc. (ZeniPay)</span>
           <span>Made in Québec · Serving Canada and the United States</span>
+          <a href="https://zenitech.dev/" style={{ color: zp.text.dim, textDecoration: "none" }}>Website by Zenitech — web &amp; AI agency</a>
         </div>
 
         <style>{`
