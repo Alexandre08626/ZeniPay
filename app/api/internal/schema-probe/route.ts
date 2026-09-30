@@ -26,6 +26,9 @@ export async function GET(req: NextRequest) {
   if (!token || given.length !== token.length || !timingSafeEqual(Buffer.from(given), Buffer.from(token))) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
+  // Which Supabase project this deployment talks to (the ref is an identifier, not a secret).
+  const supabaseHost = (() => { try { return new URL(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").host; } catch { return ""; } })();
+  if (req.nextUrl.searchParams.get("only") === "host") return NextResponse.json({ supabaseHost });
   const db = getSupabaseAdmin();
   const out: Record<string, Record<string, string>> = {};
   for (const [table, cols] of Object.entries(CHECKS)) {
