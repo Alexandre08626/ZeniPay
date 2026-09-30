@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       collect_name: true, collect_email: true, collect_phone_number: true, collect_billing_address: false,
       success_return_url: `${base}/`, unsuccessful_return_url: `${base}/`, expired_session_url: `${base}/`,
       expiration_in_minutes: 10080,
+      terms_of_service_url: `${base}/terms`,
     },
     tags: { source: "zenipay_emergency", merchant: String(b.merchant || "zenicorp") },
   };
