@@ -91,10 +91,12 @@ export async function POST(req: NextRequest) {
 
     if (!merchantId && api_key) {
       // Server-to-server call (no session). Resolve via api_key.
+      // Scan every merchant: a fixed .limit(10) silently rejected valid keys
+      // once the merchant table grew past 10 rows.
       const { data: merchants } = await supabase
         .from("zenipay_merchants")
         .select("id, api_keys, merchant_data")
-        .limit(10);
+        .limit(5000);
       const merchantRow = merchants?.find((m: Record<string, unknown>) => {
         const keys = (m.api_keys as Record<string, unknown>) || {};
         const md = (m.merchant_data as Record<string, unknown>) || {};
