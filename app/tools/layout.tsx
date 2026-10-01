@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  // Page retirée de l'index (2026-10-01) : contenu non vérifié ou page vide. Ne pas réindexer sans revoir le texte.
+  robots: { index: false, follow: true },
   title: "Financial Tools — Dashboard, Invoicing, Accounting, Analytics",
   description:
     "Manage your business finances with ZeniPay's complete financial tools. Real-time dashboard, automated invoicing, multi-wallet architecture, commission splits, reconciliation, and QuickBooks export — all built in.",

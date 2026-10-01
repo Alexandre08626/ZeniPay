@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  // Page retirée de l'index (2026-10-01) : contenu non vérifié ou page vide. Ne pas réindexer sans revoir le texte.
+  robots: { index: false, follow: true },
   title: "Accounting integrations — QuickBooks, Xero, Wave, FreshBooks",
   description:
     "Sync every ZeniPay transaction to QuickBooks, Xero, Wave, or FreshBooks. Categorization, GL mapping, and period closes are handled by Leo, your AI accountant — built into every account.",

@@ -9,7 +9,7 @@ import Link from "next/link";
 import {
   CreditCard, FileText, BarChart2, Lock,
   Zap, Shield, BookOpen, Sparkles,
-  UserPlus, ArrowDownLeft, Play,
+  UserPlus, ArrowDownLeft,
   User, Building2, Wallet, Target, PieChart, Users, ShieldCheck, Check,
   type LucideIcon,
 } from "lucide-react";
@@ -17,13 +17,17 @@ import { MarketingNav, MarketingFooter } from "@/app/components/marketing/Market
 import zp from "@/lib/design-system/zenipay-brand";
 
 export const metadata: Metadata = {
-  title: "ZeniPay — Payments, invoicing and Orvel, your AI operator",
+  title: { absolute: "ZeniPay — Payment links, online invoicing and installments for Canadian businesses" },
   description:
-    "Business accounts, payment links and invoices in Canada and the US — with Orvel, an AI operator that creates invoices, splits them into deposits, sends payment links and follows up for you.",
+    "Canadian payment platform for small businesses and online stores: payment links, invoices with a pay button, deposits and installments, card and bank transfer payments. Cards processed by Finix (PCI DSS Level 1). Made in Québec.",
+  alternates: {
+    canonical: "https://zenipay.ca",
+    languages: { "en-CA": "https://zenipay.ca", "fr-CA": "https://zenipay.ca/fr", "x-default": "https://zenipay.ca" },
+  },
   openGraph: {
-    title: "ZeniPay — Payments, invoicing and Orvel, your AI operator",
+    title: "ZeniPay — Payment links, online invoicing and installments",
     description:
-      "Tell Orvel what to do: invoices in full or in deposits, payment links, reminders — done for you.",
+      "Send a link or an invoice, get paid by card or bank transfer, split big jobs into installments. Made in Québec.",
     url: "https://zenipay.ca",
     siteName: "ZeniPay",
   },
@@ -32,6 +36,7 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <div style={{ background: "#fff", color: zp.text.primary, fontFamily: zp.font.sans, minHeight: "100vh" }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }} />
       <MarketingNav />
       <Hero />
       <PartnerStrip />
@@ -82,7 +87,7 @@ function Hero() {
           border: `1px solid ${zp.surface.border}`, marginBottom: 24,
         }}>
           <span className="zp-brand-text" style={{ fontSize: 11, fontWeight: zp.weight.bold, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-            The first online bank with AI wallets
+            Payment platform · Made in Québec
           </span>
         </div>
 
@@ -91,36 +96,35 @@ function Hero() {
           fontSize: "clamp(40px, 6vw, 72px)", fontWeight: zp.weight.semibold,
           letterSpacing: "-0.035em", lineHeight: 1.02, color: zp.text.primary,
         }}>
-          Your bank.
+          Get paid online.
           <br />
-          <span className="zp-brand-text">Now with AI built in.</span>
+          <span className="zp-brand-text">Links, invoices, installments.</span>
         </h1>
 
         <p style={{ margin: "22px auto 0", maxWidth: 640, fontSize: 17, lineHeight: 1.55, color: zp.text.muted }}>
-          ZeniPay is the first online bank where every account ships with a
-          fleet of AI specialists — accounting, finance, security, compliance,
-          and revenue. Personal or business, in Canada and the US: move money,
-          run your books, get answers. Instantly.
+          ZeniPay is a Canadian payment platform for small businesses and
+          online stores. Send a payment link or an invoice, let customers pay
+          by card or bank transfer, split big jobs into a deposit and
+          installments — and let Orvel, the built-in AI assistant, handle the
+          paperwork and the reminders.
         </p>
 
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 32, flexWrap: "wrap" }}>
-          <Link href="/register?type=business" style={primaryCta}>Get started free</Link>
-          <Link href="/#demo" style={ghostCta}>
-            <Play size={14} style={{ marginRight: 6 }} /> Watch demo
-          </Link>
+          <Link href="/register?type=business" style={primaryCta}>Open a business account</Link>
+          <Link href="/contact" style={ghostCta}>Talk to our team</Link>
         </div>
 
         <div style={{ marginTop: 14, fontSize: 13, color: zp.text.muted }}>
-          Looking for a personal account?{" "}
-          <Link href="/register?type=personal" style={{ color: zp.brand.pink, textDecoration: "underline", fontWeight: zp.weight.semibold }}>
-            Open one free →
+          Vous préférez le français ?{" "}
+          <Link href="/fr" hrefLang="fr-CA" style={{ color: zp.brand.pink, textDecoration: "underline", fontWeight: zp.weight.semibold }}>
+            Version française →
           </Link>
         </div>
 
         <div style={{ display: "flex", justifyContent: "center", gap: 22, marginTop: 28, flexWrap: "wrap", fontSize: 12, color: zp.text.dim }}>
-          <TrustItem>No credit card required</TrustItem>
-          <TrustItem>PCI-compliant (Finix-powered)</TrustItem>
-          <TrustItem>Chain-hash audit trail</TrustItem>
+          <TrustItem>Cards processed by Finix, a PCI DSS Level 1 processor</TrustItem>
+          <TrustItem>CAD and USD</TrustItem>
+          <TrustItem>French and English</TrustItem>
         </div>
 
         <HeroMockup />
@@ -155,12 +159,12 @@ function HeroMockup() {
           background: "#fff",
         }} className="mk-hero-mock">
           <div style={{ padding: "20px 22px", background: zp.gradient.heroMerchant, color: zp.text.inverse, minHeight: 180, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.8, fontWeight: zp.weight.semibold }}>Merchant · Total balance</div>
-            <div style={{ ...zp.amountStyle.hero, fontSize: 42, color: "#fff" }}>$47,283.12</div>
-            <div style={{ fontSize: 11, opacity: 0.75 }}>2 accounts · CAD</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.8, fontWeight: zp.weight.semibold }}>Example · Paid this month</div>
+            <div style={{ ...zp.amountStyle.hero, fontSize: 42, color: "#fff" }}>$8,450.00</div>
+            <div style={{ fontSize: 11, opacity: 0.75 }}>Payment links · invoices · CAD</div>
           </div>
           <div style={{ padding: "20px 22px", background: zp.gradient.heroAgents, color: zp.text.inverse, minHeight: 180, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.8, fontWeight: zp.weight.semibold }}>Orvel · Receivables</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.8, fontWeight: zp.weight.semibold }}>Example · Orvel receivables</div>
             <div style={{ ...zp.amountStyle.hero, fontSize: 42, color: "#fff" }}>$12,400.00</div>
             <div style={{ fontSize: 11, opacity: 0.75 }}>6 invoices · deposits sent automatically</div>
           </div>
@@ -180,10 +184,10 @@ function PartnerStrip() {
     <section style={{ borderTop: `1px solid ${zp.surface.border}`, background: zp.surface.bg2 }}>
       <div style={{ maxWidth: 1160, margin: "0 auto", padding: "40px 24px", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: zp.text.dim, fontWeight: zp.weight.semibold, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 18 }}>
-          Enterprise-grade infrastructure, from day one.
+          Built on proven infrastructure
         </div>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 48, flexWrap: "wrap", color: zp.text.dim, fontWeight: zp.weight.semibold, fontSize: 18 }}>
-          <span>Finix</span><span>Stripe</span><span>Supabase</span><span>Vercel</span>
+          <span>Finix</span><span>Supabase</span><span>Vercel</span>
         </div>
       </div>
     </section>
@@ -195,19 +199,20 @@ function SectionA() {
     <section id="features" style={{ padding: "96px 24px" }}>
       <div style={{ maxWidth: 1160, margin: "0 auto", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 60, alignItems: "center" }} className="mk-twocol">
         <div>
-          <Eyebrow color={zp.brand.cyan}>Corporate Banking</Eyebrow>
-          <H2>A real bank account for your business.</H2>
+          <Eyebrow color={zp.brand.cyan}>Payments</Eyebrow>
+          <H2>Payment links and invoices that get paid.</H2>
           <p style={bodyStyle}>
-            Send, receive, and manage money like Mercury — but built for the AI
-            era. Multi-account treasury, payment links, automatic invoicing, and
-            full accounting integration.
+            Create a payment link in seconds and share it by email, text or QR
+            code. Send invoices with a pay button. Customers pay by card or by
+            bank transfer (EFT, up to $2,500 per transaction), and every
+            payment shows up in your dashboard.
           </p>
           <FeatureList
             accent={zp.brand.cyan}
             items={[
-              { Icon: CreditCard, title: "Virtual cards for every department" },
-              { Icon: FileText,   title: "Automatic invoicing & payment links" },
-              { Icon: BarChart2,  title: "GL categorization & QuickBooks export" },
+              { Icon: CreditCard, title: "Payment links with QR code and expiry date" },
+              { Icon: FileText,   title: "Invoices emailed with a pay button" },
+              { Icon: BarChart2,  title: "Deposits and 2 to 12 installments" },
               { Icon: Lock,       title: "Tamper-evident audit trail" },
             ]}
           />
@@ -232,25 +237,26 @@ function VisualMerchant() {
     }}>
       <div style={{ background: "#fff", borderRadius: zp.radius.lg, overflow: "hidden", border: `1px solid ${zp.surface.border}` }}>
         <div style={{ background: zp.gradient.heroMerchant, color: zp.text.inverse, padding: "20px 22px" }}>
-          <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.8 }}>Total balance · USD</div>
-          <div style={{ ...zp.amountStyle.hero, fontSize: 44, color: "#fff", marginTop: 6 }}>$47,283.12</div>
-          <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>2 accounts · +6.2% this month</div>
+          <div style={{ fontSize: 10, fontWeight: zp.weight.semibold, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.8 }}>Example · Invoice INV-2026-0014</div>
+          <div style={{ ...zp.amountStyle.hero, fontSize: 44, color: "#fff", marginTop: 6 }}>$2,299.50</div>
+          <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>3 installments · CAD</div>
         </div>
         <div style={{ padding: "14px 16px" }}>
           {[
-            { name: "Business Checking",    last4: "5847", bal: "$31,420.40" },
-            { name: "Savings · 4.2% APY",   last4: "9712", bal: "$15,862.72" },
+            { name: "Deposit 1 · paid",        last4: "30 %", bal: "$689.85" },
+            { name: "Installment 2 · due next month", last4: "30 % ", bal: "$689.85" },
+            { name: "Balance · in two months", last4: "40 %", bal: "$919.80" },
           ].map((r) => (
             <div key={r.last4} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${zp.surface.border}` }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: zp.weight.semibold, color: zp.text.primary }}>{r.name}</div>
-                <div style={{ fontSize: 11, color: zp.text.muted, fontFamily: zp.font.mono }}>•••• {r.last4}</div>
+                <div style={{ fontSize: 11, color: zp.text.muted, fontFamily: zp.font.mono }}>{r.last4}</div>
               </div>
               <div style={{ ...zp.amountStyle.base, fontSize: 15, color: zp.text.primary, fontWeight: zp.weight.semibold }}>{r.bal}</div>
             </div>
           ))}
           <div style={{ marginTop: 8, fontSize: 11, color: zp.text.muted }}>
-            Auto-invoicing · Payment links · QuickBooks export
+            Each installment has its own payment link
           </div>
         </div>
       </div>
@@ -281,7 +287,7 @@ function SectionB() {
               { Icon: BookOpen, title: "Every action logged, with undo when reversible" },
             ]}
           />
-          <Link href="/register" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 24, fontSize: 13, fontWeight: zp.weight.semibold, color: zp.brand.violet, textDecoration: "none" }}>
+          <Link href="/register?type=business" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 24, fontSize: 13, fontWeight: zp.weight.semibold, color: zp.brand.violet, textDecoration: "none" }}>
             Open an account and try Orvel →
           </Link>
         </div>
@@ -332,8 +338,8 @@ function HowItWorks() {
         <H2>Up and running in minutes.</H2>
         <div style={{ marginTop: 48, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
           {[
-            { Icon: UserPlus,      title: "Open your account",   body: "Sign up in under 5 minutes. No branch, no paperwork." },
-            { Icon: ArrowDownLeft, title: "Fund your treasury",  body: "Add funds via card, ACH, or wire. Instantly available." },
+            { Icon: UserPlus,      title: "Open your account",   body: "Sign up online, then complete the business verification required before accepting payments." },
+            { Icon: ArrowDownLeft, title: "Send a link or invoice", body: "Customers pay by card or bank transfer — no account needed on their side." },
             { Icon: Sparkles,      title: "Let Orvel run it",      body: "Invoices, deposits and reminders — just ask Orvel." },
           ].map((s, i) => (
             <div key={s.title} style={{ padding: "24px 22px", borderRadius: zp.radius.lg, background: "#fff", border: `1px solid ${zp.surface.border}`, textAlign: "left" as const }}>
@@ -358,10 +364,10 @@ function StatsRow() {
     <section id="pricing" style={{ padding: "72px 24px", background: zp.surface.heroInk, color: zp.text.inverse }}>
       <div style={{ maxWidth: 1160, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 32 }}>
         {[
-          { v: "$0",       l: "Fees on transfers between your accounts" },
-          { v: "< 1s",     l: "Internal transfer time" },
-          { v: "SHA-256",  l: "Chain hash on every transaction" },
           { v: "2–12",     l: "Installments per invoice, sent automatically" },
+          { v: "3 + 7",    l: "Days after due date: automatic reminders" },
+          { v: "CAD · USD", l: "Invoice and payment-link currencies" },
+          { v: "FR · EN",  l: "Invoices, Orvel and support" },
         ].map((s) => (
           <div key={s.l}>
             <div style={{ ...zp.amountStyle.hero, fontFamily: zp.font.mono, fontSize: 40, color: "#fff", fontWeight: zp.weight.semibold, lineHeight: 1.05 }}>{s.v}</div>
@@ -378,38 +384,38 @@ function ForEveryone() {
   return (
     <section style={{ padding: "96px 24px" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
-        <H2>ZeniPay for everyone.</H2>
+        <H2>Who uses ZeniPay</H2>
         <p style={{ ...bodyStyle, margin: "16px auto 48px", maxWidth: 640 }}>
-          Personal banking that just works · Business banking with Orvel, your AI operator, built in.
+          For service businesses that bill in several payments, and for online sellers who want to get paid without a complex integration.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, textAlign: "left" as const }}>
           <SignupCard
             Icon={User}
             accent={zp.brand.pink}
-            title="Personal Banking"
-            body="Your everyday money, managed smarter. Send, receive, save, and budget — all in one place."
-            badge="Free forever"
+            title="Service businesses"
+            body="Contractors, consultants, event and group organizers: ask for a deposit, bill in installments, stop chasing."
+            badge="Deposits"
             features={[
-              { Icon: Wallet, label: "Personal checking & savings" },
-              { Icon: CreditCard, label: "Virtual debit card" },
-              { Icon: Target, label: "Savings goals" },
-              { Icon: PieChart, label: "Monthly budget tracker" },
+              { Icon: Wallet, label: "Invoices with a pay button" },
+              { Icon: CreditCard, label: "Deposit + installments" },
+              { Icon: Target, label: "Automatic reminders" },
+              { Icon: PieChart, label: "Paid / partially paid status" },
             ]}
-            cta={{ label: "Open personal account", href: "/register?type=personal" }}
+            cta={{ label: "See installment payments", href: "/installments" }}
           />
           <SignupCard
             Icon={Building2}
             accent={zp.brand.cyan}
-            title="Business Banking"
-            body="Everything your company needs — plus Orvel, your AI operator, built right in."
-            badge="Free to start"
+            title="Online stores and sellers"
+            body="Sell without a complicated integration: payment links, QR codes, or the API on your own site."
+            badge="Links + API"
             features={[
-              { Icon: Building2, label: "Business treasury & accounts" },
-              { Icon: Sparkles, label: "Orvel AI operator" },
-              { Icon: Users, label: "Payment links & invoicing" },
-              { Icon: ShieldCheck, label: "Signed audit trail" },
+              { Icon: Building2, label: "Payment links and QR codes" },
+              { Icon: Sparkles, label: "Orvel AI assistant" },
+              { Icon: Users, label: "Card and bank transfer payments" },
+              { Icon: ShieldCheck, label: "Finix (PCI DSS Level 1) card processing" },
             ]}
-            cta={{ label: "Open business account", href: "/register?type=business" }}
+            cta={{ label: "See payment links", href: "/paylinks" }}
           />
         </div>
       </div>
@@ -490,37 +496,43 @@ function SignupCard({ Icon, accent, title, body, badge, features, cta }: {
 const FAQS: Array<{ q: string; a: string }> = [
   {
     q: "What is ZeniPay?",
-    a: "ZeniPay is the first online bank with AI-intelligent wallets. Every personal and business account ships with a fleet of specialized AI agents — accountant, finance, security, compliance, revenue — that read your live account data and answer your questions in plain language. ZeniPay also handles full banking operations: payments, payouts, ACH, wire transfers, invoicing in CAD and USD for Canadian and American customers.",
+    a: "ZeniPay is a Canadian payment platform for small businesses and online stores. It lets you send payment links and invoices, split an invoice into a deposit and installments, and accept card and bank transfer payments. Card payments are processed by Finix, a PCI DSS Level 1 processor. ZeniPay Inc. was founded in 2026 in Québec and serves Canada and the United States.",
   },
   {
-    q: "What makes ZeniPay different from a regular online bank?",
-    a: "ZeniPay is the first online bank to build AI specialists directly into every account. Instead of searching FAQs or waiting for a human agent, you talk to Leo about bookkeeping, Ben about cashflow, Atlas about security, Vera about compliance, and Kai about revenue — and they answer using your real account data. Personal accounts come with 5 agents at no extra cost; business accounts can scale up to 9 specialists.",
+    q: "Is ZeniPay a bank?",
+    a: "No. ZeniPay is a payment technology platform, not a bank or a deposit-taking institution. It helps you collect payments from your customers and track them.",
   },
   {
-    q: "Is ZeniPay available in Canada?",
-    a: "Yes. ZeniPay is built first for Canada, with special focus on Quebec — bilingual (English / French) interface, CAD processing, FINTRAC-aligned compliance, Interac and ACH support. We also serve American businesses with USD processing, FedNow / RTP, and FinCEN-aligned compliance.",
+    q: "How do I create a payment link?",
+    a: "Open a business account, complete the business verification, then create a link with an amount, a currency (CAD or USD), a description and an optional expiry date. Share the URL by email or text, or show the QR code. Your customer pays by card or bank transfer without creating an account.",
   },
   {
-    q: "How does ZeniPay compare to Stripe or Wise?",
-    a: "Stripe is a payment processor; Wise is a money-transfer service. ZeniPay is an actual online bank — you open a real account with a routing number, hold balances, send and receive money, and access AI specialists who understand your account. Where Stripe charges extra for invoicing or analytics, ZeniPay includes them; where Wise stops at currency conversion, ZeniPay gives you a full banking surface plus AI agents that interpret your numbers.",
+    q: "Can my customers pay in installments?",
+    a: "Yes. Split any invoice into 2 to 12 installments, by amount or percentage. Each installment has its own payment link, is emailed on its due date, and unpaid ones get reminders 3 and 7 days later. ZeniPay does not lend money or charge your customer interest.",
   },
   {
-    q: "What can the AI agents actually do?",
-    a: "Each agent has a specialty and reads your live ZeniPay data. Leo (accountant) classifies expenses, prepares period closes, and helps with tax-prep readiness. Ben (finance) tracks cashflow, balances, and savings strategy. Atlas (security) flags fraud signals and walks you through incident response. Vera (compliance) answers KYC and regulatory questions. Kai (revenue intelligence) forecasts income and savings targets. They detect French or English from your first message and reply in that language.",
+    q: "What is Orvel?",
+    a: "Orvel is the AI assistant built into the ZeniPay dashboard. You ask in plain English or French, for example: Invoice Jean Tremblay $2,000 + tax in 3 payments. It creates the invoice, splits it and sends the links. It only acts within the permissions you give it, and every action is logged.",
   },
   {
-    q: "Is my money safe with ZeniPay?",
-    a: "Yes. Card payments are processed by Finix, a PCI DSS Level 1 processor, through tokenized card fields. ZeniPay encrypts data in transit and at rest, keeps signed, tamper-evident audit trails, and uses HMAC-signed sessions plus Supabase Auth for account access. Every API endpoint is session-bound — no merchant can read another tenant's data, ever. AI agents only read data scoped to your own account, never anyone else's.",
+    q: "How much does ZeniPay cost?",
+    a: "Processing fees depend on your business and the payment type. We do not publish generic rates: email info@zeniva.ca and we send you the pricing that applies before you accept your first payment.",
   },
   {
-    q: "How do I open a personal account?",
-    a: "Visit zenipay.ca/register?type=personal and complete the 2-step signup — email, password, name, country (Canada or US), age confirmation, then your DOB, phone, address, and SIN/SSN tail for identity verification. The account is live in under 2 minutes and ships with 5 AI specialists ready to help.",
+    q: "Is my customers' card data safe?",
+    a: "Card numbers are entered in secure fields provided by Finix, a PCI DSS Level 1 processor, so they never pass through your email or servers. ZeniPay encrypts data in transit and at rest, uses signed sessions and keeps a tamper-evident audit trail.",
   },
   {
-    q: "How do I open a business account?",
-    a: "Visit zenipay.ca/register and complete the 3-step business signup — account, business details (legal name, EIN/BN, address, industry), and identity verification. Your account is created with a real ZeniPay routing number, both Test and Live API keys, and full access to invoicing, payouts, and the AI agent fleet.",
+    q: "Which currencies does ZeniPay support?",
+    a: "Invoices and payment links can be in Canadian or US dollars. Cards are charged in Canadian dollars; for a USD amount, the customer sees the CAD equivalent before paying.",
   },
 ];
+
+const FAQ_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+};
 
 function FAQSection() {
   return (
@@ -538,11 +550,11 @@ function FAQSection() {
             fontSize: "clamp(28px, 4vw, 40px)", fontWeight: zp.weight.semibold,
             letterSpacing: "-0.025em", color: zp.text.primary, lineHeight: 1.1,
           }}>
-            Everything you'd want to ask the bank.
+            Questions business owners ask us.
           </h2>
           <p style={{ margin: 0, fontSize: 15, color: zp.text.muted, maxWidth: 560, marginInline: "auto" }}>
-            And if it's not here, ask Leo, Ben, or Atlas — they answer in
-            English or French, in real time, on your account.
+            Not here? Write to info@zeniva.ca — a person on our Québec team
+            answers, in English or French.
           </p>
         </div>
 
@@ -579,7 +591,7 @@ function FAQSection() {
         <p style={{ margin: "26px auto 0", textAlign: "center" as const, fontSize: 13, color: zp.text.muted }}>
           Still have questions?{" "}
           <a href="/contact" style={{ color: zp.brand.cyan, fontWeight: zp.weight.semibold, textDecoration: "underline" }}>
-            Talk to a banking specialist →
+            Contact our team →
           </a>
         </p>
       </div>
@@ -591,11 +603,11 @@ function FinalCTA() {
   return (
     <section style={{ padding: "96px 24px", textAlign: "center" as const }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <H2>The bank your AI agents deserve.</H2>
-        <p style={{ ...bodyStyle, marginTop: 14 }}>Join the first wave of enterprises using ZeniPay.</p>
+        <H2>Start getting paid online.</H2>
+        <p style={{ ...bodyStyle, marginTop: 14 }}>Open your business account in a few minutes, or ask us a question first.</p>
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 28, flexWrap: "wrap" }}>
-          <Link href="/register" style={primaryCta}>Get started free</Link>
-          <Link href="mailto:info@zeniva.ca" style={ghostCta}>Book a demo</Link>
+          <Link href="/register?type=business" style={primaryCta}>Open a business account</Link>
+          <a href="mailto:info@zeniva.ca" style={ghostCta}>info@zeniva.ca</a>
         </div>
       </div>
     </section>

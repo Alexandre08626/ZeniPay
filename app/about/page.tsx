@@ -43,17 +43,18 @@ function Hero() {
           fontSize: "clamp(40px, 6vw, 64px)", fontWeight: zp.weight.semibold,
           letterSpacing: "-0.035em", lineHeight: 1.05, color: zp.text.primary,
         }}>
-          We&rsquo;re building the first
+          A Canadian payment platform,
           <br />
-          <span className="zp-brand-text">bank that thinks.</span>
+          <span className="zp-brand-text">built in Québec.</span>
         </h1>
 
         <p style={{ margin: "22px auto 0", maxWidth: 680, fontSize: 17, lineHeight: 1.6, color: zp.text.muted }}>
-          Banking is the most paperwork-heavy product most people use, and the
-          most expensive customer-support surface for every business. ZeniPay
-          gives every account a built-in fleet of AI specialists who already
-          read your data — so you stop searching FAQs, stop emailing your
-          accountant, stop waiting on hold. You ask. They answer.
+          ZeniPay Inc. is a Canadian payment technology company founded in
+          2026 by Alexandre Blais in Québec City. Small businesses and online
+          stores use ZeniPay to send payment links and invoices, split an
+          invoice into a deposit and installments, and accept card and bank
+          transfer payments. ZeniPay is not a bank: card payments are
+          processed by Finix, a PCI DSS Level 1 processor.
         </p>
       </div>
     </section>
@@ -77,18 +78,19 @@ function Mission() {
           letterSpacing: "-0.025em", color: zp.text.primary, lineHeight: 1.15,
           textAlign: "center" as const, maxWidth: 720,
         }}>
-          Make banking that thinks the default — for everyone, in plain language.
+          Help small businesses get paid on time, without chasing.
         </h2>
         <p style={{
           margin: "0 auto", fontSize: 15, lineHeight: 1.7, color: zp.text.muted,
           maxWidth: 720, textAlign: "center" as const,
         }}>
-          ZeniPay is the first online bank where every account ships with a
-          fleet of specialized AI agents. They read your live account data,
-          answer in French or English, and remember the conversation across
-          visits. We&rsquo;re a Québec company, serving Canada and the United
-          States — bilingual interface, FINTRAC-aligned for Canada,
-          FinCEN-aligned for the US.
+          Every invoice that waits is cash a small business does not have.
+          ZeniPay puts the payment button inside the invoice, sends each
+          installment on its date, reminds the customer when it is late and
+          marks the invoice paid when the money comes in. Orvel, the AI
+          assistant built into the dashboard, does the paperwork when you ask
+          in plain French or English. We are part of Zeniva Group and serve
+          businesses in Canada and the United States, in CAD and USD.
         </p>
       </div>
     </section>
@@ -99,23 +101,23 @@ function Beliefs() {
   const beliefs = [
     {
       Icon: Bot,
-      title: "Every account deserves a fleet",
-      body: "5 AI specialists ship free with every personal account; up to 9 with every business account. Not optional add-ons — included by default.",
+      title: "Get paid faster",
+      body: "Payment links, invoices with a pay button, deposits and 2 to 12 installments, each with its own link and automatic reminders.",
     },
     {
       Icon: Wallet,
-      title: "AI agents need real wallets",
-      body: "Hard-coding API keys and credit cards into autonomous software is a security disaster. Every ZeniPay agent gets a real wallet, spending controls, and a signed audit trail.",
+      title: "AI that asks before it acts",
+      body: "Orvel only acts within the permissions you give it. Every action is logged, and reversible actions can be undone.",
     },
     {
       Icon: ShieldCheck,
-      title: "Banking-grade or nothing",
-      body: "Card processing through a PCI DSS Level 1 processor, encrypted at rest, HMAC-signed sessions, immutable audit chain. The boring infrastructure that keeps your money where it belongs.",
+      title: "Security first",
+      body: "Card processing through Finix, a PCI DSS Level 1 processor, with tokenized card fields. Data encrypted at rest, HMAC-signed sessions and a signed, tamper-evident audit trail.",
     },
     {
       Icon: Globe,
       title: "Bilingual is the default, not a feature",
-      body: "Built in Québec. The interface, agent conversations, and customer support are equally fluent in French and English. Detect from the first message, stay there.",
+      body: "Built in Québec. Invoice and installment emails are written in French with an English line, Orvel answers in the language you write in, and our team answers in both.",
     },
   ];
   return (
@@ -177,12 +179,12 @@ function CTA() {
           Want to talk?
         </h2>
         <p style={{ margin: "12px auto 22px", fontSize: 15, color: zp.text.muted, maxWidth: 540 }}>
-          Sales, partnerships, press, or just curiosity — bilingual team,
-          replies within one business day.
+          Sales, pricing, partnerships or press: write to info@zeniva.ca,
+          in French or English.
         </p>
         <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
           <Link href="/contact" style={primaryCta}>Contact us</Link>
-          <Link href="/register" style={ghostCta}>Open an account →</Link>
+          <Link href="/register?type=business" style={ghostCta}>Open an account →</Link>
         </div>
       </div>
     </section>

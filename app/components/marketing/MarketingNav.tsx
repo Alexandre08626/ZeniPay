@@ -45,9 +45,11 @@ export function MarketingNav() {
         </Link>
 
         <nav className="mk-nav-links" style={{ display: "flex", gap: 26, marginLeft: 24 }}>
-          <Link href="/#features" style={linkStyle}>Features</Link>
-          <Link href="/#pricing" style={linkStyle}>Pricing</Link>
-          <Link href="/#orvel" style={linkStyle}>Orvel</Link>
+          <Link href="/paylinks" style={linkStyle}>Payment links</Link>
+          <Link href="/invoices" style={linkStyle}>Invoicing</Link>
+          <Link href="/installments" style={linkStyle}>Installments</Link>
+          <Link href="/pricing" style={linkStyle}>Pricing</Link>
+          <Link href="/fr" hrefLang="fr-CA" style={linkStyle}>Français</Link>
         </nav>
 
         <div style={{ flex: 1 }} />
@@ -55,7 +57,7 @@ export function MarketingNav() {
         <div className="mk-nav-ctas" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Link href="/login" style={{ ...linkStyle, color: zp.text.muted }}>Sign in</Link>
           <Link
-            href="/register?type=personal"
+            href="/contact"
             style={{
               padding: "8px 14px", borderRadius: zp.radius.sm,
               border: `1px solid ${zp.surface.border}`,
@@ -63,7 +65,7 @@ export function MarketingNav() {
               fontSize: 13, fontWeight: zp.weight.semibold, textDecoration: "none",
             }}
           >
-            Personal account
+            Contact
           </Link>
           <Link
             href="/register?type=business"
@@ -105,9 +107,12 @@ export function MarketingNav() {
         >
           <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {[
-              { href: "/#features", label: "Features" },
-              { href: "/#pricing", label: "Pricing" },
-              { href: "/#orvel", label: "Orvel" },
+              { href: "/paylinks", label: "Payment links" },
+              { href: "/invoices", label: "Invoicing" },
+              { href: "/installments", label: "Installments" },
+              { href: "/pricing", label: "Pricing" },
+              { href: "/contact", label: "Contact" },
+              { href: "/fr", label: "Français" },
               { href: "/login", label: "Sign in" },
             ].map((l) => (
               <Link
@@ -120,7 +125,7 @@ export function MarketingNav() {
               </Link>
             ))}
             <Link
-              href="/register"
+              href="/register?type=business"
               onClick={() => setOpen(false)}
               style={{
                 marginTop: 14, padding: "14px 20px", textAlign: "center" as const,
@@ -166,9 +171,9 @@ export function MarketingFooter() {
               </span>
             </Link>
             <p style={{ margin: "12px 0 0", fontSize: 13, color: zp.text.muted, maxWidth: 300, lineHeight: 1.5 }}>
-              The first online bank with AI-intelligent wallets. Personal and
-              business banking in Canada and the US, with a built-in fleet of
-              AI specialists.
+              Canadian payment platform for small businesses: payment links,
+              online invoicing and installments. Cards processed by Finix, a
+              PCI DSS Level 1 processor. ZeniPay is not a bank.
             </p>
             <p style={{ margin: "16px 0 0", fontSize: 12, color: zp.text.muted }}>
               <a href="mailto:info@zeniva.ca" style={{ color: zp.text.muted, textDecoration: "none" }}>info@zeniva.ca</a>
@@ -176,13 +181,10 @@ export function MarketingFooter() {
           </div>
 
           <FooterCol title="Solutions" links={[
-            { label: "Banking",       href: "/banking" },
             { label: "Payments",      href: "/payments" },
-            { label: "Payouts",       href: "/payouts" },
-            { label: "Accounting",    href: "/accounting" },
             { label: "Pay Links",     href: "/paylinks" },
-            { label: "Financing",     href: "/financing" },
-            { label: "Tools",         href: "/tools" },
+            { label: "Invoicing",     href: "/invoices" },
+            { label: "Installments",  href: "/installments" },
           ]} />
 
           <FooterCol title="Product" links={[
@@ -191,13 +193,17 @@ export function MarketingFooter() {
             { label: "Security",      href: "/security" },
             { label: "Docs",          href: "/docs" },
             { label: "Sign in",       href: "/login" },
-            { label: "Get started",   href: "/register" },
+            { label: "Get started",   href: "/register?type=business" },
           ]} />
 
           <FooterCol title="Company" links={[
             { label: "About",         href: "/about" },
             { label: "Blog",          href: "/blog" },
             { label: "Contact",       href: "/contact" },
+            { label: "Version française", href: "/fr" },
+            { label: "Lien de paiement", href: "/fr/lien-de-paiement" },
+            { label: "Facturation en ligne", href: "/fr/facturation-en-ligne" },
+            { label: "Paiement en versements", href: "/fr/paiement-en-versements" },
           ]} />
 
           <FooterCol title="Legal" links={[

@@ -31,13 +31,13 @@ export default function BlogIndex() {
             fontSize: "clamp(36px, 5vw, 56px)", fontWeight: zp.weight.semibold,
             letterSpacing: "-0.03em", lineHeight: 1.06, color: zp.text.primary,
           }}>
-            On AI banking,
+            Getting paid,
             <br />
             <span className="zp-brand-text">in plain language.</span>
           </h1>
           <p style={{ margin: "20px auto 0", maxWidth: 600, fontSize: 16, color: zp.text.muted, lineHeight: 1.55 }}>
-            Insights from the team building the first online bank with
-            AI-intelligent wallets. Bilingual English / French.
+            Card fees, invoicing, deposits and payouts for Canadian small
+            businesses, from the ZeniPay team in Québec. English and French.
           </p>
         </div>
       </section>

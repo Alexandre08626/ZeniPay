@@ -236,7 +236,7 @@ function FeaturesGrid() {
     { Icon: Zap,         title: "Instant distribution",     body: "Fund your treasury once. Deploy anywhere in < 1s." },
     { Icon: CheckSquare, title: "Real-time approvals",      body: "Human-in-the-loop. Approve or block any transaction." },
     { Icon: BarChart2,   title: "GL auto-categorization",   body: "Every spend auto-tagged. QuickBooks & Xero ready." },
-    { Icon: Lock,        title: "Immutable audit trail",    body: "SHA-256 chain hash. SOC2-ready out of the box." },
+    { Icon: Lock,        title: "Immutable audit trail",    body: "SHA-256 chain hash, exportable for your accountant or auditor." },
     { Icon: Globe,       title: "Multi-currency",           body: "USD, CAD, EUR. USDC coming soon." },
   ];
   return (

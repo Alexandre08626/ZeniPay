@@ -26,10 +26,10 @@ export default function PricingPage() {
             fontSize: 44, fontWeight: zp.weight.semibold, color: zp.text.primary,
             letterSpacing: "-0.03em", lineHeight: 1.05,
           }}>
-            Start free. Scale when the agents start spending.
+            Pricing for getting paid online
           </h1>
           <p style={{ margin: 0, fontSize: 16, color: zp.text.muted, maxWidth: 620, marginLeft: "auto", marginRight: "auto" }}>
-            Modern banking rails for AI agents and the humans who run them. One wallet per agent, a central treasury, and a signed audit trail of every cent.
+            Open a business account at no charge. Processing fees apply per payment and depend on your business and payment types — ask us for a quote before you accept your first payment.
           </p>
         </div>
 
@@ -71,21 +71,21 @@ function StarterCard() {
           <span style={{ fontSize: 14, color: zp.text.muted, fontWeight: zp.weight.medium }}>/ month</span>
         </div>
         <p style={{ margin: "10px 0 0", fontSize: 13, color: zp.text.muted }}>
-          Free to start. Pay only when you move money.
+          No monthly subscription. Per-payment processing fees, quoted before you start.
         </p>
       </div>
 
       <FeatureList features={[
-        "1 business account (CAD or USD)",
-        "Up to 5 AI agents",
-        "Payment links + checkout",
-        "Basic invoicing",
-        "1 virtual ZeniPay card",
-        "Standard email support",
+        "Business account (CAD or USD)",
+        "Payment links with QR code",
+        "Invoices with a pay button",
+        "Deposits and 2 to 12 installments",
+        "Card and bank transfer (EFT) payments",
+        "Email support in French or English",
       ]} />
 
       <Link
-        href="/register"
+        href="/register?type=business"
         style={{
           display: "block", textAlign: "center", marginTop: "auto",
           background: zp.gradient.main, color: "#fff",
@@ -145,14 +145,12 @@ function EnterpriseCard() {
 
         <FeatureList features={[
           "Everything in Starter, plus:",
-          "Unlimited accounts + agents",
-          "ACH, wire & Interac (Canada) payouts",
-          "Custom approval workflows",
+          "Several businesses or brands",
           "Full API access",
+          "Custom approval workflows",
           "Signed audit trail + tamper-evident ledger",
           "White-label options",
-          "Priority support · 24h SLA",
-          "Dedicated account manager",
+          "Pricing tailored to your volume",
         ]} emphasizeFirst />
 
         <a
@@ -196,12 +194,12 @@ function FeatureList({ features, emphasizeFirst }: { features: string[]; emphasi
 
 function FaqSection() {
   const faqs = [
-    { q: "Is there a setup fee?", a: "No. You can open your first account and issue your first agent card for free." },
+    { q: "What are the processing fees?", a: "They depend on your business and on the payment type (card or bank transfer). We do not publish generic rates: email info@zeniva.ca and we send you the pricing that applies before you start." },
     { q: "Can I upgrade later?", a: "Yes — anytime. Starter → Enterprise takes minutes, no data migration." },
     { q: "Is my money safe?", a: "Card payments are processed by Finix, a PCI DSS Level 1 processor. The ledger is append-only and the audit trail can be verified independently." },
-    { q: "What currencies are supported?", a: "CAD and USD today. EUR and GBP are on the roadmap." },
-    { q: "Do agents need a card to spend?", a: "Every AI agent wallet supports virtual cards + direct API spends. Cards are optional." },
-    { q: "How do I get support?", a: "Email info@zeniva.ca. Enterprise customers get a 24-hour SLA and a dedicated account manager." },
+    { q: "What currencies are supported?", a: "Links and invoices can be in CAD or USD. Cards are charged in Canadian dollars; for a USD amount the customer sees the CAD equivalent before paying." },
+    { q: "Is ZeniPay a bank?", a: "No. ZeniPay is a payment technology platform. Card payments are processed by Finix, a PCI DSS Level 1 processor." },
+    { q: "How do I get support?", a: "Email info@zeniva.ca, in French or English. Our team is based in Québec." },
   ];
   return (
     <section style={{ maxWidth: 760, margin: "0 auto" }}>

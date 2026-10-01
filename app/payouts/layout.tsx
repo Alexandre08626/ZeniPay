@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  // Page retirée de l'index (2026-10-01) : contenu non vérifié ou page vide. Ne pas réindexer sans revoir le texte.
+  robots: { index: false, follow: true },
   title: "Instant Payouts — ACH, RTP, FedNow, Wire Transfers",
   description:
     "Send instant payouts to employees, contractors, and partners via ACH, real-time payments (RTP/FedNow), and wire transfers. Batch thousands of payouts with a single API call. The fastest payout platform in Canada and the US.",

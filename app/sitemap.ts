@@ -3,82 +3,62 @@ import { POSTS } from "./blog/posts";
 import { NEWS } from "./news/news-data";
 
 // Sitemap for crawlers (Google, Bing, DuckDuckGo, Yandex, AI search).
-// Priority is relative — 1.0 is the homepage, 0.9 the highest-intent
-// commercial surfaces, 0.3 legal pages.
+// Only indexable marketing pages belong here. Pages marked noindex
+// (/banking, /payouts, /accounting, /financing, /tools, /analytics,
+// /transactions) and app pages (/login, /register, /signup) are left out.
+// FR/EN pairs carry hreflang alternates.
+
+const BASE = "https://zenipay.ca";
+
+// [EN path, FR path]
+const PAIRS: Array<[string, string]> = [
+  ["", "/fr"],
+  ["/payments", "/fr/processeur-de-paiement-canada"],
+  ["/paylinks", "/fr/lien-de-paiement"],
+  ["/invoices", "/fr/facturation-en-ligne"],
+  ["/installments", "/fr/paiement-en-versements"],
+];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://zenipay.ca";
   const now = new Date();
 
-  const product = [
-    "/payments",
-    "/payouts",
-    "/banking",
-    "/invoices",
-    "/paylinks",
-    "/accounting",
-    "/financing",
-    "/security",
-    "/tools",
-    "/analytics",
-    "/transactions",
+  const paired: MetadataRoute.Sitemap = PAIRS.flatMap(([en, fr]) => {
+    const languages = { "en-CA": `${BASE}${en}`, "fr-CA": `${BASE}${fr}`, "x-default": `${BASE}${en}` };
+    const priority = en === "" ? 1.0 : 0.9;
+    return [
+      { url: `${BASE}${en}`, lastModified: now, changeFrequency: "weekly" as const, priority, alternates: { languages } },
+      { url: `${BASE}${fr}`, lastModified: now, changeFrequency: "weekly" as const, priority, alternates: { languages } },
+    ];
+  });
+
+  const single: Array<[string, number]> = [
+    ["/pricing", 0.9],
+    ["/contact", 0.8],
+    ["/about", 0.8],
+    ["/security", 0.7],
+    ["/merchant", 0.7],
+    ["/alexandre-blais", 0.6],
+    ["/blog", 0.7],
+    ["/news", 0.6],
+    ["/docs", 0.6],
+    ["/privacy", 0.3],
+    ["/terms", 0.3],
   ];
 
-  const agents = [
-    "/agents/overview",
-  ];
-
-  const persona = [
-    "/merchant",
-    "/ben",
-  ];
-
-  const conversion = [
-    "/pricing",
-    "/signup",
-    "/register",
-    "/login",
-    "/contact",
-    "/about",
-    "/alexandre-blais",
-  ];
-
-  const content = [
-    "/blog",
-    "/news",
-  ];
-
-  const reference = [
-    "/docs",
-  ];
-
-  const legal = [
-    "/privacy",
-    "/terms",
-  ];
-
-  const entries: MetadataRoute.Sitemap = [
-    { url: base, lastModified: now, changeFrequency: "weekly", priority: 1.0 },
-    ...product.map((p)     => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.9 })),
-    ...agents.map((p)      => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.9 })),
-    ...persona.map((p)     => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.8 })),
-    ...conversion.map((p)  => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.9 })),
-    ...content.map((p)     => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "weekly"  as const, priority: 0.8 })),
-    ...reference.map((p)   => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.7 })),
-    ...legal.map((p)       => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "yearly"  as const, priority: 0.3 })),
+  return [
+    ...paired,
+    ...single.map(([p, priority]) => ({ url: `${BASE}${p}`, lastModified: now, changeFrequency: "monthly" as const, priority })),
     ...POSTS.map((p) => ({
-      url: `${base}/blog/${p.slug}`,
+      url: `${BASE}/blog/${p.slug}`,
       lastModified: new Date(p.date),
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),
     ...NEWS.map((n) => ({
-      url: `${base}/news/${n.slug}`,
+      url: `${BASE}/news/${n.slug}`,
       lastModified: new Date(n.datePublished),
       changeFrequency: "yearly" as const,
       priority: 0.6,
     })),
   ];
-
-  return entries;
 }

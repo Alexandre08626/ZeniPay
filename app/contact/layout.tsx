@@ -1,26 +1,26 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Contact ZeniPay — talk to a banking specialist",
+  title: "Contact ZeniPay — payment links, invoicing and card processing",
   description:
-    "Reach the ZeniPay team for sales, support, partnerships, or media. Bilingual (English / French) team based in Quebec, serving Canadian and American businesses. Expect a reply within one business day.",
+    "Questions about payment links, online invoicing, installments or card processing for your business? Write to the ZeniPay team in Québec, in French or English: info@zeniva.ca.",
   keywords: [
     "contact ZeniPay",
     "ZeniPay support",
-    "online bank contact Canada",
+    "payment processor contact Canada",
     "fintech support Quebec",
-    "contacter banque en ligne Canada",
+    "contacter processeur de paiement Québec",
     "ZeniPay sales",
     "fintech Canada partnership",
-    "AI banking demo",
+    "payment links demo",
     "ZeniPay media inquiry",
-    "online bank customer service Canada",
-    "neobank Quebec contact",
+    "payment platform support Canada",
+    "lien de paiement Québec contact",
   ],
   openGraph: {
-    title: "Contact ZeniPay — talk to a banking specialist | ZeniPay",
+    title: "Contact ZeniPay — payment links, invoicing and card processing",
     description:
-      "Sales, support, partnerships, media. Bilingual team, replies within one business day.",
+      "Sales, support and partnerships. Bilingual team based in Québec.",
     url: "https://zenipay.ca/contact",
     images: [{ url: "/zenipay-logo.png", width: 1200, height: 1200, alt: "Contact ZeniPay" }],
   },

@@ -13,6 +13,12 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // Articles retirés le 2026-10-01 : ils présentaient ZeniPay comme une banque
+      // (numéro de transit, comptes) et publiaient des taux, ou décrivaient les
+      // agents Leo/Ben/Atlas retirés. Redirigés vers les pages qui décrivent le produit réel.
+      { source: "/blog/what-is-ai-banking", destination: "/", permanent: true },
+      { source: "/blog/zenipay-vs-stripe-vs-wise-canada", destination: "/payments", permanent: true },
+      { source: "/blog/agent-ia-financier-pme-canada", destination: "/fr", permanent: true },
       // Communiqué retiré : il annonçait une répartition automatique des commissions pas encore construite.
       {
         source: "/news/zenipay-commission-splits-for-platforms",

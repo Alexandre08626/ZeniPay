@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  // Page retirée de l'index (2026-10-01) : contenu non vérifié ou page vide. Ne pas réindexer sans revoir le texte.
+  robots: { index: false, follow: true },
   title: "Online business banking in Canada — accounts, payouts, AI agents",
   description:
     "Open a real business account with ZeniPay — Canadian and US routing numbers, multi-wallet architecture, ACH and wire, instant payouts (RTP/FedNow), and a built-in fleet of AI specialists for your books and cashflow.",

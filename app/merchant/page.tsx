@@ -382,8 +382,8 @@ function Stats() {
 
 function Capabilities() {
   const items = [
-    { title: "Accept cards + ACH",  body: "Visa, Mastercard, Amex, debit + ACH bank transfers. Tokenized with Finix.js; PANs never touch your servers." },
-    { title: "Instant payouts",     body: "RTP / FedNow / ACH / wire. Pay employees, contractors, suppliers in minutes, not days." },
+    { title: "Accept cards + bank transfers", body: "Credit and debit cards plus EFT bank transfers. Tokenized with Finix.js; card numbers never touch your servers." },
+    { title: "Payouts",             body: "Funds from your sales are paid out to your business bank account." },
     { title: "Pay links + QR",      body: "Generate a hosted checkout link or QR in seconds. Track status per customer." },
     { title: "Invoicing",           body: "Branded invoices with automated reminders. Customer pays online, funds settle directly." },
     { title: "Multi-wallet",        body: "Segregate customer funds, reserves, operating capital, and payouts. One dashboard, many balances." },
@@ -870,7 +870,7 @@ function ClosingCta() {
           }}
         >
           Fill out the onboarding flow, connect your bank account, start taking cards
-          the same day. Competitive per-transaction pricing. No monthly minimums.
+          the same day. Pricing on request: info@zeniva.ca.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <Link

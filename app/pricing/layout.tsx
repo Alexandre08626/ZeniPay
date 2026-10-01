@@ -1,30 +1,26 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Pricing — Free to start, scale as you grow",
+  title: "Pricing — payment links, invoicing and card processing",
   description:
-    "ZeniPay is free to open. Personal accounts include 5 AI specialists at no cost. Business accounts pay only per transaction (cards 2.7% + 30¢, ACH 0.8%). No monthly fees, no setup, no contracts — pricing built for Canadian and American businesses.",
+    "ZeniPay pricing for Canadian businesses: open a business account at no charge, then per-payment processing fees quoted for your business. Payment links, invoices and installments included.",
   keywords: [
     "ZeniPay pricing",
-    "online bank pricing Canada",
+    "payment link pricing Canada",
     "transaction fees Canada",
     "payment processing fees Canada",
     "frais de paiement en ligne Canada",
-    "tarifs banque en ligne Québec",
+    "tarifs lien de paiement Québec",
     "Stripe pricing alternative Canada",
-    "no monthly fee bank Canada",
-    "free business account Canada",
-    "business banking fees Canada",
-    "AI bank pricing",
+    "invoicing software pricing Canada",
     "payment fees ACH Canada",
     "credit card processing rates Canada",
-    "neobank fees Canada",
     "tarification ZeniPay",
   ],
   openGraph: {
-    title: "Pricing — Free to start, scale as you grow | ZeniPay",
+    title: "Pricing — payment links, invoicing and card processing | ZeniPay",
     description:
-      "Free to open. 5 AI agents included on personal accounts. Business pays per transaction — no monthly fee, no setup.",
+      "Business account at no charge; per-payment processing fees quoted for your business.",
     url: "https://zenipay.ca/pricing",
     images: [{ url: "/zenipay-logo.png", width: 1200, height: 1200, alt: "ZeniPay Pricing" }],
   },

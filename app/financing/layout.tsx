@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  // Page retirée de l'index (2026-10-01) : contenu non vérifié ou page vide. Ne pas réindexer sans revoir le texte.
+  robots: { index: false, follow: true },
   title: "Working capital + invoice financing for online businesses",
   description:
     "Get working-capital advances and invoice financing without leaving your bank. ZeniPay's revenue-based financing is underwritten on your real ZeniPay activity — no paperwork, no personal guarantees, repaid as a fixed slice of incoming payments.",

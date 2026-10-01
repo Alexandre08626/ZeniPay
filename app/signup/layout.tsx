@@ -3,19 +3,19 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Get Started — Create Your ZeniPay Account",
   description:
-    "Sign up for ZeniPay and start accepting payments in minutes. No setup fees, no monthly fees. Pay only per transaction. The modern payment platform for Canadian and American businesses.",
+    "Create your ZeniPay business account: payment links, online invoicing and installments for Canadian businesses. Cards processed by Finix, a PCI DSS Level 1 processor.",
   keywords: [
     "sign up payment gateway",
     "create payment account",
     "ZeniPay signup",
-    "accept payments free",
+    
     "ouvrir compte paiement",
     "payment gateway sign up Canada",
   ],
   openGraph: {
-    title: "Get Started with ZeniPay — Free Account",
+    title: "Get Started with ZeniPay",
     description:
-      "Create your ZeniPay account and accept payments in minutes. No setup fees.",
+      "Create your ZeniPay account: payment links, invoicing and installments.",
     url: "https://zenipay.ca/signup",
   },
   alternates: {

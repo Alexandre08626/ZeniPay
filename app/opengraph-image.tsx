@@ -4,7 +4,7 @@ import { join } from "path";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const alt = "ZeniPay — The first online bank with AI-intelligent wallets";
+export const alt = "ZeniPay — Payment links, invoicing and installments";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -68,7 +68,7 @@ export default async function Image() {
             color: "#fff",
           }}
         >
-          The first online bank with
+          Get paid online.
         </div>
         {/* Headline — line 2 (accent color) */}
         <div
@@ -82,7 +82,7 @@ export default async function Image() {
             marginTop: 4,
           }}
         >
-          AI-intelligent wallets.
+          Links, invoices, installments.
         </div>
 
         {/* Agent strip */}
@@ -96,7 +96,7 @@ export default async function Image() {
             textAlign: "center",
           }}
         >
-          Leo · Ben · Atlas · Vera · Kai — built into every account
+          Payment platform for Canadian businesses · Made in Québec
         </div>
 
         {/* URL */}

@@ -71,7 +71,6 @@ export default function SecurityPage() {
       <section style={{ maxWidth: 1100, margin: "0 auto", padding: `${spacing[4]} ${spacing[5]} ${spacing[9]}` }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: spacing[4] }}>
           {[
-            { label: "SOC2 Type II", value: "Target Q3 2026", desc: "Evidence collection is built into the product — every sensitive action writes to an append-only, triggered-immutable audit log." },
             { label: "Encryption at rest", value: "AES-256 Vault", desc: "All TOTP seeds + signing keys live in Supabase Vault. Application code never touches plaintext." },
             { label: "Audit signing key", value: "Ed25519", desc: "Global keypair, rotatable. Published SPKI at /.well-known/audit-signing-key.pub for offline verification." },
             { label: "Row-level security", value: "Always on", desc: "Every agents.* table has RLS. Service-role writes; authenticated users read scoped to their org membership." },
