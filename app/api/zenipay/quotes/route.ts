@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 import { requireZpSession } from "@/lib/auth/zp-session";
+import { isMissingTable } from "@/lib/zenipay/merchant-store";
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,6 +19,8 @@ export async function GET(req: NextRequest) {
       .eq("merchant_id", merchant_id)
       .order("created_at", { ascending: false });
 
+    // Table absente dans la base de prod actuelle → liste vide plutôt que 500.
+    if (error && isMissingTable(error)) return NextResponse.json({ quotes: [] });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ quotes: data || [] });
   } catch (err) {

@@ -1,6 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Les images Open Graph lisent le logo sur disque : sans ceci, il n'est pas
+  // copié dans la fonction Vercel (ENOENT → 500 sur /opengraph-image).
+  experimental: {
+    outputFileTracingIncludes: {
+      "/opengraph-image": ["./public/zenipay-logo-nobg.png"],
+      "/docs/opengraph-image": ["./public/zenipay-logo-nobg.png"],
+      "/payments/opengraph-image": ["./public/zenipay-logo-nobg.png"],
+      "/payouts/opengraph-image": ["./public/zenipay-logo-nobg.png"],
+    },
+  },
   async redirects() {
     return [
       // Communiqué retiré : il annonçait une répartition automatique des commissions pas encore construite.
