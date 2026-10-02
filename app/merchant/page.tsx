@@ -940,6 +940,8 @@ function FooterBar() {
         </div>
         <p style={{ margin: 0, fontFamily: T.fontSans, fontSize: 13, color: T.textMuted }}>
           © {new Date().getFullYear()} ILM Inc. Built in Québec.
+          {" · "}
+          <a href="https://zenitech.dev/en/ai-agents" hrefLang="en" style={{ color: T.textMuted, textDecoration: "none" }}>AI agents by industry — Zenitech</a>
         </p>
       </div>
     </footer>

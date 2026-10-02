@@ -1,5 +1,6 @@
 "use client";
 import { useT, LangToggleLight } from "../../modules/zenipay/i18n";
+import { ZenitechAgentsLink } from "@/app/components/marketing/ZenitechAgentsLink";
 
 export default function PrivacyPage() {
   const gradient = "linear-gradient(135deg, #2DBE60 0%, #15B8C9 50%, #7B4FBF 100%)";
@@ -182,6 +183,7 @@ export default function PrivacyPage() {
             <a href="/terms" style={{ fontSize: 14, color: "#6B7280", textDecoration: "none" }}>{t("common.termsAndConditions")}</a>
             <a href="/privacy" style={{ fontSize: 14, color: "#6B7280", textDecoration: "none" }}>{t("common.privacyPolicy")}</a>
             <a href="https://zenipay.ca" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: "#6B7280", textDecoration: "none" }}>zenipay.ca</a>
+            <ZenitechAgentsLink style={{ fontSize: 14, color: "#6B7280", textDecoration: "none" }} />
           </div>
         </div>
       </footer>

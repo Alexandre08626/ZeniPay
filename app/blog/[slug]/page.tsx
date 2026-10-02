@@ -132,7 +132,7 @@ export default function BlogPostPage() {
         </div>
       </article>
 
-      <MarketingFooter />
+      <MarketingFooter lang={post.language} />
     </div>
   );
 }

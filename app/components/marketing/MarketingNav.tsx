@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import zp from "@/lib/design-system/zenipay-brand";
+import { ZenitechAgentsLink } from "@/app/components/marketing/ZenitechAgentsLink";
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false);
@@ -150,7 +151,7 @@ export function MarketingNav() {
   );
 }
 
-export function MarketingFooter() {
+export function MarketingFooter({ lang }: { lang?: "en" | "fr" } = {}) {
   const year = new Date().getFullYear();
   return (
     <footer style={{ borderTop: `1px solid ${zp.surface.border}`, background: zp.surface.bg2, marginTop: 64 }}>
@@ -221,7 +222,11 @@ export function MarketingFooter() {
         }}>
           <span>© {year} International Luxury Management Inc. (ZeniPay)</span>
           <span>Made in Québec · Serving Canada and the United States</span>
-          <a href="https://zenitech.dev/" style={{ color: zp.text.dim, textDecoration: "none" }}>Website by Zenitech — web &amp; AI agency</a>
+          <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 8 }}>
+            <a href="https://zenitech.dev/" style={{ color: zp.text.dim, textDecoration: "none" }}>Website by Zenitech — web &amp; AI agency</a>
+            <span aria-hidden="true">·</span>
+            <ZenitechAgentsLink lang={lang} style={{ color: zp.text.dim, textDecoration: "none" }} />
+          </span>
         </div>
 
         <style>{`

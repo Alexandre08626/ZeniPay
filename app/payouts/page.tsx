@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Nav from "../components/Nav";
 import { useT } from "../../modules/zenipay/i18n";
+import { ZenitechAgentsLink } from "@/app/components/marketing/ZenitechAgentsLink";
 
 const ZP_GREEN = "#2DBE60"; const ZP_CYAN = "#15B8C9"; const ZP_BLUE = "#2A8FE0"; const ZP_PURPLE = "#7B4FBF";
 const ZP_GRAD = `linear-gradient(135deg, ${ZP_GREEN} 0%, ${ZP_CYAN} 45%, ${ZP_PURPLE} 100%)`;
@@ -149,6 +150,7 @@ export default function PayoutsPage() {
         <div style={{ display: "flex", gap: 24 }}>
           {[{ label: t("nav.payments"), href: "/payments" }, { label: t("nav.payouts"), href: "/payouts" }, { label: t("nav.tools"), href: "/tools" }, { label: t("nav.docs"), href: "/docs" }].map(item => <Link key={item.href} href={item.href} style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>{item.label}</Link>)}
         </div>
+        <ZenitechAgentsLink style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }} />
         <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>{t("common.copyright")}</p>
       </footer>
     </div>

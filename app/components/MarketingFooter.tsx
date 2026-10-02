@@ -5,6 +5,7 @@
 // footer defined inline in app/merchant/page.tsx.
 
 import Link from "next/link";
+import { ZenitechAgentsLink } from "@/app/components/marketing/ZenitechAgentsLink";
 import {
   color,
   spacing,
@@ -244,6 +245,14 @@ export default function MarketingFooter() {
         >
           Website by Zenitech — web &amp; AI agency
         </a>
+        <ZenitechAgentsLink
+          style={{
+            fontFamily: font.sans,
+            fontSize: fontSize.xs.size,
+            color: color.textSubtle,
+            textDecoration: "none",
+          }}
+        />
       </div>
 
       <style>{`
