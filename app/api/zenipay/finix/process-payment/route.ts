@@ -5,6 +5,7 @@ import { processFinixPaymentWithInstrument } from "@/modules/zenipay/gateways/fi
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 import { getActiveRate, type Currency } from "@/modules/zenipay/services/fx";
 import { newRowId, createPaidInvoice, emailInvoice } from "@/lib/zenipay/auto-invoice";
+import { getLinkHook, notifyPaid } from "@/lib/zenipay/link-hooks";
 import { resolvePayTarget, chargeableAmount } from "@/lib/zenipay/pay-target";
 import { markInstallmentPaid } from "@/lib/zenipay/installments";
 
@@ -414,9 +415,28 @@ export async function POST(req: NextRequest) {
         .update({ uses: target.uses + 1, updated_at: now }).eq("id", pay_link_id);
     }
 
+    // ─── 7b. MERCHANT CALLBACK (signed payment.succeeded) + RETURN PAGE ───
+    let returnUrl: string | null = null;
+    if (target.kind === "link" && merchantId) {
+      if (finixResult.state === "SUCCEEDED") {
+        await notifyPaid(supabase, merchantId, String(pay_link_id), {
+          payment_id: paymentRef,
+          transaction_id: finixResult.transferId || paymentId,
+          amount: amountNum,
+          currency: finixCurrency,
+          description: finalDescription || "",
+          customer_name: customer_name || "",
+          customer_email: customer_email || "",
+        });
+      }
+      try {
+        returnUrl = (await getLinkHook(supabase, merchantId, String(pay_link_id)))?.return_url || null;
+      } catch { /* optional */ }
+    }
+
     // ─── 8. RETURN SUCCESS ────────────────────────────────────────────────
     const responsePayload = {
-      success: true, paymentId: paymentRef, payment_id: paymentId,
+      success: true, paymentId: paymentRef, payment_id: paymentId, return_url: returnUrl,
       transferId: finixResult.transferId,
       state: finixResult.state,
       amount: amountNum, currency: finixCurrency,

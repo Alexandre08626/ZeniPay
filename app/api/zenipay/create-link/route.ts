@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../../../modules/zenipay/services/supabase";
 import { requireZpSession, resolveMerchantId, getZpSession } from "@/lib/auth/zp-session";
+import { buildHook, saveLinkHook } from "@/lib/zenipay/link-hooks";
 
 export async function GET(req: NextRequest) {
   try {
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, currency = "CAD", description, expiry, merchant, merchant_id: directMerchantId, api_key } = await req.json();
+    const { amount, currency = "CAD", description, expiry, merchant, merchant_id: directMerchantId, api_key, metadata, return_url, notify_url } = await req.json();
 
     if (!amount || parseFloat(String(amount)) <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
       if (guard instanceof NextResponse) return guard;
     }
 
+    let keyAuthenticated = false;
     if (!merchantId && api_key) {
       // Server-to-server call (no session). Resolve via api_key.
       // Scan every merchant: a fixed .limit(10) silently rejected valid keys
@@ -105,6 +107,7 @@ export async function POST(req: NextRequest) {
       });
       if (merchantRow) {
         merchantId = merchantRow.id as string;
+        keyAuthenticated = true;
       }
     }
 
@@ -163,8 +166,15 @@ export async function POST(req: NextRequest) {
       console.warn("[create-link] merchant_data save error:", updateError);
     }
 
+    // Merchant-side references (e.g. Zeniva Travel proposal), return page and signed
+    // payment callback. notify_url is only honoured for API-key (server) calls.
+    const hook = buildHook({ metadata, return_url, notify_url, api_key: keyAuthenticated ? String(api_key) : undefined });
+    if (hook) await saveLinkHook(supabase, merchantId, id, hook);
+
     return NextResponse.json({
       success: true, id, url,
+      return_url: hook?.return_url || null,
+      notify: Boolean(hook?.notify_url),
       amount: parseFloat(String(amount)), currency,
       description: description || "",
       expires_at: expiry ? new Date(expiry).toISOString() : null,

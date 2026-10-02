@@ -42,7 +42,7 @@ function PayLinkContent() {
   const [error,   setError]   = useState("");
   const [finixReady, setFinixReady] = useState(false);
   const [fraudSessionId, setFraudSessionId] = useState<string>("");
-  const [paymentResult, setPaymentResult] = useState<{ paymentId?: string; transferId?: string; card?: { brand?: string; last4?: string }; state?: string; eftStatus?: string; last4?: string } | null>(null);
+  const [paymentResult, setPaymentResult] = useState<{ paymentId?: string; transferId?: string; return_url?: string | null; card?: { brand?: string; last4?: string }; state?: string; eftStatus?: string; last4?: string } | null>(null);
 
   // EFT (bank transfer) — alternative to card for amounts ≤ $2,500.
   // Settles in 3-5 business days; we keep it on the same page behind
@@ -343,6 +343,14 @@ function PayLinkContent() {
     }
   };
 
+  // Merchant asked for a return page (e.g. Zeniva Travel trip confirmation): go back after a short pause.
+  useEffect(() => {
+    const back = paymentResult?.return_url;
+    if (!success || !back || paymentResult?.state !== "SUCCEEDED") return;
+    const t = setTimeout(() => { window.location.href = back; }, 6000);
+    return () => clearTimeout(t);
+  }, [success, paymentResult]);
+
   if (linkClosed && !success) {
     return (
       <div style={{ minHeight: "100vh", background: ZP_DARK, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -372,6 +380,12 @@ function PayLinkContent() {
             {eftPending ? "Bank transfer initiated" : t("checkout.paymentConfirmed")}
           </h1>
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16, margin: "0 0 16px" }}>{fmtMoney(amount)} — {desc || "Payment"}</p>
+
+          {pr?.return_url && (
+            <a href={pr.return_url} style={{ display: "inline-block", margin: "0 0 16px", padding: "10px 20px", borderRadius: 12, background: "#fff", color: "#0B1B4D", fontWeight: 800, textDecoration: "none" }}>
+              Return to merchant / Retour au marchand →
+            </a>
+          )}
 
           {eftPending && (
             <div style={{ background: "rgba(59,130,246,0.10)", border: "1px solid rgba(96,165,250,0.4)", borderRadius: 12, padding: "12px 16px", marginBottom: 14, textAlign: "left", fontSize: 13, lineHeight: 1.55 }}>
