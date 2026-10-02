@@ -17,6 +17,10 @@ const PAIRS: Array<[string, string]> = [
   ["/paylinks", "/fr/lien-de-paiement"],
   ["/invoices", "/fr/facturation-en-ligne"],
   ["/installments", "/fr/paiement-en-versements"],
+  ["/guides", "/fr/guides"],
+  ["/guides/how-to-send-a-payment-link", "/fr/guides/envoyer-lien-de-paiement-client"],
+  ["/guides/quebec-invoicing-gst-qst", "/fr/guides/facturer-en-ligne-quebec-tps-tvq"],
+  ["/guides/offering-installment-payments", "/fr/guides/offrir-paiement-en-versements"],
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -24,7 +28,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const paired: MetadataRoute.Sitemap = PAIRS.flatMap(([en, fr]) => {
     const languages = { "en-CA": `${BASE}${en}`, "fr-CA": `${BASE}${fr}`, "x-default": `${BASE}${en}` };
-    const priority = en === "" ? 1.0 : 0.9;
+    const priority = en === "" ? 1.0 : en.startsWith("/guides") ? 0.8 : 0.9;
     return [
       { url: `${BASE}${en}`, lastModified: now, changeFrequency: "weekly" as const, priority, alternates: { languages } },
       { url: `${BASE}${fr}`, lastModified: now, changeFrequency: "weekly" as const, priority, alternates: { languages } },

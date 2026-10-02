@@ -23,6 +23,9 @@ const RELATED_FR = [
   { label: "Paiement en versements", href: "/fr/paiement-en-versements" },
   { label: "Processeur de paiement au Canada", href: "/fr/processeur-de-paiement-canada" },
   { label: "Frais de carte de crédit pour une PME", href: "/blog/frais-traitement-carte-credit-pme-quebec" },
+  { label: "Guide : facturer avec la TPS et la TVQ", href: "/fr/guides/facturer-en-ligne-quebec-tps-tvq" },
+  { label: "Guide : envoyer un lien de paiement", href: "/fr/guides/envoyer-lien-de-paiement-client" },
+  { label: "Guide : offrir le paiement en versements", href: "/fr/guides/offrir-paiement-en-versements" },
   { label: "Sécurité", href: "/security" },
 ];
 const RELATED_EN = [
@@ -30,6 +33,9 @@ const RELATED_EN = [
   { label: "Online invoicing", href: "/invoices" },
   { label: "Installment payments", href: "/installments" },
   { label: "Payment processing in Canada", href: "/payments" },
+  { label: "Guide: GST and QST invoicing in Québec", href: "/guides/quebec-invoicing-gst-qst" },
+  { label: "Guide: sending a payment link", href: "/guides/how-to-send-a-payment-link" },
+  { label: "Guide: offering installment payments", href: "/guides/offering-installment-payments" },
   { label: "Security", href: "/security" },
   { label: "Contact", href: "/contact" },
 ];

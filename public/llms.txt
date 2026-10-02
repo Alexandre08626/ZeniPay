@@ -31,6 +31,14 @@ ZeniPay is part of Zeniva Group, founded by Alexandre Blais in Québec. Sister b
 - Do customers need a ZeniPay account to pay? No. They open the link or invoice and pay by card or bank transfer.
 - Can a business ask for a deposit? Yes: make the first installment due today; it is emailed immediately.
 
+## Guides
+
+Sourced guides (Revenu Québec, Canada Revenue Agency, Office de la protection du consommateur, FCAC, Justice Canada), checked 2026-10-02. Index: [FR](https://zenipay.ca/fr/guides) · [EN](https://zenipay.ca/guides)
+
+- [Comment envoyer un lien de paiement à un client](https://zenipay.ca/fr/guides/envoyer-lien-de-paiement-client) ([EN: How to send a payment link](https://zenipay.ca/guides/how-to-send-a-payment-link)): 5 steps, channel by situation (email, text, QR), message template, avoiding phishing look-alikes, CASL s. 6(6) transactional exemption and s. 6(2) identification/unsubscribe requirements.
+- [Facturer en ligne au Québec : TPS, TVQ et mentions obligatoires](https://zenipay.ca/fr/guides/facturer-en-ligne-quebec-tps-tvq) ([EN: Invoicing online in Québec: GST, QST](https://zenipay.ca/guides/quebec-invoicing-gst-qst)): GST 5% and QST 9.975% on the sale price, rounding, Revenu Québec required-information table (under $100, $100 to $499.99, $500+), $30,000 small-supplier threshold, French-language rule (Charter s. 57), six-year record retention.
+- [Offrir le paiement en versements : options et pièges](https://zenipay.ca/fr/guides/offrir-paiement-en-versements) ([EN: Offering installment payments](https://zenipay.ca/guides/offering-installment-payments)): split invoice vs buy now pay later vs instalment sale, who carries the risk, when fees or a cash discount count as credit charges (OPC), sample 30/30/40 schedule.
+
 ## Articles
 
 - [Frais de carte de crédit pour une PME au Québec : ce que vous payez vraiment en 2026](https://zenipay.ca/blog/frais-traitement-carte-credit-pme-quebec): interchange, network fees, processor margin, federal small-business reduction thresholds, the 4 lines to check on a merchant statement (sourced).

@@ -199,11 +199,13 @@ export function MarketingFooter() {
           <FooterCol title="Company" links={[
             { label: "About",         href: "/about" },
             { label: "Blog",          href: "/blog" },
+            { label: "Guides",        href: "/guides" },
             { label: "Contact",       href: "/contact" },
             { label: "Version française", href: "/fr" },
             { label: "Lien de paiement", href: "/fr/lien-de-paiement" },
             { label: "Facturation en ligne", href: "/fr/facturation-en-ligne" },
             { label: "Paiement en versements", href: "/fr/paiement-en-versements" },
+            { label: "Guides en français", href: "/fr/guides" },
           ]} />
 
           <FooterCol title="Legal" links={[
