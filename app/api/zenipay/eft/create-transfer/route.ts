@@ -24,6 +24,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { notifyPaid } from "@/lib/zenipay/link-hooks";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { createBankAccountInstrument, createACHDebit } from "@/lib/finix/ach-client";
 import { newRowId } from "@/lib/zenipay/auto-invoice";
@@ -202,6 +203,15 @@ export async function POST(req: NextRequest) {
     console.error("[eft/create-transfer] payment insert failed:", insErr.message);
     // The transfer is already at Finix — return success so the customer
     // doesn't double-pay. We'll reconcile via webhook.
+  }
+
+  // Rare instant settlement: the Finix webhook will see it as already succeeded, so notify here.
+  if (status === "succeeded" && target.kind === "link") {
+    await notifyPaid(supabase, merchantId, payLinkId, {
+      payment_id: paymentRef, transaction_id: transferId, amount, currency,
+      description: description || "", customer_name: customerName || "", customer_email: customerEmail || "",
+      payment_method: "eft",
+    });
   }
 
   return NextResponse.json({

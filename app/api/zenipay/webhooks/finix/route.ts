@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { verifyFinixSignature } from "@/lib/finix/webhook-signature";
+import { notifyPaid } from "@/lib/zenipay/link-hooks";
 import { getSupabaseAdmin } from "../../../../../modules/zenipay/services/supabase";
 import { FundingClient } from "@/lib/zenicore/funding-client";
 import type { Currency } from "@/lib/zenicore/types";
@@ -171,6 +172,19 @@ export async function POST(request: Request) {
             // Card payments were already invoiced by process-payment; only the
             // first completion (EFT, 3-D Secure) creates the invoice here.
             if (!firstCompletion) break;
+            // 3-D Secure / EFT completed: tell the merchant's server (signed), like process-payment does.
+            if (meta.payment_link_id && payment.merchant_id) {
+              await notifyPaid(supabase, payment.merchant_id, String(meta.payment_link_id), {
+                payment_id: String(meta.reference || payment.id),
+                transaction_id: transferId,
+                amount: Number(payment.amount) || 0,
+                currency: payment.currency || "CAD",
+                description: payment.description || "",
+                customer_name: payment.customer_name || "",
+                customer_email: payment.customer_email || "",
+                payment_method: payment.payment_method || "card",
+              });
+            }
             if (meta.installment_id) {
               const inst = await findInstallmentById(supabase, String(meta.installment_id));
               if (inst) {
