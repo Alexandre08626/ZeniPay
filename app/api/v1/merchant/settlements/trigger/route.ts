@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createSettlement, getMerchantBalance } from "@/lib/finix/settlement-client";
 import { auditAsync } from "@/lib/audit/audit-logger";
-import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
+import { requireAdmin, requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 
 interface Body {
   merchant_id?: string;
@@ -25,6 +25,10 @@ function err(code: string, message: string, status: number, detail?: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  // Sweeps ZeniPay's own platform-level Finix balance — operators only,
+  // like the sibling GET /api/v1/merchant/settlements.
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   const session = await requireZpSession(req);
   if (session instanceof NextResponse) return session;
   let body: Body;
