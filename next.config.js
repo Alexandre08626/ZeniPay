@@ -11,6 +11,23 @@ const nextConfig = {
       "/payouts/opengraph-image": ["./public/zenipay-logo-nobg.png"],
     },
   },
+  // En-têtes de sécurité sur toutes les routes (pas de CSP pour l'instant).
+  // Aucune page ZeniPay n'est prévue pour être intégrée en iframe ailleurs :
+  // les iframes du paiement (Finix.js) sont des pages Finix intégrées CHEZ
+  // nous, donc X-Frame-Options ne les touche pas.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       // Articles retirés le 2026-10-01 : ils présentaient ZeniPay comme une banque
