@@ -223,6 +223,21 @@ export const ADMIN_EMAIL_ALLOWLIST: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * True if `email` is one of the operator addresses (case- and
+ * whitespace-insensitive). Sign-up routes use it to refuse creating a new
+ * account on an operator address: an account holding that email would be
+ * treated as an admin by isAdminSession().
+ */
+export function isAdminAllowlistedEmail(email: unknown): boolean {
+  const e = String(email ?? "").replace(/\s+/g, "").toLowerCase();
+  if (!e) return false;
+  for (const a of Array.from(ADMIN_EMAIL_ALLOWLIST)) {
+    if (a.replace(/\s+/g, "").toLowerCase() === e) return true;
+  }
+  return false;
+}
+
+/**
  * True only for a VERIFIED operator: a valid session whose account email
  * (Supabase Auth email, else the merchant row's email) is allowlisted.
  * The `x-admin-email` header alone proves nothing — anyone can send it —

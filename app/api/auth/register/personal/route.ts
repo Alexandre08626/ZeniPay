@@ -20,7 +20,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
-import { setSupabaseSessionCookies } from "@/lib/auth/zp-session";
+import { setSupabaseSessionCookies, isAdminAllowlistedEmail } from "@/lib/auth/zp-session";
 import { rateLimit } from "@/modules/zenipay/services/rate-limit";
 import { provisionPersonalFleet } from "@/lib/agents/provision-fleet";
 import { notifyAccountCreated } from "@/lib/notify/account-created";
@@ -97,6 +97,9 @@ export async function POST(req: NextRequest) {
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return err("bad_request", "invalid_email", 400);
+  // Operator addresses can never be claimed through public sign-up.
+  if (isAdminAllowlistedEmail(email))
+    return err("forbidden", "Registration is not available for this email.", 403);
   if (password.length < 12 || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password))
     return err("bad_request", "password_weak", 400, { need: "min 12 chars, 1 uppercase, 1 digit, 1 symbol" });
   if (firstName.length < 1) return err("bad_request", "first_name_required", 400);

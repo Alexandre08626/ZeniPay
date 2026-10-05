@@ -12,6 +12,7 @@ import { hashPassword } from "@/modules/zenipay/services/auth";
 import { generateApiKey, generateApiSecret } from "@/modules/zenipay/services/keys";
 import { rateLimit } from "@/modules/zenipay/services/rate-limit";
 import { notifyAccountCreated } from "@/lib/notify/account-created";
+import { isAdminAllowlistedEmail } from "@/lib/auth/zp-session";
 import { z } from "zod";
 
 const RegisterSchema = z.object({
@@ -72,6 +73,14 @@ export async function POST(req: NextRequest) {
       source,
       referrer,
     } = parsed.data;
+
+    // Operator addresses can never be claimed through public sign-up.
+    if (isAdminAllowlistedEmail(email)) {
+      return NextResponse.json(
+        { error: "Registration is not available for this email." },
+        { status: 403 }
+      );
+    }
 
     const supabase = getSupabaseAdmin();
     const merchantId = generateMerchantId();
