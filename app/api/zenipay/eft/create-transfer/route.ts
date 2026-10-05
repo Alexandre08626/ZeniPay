@@ -29,6 +29,7 @@ import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { createBankAccountInstrument, createACHDebit } from "@/lib/finix/ach-client";
 import { newRowId } from "@/lib/zenipay/auto-invoice";
 import { resolvePayTarget, chargeableAmount } from "@/lib/zenipay/pay-target";
+import { rateLimit, clientIp } from "@/modules/zenipay/services/rate-limit";
 
 const MAX_EFT_AMOUNT = 2500;        // dollars
 const MIN_EFT_AMOUNT = 1;           // $1 floor — Finix minimum
@@ -123,6 +124,16 @@ export async function POST(req: NextRequest) {
       last4,
       idempotent: true,
     });
+  }
+
+  // ── Throttle: every call past this point creates a real ACH debit at
+  // Finix. Typos are rejected above (400) and do not count; a customer
+  // normally sends a single transfer.
+  const ip = clientIp(req.headers);
+  const okIpLink = await rateLimit(`eft:ip-link:${ip}:${payLinkId.slice(0, 128)}`, 3, 10 * 60_000);
+  const okIp     = await rateLimit(`eft:ip:${ip}`, 6, 60 * 60_000);
+  if (!okIpLink || !okIp) {
+    return err("rate_limited", "Too many bank transfer attempts. Please try again later.", 429);
   }
 
   // ── 1. Create Finix bank-account instrument ─────────────────────────
