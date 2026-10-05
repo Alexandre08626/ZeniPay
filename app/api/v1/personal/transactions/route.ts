@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 interface CreateBody {
   merchant_id?: string;
   account_id?: string;
-  type?: string;        // 'income' | 'expense' | 'transfer_in' | 'transfer_out'
+  type?: string;        // 'expense' | 'transfer_out' (credits are refused)
   amount?: number;
   currency?: string;
   description?: string;
@@ -65,7 +65,13 @@ export async function POST(req: NextRequest) {
   const category   = body.category ? String(body.category).slice(0, 64) : null;
 
   if (!accountId) return NextResponse.json({ error: { code: "bad_request", message: "account_id_required" } }, { status: 400 });
-  if (!["income", "expense", "transfer_in", "transfer_out"].includes(type)) {
+  // Credits ("income" / "transfer_in") are never accepted from the client:
+  // a self-declared credit would mint balance out of thin air. Credits are
+  // only written server-side by the flows that actually move money.
+  if (type === "income" || type === "transfer_in") {
+    return NextResponse.json({ error: { code: "bad_request", message: "credit_type_not_allowed" } }, { status: 400 });
+  }
+  if (!["expense", "transfer_out"].includes(type)) {
     return NextResponse.json({ error: { code: "bad_request", message: "type_invalid" } }, { status: 400 });
   }
   if (!Number.isFinite(amount) || amount <= 0) {
