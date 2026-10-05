@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "respond") {
+    const rm = resolveMerchantId(session, payload.merchant_id ?? null);
+    if (rm instanceof NextResponse) return rm;
+    const merchant_id = rm;
     const { id, merchant_response, evidence } = payload;
     if (!id) return NextResponse.json({ error: "Missing dispute id" }, { status: 400 });
 
@@ -75,11 +78,14 @@ export async function POST(req: NextRequest) {
     if (merchant_response) updates.merchant_response = merchant_response;
     if (evidence) updates.evidence = evidence;
 
-    await supabase.from("zenipay_disputes").update(updates).eq("id", id);
+    await supabase.from("zenipay_disputes").update(updates).eq("id", id).eq("merchant_id", merchant_id);
     return NextResponse.json({ ok: true });
   }
 
   if (action === "resolve") {
+    const rm = resolveMerchantId(session, payload.merchant_id ?? null);
+    if (rm instanceof NextResponse) return rm;
+    const merchant_id = rm;
     const { id, resolution, status } = payload;
     if (!id) return NextResponse.json({ error: "Missing dispute id" }, { status: 400 });
 
@@ -88,7 +94,7 @@ export async function POST(req: NextRequest) {
       status: status || "won",
       resolved_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    }).eq("id", id);
+    }).eq("id", id).eq("merchant_id", merchant_id);
     return NextResponse.json({ ok: true });
   }
 
