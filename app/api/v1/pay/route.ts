@@ -16,9 +16,20 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createHash } from "crypto";
 import { errorResponse, serverError } from "../agents/_lib/errors";
+import { tooManyFailures, recordFailure, clientIp } from "@/modules/zenipay/services/rate-limit";
 
 const VALID_CURRENCIES = ["USD", "CAD", "EUR", "USDC"] as const;
+
+// Brute-force protection (PAN / CVV / expiry guessing): only failed charges
+// count, per IP and per card (hashed — the PAN is never stored).
+const FAIL_WINDOW_MS = 10 * 60_000;
+const MAX_FAILS_IP   = 5;
+const MAX_FAILS_CARD = 5;
+// Card lookup / CVV / expiry failures all collapse into ONE generic answer
+// so the endpoint can't be used as an oracle to validate card data.
+const CARD_VERIFY_CODES = new Set(["card_not_found", "cvv_mismatch", "expiry_mismatch"]);
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,6 +59,20 @@ export async function POST(req: NextRequest) {
       return errorResponse("bad_request", "amount_units must be positive");
     if (!VALID_CURRENCIES.includes(currency as typeof VALID_CURRENCIES[number]))
       return errorResponse("bad_request", `currency must be one of ${VALID_CURRENCIES.join(", ")}`);
+
+    const ip = clientIp(req.headers);
+    const cardHash = createHash("sha256").update(`zp-v1-pay:${card_number_full}`).digest("hex").slice(0, 32);
+    const failKeys = [`v1pay:ip:${ip}`, `v1pay:card:${cardHash}`];
+    const [blkIp, blkCard] = await Promise.all([
+      tooManyFailures(failKeys[0], MAX_FAILS_IP, FAIL_WINDOW_MS),
+      tooManyFailures(failKeys[1], MAX_FAILS_CARD, FAIL_WINDOW_MS),
+    ]);
+    if (blkIp || blkCard) {
+      return NextResponse.json(
+        { error: { code: "rate_limited", message: "Too many attempts. Please try again later." } },
+        { status: 429 },
+      );
+    }
 
     const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -83,13 +108,17 @@ export async function POST(req: NextRequest) {
     // RPC returns { success, transaction_id, zenicore_tx_group, fee_charged_units,
     //                net_to_merchant_units, error_code, error_message }
     if (!row.success) {
+      await recordFailure(failKeys, FAIL_WINDOW_MS);
+      if (CARD_VERIFY_CODES.has(String(row.error_code))) {
+        return errorResponse("unprocessable", "Card declined.", { charge_error_code: "card_declined" });
+      }
       const code = typeof row.error_code === "string" ? row.error_code : "charge_failed";
       const msg  = typeof row.error_message === "string" ? row.error_message : "Charge rejected.";
       // Map common codes to the nearest HTTP bucket.
       const httpCode =
-        code === "card_not_found" || code === "merchant_not_found" ? "not_found" as const :
+        code === "merchant_not_found" ? "not_found" as const :
         code === "insufficient_funds" || code === "card_paused" || code === "card_canceled" ? "unprocessable" as const :
-        code === "cvv_mismatch" || code === "expiry_mismatch" || code === "merchant_not_allowed" ? "forbidden" as const :
+        code === "merchant_not_allowed" ? "forbidden" as const :
         "bad_request" as const;
       return errorResponse(httpCode, msg, { charge_error_code: code });
     }
