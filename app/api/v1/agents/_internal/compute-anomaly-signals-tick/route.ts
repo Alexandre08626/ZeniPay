@@ -48,9 +48,9 @@ interface TickMetrics {
 export async function POST(req: NextRequest) {
   try {
     const secret = process.env.AGENTS_FRAUD_CRON_SECRET || process.env.CRON_SECRET;
-    if (process.env.NODE_ENV === "production" && secret) {
-      const got = req.headers.get("authorization") ?? "";
-      if (got !== `Bearer ${secret}`) return errorResponse("unauthorized", "unauthorized");
+    // Fail closed: no secret configured (any env) or wrong header → 401.
+    if (!secret || (req.headers.get("authorization") ?? "") !== `Bearer ${secret}`) {
+      return errorResponse("unauthorized", "unauthorized");
     }
 
     const t0 = Date.now();
