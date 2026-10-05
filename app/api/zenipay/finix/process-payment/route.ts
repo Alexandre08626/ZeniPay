@@ -8,6 +8,7 @@ import { newRowId, createPaidInvoice, emailInvoice } from "@/lib/zenipay/auto-in
 import { getLinkHook, notifyPaid } from "@/lib/zenipay/link-hooks";
 import { resolvePayTarget, chargeableAmount } from "@/lib/zenipay/pay-target";
 import { markInstallmentPaid } from "@/lib/zenipay/installments";
+import { tooManyFailures, recordFailure, clientIp } from "@/modules/zenipay/services/rate-limit";
 
 // Finix is currently only configured for CAD settlement. Any non-CAD
 // pay link gets its amount converted to CAD via agents.fx_rates before
@@ -15,6 +16,17 @@ import { markInstallmentPaid } from "@/lib/zenipay/installments";
 // so the customer's invoice shows what they were quoted.
 const PROCESSOR_CURRENCY: Currency = "CAD";
 const SUPPORTED_CURRENCIES = new Set<Currency>(["CAD", "USD", "EUR", "USDC"]);
+
+// Card-testing protection: only FAILED attempts are counted, so a customer
+// who mistypes their card once or twice is never blocked.
+const FAIL_WINDOW_MS = 10 * 60_000;
+const MAX_FAILS_IP_LINK = 5;   // same visitor on the same link
+const MAX_FAILS_IP      = 10;  // same visitor across links
+const MAX_FAILS_LINK    = 25;  // same link across visitors (distributed testing)
+const TOO_MANY = {
+  error: "TOO_MANY_ATTEMPTS",
+  message: "Trop de tentatives. Réessayez dans quelques minutes. / Too many attempts. Please try again in a few minutes.",
+};
 
 /**
  * Finix Payment Processing — ALL writes via Supabase JS client (no edge function)
@@ -38,6 +50,23 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    // Only single-use Finix.js tokens (TK…) are accepted. A raw payment
+    // instrument id (PI…) would let a caller re-charge a stored card.
+    if (typeof instrument_id !== "string" || !/^TK[A-Za-z0-9]+$/.test(instrument_id)) {
+      return NextResponse.json({ error: "Invalid card token" }, { status: 400 });
+    }
+
+    const ip = clientIp(req.headers);
+    const linkKey = String(pay_link_id).slice(0, 128);
+    const failKeys = [`pp:ip-link:${ip}:${linkKey}`, `pp:ip:${ip}`, `pp:link:${linkKey}`];
+    const [blkIpLink, blkIp, blkLink] = await Promise.all([
+      tooManyFailures(failKeys[0], MAX_FAILS_IP_LINK, FAIL_WINDOW_MS),
+      tooManyFailures(failKeys[1], MAX_FAILS_IP, FAIL_WINDOW_MS),
+      tooManyFailures(failKeys[2], MAX_FAILS_LINK, FAIL_WINDOW_MS),
+    ]);
+    if (blkIpLink || blkIp || blkLink) {
+      return NextResponse.json(TOO_MANY, { status: 429 });
+    }
 
     const supabase = getSupabaseAdmin();
 
@@ -46,6 +75,7 @@ export async function POST(req: NextRequest) {
     // record, NEVER from the request body (tampered amount or merchant).
     const target = await resolvePayTarget(supabase, String(pay_link_id));
     if (!target) {
+      await recordFailure([failKeys[1]], FAIL_WINDOW_MS);
       return NextResponse.json({ error: "Payment link not found" }, { status: 404 });
     }
     if (["paid", "cancelled", "expired", "inactive", "disabled"].includes(String(target.status).toLowerCase())) {
@@ -131,6 +161,7 @@ export async function POST(req: NextRequest) {
         hasApiUser: !!process.env.FINIX_API_USERNAME,
         hasApiPass: !!process.env.FINIX_API_PASSWORD,
       });
+      await recordFailure(failKeys, FAIL_WINDOW_MS);
       return NextResponse.json(
         { error: "Payment processing failed", message: msg, paymentId: paymentRef },
         { status: 402 }
@@ -173,6 +204,7 @@ export async function POST(req: NextRequest) {
         console.error("[DB] failed-payment upsert error:", e);
       }
 
+      await recordFailure(failKeys, FAIL_WINDOW_MS);
       return NextResponse.json({
         error: "Payment declined",
         message: finixMsg || "Payment declined by the processor.",

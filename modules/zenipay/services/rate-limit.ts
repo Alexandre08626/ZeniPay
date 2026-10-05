@@ -63,3 +63,53 @@ export async function rateLimit(
     return true;
   }
 }
+
+// ─── Failure-only throttling ─────────────────────────────────────────────
+// For payment endpoints we only want to count FAILED attempts (declines,
+// bad card data, unknown links) so a customer who mistypes once or twice
+// is never blocked, while card-testing bots are. Same table, same
+// fixed-window bucket scheme and same fail-open behaviour as rateLimit().
+
+function failureBucket(key: string, windowMs: number): string {
+  return `fail:${key}:${Math.floor(Date.now() / windowMs)}`;
+}
+
+/** True when `key` already has `maxFailures` or more failures in the current window. Does not record anything. */
+export async function tooManyFailures(
+  key: string,
+  maxFailures: number,
+  windowMs: number,
+): Promise<boolean> {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { count, error } = await supabase
+      .from("zenipay_rate_limits")
+      .select("*", { count: "exact", head: true })
+      .eq("bucket_key", failureBucket(key, windowMs));
+    if (error) return false; // fail open, like rateLimit()
+    return (count ?? 0) >= maxFailures;
+  } catch {
+    return false;
+  }
+}
+
+/** Records one failed attempt for each key (best effort, never throws). */
+export async function recordFailure(keys: string[], windowMs: number): Promise<void> {
+  try {
+    const supabase = getSupabaseAdmin();
+    const now = new Date().toISOString();
+    const expires = new Date(Date.now() + windowMs).toISOString();
+    await supabase.from("zenipay_rate_limits").insert(
+      keys.map((k) => ({ bucket_key: failureBucket(k, windowMs), created_at: now, expires_at: expires })),
+    );
+  } catch {
+    /* best effort */
+  }
+}
+
+/** First hop of x-forwarded-for (Vercel sets it), else x-real-ip. */
+export function clientIp(headers: Headers): string {
+  const xff = headers.get("x-forwarded-for") || "";
+  const first = xff.split(",")[0]?.trim();
+  return first || headers.get("x-real-ip")?.trim() || "unknown";
+}
