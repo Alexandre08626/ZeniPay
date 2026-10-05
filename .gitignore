@@ -19,3 +19,8 @@ check_*.js
 connect_*.js
 find_*.js
 run_*.js
+# Scripts ponctuels contenant des secrets — ne jamais les remettre dans git (2026-10-05)
+scripts/setup-live-project.cjs
+scripts/setup-live-project.mjs
+scripts/fix-accounts.mjs
+scripts/create-accounts-direct.mjs
