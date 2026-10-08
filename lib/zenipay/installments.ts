@@ -36,6 +36,7 @@ export interface Installment {
   sent_at: string | null;
   reminder_count: number;
   last_reminder_at?: string | null;
+  auto_send?: boolean;       // false = single pay link of a "pay in full" invoice; the cron leaves it alone
   created_at?: string;
   updated_at?: string;
 }
@@ -89,7 +90,7 @@ const norm = (i: any): Installment => ({ ...i, amount: Number(i.amount), reminde
 
 export async function createInstallments(
   supabase: SupabaseClient,
-  args: { invoiceId: string; merchantId: string; currency: string; lines: Array<{ label: string; amount: number; due_date: string }> },
+  args: { invoiceId: string; merchantId: string; currency: string; lines: Array<{ label: string; amount: number; due_date: string }>; autoSend?: boolean },
 ): Promise<Installment[]> {
   const now = new Date().toISOString();
   const rows: Installment[] = args.lines.map((l, i) => ({
@@ -104,9 +105,14 @@ export async function createInstallments(
     status: "pending",
     pay_token: newPayToken(),
     payment_id: null, payment_ref: null, paid_at: null, sent_at: null, reminder_count: 0,
+    ...(args.autoSend === false ? { auto_send: false } : {}),
     created_at: now, updated_at: now,
   } as Installment));
-  const { error } = await supabase.from(TABLE).insert(rows);
+  let { error } = await supabase.from(TABLE).insert(rows);
+  // A real table created before auto_send existed: insert without it.
+  if (error && args.autoSend === false && /auto_send/.test(error.message || "")) {
+    ({ error } = await supabase.from(TABLE).insert(rows.map(({ auto_send: _a, ...r }) => r)));
+  }
   if (!error) return rows;
   if (!isMissingTable(error)) throw new Error(error.message);
   await updateConfigKey<Installment[]>(supabase, args.merchantId, CFG_KEY, [], (cur) => [...cur, ...rows]);

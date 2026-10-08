@@ -43,6 +43,7 @@ export interface CreatedInvoice {
   payment_ref: string;
   paid_at: string;
   status?: string;            // default "paid"
+  pay_url?: string;           // unpaid invoice sent with a payment link
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -195,6 +196,10 @@ export function renderInvoiceEmail(inv: CreatedInvoice): string {
     ${row(paid ? "Total payé / Total paid" : "Total dû / Total due", money(inv.total, inv.currency), true)}
     ${paid ? row("Référence de paiement", esc(inv.payment_ref)) : ""}
   </table>
+  ${!paid && inv.pay_url
+    ? `<div style="margin:22px 0 6px"><a href="${esc(inv.pay_url)}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:12px 22px;border-radius:10px">Payer ${money(inv.total, inv.currency)}</a></div>
+  <div style="font-size:11px;color:#94a3b8;word-break:break-all">${esc(inv.pay_url)}</div>`
+    : ""}
 
   <p style="font-size:11px;color:#94a3b8;margin-top:26px">Paiement traité par ZeniPay pour ${from}. Pour toute question, répondez à ce courriel.</p>
 </td></tr></table>

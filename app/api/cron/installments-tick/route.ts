@@ -31,6 +31,8 @@ export async function GET(req: Request) {
   catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 }); }
 
   for (const inst of due) {
+    // Pay link of a "pay in full" invoice: sent with the invoice, never by the cron.
+    if (inst.auto_send === false) continue;
     if (!inst.sent_at) {
       (await sendInstallmentRequest(supabase, inst, "request")) ? sent++ : failed++;
       continue;

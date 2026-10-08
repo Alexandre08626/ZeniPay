@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/modules/zenipay/services/supabase";
 import { requireZpSession, resolveMerchantId } from "@/lib/auth/zp-session";
 import { emailInvoice, type CreatedInvoice } from "@/lib/zenipay/auto-invoice";
-import { invoiceNumberOf, invoiceDescriptionOf } from "@/lib/zenipay/installments";
+import { invoiceNumberOf, invoiceDescriptionOf, listInstallments, payUrl } from "@/lib/zenipay/installments";
 import { updateTolerant } from "@/lib/zenipay/db-tolerant";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -78,6 +78,13 @@ export async function POST(req: NextRequest) {
     paid_at: row.paid_at || row.created_at || new Date().toISOString(),
     status: row.status || "sent",
   };
+
+  // "Pay in full" invoice created with a pay link: resend it with the link.
+  // (Split invoices keep their per-installment links/reminders.)
+  if (row.status !== "paid") {
+    const live = (await listInstallments(supabase, row.id, merchantId)).filter((i) => i.status !== "cancelled");
+    if (live.length === 1 && live[0].status !== "paid") invoice.pay_url = payUrl(live[0].pay_token);
+  }
 
   const sent = await emailInvoice(invoice);
   if (!sent) return NextResponse.json({ error: "EMAIL_FAILED" }, { status: 502 });

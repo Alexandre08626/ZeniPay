@@ -3,7 +3,8 @@
 // description, status, due_date, paid_at, created_at). Everything must
 // still work through the config-JSONB fallback + tolerant writes.
 import { describe, it, expect, vi } from "vitest";
-vi.mock("@/lib/email/send", () => ({ sendEmail: vi.fn(async () => {}) }));
+const { sendEmail } = vi.hoisted(() => ({ sendEmail: vi.fn(async (_m: any) => {}) }));
+vi.mock("@/lib/email/send", () => ({ sendEmail }));
 import { createMerchantInvoice } from "@/lib/zenipay/invoices";
 import { findInstallmentByToken, markInstallmentPaid, listMerchantInstallments, listDueInstallments } from "@/lib/zenipay/installments";
 import { resolvePayTarget } from "@/lib/zenipay/pay-target";
@@ -109,5 +110,27 @@ describe("production (legacy) schema", () => {
     expect(await claimUndo(db, "m1", id!)).toBe(true);
     expect(await claimUndo(db, "m1", id!)).toBe(false);
     expect(tables.zenipay_merchants[0].config.zp_installments).toHaveLength(2); // untouched by other keys
+  });
+
+  it("pay in full: with a pay link the email has a Pay button and paying closes the invoice; without, no link", async () => {
+    const tables: Record<string, any[]> = { zenipay_merchants: [{ id: "m1", email: "jj@x.ca", config: {} }], zenipay_invoices: [], zenipay_payments: [] };
+    const db = legacyDb(tables);
+
+    sendEmail.mockClear();
+    const r = await createMerchantInvoice(db, "m1", { customer_name: "Jean", customer_email: "jean@x.ca", amount: 100, tax: 14.98, status: "sent", send_now: true, with_pay_link: true });
+    expect(r.emailed).toEqual(["invoice"]);
+    expect(r.installments).toHaveLength(1);
+    const link = r.installments[0];
+    expect(link).toMatchObject({ amount: 114.98, label: "Paiement complet", auto_send: false });
+    expect(sendEmail.mock.calls[0][0].html).toContain(`/pay/${link.pay_token}`);
+    expect((await listMerchantInstallments(db, "m1"))[0].sent_at).toBeTruthy();
+    expect(await resolvePayTarget(db, link.pay_token)).toMatchObject({ kind: "installment", amount: 114.98 });
+    expect(await markInstallmentPaid(db, (await findInstallmentByToken(db, link.pay_token))!, { paymentId: "p1", paymentRef: "ZNV-1" })).toBe(true);
+    expect(tables.zenipay_invoices[0].status).toBe("paid");
+
+    sendEmail.mockClear();
+    const r2 = await createMerchantInvoice(db, "m1", { customer_name: "Paul", customer_email: "paul@x.ca", amount: 50, status: "sent", send_now: true, with_pay_link: false });
+    expect(r2.installments).toHaveLength(0);
+    expect(sendEmail.mock.calls[0][0].html).not.toContain("/pay/");
   });
 });

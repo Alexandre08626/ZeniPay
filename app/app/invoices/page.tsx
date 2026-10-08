@@ -423,6 +423,7 @@ function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCre
   const [split, setSplit] = useState(false);
   const [plan, setPlan] = useState<PlanRow[]>(() => presetPlan("3"));
   const [sendNow, setSendNow] = useState(true);
+  const [withPayLink, setWithPayLink] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -451,6 +452,7 @@ function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCre
         notes: form.notes,
         status: form.status,
         send_now: sendNow,
+        with_pay_link: !split && withPayLink && form.status !== "paid",
       };
       if (split) {
         body.installments = plan.map((r, i) => ({
@@ -466,7 +468,8 @@ function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCre
       if (!res.ok) throw new Error(j.error || "Invoice creation failed");
       const emailed: string[] = j.emailed || [];
       const num = j.invoice?.invoice_number || "";
-      setDone(emailed.length ? `Invoice ${num} created — emailed: ${emailed.join(", ")}.` : `Invoice ${num} created.`);
+      const linked = !split && (j.installments || []).length === 1 ? " with a payment link" : "";
+      setDone(emailed.length ? `Invoice ${num} created${linked} — emailed: ${emailed.join(", ")}.` : `Invoice ${num} created${linked}.`);
       await onCreated();
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setSaving(false); }
@@ -580,9 +583,24 @@ function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCre
       )}
 
       {!split && (
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 13, color: zp.text.primary, cursor: "pointer" }}>
-          <input type="checkbox" checked={sendNow} onChange={(e) => setSendNow(e.target.checked)} /> Email the invoice to the customer now
-        </label>
+        <div style={{ marginTop: 14 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: zp.text.primary, cursor: "pointer" }}>
+            <input type="checkbox" checked={sendNow} onChange={(e) => setSendNow(e.target.checked)} /> Email the invoice to the customer now
+          </label>
+          {form.status !== "paid" && (
+            <>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                <button type="button" style={chip(withPayLink)} onClick={() => setWithPayLink(true)}>With payment link</button>
+                <button type="button" style={chip(!withPayLink)} onClick={() => setWithPayLink(false)}>Without payment link</button>
+              </div>
+              <p style={{ fontSize: 11, color: zp.text.muted, margin: "6px 0 0" }}>
+                {withPayLink
+                  ? "The invoice includes a “Pay” button — the invoice is marked paid and a receipt is emailed when the customer pays."
+                  : "Invoice only, no pay button — for e-transfer, cheque or cash payments."}
+              </p>
+            </>
+          )}
+        </div>
       )}
 
       <div style={{ marginTop: 14 }}>
@@ -636,7 +654,7 @@ function InstallmentsPanel({ invoice }: { invoice: Invoice }) {
   return (
     <div style={{ marginTop: 22 }}>
       <div style={{ fontSize: 11, color: zp.text.muted, fontWeight: zp.weight.semibold, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
-        Installments
+        {rows?.length === 1 ? "Payment link" : "Installments"}
       </div>
       <div style={{ background: zp.surface.bg2, borderRadius: zp.radius.sm, padding: 12 }}>
         {rows === null && <div style={{ fontSize: 12, color: zp.text.muted }}>Loading…</div>}

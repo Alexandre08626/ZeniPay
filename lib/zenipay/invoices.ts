@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { newRowId, loadMerchant, nextInvoiceNumber, emailInvoice } from "./auto-invoice";
 import { insertTolerant, updateTolerant } from "./db-tolerant";
 import {
-  resolvePlan, createInstallments, sendInstallmentRequest, todayMontreal,
+  resolvePlan, createInstallments, sendInstallmentRequest, updateInstallment, todayMontreal, payUrl,
   type PlanLine, type Installment,
 } from "./installments";
 
@@ -22,6 +22,7 @@ export interface NewInvoiceInput {
   due_date?: string;       // YYYY-MM-DD
   installments?: PlanLine[];
   send_now?: boolean;      // email the invoice (or due installments) right away
+  with_pay_link?: boolean; // pay in full: attach a /pay/ link (mailed with the invoice, never by the cron)
 }
 
 export interface NewInvoiceResult {
@@ -65,6 +66,7 @@ export async function createMerchantInvoice(
   const merchant = await loadMerchant(supabase, merchantId);
   const description = String(input.description || "Service").slice(0, 300);
   const status = hasPlan ? "sent" : (input.status || "draft");
+  const withLink = !hasPlan && !!input.with_pay_link && status !== "paid";
   const now = new Date().toISOString();
 
   let invoice: Record<string, unknown> | null = null;
@@ -88,6 +90,7 @@ export async function createMerchantInvoice(
     };
     if (input.due_date) row.due_date = input.due_date;
     if (hasPlan) { row.has_installments = true; row.amount_paid = 0; row.due_date = lines[lines.length - 1].due_date; }
+    if (withLink) { row.has_installments = true; row.amount_paid = 0; }
 
     const { error } = await insertTolerant(supabase, "zenipay_invoices", row);
     if (!error) { invoice = { ...row, description }; break; }
@@ -113,16 +116,35 @@ export async function createMerchantInvoice(
     for (const inst of installments) {
       if (inst.due_date <= today && (await sendInstallmentRequest(supabase, inst))) emailed.push(inst.label);
     }
-  } else if (input.send_now && email) {
+  } else {
+    // One-line "installment" = the invoice's pay link: /pay/<token> checkout,
+    // and markInstallmentPaid marks the invoice paid + emails the receipt.
+    let link: Installment | null = null;
+    if (withLink) {
+      try {
+        installments = await createInstallments(supabase, {
+          invoiceId: String(invoice.id), merchantId, currency, autoSend: false,
+          lines: [{ label: "Paiement complet", amount: total, due_date: input.due_date || todayMontreal() }],
+        });
+        link = installments[0];
+      } catch (e) {
+        await supabase.from("zenipay_invoices").delete().eq("id", invoice.id);
+        const msg = e instanceof Error ? e.message : String(e);
+        throw new InvoiceError(msg, msg === "MIGRATION_REQUIRED" ? 503 : 500);
+      }
+    }
+    if (!(input.send_now && email)) return { invoice, installments, emailed };
     const ok = await emailInvoice({
       id: String(invoice.id), invoice_number: String(invoice.invoice_number),
       merchant_id: merchantId, merchant_name: merchant.name, merchant_email: merchant.email,
       customer_name: name, customer_email: email, description,
       subtotal: amount, tax, tax_rate: amount > 0 ? round2((tax / amount) * 100) : 0,
       total, currency, payment_ref: String(invoice.invoice_number), paid_at: now, status,
+      pay_url: link ? payUrl(link.pay_token) : undefined,
     });
     if (ok) {
       emailed.push("invoice");
+      if (link) await updateInstallment(supabase, link, { sent_at: now, status: "sent" });
       if (status === "draft") await updateTolerant(supabase, "zenipay_invoices", { status: "sent", updated_at: now }, (q) => q.eq("id", invoice!.id));
     }
   }
